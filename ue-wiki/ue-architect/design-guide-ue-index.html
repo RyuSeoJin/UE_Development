@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>문서 허브 & 용어집 — UE 문서 디자인 시스템 v1.1</title>
+<link rel="stylesheet" href="../../design-guide/design-guide-ue-master.css">
+<!-- ============================================================
+     CHANGELOG — design-guide-ue-index.html
+     생성 문서 인덱스 + 중앙 용어집. 작업 규약: design-guide/DOC-GENERATION-PLAYBOOK.md
+     v1.1 · 2026-07-01
+       - 신규 생성. 두 역할: (1) 생성 문서 목록 (2) 중앙 용어집(Glossary).
+       - 용어집은 '용어 · 뜻 · 자세히→' 형태로, 각 용어를 설명한 문서(+섹션)로 링크.
+       - 프레임워크 클래스·Possess 등 핵심 용어를 02 아키텍처 문서로 시드 링크.
+       - 위치 이동: design-guide/ → ue-wiki/ue-architect/ , 내부 링크를 ../../design-guide/ 로 갱신.
+     ============================================================ -->
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">UE DESIGN SYSTEM · 문서 허브</div>
+  <div class="nav-links">
+    <a href="#docs">문서 목록</a>
+    <a href="#glossary">용어집</a>
+    <a href="#howto">사용법</a>
+    <a href="../../design-guide/design-guide-ue-master-visual.html">마스터</a>
+    <a href="../../design-guide/01-ue-asset-analysis.html">에셋 분석</a>
+    <a href="../../design-guide/02-ue-architecture.html">아키텍처</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">Design System · v1.1 · Hub &amp; Glossary</div>
+  <h1>문서 허브<br><span>&amp; 용어집</span></h1>
+  <p class="hero-sub">
+    지금까지 만든 언리얼 문서를 한곳에 모으고(문서 목록), 문서에 등장하는 어려운 용어를 그 용어를 설명한 문서로 연결하는(용어집) 허브입니다. 어떤 문서에서 모르는 단어를 만나면, 여기 용어집에서 "자세히 →"를 눌러 원문 설명으로 바로 이동할 수 있습니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">생성 문서 인덱스</span>
+    <span class="badge badge-green">중앙 용어집</span>
+    <span class="badge badge-purple">교차 링크</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- 01 문서 목록 -->
+  <div class="section" id="docs">
+    <div class="section-label">01 — 생성 문서 목록</div>
+    <h2>지금까지 만든 문서</h2>
+    <p>새 문서를 만들면 <strong>이 표에 등록</strong>합니다(유형·날짜·링크). 아직 생성된 콘텐츠 문서가 없다면 아래 안내가 보입니다.</p>
+
+    <table class="tbl">
+      <tr><th>문서</th><th>유형</th><th>날짜</th><th>열기</th></tr>
+      <!-- 문서 생성 시 아래 형식으로 한 행씩 추가:
+      <tr><td><code>더블 점프 구현</code></td><td>기능 구현</td><td>2026-07-01</td><td><a href="파일명.html" style="color:var(--accent)">열기 →</a></td></tr>
+      -->
+      <tr><td colspan="4" style="text-align:center;color:var(--text-dim)">아직 생성된 문서가 없습니다. 문서를 만들면 여기에 자동 등록됩니다.</td></tr>
+    </table>
+
+    <h3>기준 문서 (디자인 시스템)</h3>
+    <table class="tbl">
+      <tr><th>파일</th><th>역할</th></tr>
+      <tr><td><a href="../../design-guide/design-guide-ue-master-visual.html" style="color:var(--accent)">design-guide-ue-master-visual.html</a></td><td>컬러·타이포·컴포넌트 시각 레퍼런스</td></tr>
+      <tr><td><a href="../../design-guide/01-ue-asset-analysis.html" style="color:var(--accent)">01-ue-asset-analysis.html</a></td><td>에셋 분석 문서 템플릿</td></tr>
+      <tr><td><a href="../../design-guide/02-ue-architecture.html" style="color:var(--accent)">02-ue-architecture.html</a></td><td>아키텍처/기능 구현 문서 템플릿</td></tr>
+      <tr><td><code>DOC-GENERATION-PLAYBOOK.md</code></td><td>문서 자동 제작 규약</td></tr>
+    </table>
+  </div>
+
+  <!-- 02 용어집 -->
+  <div class="section" id="glossary">
+    <div class="section-label">02 — 용어집 (Glossary)</div>
+    <h2>핵심 용어</h2>
+    <p>문서에서 모르는 용어를 만나면 여기서 뜻을 확인하고, <strong>"자세히 →"</strong>로 그 용어를 본격 설명한 문서로 이동하세요. 새 문서에서 어려운 용어가 등장하면 이 표에 추가합니다.</p>
+
+    <table class="tbl">
+      <tr><th>용어</th><th>뜻 (한 줄)</th><th>자세히</th></tr>
+      <tr><td><code>GameMode</code></td><td>게임의 규칙·승패 판정을 담당하는 <strong>서버 전용</strong> 클래스</td><td><a href="../../design-guide/02-ue-architecture.html#components" style="color:var(--accent)">02 아키텍처 →</a></td></tr>
+      <tr><td><code>GameState</code></td><td>모든 플레이어에게 복제되는 <strong>공유 상태</strong>(점수판 등)</td><td><a href="../../design-guide/02-ue-architecture.html#components" style="color:var(--accent)">02 아키텍처 →</a></td></tr>
+      <tr><td><code>PlayerController</code></td><td>플레이어의 <strong>입력·카메라·UI</strong>를 소유(폰이 죽어도 유지)</td><td><a href="../../design-guide/02-ue-architecture.html#components" style="color:var(--accent)">02 아키텍처 →</a></td></tr>
+      <tr><td><code>Pawn / Character</code></td><td>플레이어가 <strong>조종하는 물리적 몸</strong>(이동·체력 등)</td><td><a href="../../design-guide/02-ue-architecture.html#components" style="color:var(--accent)">02 아키텍처 →</a></td></tr>
+      <tr><td><code>GameInstance</code></td><td>레벨이 바뀌어도 유지되는 <strong>세션 전역·영속</strong> 객체</td><td><a href="../../design-guide/02-ue-architecture.html#components" style="color:var(--accent)">02 아키텍처 →</a></td></tr>
+      <tr><td><code>SaveGame</code></td><td>디스크에 저장되어 <strong>재실행 후에도 남는</strong> 데이터</td><td><a href="../../design-guide/02-ue-architecture.html#components" style="color:var(--accent)">02 아키텍처 →</a></td></tr>
+      <tr><td><code>Possess</code></td><td>컨트롤러가 폰을 <strong>소유·조종하는 관계</strong></td><td><a href="../../design-guide/02-ue-architecture.html#components" style="color:var(--accent)">02 아키텍처 →</a></td></tr>
+    </table>
+    <div class="callout tip"><span class="ic">💡</span><p>용어집은 <strong>보조 수단</strong>입니다. 각 문서는 처음 등장 용어를 자체적으로 한 번 풀어 설명하므로, 링크 없이도 문서 하나만으로 이해됩니다. 용어집은 "더 깊이 보고 싶을 때"의 지름길입니다.</p></div>
+  </div>
+
+  <!-- 03 사용법 -->
+  <div class="section" id="howto">
+    <div class="section-label">03 — 이 허브가 작동하는 방식</div>
+    <h2>어떻게 연결되나</h2>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">문서에서 용어를 처음 만남</div><div class="pipe-desc">그 문서 안에서 용어가 처음 나오면 괄호로 뜻을 풀어 설명합니다. (예: "Possess(컨트롤러가 폰을 소유하는 것)")</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">더 알고 싶으면 용어집으로</div><div class="pipe-desc">이 허브의 용어집에서 같은 용어를 찾아 "자세히 →" 링크를 누릅니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">원문 설명으로 점프</div><div class="pipe-desc">그 용어를 본격적으로 다룬 문서의 해당 섹션으로 이동합니다.</div></div></div>
+
+    <div class="callout warn"><span class="ic">⚠️</span><p><strong>링크는 파일들이 같은 폴더에 함께 있을 때 작동합니다.</strong> 문서 하나만 떼어 외부로 보내면 "자세히" 링크는 열리지 않지만, 문서 안 용어 설명은 그대로 남아 있어 이해에는 지장이 없습니다.</p></div>
+  </div>
+
+</div>
+
+<footer>
+  <span>UE 문서 디자인 시스템 · Hub &amp; Glossary v1.1</span>
+  <span>기준 디자인: Dark · Indigo Minimal · Editorial</span>
+</footer>
+
+</body>
+</html>

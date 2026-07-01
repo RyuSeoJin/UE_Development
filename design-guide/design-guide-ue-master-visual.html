@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>디자인 마스터 (비주얼) — UE 문서 디자인 시스템 v1.1</title>
+<link rel="stylesheet" href="design-guide-ue-master.css">
+<!-- ============================================================
+     CHANGELOG — design-guide-ue-master-visual.html
+     master.css의 시각 레퍼런스. 작업 규약: design-guide/DOC-GENERATION-PLAYBOOK.md (4단계)
+     v1.1 · 2026-07-01
+       - 파일명 00-foundation.html → design-guide-ue-master-visual.html
+       - 프레임워크 클래스 컬러 맵 / 파일 타입 컬러 맵 스와치 섹션 추가
+       - 라벨 톤 정리: 토대→마스터, C++ 아키텍처→아키텍처
+       - CSS·상호 링크를 새 파일명으로 갱신
+       - nav에 문서 허브(design-guide-ue-index.html) 링크 추가
+     v1.0
+       - 최초 토대 레퍼런스 (원본 design-guide-ue-asset-structure.html에서 분리, 원본 2026-07-01 삭제)
+     ============================================================ -->
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">UE DESIGN SYSTEM · MASTER VISUAL</div>
+  <div class="nav-links">
+    <a href="#principles">원칙</a>
+    <a href="#color">컬러</a>
+    <a href="#type">타이포</a>
+    <a href="#layout">레이아웃</a>
+    <a href="#base">기본 컴포넌트</a>
+    <a href="#rules">규칙</a>
+    <a href="01-ue-asset-analysis.html">→ 에셋 분석</a>
+    <a href="02-ue-architecture.html">→ 아키텍처</a>
+    <a href="../ue-wiki/ue-architect/design-guide-ue-index.html">→ 문서 허브</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">Design System · v1.1 · Master Visual</div>
+  <h1>UE 디자인<br><span>마스터</span></h1>
+  <p class="hero-sub">
+    모든 언리얼 문서(에셋 분석 · 아키텍처 설계)가 공유하는 디자인 마스터입니다. 컬러·타이포·레이아웃·기본 컴포넌트를 한 곳에 고정합니다. 스타일 원본은 <code>design-guide-ue-master.css</code> 한 파일이며, 이 문서는 그 시각 레퍼런스입니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">Dark · Indigo Minimal</span>
+    <span class="badge badge-green">Pretendard + IBM Plex Mono</span>
+    <span class="badge badge-purple">920px 단일 컬럼</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- 00 원칙 -->
+  <div class="section" id="principles">
+    <div class="section-label">00 — 디자인 원칙</div>
+    <h2>이 디자인이 지키는 다섯 가지</h2>
+    <p>화려함이 아니라 <strong>읽기 쉬움과 일관성</strong>이 목표입니다. 다섯 원칙이 전부입니다.</p>
+    <table class="tbl">
+      <tr><th>원칙</th><th>의미</th></tr>
+      <tr><td>다크 · 인디고 미니멀</td><td>어두운 네이비 배경에 인디고 포인트 하나. 밝은 그라데이션·요란한 색을 쓰지 않습니다.</td></tr>
+      <tr><td>에디토리얼 단일 컬럼</td><td>두꺼운 사이드바 대신 920px 중앙 컬럼 + 상단 sticky 내비. 글처럼 위에서 아래로 읽힙니다.</td></tr>
+      <tr><td>모노 라벨은 순서를 뜻함</td><td><code>01 — 개념</code>처럼 번호 라벨은 실제 읽기 순서가 있을 때만 씁니다. 장식용 번호는 금지.</td></tr>
+      <tr><td>색은 의미를 운반</td><td>색을 예쁘라고 칠하지 않습니다. 특히 타입 컬러 맵은 트리·관계도·태그에서만 일관되게 적용합니다.</td></tr>
+      <tr><td>강조는 한 곳에</td><td>한 화면에서 시선을 끄는 요소는 하나. 나머지는 조용하게 유지합니다.</td></tr>
+    </table>
+    <div class="callout info"><span class="ic">🎯</span><p><strong>시그니처 요소</strong>는 <strong>타입 컬러 맵</strong>입니다 — 폴더/클래스/파일을 코드 하이라이팅처럼 색으로 구분하는 것. 이 시스템이 기억되는 단 하나의 장치이므로, 다른 곳에서 색을 남발하지 않습니다.</p></div>
+  </div>
+
+  <!-- 01 컬러 -->
+  <div class="section" id="color">
+    <div class="section-label">01 — 컬러 토큰</div>
+    <h2>팔레트</h2>
+    <h3>기본 토큰</h3>
+    <div class="swatch-grid">
+      <div class="swatch"><div class="chip" style="background:#0D0F1A"></div><div class="meta"><div class="vn">--bg</div><div class="hx">#0D0F1A</div><div class="role">페이지 배경</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#13162A"></div><div class="meta"><div class="vn">--surface</div><div class="hx">#13162A</div><div class="role">코드·트리 배경</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#1A1F38"></div><div class="meta"><div class="vn">--surface-2</div><div class="hx">#1A1F38</div><div class="role">카드·표 헤더</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#252B4A"></div><div class="meta"><div class="vn">--border</div><div class="hx">#252B4A</div><div class="role">모든 경계선</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#E4E8FF"></div><div class="meta"><div class="vn">--text</div><div class="hx">#E4E8FF</div><div class="role">본문 강조·제목</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#7B82A6"></div><div class="meta"><div class="vn">--text-muted</div><div class="hx">#7B82A6</div><div class="role">본문 기본</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#4A5080"></div><div class="meta"><div class="vn">--text-dim</div><div class="hx">#4A5080</div><div class="role">라벨·캡션</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#5B6EFA"></div><div class="meta"><div class="vn">--accent</div><div class="hx">#5B6EFA</div><div class="role">메인 포인트(인디고)</div></div></div>
+    </div>
+
+    <h3>액센트 & 시맨틱</h3>
+    <div class="swatch-grid">
+      <div class="swatch"><div class="chip" style="background:#9B6DFF"></div><div class="meta"><div class="vn">--accent-2</div><div class="hx">#9B6DFF</div><div class="role">보조 강조(퍼플)</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#38D9B4"></div><div class="meta"><div class="vn">--accent-3</div><div class="hx">#38D9B4</div><div class="role">긍정·팁(틸)</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#F59E0B"></div><div class="meta"><div class="vn">--amber</div><div class="hx">#F59E0B</div><div class="role">주의·경고</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#F87171"></div><div class="meta"><div class="vn">--red</div><div class="hx">#F87171</div><div class="role">금지·오류</div></div></div>
+    </div>
+
+    <h3>에셋 타입 컬러 맵 <span style="color:var(--text-dim);font-size:12px;font-weight:400">(에셋 분석 문서 — 트리·태그 전용)</span></h3>
+    <div class="swatch-grid">
+      <div class="swatch"><div class="chip" style="background:#F59E0B"></div><div class="meta"><div class="vn">--ue-folder</div><div class="hx">#F59E0B</div><div class="role">폴더</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#5B6EFA"></div><div class="meta"><div class="vn">--ue-bp</div><div class="hx">#5B6EFA</div><div class="role">블루프린트 WBP/BP</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#9B6DFF"></div><div class="meta"><div class="vn">--ue-enum</div><div class="hx">#9B6DFF</div><div class="role">열거형 Enum</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#FB8C5A"></div><div class="meta"><div class="vn">--ue-mat</div><div class="hx">#FB8C5A</div><div class="role">머티리얼</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#38D9B4"></div><div class="meta"><div class="vn">--ue-tex</div><div class="hx">#38D9B4</div><div class="role">텍스처</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#6BD98E"></div><div class="meta"><div class="vn">--ue-demo</div><div class="hx">#6BD98E</div><div class="role">데모·레벨</div></div></div>
+    </div>
+
+    <h3>프레임워크 클래스 컬러 맵 <span style="color:var(--text-dim);font-size:12px;font-weight:400">(아키텍처 문서 — 관계도·트리·태그 전용, v1.1 신규)</span></h3>
+    <div class="swatch-grid">
+      <div class="swatch"><div class="chip" style="background:#5B6EFA"></div><div class="meta"><div class="vn">--ue-gamemode</div><div class="hx">#5B6EFA</div><div class="role">GameMode · 규칙/권한(서버)</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#7B9CFF"></div><div class="meta"><div class="vn">--ue-gamestate</div><div class="hx">#7B9CFF</div><div class="role">GameState · 공유 상태(복제)</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#38D9B4"></div><div class="meta"><div class="vn">--ue-controller</div><div class="hx">#38D9B4</div><div class="role">PlayerController · 입력/의도</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#6BD98E"></div><div class="meta"><div class="vn">--ue-pawn</div><div class="hx">#6BD98E</div><div class="role">Pawn/Character · 조종 대상</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#9B6DFF"></div><div class="meta"><div class="vn">--ue-instance</div><div class="hx">#9B6DFF</div><div class="role">GameInstance · 세션 영속</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#F59E0B"></div><div class="meta"><div class="vn">--ue-savegame</div><div class="hx">#F59E0B</div><div class="role">SaveGame · 디스크 저장</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#E040FB"></div><div class="meta"><div class="vn">--ue-subsystem</div><div class="hx">#E040FB</div><div class="role">Subsystem · 수명 범위 서비스</div></div></div>
+    </div>
+
+    <h3>파일 타입 컬러 맵 <span style="color:var(--text-dim);font-size:12px;font-weight:400">(코드 탭·파일 태그, v1.1 신규)</span></h3>
+    <div class="swatch-grid">
+      <div class="swatch"><div class="chip" style="background:#38D9B4"></div><div class="meta"><div class="vn">--ue-header</div><div class="hx">#38D9B4</div><div class="role">.h 헤더(선언)</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#FB8C5A"></div><div class="meta"><div class="vn">--ue-source</div><div class="hx">#FB8C5A</div><div class="role">.cpp 소스(구현)</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#FB8C5A"></div><div class="meta"><div class="vn">--ue-macro</div><div class="hx">#FB8C5A</div><div class="role">UCLASS/UPROPERTY 등 매크로</div></div></div>
+    </div>
+
+    <div class="callout warn"><span class="ic">⚠️</span><p>위 맵에 없는 타입(예: <code>Sound</code>, <code>DataTable</code>, <code>Niagara</code>, 또는 새 프레임워크 클래스)이 필요하면, 기존 색을 재활용하지 말고 팔레트 톤에 맞는 색 1개를 추가하고 이 표에 기록하세요. 색이 늘어날수록 의미가 흐려지니 신중하게.</p></div>
+  </div>
+
+  <!-- 02 타이포 -->
+  <div class="section" id="type">
+    <div class="section-label">02 — 타이포그래피</div>
+    <h2>두 글꼴, 명확한 역할</h2>
+    <p><strong>Pretendard</strong>는 본문·제목을, <strong>IBM Plex Mono</strong>는 라벨·코드·에셋/클래스 이름·데이터를 맡습니다. 모노는 "기계적 정보"라는 신호이므로 일반 문장에는 쓰지 않습니다.</p>
+
+    <div class="demo">
+      <div class="demo-head">Type Scale</div>
+      <div class="demo-body">
+        <div class="type-row"><div class="type-spec">H1 / 700 / -0.02em<br>Pretendard</div><div class="ts-h1">아키텍처 설계</div></div>
+        <div class="type-row"><div class="type-spec">H2 / 700 / 22px<br>Pretendard</div><div class="ts-h2">클래스 책임 분배</div></div>
+        <div class="type-row"><div class="type-spec">H3 / 700 / 15px<br>Pretendard</div><div class="ts-h3">헤더와 소스</div></div>
+        <div class="type-row"><div class="type-spec">Body / 400 / 15px<br>muted</div><div class="ts-body">저장 데이터는 SaveGame에, 세션 전역 상태는 GameInstance에 둡니다.</div></div>
+        <div class="type-row"><div class="type-spec">Label / 600 / 10px<br>IBM Plex Mono</div><div class="ts-label">01 — 개념 이해</div></div>
+        <div class="type-row"><div class="type-spec">Code / 12px<br>IBM Plex Mono</div><div class="ts-code">AMyGameMode::HandleMatchHasStarted()</div></div>
+      </div>
+    </div>
+
+    <table class="tbl">
+      <tr><th>역할</th><th>글꼴 / 크기 / 굵기</th><th>용도</th></tr>
+      <tr><td>H1</td><td>Pretendard 700 · clamp(28–44px) · -0.02em</td><td>히어로 제목 1회</td></tr>
+      <tr><td>H2</td><td>Pretendard 700 · 22px</td><td>섹션 제목</td></tr>
+      <tr><td>H3</td><td>Pretendard 700 · 15px</td><td>하위 항목·클래스명</td></tr>
+      <tr><td>Body</td><td>Pretendard 400 · 15px · muted</td><td>본문 (line-height 1.8)</td></tr>
+      <tr><td>Label</td><td>Mono 600 · 10px · 0.16em · 대문자</td><td>섹션 번호 라벨</td></tr>
+      <tr><td>Code / ID</td><td>Mono 400–600 · 12px</td><td>클래스·변수·경로·값</td></tr>
+    </table>
+  </div>
+
+  <!-- 03 레이아웃 -->
+  <div class="section" id="layout">
+    <div class="section-label">03 — 레이아웃 & 스페이싱</div>
+    <h2>페이지 골격</h2>
+    <p>모든 문서는 동일한 골격을 따릅니다: <strong>sticky 내비 → 히어로 → 번호 섹션들 → 푸터</strong>. 콘텐츠 폭은 920px로 고정합니다.</p>
+    <div class="demo">
+      <div class="demo-head">Page Skeleton</div>
+      <div class="demo-body">
+<pre style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);line-height:1.7;white-space:pre">┌────────────────────────────────────────────┐
+│ NAV  로고 · 섹션 링크          (sticky, 52px) │
+├────────────────────────────────────────────┤
+│ HERO  eyebrow / H1 / sub / badges  (≤920px) │
+├────────────────────────────────────────────┤
+│ 01 — 라벨                                    │
+│ H2 제목                                      │
+│ 본문 · 컴포넌트 ……         (top-border 구분) │
+│ 52px 간격                                    │
+│ 02 — 라벨 ……                                │
+├────────────────────────────────────────────┤
+│ FOOTER  좌: 제목 · 우: 버전                  │
+└────────────────────────────────────────────┘</pre>
+      </div>
+    </div>
+    <table class="tbl">
+      <tr><th>토큰</th><th>값</th><th>적용</th></tr>
+      <tr><td>콘텐츠 폭</td><td><code>max-width: 920px</code></td><td>hero·content·footer 공통</td></tr>
+      <tr><td>좌우 패딩</td><td><code>48px</code> (모바일 20px)</td><td>모든 컨테이너</td></tr>
+      <tr><td>섹션 간격</td><td><code>margin-top: 52px</code> + 상단 보더</td><td>섹션 구분 리듬</td></tr>
+      <tr><td>카드/표 라운드</td><td><code>8px</code> (코드·트리 10px)</td><td>전 컴포넌트 통일</td></tr>
+      <tr><td>그리드 간격</td><td><code>gap: 14px</code></td><td>카드·스탯·스와치</td></tr>
+    </table>
+  </div>
+
+  <!-- 04 기본 컴포넌트 -->
+  <div class="section" id="base">
+    <div class="section-label">04 — 공통 기본 컴포넌트</div>
+    <h2>모든 문서가 공유하는 블록</h2>
+    <p>아래는 에셋·아키텍처 문서 모두에서 쓰이는 범용 컴포넌트입니다. 에셋 전용(트리·에셋 카드)은 <a href="01-ue-asset-analysis.html" style="color:var(--accent)">01 에셋 분석</a>, 아키텍처 전용(관계도·코드 탭·결정표)은 <a href="02-ue-architecture.html" style="color:var(--accent)">02 아키텍처</a>를 보세요.</p>
+
+    <h3>섹션 라벨 + 제목</h3>
+    <div class="demo"><div class="demo-head">Live</div><div class="demo-body">
+      <div class="section-label" style="margin:0 0 12px">02 — 구조 이해</div>
+      <div style="font-size:22px;font-weight:700;letter-spacing:-0.01em">클래스 책임 해부</div>
+    </div></div>
+
+    <h3>스탯 카드</h3>
+    <div class="demo"><div class="demo-head">Live</div><div class="demo-body">
+      <div class="stat-row">
+        <div class="stat-card"><div class="stat-num" style="color:var(--ue-gamemode)">4</div><div class="stat-label">핵심 클래스</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:var(--ue-savegame)">2</div><div class="stat-label">저장 슬롯</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:var(--ue-controller)">6</div><div class="stat-label">입력 액션</div></div>
+      </div>
+    </div></div>
+
+    <h3>Callout (info · tip · warn)</h3>
+    <div class="demo"><div class="demo-head">Live</div><div class="demo-body">
+      <div class="callout info" style="margin:0 0 12px"><span class="ic">🧭</span><p><strong>정보</strong> — 개념·맥락을 짚을 때.</p></div>
+      <div class="callout tip" style="margin:0 0 12px"><span class="ic">💡</span><p><strong>팁</strong> — 더 나은 방법을 제안할 때.</p></div>
+      <div class="callout warn" style="margin:0"><span class="ic">⚠️</span><p><strong>주의</strong> — 실수하기 쉬운 지점을 경고할 때.</p></div>
+    </div></div>
+
+    <h3>번호 파이프라인 (단계별)</h3>
+    <div class="demo"><div class="demo-head">Live</div><div class="demo-body">
+      <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">클래스 생성</div><div class="pipe-desc">C++ 클래스 위저드로 부모를 지정해 생성.</div></div></div>
+      <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">프로젝트 설정 등록</div><div class="pipe-desc">GameMode를 Project Settings 또는 World Settings에 지정.</div></div></div>
+    </div></div>
+
+    <h3>생명주기/흐름 다이어그램 (Arch)</h3>
+    <div class="demo"><div class="demo-head">Live</div><div class="demo-body">
+      <div class="arch">
+        <div class="arch-layer"><div class="arch-tag">Step 1</div><div class="arch-title">InitGame</div><div class="arch-desc">GameMode 초기화</div></div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-layer"><div class="arch-tag">Step 2</div><div class="arch-title">Login</div><div class="arch-desc">Controller 생성</div></div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-layer"><div class="arch-tag">Step 3</div><div class="arch-title">Possess</div><div class="arch-desc">Pawn 빙의</div></div>
+      </div>
+    </div></div>
+
+    <h3>Pitfall (주의 · 팁)</h3>
+    <div class="demo"><div class="demo-head">Live</div><div class="demo-body">
+      <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>GameMode는 서버에만 존재</strong> — 클라이언트에서 참조하면 항상 null입니다.</div></div>
+      <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>GameStateBase</strong>를 쓰면 모든 클라이언트가 공유 상태를 복제받습니다.</div></div>
+    </div></div>
+
+    <h3>표 (tbl)</h3>
+    <div class="demo"><div class="demo-head">Live</div><div class="demo-body">
+      <table class="tbl" style="margin:0">
+        <tr><th>항목</th><th>값</th><th>설명</th></tr>
+        <tr><td>DefaultPawnClass</td><td><code>ACharacter</code></td><td>스폰될 폰 클래스</td></tr>
+        <tr><td>PlayerControllerClass</td><td><code>APlayerController</code></td><td>플레이어 컨트롤러</td></tr>
+      </table>
+    </div></div>
+  </div>
+
+  <!-- 05 규칙 -->
+  <div class="section" id="rules">
+    <div class="section-label">05 — 일관성 규칙</div>
+    <h2>Do &amp; Don't</h2>
+    <div class="dd-grid">
+      <div class="dd do">
+        <h4>✓ 이렇게</h4>
+        <ul>
+          <li>클래스·변수·경로·값은 항상 IBM Plex Mono로</li>
+          <li>색은 의미가 있을 때만. 타입 색은 트리·관계도·태그·카드 보더에서만</li>
+          <li>번호 라벨은 실제 읽기 순서가 있을 때만 사용</li>
+          <li>강조 callout/통계는 섹션당 1~2개로 제한</li>
+          <li>표·카드·코드 라운드는 8px(코드 10px)로 통일</li>
+          <li>새 타입 색이 필요하면 1개 추가 후 이 색상표에 기록</li>
+        </ul>
+      </div>
+      <div class="dd dont">
+        <h4>✗ 이건 피하기</h4>
+        <ul>
+          <li>밝은 그라데이션 헤더·두꺼운 좌측 사이드바</li>
+          <li>본문에 모노 글꼴, 라벨에 본문 글꼴 섞어 쓰기</li>
+          <li>한 화면에 4색 이상 포인트 컬러 난립</li>
+          <li>이모지를 컬러 시스템 대신 의미 전달 수단으로 남용</li>
+          <li>장식용 번호·아이콘으로 빈 공간 채우기</li>
+          <li>같은 정보를 카드·표·다이어그램으로 중복 표현</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout tip"><span class="ic">📐</span><p><strong>품질 기준선</strong>: 모바일까지 반응형, 키보드 포커스 표시, <code>prefers-reduced-motion</code> 존중. 이 세 가지는 모든 문서가 기본으로 갖춥니다.</p></div>
+  </div>
+
+</div>
+
+<footer>
+  <span>UE 문서 디자인 시스템 · Master v1.1</span>
+  <span>기준 디자인: Dark · Indigo Minimal · Editorial</span>
+</footer>
+
+</body>
+</html>
