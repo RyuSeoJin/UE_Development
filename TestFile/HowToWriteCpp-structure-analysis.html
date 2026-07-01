@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>언리얼 엔진 C++ 프로그래밍 완전 가이드</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Pretendard:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --bg: #0D0F1A;
+    --surface: #13162A;
+    --surface-2: #1A1F38;
+    --border: #252B4A;
+    --accent: #5B6EFA;
+    --accent-2: #9B6DFF;
+    --accent-3: #38D9B4;
+    --text: #E4E8FF;
+    --text-muted: #7B82A6;
+    --text-dim: #4A5080;
+    --amber: #F59E0B;
+    --pink: #E040FB;
+    --red: #F87171;
+    --ue-folder: #F59E0B;
+    --ue-bp:     #5B6EFA;
+    --ue-enum:   #9B6DFF;
+    --ue-mat:    #FB8C5A;
+    --ue-tex:    #38D9B4;
+    --ue-demo:   #6BD98E;
+    --ue-cpp:    #F87171;
+    --ue-del:    #E040FB;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+    font-size: 15px; line-height: 1.7; -webkit-font-smoothing: antialiased;
+  }
+
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(13,15,26,0.92); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px; display: flex; align-items: center; gap: 32px; height: 52px;
+  }
+  .nav-logo { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em; white-space: nowrap; }
+  .nav-links { display: flex; gap: 22px; }
+  .nav-links a { color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 500; transition: color 0.2s; }
+  .nav-links a:hover { color: var(--text); }
+  .nav-links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+
+  .hero { padding: 72px 48px 56px; max-width: 920px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+  .hero-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: var(--accent); text-transform: uppercase; margin-bottom: 20px; }
+  .hero h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 20px; }
+  .hero h1 span { color: var(--accent); }
+  .hero-sub { font-size: 16px; color: var(--text-muted); max-width: 660px; line-height: 1.75; }
+  .hero-meta { margin-top: 28px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; border: 1px solid; }
+  .badge-blue { color: var(--accent); border-color: var(--accent); background: rgba(91,110,250,0.08); }
+  .badge-green { color: var(--accent-3); border-color: var(--accent-3); background: rgba(56,217,180,0.08); }
+  .badge-purple { color: var(--accent-2); border-color: var(--accent-2); background: rgba(155,109,255,0.08); }
+  .badge-pink { color: var(--pink); border-color: var(--pink); background: rgba(224,64,251,0.08); }
+  .badge-red { color: var(--red); border-color: var(--red); background: rgba(248,113,113,0.08); }
+
+  .content { max-width: 920px; margin: 0 auto; padding: 0 48px 80px; }
+  .section { padding: 52px 0 0; border-top: 1px solid var(--border); margin-top: 52px; }
+  .section:first-child { margin-top: 0; padding-top: 48px; border-top: none; }
+  .section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 12px; }
+  .section h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 20px; }
+  .section h3 { font-size: 15px; font-weight: 700; color: var(--text); margin: 30px 0 10px; letter-spacing: 0.01em; }
+  .section p { color: var(--text-muted); margin-bottom: 14px; line-height: 1.8; }
+  .section p strong { color: var(--text); font-weight: 600; }
+
+  code { font-family: 'IBM Plex Mono', monospace; font-size: 0.86em; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; color: var(--accent-3); }
+
+  .callout { display: flex; gap: 12px; align-items: flex-start; border-radius: 8px; padding: 14px 16px; margin: 18px 0; border: 1px solid var(--border); background: var(--surface-2); font-size: 13.5px; line-height: 1.65; }
+  .callout .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+  .callout p { margin: 0; color: var(--text-muted); }
+  .callout p strong { color: var(--text); }
+  .callout.info { border-left: 3px solid var(--accent); }
+  .callout.tip  { border-left: 3px solid var(--accent-3); }
+  .callout.warn { border-left: 3px solid var(--amber); }
+
+  .snip { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 12px 0 22px; }
+  .snip-head { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 8px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+  .code-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .snip pre { padding: 14px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-muted); line-height: 1.75; overflow-x: auto; white-space: pre; }
+  .snip pre .tag { color: var(--accent); }
+  .snip pre .atr { color: var(--ue-mat); }
+  .snip pre .val { color: var(--accent-3); }
+  .snip pre .cm  { color: var(--text-dim); }
+  .snip pre .kw  { color: var(--accent); }
+  .snip pre .tp  { color: var(--accent-2); }
+  .snip pre .fn  { color: var(--ue-mat); }
+  .snip pre .str { color: var(--accent-3); }
+
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+  .stat-num { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 4px; }
+  .stat-label { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+  .a-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; border-top: 2px solid var(--ue-bp); }
+  .a-card .ic { font-size: 22px; margin-bottom: 10px; }
+  .a-card .a-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .a-card .a-id { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--accent); margin-bottom: 8px; }
+  .a-card .a-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+  .tt { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 3px; }
+  .tt-bool { background: rgba(91,110,250,0.14); color: var(--accent); }
+  .tt-enum { background: rgba(251,140,90,0.14); color: var(--ue-mat); }
+  .tt-del  { background: rgba(224,64,251,0.12); color: var(--pink); }
+  .tt-str  { background: rgba(56,217,180,0.12); color: var(--accent-3); }
+  .tt-cpp  { background: rgba(248,113,113,0.12); color: var(--red); }
+
+  .pills { display: flex; flex-wrap: wrap; gap: 7px; margin: 10px 0; }
+  .pill { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; padding: 3px 12px; border-radius: 20px; border: 1px solid; }
+  .pill.blue { color: var(--accent); border-color: rgba(91,110,250,0.4); background: rgba(91,110,250,0.08); }
+  .pill.purple { color: var(--accent-2); border-color: rgba(155,109,255,0.4); background: rgba(155,109,255,0.08); }
+  .pill.green { color: var(--accent-3); border-color: rgba(56,217,180,0.4); background: rgba(56,217,180,0.08); }
+  .pill.pink { color: var(--pink); border-color: rgba(224,64,251,0.4); background: rgba(224,64,251,0.08); }
+  .pill.red { color: var(--red); border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.08); }
+
+  .arch { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: stretch; margin: 18px 0; }
+  .arch-5 { grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr auto 1fr; }
+  .arch-layer { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 16px 14px; }
+  .arch-arrow { display: flex; align-items: center; justify-content: center; padding: 0 8px; color: var(--text-dim); font-size: 16px; }
+  .arch-tag { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 7px; color: var(--accent); }
+  .arch-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .arch-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+  .tbl { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 13px; }
+  .tbl th { background: var(--surface-2); color: var(--text-muted); font-weight: 600; font-size: 12px; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  .tbl td { padding: 10px 14px; color: var(--text-muted); border-bottom: 1px solid rgba(37,43,74,0.5); vertical-align: top; line-height: 1.55; }
+  .tbl tr:last-child td { border-bottom: none; }
+  .tbl td:first-child { color: var(--text); }
+  .tbl td code, .tbl th code { background: transparent; border: none; padding: 0; color: var(--accent); }
+
+  .pipe-step { display: grid; grid-template-columns: 36px 1fr; gap: 0 16px; position: relative; }
+  .pipe-step::before { content: ''; position: absolute; left: 17px; top: 36px; bottom: -1px; width: 2px; background: var(--border); }
+  .pipe-step:last-child::before { display: none; }
+  .pipe-num { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--surface-2); }
+  .pipe-body { padding: 6px 0 22px; }
+  .pipe-title { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+  .pipe-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+  .pitfall { display: flex; gap: 14px; align-items: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; border-left: 3px solid var(--amber); margin: 12px 0; }
+  .pitfall .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+  .pitfall-text { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
+  .pitfall-text strong { color: var(--text); }
+
+  .dd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 22px 0; }
+  .dd { border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; background: var(--surface-2); }
+  .dd.do { border-left: 3px solid var(--accent-3); }
+  .dd.dont { border-left: 3px solid var(--red); }
+  .dd h4 { font-size: 13px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+  .dd.do h4 { color: var(--accent-3); }
+  .dd.dont h4 { color: var(--red); }
+  .dd ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .dd li { font-size: 12.5px; color: var(--text-muted); line-height: 1.55; padding-left: 16px; position: relative; }
+  .dd li::before { content: ''; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; border-radius: 50%; }
+  .dd.do li::before { background: var(--accent-3); }
+  .dd.dont li::before { background: var(--red); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+  .compare-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; margin: 14px 0; }
+  .compare-box h4 { font-size: 14px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .compare-box p { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin: 0 0 8px; }
+  .compare-box .tag-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+
+  .flow-vertical { display: flex; flex-direction: column; gap: 0; margin: 18px 0; }
+  .flow-step { display: flex; align-items: stretch; gap: 14px; }
+  .flow-line { width: 36px; display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+  .flow-dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--accent); background: var(--surface-2); flex-shrink: 0; }
+  .flow-connector { width: 2px; flex: 1; background: var(--border); }
+  .flow-content { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; flex: 1; margin-bottom: 8px; }
+  .flow-content .fc-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .flow-content .fc-desc { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+  .flow-content code { font-size: 11px; }
+
+  footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920px; margin: 0 auto; font-size: 12px; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+
+  @media (max-width: 720px) {
+    .content { padding: 0 20px 60px; }
+    .hero { padding: 48px 20px 40px; }
+    .stat-row { grid-template-columns: 1fr 1fr; }
+    .dd-grid, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .arch, .arch-5 { grid-template-columns: 1fr; }
+    .arch-arrow { transform: rotate(90deg); padding: 4px 0; }
+    nav { padding: 0 16px; gap: 16px; }
+    .nav-links { display: none; }
+    footer { padding: 20px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">UE C++ PROGRAMMING GUIDE</div>
+  <div class="nav-links">
+    <a href="#concept">개념</a>
+    <a href="#naming">네이밍</a>
+    <a href="#macros">매크로</a>
+    <a href="#lifecycle">라이프사이클</a>
+    <a href="#classes">클래스</a>
+    <a href="#types">타입</a>
+    <a href="#blueprint">BP 연동</a>
+    <a href="#tips">팁</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">Unreal Engine &middot; C++ Programming &middot; Complete Guide</div>
+  <h1>C++ for Unreal Engine<br><span>언리얼 C++ 프로그래밍 가이드</span></h1>
+  <p class="hero-sub">
+    언리얼 엔진의 C++ 프로그래밍에 필요한 네이밍 컨벤션, UCLASS/UPROPERTY/UFUNCTION 매크로, 액터 라이프사이클, 핵심 클래스 계층, 블루프린트 연동 패턴을 체계적으로 정리합니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">UCLASS</span>
+    <span class="badge badge-purple">UPROPERTY</span>
+    <span class="badge badge-green">UFUNCTION</span>
+    <span class="badge badge-pink">Actor Lifecycle</span>
+    <span class="badge badge-red">Blueprint</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- ============================================================ -->
+  <!-- 01 — 개념 이해 -->
+  <!-- ============================================================ -->
+  <div class="section" id="concept">
+    <div class="section-label">01 — 개념 이해</div>
+    <h2>UE C++ vs 표준 C++</h2>
+
+    <p>언리얼 엔진의 C++는 표준 C++와 <strong>근본적으로 다른 확장</strong>을 포함합니다. 리플렉션 시스템, 가비지 컬렉션, 매크로 기반 메타데이터가 핵심 차이점입니다.</p>
+
+    <div class="callout info">
+      <span class="ic">&#x1F4A1;</span>
+      <p><strong>리플렉션 시스템</strong>: 표준 C++에는 런타임 타입 정보(RTTI)가 제한적이지만, 언리얼은 <code>UCLASS</code>, <code>UPROPERTY</code>, <code>UFUNCTION</code> 매크로를 통해 완전한 리플렉션을 지원합니다. 이를 통해 에디터 노출, 직렬화, 네트워크 리플리케이션, 가비지 컬렉션이 자동화됩니다.</p>
+    </div>
+
+    <h3>왜 UE C++를 배워야 하는가</h3>
+    <table class="tbl">
+      <tr><th>이유</th><th>설명</th></tr>
+      <tr><td>성능</td><td>블루프린트 대비 10~100배 빠른 실행 속도. 연산 집약적 로직에 필수</td></tr>
+      <tr><td>엔진 확장</td><td>에디터 커스터마이징, 커스텀 모듈, 플러그인 개발 가능</td></tr>
+      <tr><td>BP 기반 클래스 제공</td><td>C++로 기반 클래스를 만들고 BP에서 상속하여 디자이너와 협업</td></tr>
+      <tr><td>네트워크/리플리케이션</td><td>서버-클라이언트 RPC, 프로퍼티 리플리케이션은 C++이 기본</td></tr>
+    </table>
+
+    <div class="stat-row">
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent)">5</div><div class="stat-label">핵심 매크로<br>UCLASS / UPROPERTY<br>UFUNCTION / USTRUCT / UENUM</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent-2)">7</div><div class="stat-label">접두사 종류<br>A, U, F, E, T, I, b</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent-3)">11+</div><div class="stat-label">핵심 클래스<br>UObject부터 UUserWidget까지</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--pink)">3</div><div class="stat-label">주요 컨테이너<br>TArray / TMap / TSet</div></div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- 02 — 네이밍 컨벤션 -->
+  <!-- ============================================================ -->
+  <div class="section" id="naming">
+    <div class="section-label">02 — 네이밍 컨벤션</div>
+    <h2>접두사 규칙과 명명 표준</h2>
+
+    <p>언리얼 엔진은 <strong>엄격한 접두사 규칙</strong>을 따릅니다. 접두사만 보면 해당 타입의 역할과 상속 관계를 즉시 파악할 수 있습니다.</p>
+
+    <table class="tbl">
+      <tr><th>접두사</th><th>의미</th><th>대표 예시</th></tr>
+      <tr><td><code>A</code></td><td>Actor 파생 클래스</td><td><code>AActor</code>, <code>ACharacter</code>, <code>APlayerController</code>, <code>AGameModeBase</code></td></tr>
+      <tr><td><code>U</code></td><td>UObject 파생 클래스 (Actor 제외)</td><td><code>UActorComponent</code>, <code>UUserWidget</code>, <code>USceneComponent</code></td></tr>
+      <tr><td><code>F</code></td><td>구조체 / 일반 C++ 클래스</td><td><code>FVector</code>, <code>FString</code>, <code>FTransform</code>, <code>FName</code>, <code>FText</code></td></tr>
+      <tr><td><code>E</code></td><td>열거형 (Enum)</td><td><code>ECollisionChannel</code>, <code>EMovementMode</code>, <code>ENetRole</code></td></tr>
+      <tr><td><code>T</code></td><td>템플릿 클래스</td><td><code>TArray</code>, <code>TMap</code>, <code>TSet</code>, <code>TSharedPtr</code>, <code>TWeakPtr</code></td></tr>
+      <tr><td><code>I</code></td><td>인터페이스</td><td><code>IInterface</code></td></tr>
+      <tr><td><code>b</code></td><td>Boolean 변수 접두사</td><td><code>bIsActive</code>, <code>bCanJump</code>, <code>bReplicates</code></td></tr>
+    </table>
+
+    <div class="callout warn">
+      <span class="ic">&#x26A0;&#xFE0F;</span>
+      <p><strong>필수 규칙</strong>: <code>.generated.h</code> 파일은 반드시 <strong>마지막 #include</strong>여야 합니다. <code>GENERATED_BODY()</code>는 클래스 본문의 <strong>첫 번째 줄</strong>에 위치해야 합니다. 이 규칙을 어기면 UHT(Unreal Header Tool)가 컴파일 에러를 발생시킵니다.</p>
+    </div>
+
+    <div class="snip">
+      <div class="snip-head"><div class="code-dot" style="background:var(--ue-cpp)"></div>MyCharacter.h — 올바른 헤더 구조</div>
+      <pre><span class="cm">// 일반 헤더를 먼저 포함</span>
+<span class="kw">#include</span> <span class="str">"CoreMinimal.h"</span>
+<span class="kw">#include</span> <span class="str">"GameFramework/Character.h"</span>
+<span class="cm">// .generated.h는 반드시 마지막!</span>
+<span class="kw">#include</span> <span class="str">"MyCharacter.generated.h"</span>
+
+<span class="kw">UCLASS</span>()
+<span class="kw">class</span> <span class="tp">AMyCharacter</span> : <span class="kw">public</span> <span class="tp">ACharacter</span>
+{
+    <span class="kw">GENERATED_BODY</span>()  <span class="cm">// 반드시 첫 줄!</span>
+
+<span class="kw">public</span>:
+    <span class="tp">AMyCharacter</span>();
+};</pre>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- 03 — 핵심 매크로 시스템 -->
+  <!-- ============================================================ -->
+  <div class="section" id="macros">
+    <div class="section-label">03 — 핵심 매크로 시스템</div>
+    <h2>UCLASS, UPROPERTY, UFUNCTION, USTRUCT, UENUM</h2>
+
+    <p>언리얼의 매크로 시스템은 <strong>C++ 클래스를 엔진에 등록</strong>하고 에디터, 블루프린트, 네트워크, 직렬화 시스템과 연동하는 핵심 메커니즘입니다.</p>
+
+    <!-- UCLASS -->
+    <h3>UCLASS() 지정자</h3>
+    <p>클래스를 언리얼 리플렉션 시스템에 등록합니다. 지정자(Specifier)로 동작을 세밀하게 제어합니다.</p>
+
+    <table class="tbl">
+      <tr><th>지정자</th><th>설명</th></tr>
+      <tr><td><code>Abstract</code></td><td>인스턴스화 불가. 기반 클래스로만 사용</td></tr>
+      <tr><td><code>Blueprintable</code></td><td>블루프린트에서 이 클래스를 상속할 수 있음</td></tr>
+      <tr><td><code>BlueprintType</code></td><td>블루프린트 변수 타입으로 사용 가능</td></tr>
+      <tr><td><code>Placeable</code></td><td>에디터에서 레벨에 직접 배치 가능</td></tr>
+      <tr><td><code>Config=Game</code></td><td>설정 파일에서 프로퍼티 값 로드</td></tr>
+      <tr><td><code>Transient</code></td><td>직렬화 대상에서 제외 (저장하지 않음)</td></tr>
+      <tr><td><code>EditInlineNew</code></td><td>디테일 패널에서 인라인 편집 가능</td></tr>
+      <tr><td><code>DefaultToInstanced</code></td><td>기본적으로 인스턴스화된 프로퍼티로 취급</td></tr>
+      <tr><td><code>MinimalAPI</code></td><td>타입 정보만 내보내고, 함수는 내보내지 않음</td></tr>
+      <tr><td><code>meta=(BlueprintSpawnableComponent)</code></td><td>블루프린트에서 AddComponent로 추가 가능</td></tr>
+    </table>
+
+    <div class="snip">
+      <div class="snip-head"><div class="code-dot" style="background:var(--accent)"></div>UCLASS 사용 예시</div>
+      <pre><span class="kw">UCLASS</span>(<span class="atr">Blueprintable</span>, <span class="atr">BlueprintType</span>, <span class="atr">Abstract</span>)
+<span class="kw">class</span> MYGAME_API <span class="tp">UMyBaseAbility</span> : <span class="kw">public</span> <span class="tp">UObject</span>
+{
+    <span class="kw">GENERATED_BODY</span>()
+<span class="kw">public</span>:
+    <span class="kw">virtual</span> <span class="kw">void</span> <span class="fn">ActivateAbility</span>() <span class="kw">PURE_VIRTUAL</span>(<span class="tp">UMyBaseAbility</span>::<span class="fn">ActivateAbility</span>,);
+};</pre>
+    </div>
+
+    <!-- UPROPERTY -->
+    <h3>UPROPERTY() 지정자</h3>
+    <p>멤버 변수를 리플렉션 시스템에 등록합니다. 에디터 노출, 블루프린트 접근, 네트워크 리플리케이션을 제어합니다.</p>
+
+    <p><strong>편집 그룹 (에디터 노출)</strong></p>
+    <div class="pills">
+      <span class="pill blue">EditAnywhere</span>
+      <span class="pill blue">EditDefaultsOnly</span>
+      <span class="pill blue">EditInstanceOnly</span>
+      <span class="pill purple">VisibleAnywhere</span>
+      <span class="pill purple">VisibleDefaultsOnly</span>
+      <span class="pill purple">VisibleInstanceOnly</span>
+    </div>
+
+    <p><strong>블루프린트 그룹</strong></p>
+    <div class="pills">
+      <span class="pill green">BlueprintReadOnly</span>
+      <span class="pill green">BlueprintReadWrite</span>
+    </div>
+
+    <p><strong>네트워크 그룹</strong></p>
+    <div class="pills">
+      <span class="pill pink">Replicated</span>
+      <span class="pill pink">ReplicatedUsing</span>
+      <span class="pill pink">NotReplicated</span>
+    </div>
+
+    <p><strong>기타 지정자</strong></p>
+    <div class="pills">
+      <span class="pill red">Category</span>
+      <span class="pill red">Transient</span>
+      <span class="pill red">Config</span>
+      <span class="pill red">AdvancedDisplay</span>
+      <span class="pill red">Interp</span>
+    </div>
+
+    <p><strong>meta 지정자</strong></p>
+    <table class="tbl">
+      <tr><th>meta</th><th>설명</th></tr>
+      <tr><td><code>ClampMin / ClampMax</code></td><td>숫자 값의 최소/최대 제한</td></tr>
+      <tr><td><code>ExposeOnSpawn</code></td><td>SpawnActor 노드에서 핀으로 노출</td></tr>
+      <tr><td><code>AllowPrivateAccess</code></td><td>private 멤버를 블루프린트에 노출 허용</td></tr>
+      <tr><td><code>EditCondition</code></td><td>다른 프로퍼티 값에 따라 편집 가능 여부 결정</td></tr>
+      <tr><td><code>MakeEditWidget</code></td><td>에디터 뷰포트에 3D 위젯으로 표시</td></tr>
+      <tr><td><code>DisplayName</code></td><td>에디터/BP에서 표시할 이름 지정</td></tr>
+      <tr><td><code>ToolTip</code></td><td>에디터에서 마우스 오버 시 표시할 설명</td></tr>
+      <tr><td><code>BlueprintAssignable</code></td><td>블루프린트에서 이벤트 바인딩 가능 (멀티캐스트 델리게이트)</td></tr>
+    </table>
+
+    <div class="snip">
+      <div class="snip-head"><div class="code-dot" style="background:var(--accent-2)"></div>UPROPERTY 사용 예시</div>
+      <pre><span class="kw">UPROPERTY</span>(<span class="atr">EditAnywhere</span>, <span class="atr">BlueprintReadWrite</span>, <span class="atr">Category</span>=<span class="str">"Stats"</span>,
+    <span class="atr">meta</span>=(<span class="atr">ClampMin</span>=<span class="str">"0"</span>, <span class="atr">ClampMax</span>=<span class="str">"100"</span>))
+<span class="tp">float</span> <span class="fn">Health</span> = <span class="val">100.0f</span>;
+
+<span class="kw">UPROPERTY</span>(<span class="atr">VisibleAnywhere</span>, <span class="atr">BlueprintReadOnly</span>, <span class="atr">Category</span>=<span class="str">"Components"</span>)
+<span class="tp">UStaticMeshComponent</span>* <span class="fn">MeshComp</span>;
+
+<span class="kw">UPROPERTY</span>(<span class="atr">Replicated</span>, <span class="atr">BlueprintReadOnly</span>, <span class="atr">Category</span>=<span class="str">"State"</span>)
+<span class="tp">bool</span> <span class="fn">bIsAlive</span> = <span class="val">true</span>;
+
+<span class="kw">UPROPERTY</span>(<span class="atr">EditDefaultsOnly</span>, <span class="atr">BlueprintReadOnly</span>, <span class="atr">Category</span>=<span class="str">"Config"</span>,
+    <span class="atr">meta</span>=(<span class="atr">AllowPrivateAccess</span>=<span class="str">"true"</span>))
+<span class="tp">TSubclassOf</span>&lt;<span class="tp">AActor</span>&gt; <span class="fn">ProjectileClass</span>;</pre>
+    </div>
+
+    <!-- UFUNCTION -->
+    <h3>UFUNCTION() 지정자</h3>
+    <p>멤버 함수를 리플렉션 시스템에 등록합니다. 블루프린트 호출, 네트워크 RPC, 에디터 커맨드를 제어합니다.</p>
+
+    <p><strong>블루프린트 그룹</strong></p>
+    <div class="pills">
+      <span class="pill blue">BlueprintCallable</span>
+      <span class="pill blue">BlueprintPure</span>
+      <span class="pill purple">BlueprintImplementableEvent</span>
+      <span class="pill purple">BlueprintNativeEvent</span>
+    </div>
+
+    <p><strong>네트워크 그룹</strong></p>
+    <div class="pills">
+      <span class="pill pink">Server</span>
+      <span class="pill pink">Client</span>
+      <span class="pill pink">NetMulticast</span>
+      <span class="pill green">Reliable</span>
+      <span class="pill green">Unreliable</span>
+      <span class="pill red">WithValidation</span>
+    </div>
+
+    <p><strong>기타 지정자</strong></p>
+    <div class="pills">
+      <span class="pill red">Exec</span>
+      <span class="pill red">CallInEditor</span>
+      <span class="pill red">BlueprintAuthorityOnly</span>
+      <span class="pill red">BlueprintCosmetic</span>
+      <span class="pill red">Category</span>
+    </div>
+
+    <p><strong>meta 지정자</strong></p>
+    <table class="tbl">
+      <tr><th>meta</th><th>설명</th></tr>
+      <tr><td><code>DisplayName</code></td><td>블루프린트 노드에 표시할 이름</td></tr>
+      <tr><td><code>ExpandEnumAsExecs</code></td><td>Enum 파라미터를 실행 핀으로 분리</td></tr>
+      <tr><td><code>DefaultToSelf</code></td><td>파라미터 기본값을 self로 설정</td></tr>
+      <tr><td><code>DevelopmentOnly</code></td><td>개발 빌드에서만 실행 (Shipping 제외)</td></tr>
+      <tr><td><code>DeprecatedFunction</code></td><td>더 이상 사용하지 않는 함수로 표시</td></tr>
+    </table>
+
+    <div class="snip">
+      <div class="snip-head"><div class="code-dot" style="background:var(--accent-3)"></div>UFUNCTION 사용 예시</div>
+      <pre><span class="cm">// 블루프린트에서 호출 가능한 함수</span>
+<span class="kw">UFUNCTION</span>(<span class="atr">BlueprintCallable</span>, <span class="atr">Category</span>=<span class="str">"Combat"</span>)
+<span class="kw">void</span> <span class="fn">FireWeapon</span>();
+
+<span class="cm">// 사이드 이펙트 없는 순수 함수</span>
+<span class="kw">UFUNCTION</span>(<span class="atr">BlueprintPure</span>, <span class="atr">Category</span>=<span class="str">"Stats"</span>)
+<span class="tp">float</span> <span class="fn">GetHealthPercent</span>() <span class="kw">const</span>;
+
+<span class="cm">// BP에서만 구현하는 이벤트</span>
+<span class="kw">UFUNCTION</span>(<span class="atr">BlueprintImplementableEvent</span>, <span class="atr">Category</span>=<span class="str">"Events"</span>)
+<span class="kw">void</span> <span class="fn">OnLevelUp</span>(<span class="tp">int32</span> <span class="fn">NewLevel</span>);
+
+<span class="cm">// C++ 기본 구현 + BP 오버라이드</span>
+<span class="kw">UFUNCTION</span>(<span class="atr">BlueprintNativeEvent</span>, <span class="atr">Category</span>=<span class="str">"Damage"</span>)
+<span class="tp">float</span> <span class="fn">TakeDamage</span>(<span class="tp">float</span> <span class="fn">Amount</span>);
+<span class="tp">float</span> <span class="fn">TakeDamage_Implementation</span>(<span class="tp">float</span> <span class="fn">Amount</span>);
+
+<span class="cm">// 서버 RPC</span>
+<span class="kw">UFUNCTION</span>(<span class="atr">Server</span>, <span class="atr">Reliable</span>, <span class="atr">WithValidation</span>)
+<span class="kw">void</span> <span class="fn">ServerRPC_Attack</span>();</pre>
+    </div>
+
+    <!-- USTRUCT & UENUM -->
+    <h3>USTRUCT() &amp; UENUM()</h3>
+    <p>구조체와 열거형을 리플렉션 시스템에 등록합니다.</p>
+
+    <div class="grid-2">
+      <div class="snip" style="margin:0">
+        <div class="snip-head"><div class="code-dot" style="background:var(--ue-mat)"></div>USTRUCT 예시</div>
+        <pre><span class="kw">USTRUCT</span>(<span class="atr">BlueprintType</span>)
+<span class="kw">struct</span> <span class="tp">FItemData</span>
+{
+    <span class="kw">GENERATED_BODY</span>()
+
+    <span class="kw">UPROPERTY</span>(<span class="atr">EditAnywhere</span>, <span class="atr">BlueprintReadWrite</span>)
+    <span class="tp">FString</span> <span class="fn">ItemName</span>;
+
+    <span class="kw">UPROPERTY</span>(<span class="atr">EditAnywhere</span>, <span class="atr">BlueprintReadWrite</span>)
+    <span class="tp">int32</span> <span class="fn">ItemCount</span> = <span class="val">0</span>;
+
+    <span class="kw">UPROPERTY</span>(<span class="atr">EditAnywhere</span>, <span class="atr">BlueprintReadWrite</span>)
+    <span class="tp">UTexture2D</span>* <span class="fn">Icon</span> = <span class="val">nullptr</span>;
+};</pre>
+      </div>
+      <div class="snip" style="margin:0">
+        <div class="snip-head"><div class="code-dot" style="background:var(--accent-2)"></div>UENUM 예시</div>
+        <pre><span class="kw">UENUM</span>(<span class="atr">BlueprintType</span>)
+<span class="kw">enum class</span> <span class="tp">EWeaponType</span> : <span class="tp">uint8</span>
+{
+    Sword     <span class="kw">UMETA</span>(<span class="atr">DisplayName</span>=<span class="str">"검"</span>),
+    Bow       <span class="kw">UMETA</span>(<span class="atr">DisplayName</span>=<span class="str">"활"</span>),
+    Staff     <span class="kw">UMETA</span>(<span class="atr">DisplayName</span>=<span class="str">"지팡이"</span>),
+    Shield    <span class="kw">UMETA</span>(<span class="atr">DisplayName</span>=<span class="str">"방패"</span>),
+};</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- 04 — 액터 라이프사이클 -->
+  <!-- ============================================================ -->
+  <div class="section" id="lifecycle">
+    <div class="section-label">04 — 액터 라이프사이클</div>
+    <h2>Actor 생성에서 소멸까지</h2>
+
+    <p>액터의 라이프사이클은 <strong>생성 경로에 따라 다르게 진행</strong>됩니다. 각 단계에서 허용되는 작업을 정확히 이해해야 안정적인 코드를 작성할 수 있습니다.</p>
+
+    <h3>기본 라이프사이클 흐름</h3>
+
+    <div class="pipe-step">
+      <div class="pipe-num">1</div>
+      <div class="pipe-body">
+        <div class="pipe-title">Constructor (생성자)</div>
+        <div class="pipe-desc"><code>CreateDefaultSubobject()</code>로 컴포넌트 생성, <code>SetupAttachment()</code>로 부착. <strong>기본값 설정만!</strong> GetWorld(), SpawnActor() 등 월드 관련 호출 금지.</div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">2</div>
+      <div class="pipe-body">
+        <div class="pipe-title">PostInitializeComponents</div>
+        <div class="pipe-desc">모든 컴포넌트의 초기화가 완료된 후 호출. 컴포넌트 간 상호 참조 설정에 적합.</div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">3</div>
+      <div class="pipe-body">
+        <div class="pipe-title">BeginPlay</div>
+        <div class="pipe-desc">게임플레이 로직의 시작점. 월드가 완전히 초기화된 상태. 대부분의 초기화 로직은 여기에 작성.</div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">4</div>
+      <div class="pipe-body">
+        <div class="pipe-title">Tick (매 프레임)</div>
+        <div class="pipe-desc">매 프레임 호출. <code>PrimaryActorTick.bCanEverTick = false;</code>로 비활성화 가능. 성능을 위해 가능하면 타이머나 이벤트 기반으로 대체.</div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">5</div>
+      <div class="pipe-body">
+        <div class="pipe-title">EndPlay</div>
+        <div class="pipe-desc">액터 제거, 레벨 전환, 세션 종료 시 호출. 리소스 정리, 타이머 해제, 델리게이트 언바인드 수행.</div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">6</div>
+      <div class="pipe-body">
+        <div class="pipe-title">Destroy &rarr; BeginDestroy &rarr; FinishDestroy &rarr; GC</div>
+        <div class="pipe-desc">소멸 체인. <code>Destroy()</code> 호출 후 GC가 메모리를 회수. UObject의 소멸은 GC에 의해 비동기적으로 처리.</div>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <span class="ic">&#x26A0;&#xFE0F;</span>
+      <p><strong>주의</strong>: Constructor에서 <code>GetWorld()</code>를 호출하면 <strong>nullptr 크래시</strong>가 발생합니다! Constructor에서는 BeginPlay 로직을 절대 실행하지 마세요. CDO(Class Default Object) 생성 시에는 월드가 존재하지 않습니다.</p>
+    </div>
+
+    <h3>Spawning 흐름 vs Loading 흐름</h3>
+
+    <div class="grid-2">
+      <div class="compare-box" style="border-top: 2px solid var(--accent-3);">
+        <h4><span style="color:var(--accent-3)">&#x1F680;</span> Spawning 흐름 (런타임 생성)</h4>
+        <p>코드에서 <code>SpawnActor()</code>로 액터를 동적 생성할 때의 호출 순서:</p>
+        <div class="pills">
+          <span class="pill green">SpawnActor</span>
+          <span class="pill green">PostSpawnInitialize</span>
+          <span class="pill green">PostActorCreated</span>
+          <span class="pill green">ExecuteConstruction</span>
+          <span class="pill green">OnConstruction</span>
+        </div>
+        <div class="pills">
+          <span class="pill blue">PreInitializeComponents</span>
+          <span class="pill blue">InitializeComponent</span>
+          <span class="pill blue">PostInitializeComponents</span>
+          <span class="pill blue">BeginPlay</span>
+        </div>
+      </div>
+      <div class="compare-box" style="border-top: 2px solid var(--accent);">
+        <h4><span style="color:var(--accent)">&#x1F4C2;</span> Loading 흐름 (레벨 로드)</h4>
+        <p>레벨에 배치된 액터가 로드될 때의 호출 순서:</p>
+        <div class="pills">
+          <span class="pill purple">PostLoad</span>
+          <span class="pill purple">InitializeActorsForPlay</span>
+          <span class="pill purple">RouteActorInitialize</span>
+          <span class="pill purple">BeginPlay</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <span class="ic">&#x1F4A1;</span>
+      <p><strong>Deferred Spawn</strong>: <code>SpawnActorDeferred&lt;T&gt;()</code>로 생성을 시작하면 추가 설정 후 <code>FinishSpawning()</code>을 호출하여 초기화를 완료합니다. 스폰 전에 UPROPERTY 값을 설정해야 할 때 유용합니다.</p>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- 05 — 핵심 클래스 계층 -->
+  <!-- ============================================================ -->
+  <div class="section" id="classes">
+    <div class="section-label">05 — 핵심 클래스 계층</div>
+    <h2>주요 클래스와 역할</h2>
+
+    <p>언리얼 엔진의 게임플레이 프레임워크를 구성하는 <strong>핵심 클래스</strong>들의 역할과 관계를 이해하면 올바른 상속 구조를 설계할 수 있습니다.</p>
+
+    <div class="grid-2">
+      <div class="a-card" style="border-top-color: var(--accent-2);">
+        <div class="a-title">UObject</div>
+        <div class="a-id">모든 UE 객체의 최상위 클래스</div>
+        <div class="a-desc">가비지 컬렉션 관리, 리플렉션 지원, 직렬화, CDO(Class Default Object) 패턴의 기반. 월드에 배치는 불가.</div>
+      </div>
+      <div class="a-card" style="border-top-color: var(--accent);">
+        <div class="a-title">AActor</div>
+        <div class="a-id">월드에 배치/스폰 가능한 객체</div>
+        <div class="a-desc">컴포넌트를 소유하고, Tick/BeginPlay 라이프사이클 보유. 네트워크 리플리케이션 지원. 트랜스폼은 RootComponent에 의존.</div>
+      </div>
+      <div class="a-card" style="border-top-color: var(--accent-3);">
+        <div class="a-title">APawn</div>
+        <div class="a-id">Controller에 의해 조종 가능한 Actor</div>
+        <div class="a-desc">플레이어 또는 AI Controller에 의해 Possess되어 입력을 받는 액터. MovementComponent 연동 가능.</div>
+      </div>
+      <div class="a-card" style="border-top-color: var(--pink);">
+        <div class="a-title">ACharacter</div>
+        <div class="a-id">APawn + 이동 + 충돌 + 메시</div>
+        <div class="a-desc">CharacterMovementComponent(걷기/점프/수영/비행), CapsuleComponent(충돌), SkeletalMeshComponent(애니메이션)를 기본 탑재.</div>
+      </div>
+      <div class="a-card" style="border-top-color: var(--ue-mat);">
+        <div class="a-title">APlayerController</div>
+        <div class="a-id">플레이어 입력 &rarr; Pawn 조작</div>
+        <div class="a-desc">플레이어의 입력을 Pawn에 전달. HUD/UI 관리, RPC의 시작점. 각 플레이어당 1개 존재.</div>
+      </div>
+      <div class="a-card" style="border-top-color: var(--amber);">
+        <div class="a-title">AGameModeBase</div>
+        <div class="a-id">게임 규칙 정의, 서버 전용</div>
+        <div class="a-desc">게임 룰, 기본 Pawn/Controller 클래스 지정, 플레이어 로그인 처리. 서버에서만 존재하며 클라이언트에 리플리케이트되지 않음.</div>
+      </div>
+      <div class="a-card" style="border-top-color: var(--ue-demo);">
+        <div class="a-title">AGameStateBase</div>
+        <div class="a-id">게임 전체 상태 관리</div>
+        <div class="a-desc">매치 시간, 점수 등 게임 전체 공유 데이터 저장. 모든 클라이언트에 자동 리플리케이트.</div>
+      </div>
+      <div class="a-card" style="border-top-color: var(--ue-cpp);">
+        <div class="a-title">APlayerState</div>
+        <div class="a-id">개별 플레이어 상태</div>
+        <div class="a-desc">플레이어 이름, 점수, 팀 등 개별 플레이어 정보. 모든 클라이언트에 리플리케이트. Pawn이 파괴되어도 유지.</div>
+      </div>
+      <div class="a-card" style="border-top-color: var(--text-dim);">
+        <div class="a-title">UActorComponent</div>
+        <div class="a-id">트랜스폼 없는 로직 컴포넌트</div>
+        <div class="a-desc">공간 정보 없이 순수 로직만 제공. InventoryComponent, HealthComponent 등 데이터/로직 모듈화에 활용.</div>
+      </div>
+      <div class="a-card" style="border-top-color: var(--accent);">
+        <div class="a-title">USceneComponent</div>
+        <div class="a-id">트랜스폼 있는 공간 컴포넌트</div>
+        <div class="a-desc">위치/회전/스케일 정보를 가지며 부착 계층 구조 지원. StaticMeshComponent, CameraComponent 등의 기반 클래스.</div>
+      </div>
+      <div class="a-card" style="border-top-color: var(--accent-2);">
+        <div class="a-title">UUserWidget</div>
+        <div class="a-id">UMG UI 위젯 기반 클래스</div>
+        <div class="a-desc">UMG(Unreal Motion Graphics) UI 시스템의 기반. 체력바, 인벤토리 화면, 메인 메뉴 등 모든 UI 요소의 부모 클래스.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- 06 — 필수 타입 & 컨테이너 -->
+  <!-- ============================================================ -->
+  <div class="section" id="types">
+    <div class="section-label">06 — 필수 타입 &amp; 컨테이너</div>
+    <h2>언리얼 전용 타입과 컨테이너</h2>
+
+    <p>언리얼 엔진은 STL 대신 <strong>자체 타입과 컨테이너</strong>를 사용합니다. 가비지 컬렉션, 리플렉션, 현지화와 통합되어 있어 표준 C++ 타입 대신 반드시 UE 타입을 사용해야 합니다.</p>
+
+    <h3>문자열 타입</h3>
+    <table class="tbl">
+      <tr><th>타입</th><th>설명</th><th>용도</th></tr>
+      <tr><td><code>FString</code></td><td>가변 문자열. <code>TEXT()</code> 매크로로 생성</td><td>일반적인 문자열 조작, 로깅</td></tr>
+      <tr><td><code>FName</code></td><td>경량 식별자. 대소문자 무시, 해시 기반 빠른 비교</td><td>에셋 이름, 소켓, 본 이름</td></tr>
+      <tr><td><code>FText</code></td><td>현지화 지원 텍스트</td><td>UI 표시용 텍스트, 다국어 지원</td></tr>
+    </table>
+
+    <h3>수학/변환 타입</h3>
+    <table class="tbl">
+      <tr><th>타입</th><th>설명</th></tr>
+      <tr><td><code>FVector</code></td><td>3D 벡터 (X, Y, Z). 위치, 방향, 속도 등에 사용</td></tr>
+      <tr><td><code>FRotator</code></td><td>회전 (Pitch, Yaw, Roll). 각도 기반 회전 표현</td></tr>
+      <tr><td><code>FTransform</code></td><td>위치 + 회전(Quat) + 스케일. 월드/로컬 변환의 기본 단위</td></tr>
+    </table>
+
+    <h3>컨테이너</h3>
+    <table class="tbl">
+      <tr><th>타입</th><th>설명</th><th>주요 함수</th></tr>
+      <tr><td><code>TArray</code></td><td>동적 배열 (std::vector 대체)</td><td><code>Add()</code>, <code>Remove()</code>, <code>Num()</code>, <code>FindByPredicate()</code></td></tr>
+      <tr><td><code>TMap</code></td><td>키-값 쌍 (std::unordered_map 대체)</td><td><code>Add()</code>, <code>Find()</code>, <code>Contains()</code>, <code>Remove()</code></td></tr>
+      <tr><td><code>TSet</code></td><td>중복 없는 집합 (std::unordered_set 대체)</td><td><code>Add()</code>, <code>Contains()</code>, <code>Remove()</code>, <code>Num()</code></td></tr>
+    </table>
+
+    <h3>스마트 포인터</h3>
+    <table class="tbl">
+      <tr><th>타입</th><th>설명</th></tr>
+      <tr><td><code>TSharedPtr</code></td><td>참조 카운팅 스마트 포인터. 비-UObject 전용. UObject에는 사용 금지</td></tr>
+      <tr><td><code>TWeakPtr</code></td><td>TSharedPtr의 약한 참조. 순환 참조 방지용</td></tr>
+      <tr><td><code>TSoftObjectPtr</code></td><td>소프트 레퍼런스. 비동기 로딩에 사용. 에셋을 바로 로드하지 않고 경로만 저장</td></tr>
+    </table>
+
+    <h3>UE_LOG 사용법</h3>
+    <div class="snip">
+      <div class="snip-head"><div class="code-dot" style="background:var(--accent-3)"></div>UE_LOG 로깅 예시</div>
+      <pre><span class="cm">// 로그 카테고리 정의 (헤더)</span>
+<span class="kw">DECLARE_LOG_CATEGORY_EXTERN</span>(<span class="fn">LogMyGame</span>, <span class="atr">Log</span>, <span class="atr">All</span>);
+
+<span class="cm">// 로그 카테고리 구현 (cpp)</span>
+<span class="kw">DEFINE_LOG_CATEGORY</span>(<span class="fn">LogMyGame</span>);
+
+<span class="cm">// 사용 예시</span>
+<span class="kw">UE_LOG</span>(<span class="fn">LogMyGame</span>, <span class="atr">Display</span>, <span class="kw">TEXT</span>(<span class="str">"플레이어 %s 스폰 완료"</span>), *<span class="fn">PlayerName</span>);
+<span class="kw">UE_LOG</span>(<span class="fn">LogMyGame</span>, <span class="atr">Warning</span>, <span class="kw">TEXT</span>(<span class="str">"체력이 %f 이하입니다"</span>), <span class="fn">Health</span>);
+<span class="kw">UE_LOG</span>(<span class="fn">LogMyGame</span>, <span class="atr">Error</span>,   <span class="kw">TEXT</span>(<span class="str">"컴포넌트를 찾을 수 없습니다!"</span>));
+
+<span class="cm">// 화면에 디버그 메시지 출력</span>
+<span class="kw">GEngine</span>-&gt;<span class="fn">AddOnScreenDebugMessage</span>(-<span class="val">1</span>, <span class="val">5.f</span>, <span class="tp">FColor</span>::<span class="val">Red</span>,
+    <span class="kw">TEXT</span>(<span class="str">"디버그 메시지"</span>));</pre>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- 07 — 블루프린트 연동 패턴 -->
+  <!-- ============================================================ -->
+  <div class="section" id="blueprint">
+    <div class="section-label">07 — 블루프린트 연동 패턴</div>
+    <h2>C++와 블루프린트를 연결하는 5가지 패턴</h2>
+
+    <p>언리얼의 핵심 철학은 <strong>"C++로 기반을 만들고, 블루프린트로 확장한다"</strong>입니다. 다음 5가지 패턴을 익히면 프로그래머와 디자이너 간 효율적인 협업이 가능합니다.</p>
+
+    <!-- Pattern 1 -->
+    <h3>패턴 1: BlueprintCallable — C++ 함수를 BP에서 호출</h3>
+    <p>가장 기본적인 연동. C++에서 구현한 함수를 블루프린트 그래프에서 노드로 호출합니다.</p>
+    <div class="snip">
+      <div class="snip-head"><div class="code-dot" style="background:var(--accent)"></div>BlueprintCallable</div>
+      <pre><span class="kw">UFUNCTION</span>(<span class="atr">BlueprintCallable</span>, <span class="atr">Category</span>=<span class="str">"Inventory"</span>)
+<span class="kw">bool</span> <span class="fn">AddItem</span>(<span class="tp">FName</span> <span class="fn">ItemID</span>, <span class="tp">int32</span> <span class="fn">Count</span>);
+<span class="cm">// BP에서 "Add Item" 노드로 사용 가능</span></pre>
+    </div>
+
+    <!-- Pattern 2 -->
+    <h3>패턴 2: BlueprintPure — 사이드 이펙트 없는 계산</h3>
+    <p>실행 핀 없이 데이터만 반환하는 순수 함수. 상태를 변경하지 않는 getter/계산 함수에 사용합니다.</p>
+    <div class="snip">
+      <div class="snip-head"><div class="code-dot" style="background:var(--accent-3)"></div>BlueprintPure</div>
+      <pre><span class="kw">UFUNCTION</span>(<span class="atr">BlueprintPure</span>, <span class="atr">Category</span>=<span class="str">"Stats"</span>)
+<span class="tp">float</span> <span class="fn">GetHealthPercent</span>() <span class="kw">const</span>
+{
+    <span class="kw">return</span> <span class="fn">CurrentHealth</span> / <span class="fn">MaxHealth</span>;
+}
+<span class="cm">// BP에서 실행 핀 없이 값만 가져옴</span></pre>
+    </div>
+
+    <!-- Pattern 3 -->
+    <h3>패턴 3: BlueprintImplementableEvent — BP에서만 구현</h3>
+    <p>C++에서 선언만 하고 구현은 블루프린트에서 합니다. C++ 본문을 작성하지 않습니다.</p>
+    <div class="snip">
+      <div class="snip-head"><div class="code-dot" style="background:var(--accent-2)"></div>BlueprintImplementableEvent</div>
+      <pre><span class="cm">// 헤더에 선언만 (구현 작성 금지!)</span>
+<span class="kw">UFUNCTION</span>(<span class="atr">BlueprintImplementableEvent</span>, <span class="atr">Category</span>=<span class="str">"Events"</span>)
+<span class="kw">void</span> <span class="fn">OnItemCollected</span>(<span class="tp">FName</span> <span class="fn">ItemID</span>);
+
+<span class="cm">// C++에서 호출하면 BP 구현이 실행됨</span>
+<span class="fn">OnItemCollected</span>(<span class="str">"Potion_HP"</span>);</pre>
+    </div>
+
+    <!-- Pattern 4 -->
+    <h3>패턴 4: BlueprintNativeEvent — C++ 기본 + BP 오버라이드</h3>
+    <p>C++에서 기본 구현을 제공하고, 블루프린트에서 선택적으로 오버라이드합니다. <code>_Implementation</code> 접미사로 기본 구현을 작성합니다.</p>
+    <div class="snip">
+      <div class="snip-head"><div class="code-dot" style="background:var(--pink)"></div>BlueprintNativeEvent</div>
+      <pre><span class="cm">// 헤더</span>
+<span class="kw">UFUNCTION</span>(<span class="atr">BlueprintNativeEvent</span>, <span class="atr">Category</span>=<span class="str">"Damage"</span>)
+<span class="tp">float</span> <span class="fn">CalculateDamage</span>(<span class="tp">float</span> <span class="fn">BaseDamage</span>);
+
+<span class="cm">// cpp — _Implementation 접미사 필수!</span>
+<span class="tp">float</span> <span class="tp">AMyCharacter</span>::<span class="fn">CalculateDamage_Implementation</span>(<span class="tp">float</span> <span class="fn">BaseDamage</span>)
+{
+    <span class="kw">return</span> <span class="fn">BaseDamage</span> * <span class="fn">DamageMultiplier</span>;
+}
+<span class="cm">// BP에서 오버라이드하지 않으면 C++ 구현이 실행됨</span></pre>
+    </div>
+
+    <!-- Pattern 5 -->
+    <h3>패턴 5: BlueprintAssignable — 이벤트 디스패처 BP 노출</h3>
+    <p>C++의 멀티캐스트 델리게이트를 블루프린트에서 바인딩할 수 있게 노출합니다.</p>
+    <div class="snip">
+      <div class="snip-head"><div class="code-dot" style="background:var(--ue-mat)"></div>BlueprintAssignable</div>
+      <pre><span class="cm">// 델리게이트 타입 선언</span>
+<span class="kw">DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam</span>(
+    <span class="tp">FOnHealthChanged</span>, <span class="tp">float</span>, <span class="fn">NewHealth</span>);
+
+<span class="cm">// UPROPERTY로 노출</span>
+<span class="kw">UPROPERTY</span>(<span class="atr">BlueprintAssignable</span>, <span class="atr">Category</span>=<span class="str">"Events"</span>)
+<span class="tp">FOnHealthChanged</span> <span class="fn">OnHealthChanged</span>;
+
+<span class="cm">// C++에서 브로드캐스트</span>
+<span class="fn">OnHealthChanged</span>.<span class="fn">Broadcast</span>(<span class="fn">CurrentHealth</span>);
+<span class="cm">// BP에서 "Bind Event" 또는 "Assign" 노드로 수신</span></pre>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- 08 — 팁 & 주의사항 -->
+  <!-- ============================================================ -->
+  <div class="section" id="tips">
+    <div class="section-label">08 — 팁 &amp; 주의사항</div>
+    <h2>자주 발생하는 실수와 모범 사례</h2>
+
+    <p>UE C++ 개발에서 <strong>자주 발생하는 실수</strong>와 이를 방지하기 위한 모범 사례를 정리합니다.</p>
+
+    <h3>흔한 실수 (Pitfalls)</h3>
+
+    <div class="pitfall">
+      <span class="ic">&#x26A0;&#xFE0F;</span>
+      <div class="pitfall-text"><strong>Constructor에서 GetWorld() 호출</strong> — CDO 생성 시 월드가 없으므로 <code>nullptr</code> 크래시 발생. 월드 의존 로직은 반드시 <code>BeginPlay()</code> 이후에 작성하세요.</div>
+    </div>
+    <div class="pitfall">
+      <span class="ic">&#x26A0;&#xFE0F;</span>
+      <div class="pitfall-text"><strong>.generated.h가 마지막 #include가 아닌 경우</strong> — UHT(Unreal Header Tool)가 생성한 코드와 충돌하여 컴파일 에러 발생. 항상 마지막 #include로 배치하세요.</div>
+    </div>
+    <div class="pitfall">
+      <span class="ic">&#x26A0;&#xFE0F;</span>
+      <div class="pitfall-text"><strong>GENERATED_BODY() 누락</strong> — 리플렉션 코드가 생성되지 않아 컴파일 에러. UCLASS/USTRUCT 선언 시 반드시 본문 첫 줄에 포함하세요.</div>
+    </div>
+    <div class="pitfall">
+      <span class="ic">&#x26A0;&#xFE0F;</span>
+      <div class="pitfall-text"><strong>UPROPERTY 없는 UObject*</strong> — 가비지 컬렉터가 참조를 추적하지 못해 예고 없이 메모리를 해제합니다. UObject 포인터는 반드시 <code>UPROPERTY()</code>로 마킹하세요.</div>
+    </div>
+    <div class="pitfall">
+      <span class="ic">&#x26A0;&#xFE0F;</span>
+      <div class="pitfall-text"><strong>Hot Reload 사용 (UE5)</strong> — UE5에서 Hot Reload는 불안정합니다. 대신 <strong>Live Coding</strong> (Ctrl+Alt+F11)을 사용하세요. 헤더 변경 시에는 에디터 재시작이 필요할 수 있습니다.</div>
+    </div>
+    <div class="pitfall">
+      <span class="ic">&#x26A0;&#xFE0F;</span>
+      <div class="pitfall-text"><strong>헤더 변경 후 에디터 미재시작</strong> — UPROPERTY, UFUNCTION 시그니처 변경 후에는 Live Coding으로 반영되지 않는 경우가 있습니다. 이런 경우 에디터를 완전히 재시작해야 합니다.</div>
+    </div>
+
+    <h3>Do / Don't</h3>
+
+    <div class="dd-grid">
+      <div class="dd do">
+        <h4>&#x2705; Do (권장)</h4>
+        <ul>
+          <li>UObject 포인터는 항상 <code>UPROPERTY()</code>로 마킹</li>
+          <li>컴포넌트는 Constructor에서 <code>CreateDefaultSubobject</code>로 생성</li>
+          <li>Blueprint에 노출할 함수에는 <code>Category</code>를 명시</li>
+          <li>Tick 대신 타이머(<code>FTimerManager</code>)나 이벤트 사용</li>
+          <li><code>TEXT()</code> 매크로로 문자열 리터럴 감싸기</li>
+          <li><code>IsValid()</code> 또는 <code>nullptr</code> 체크 후 포인터 사용</li>
+          <li>C++ 기반 클래스 + BP 파생 클래스 구조 활용</li>
+          <li>네트워크 함수에 <code>WithValidation</code> 추가로 보안 강화</li>
+        </ul>
+      </div>
+      <div class="dd dont">
+        <h4>&#x274C; Don't (금지)</h4>
+        <ul>
+          <li>Constructor에서 <code>GetWorld()</code>, <code>SpawnActor()</code> 호출</li>
+          <li><code>new</code> 키워드로 UObject 생성 (반드시 <code>NewObject</code> 사용)</li>
+          <li>UObject에 <code>TSharedPtr</code> 사용 (GC 충돌)</li>
+          <li><code>std::string</code>, <code>std::vector</code> 등 STL 컨테이너 사용</li>
+          <li>Hot Reload 의존 (UE5에서는 Live Coding 사용)</li>
+          <li><code>.generated.h</code>를 마지막 #include 이외의 위치에 배치</li>
+          <li><code>GENERATED_BODY()</code> 없이 UCLASS 선언</li>
+          <li>UPROPERTY 없이 UObject* 멤버 변수 선언</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>자주 묻는 질문 (FAQ)</h3>
+
+    <table class="tbl">
+      <tr><th>질문</th><th>답변</th></tr>
+      <tr><td>BlueprintCallable과 BlueprintPure의 차이는?</td><td><code>BlueprintCallable</code>은 실행 핀이 있고 사이드 이펙트를 가질 수 있습니다. <code>BlueprintPure</code>는 실행 핀 없이 값만 반환하며 상태를 변경하지 않습니다.</td></tr>
+      <tr><td>BlueprintImplementableEvent vs BlueprintNativeEvent?</td><td><code>ImplementableEvent</code>는 C++에 구현이 없고 BP에서만 구현합니다. <code>NativeEvent</code>는 C++에 <code>_Implementation</code> 기본 구현을 제공하고 BP에서 선택적으로 오버라이드합니다.</td></tr>
+      <tr><td>EditAnywhere vs EditDefaultsOnly?</td><td><code>EditAnywhere</code>는 BP 기본값과 레벨 인스턴스 모두에서 편집 가능. <code>EditDefaultsOnly</code>는 BP 에디터의 기본값만 편집 가능하고, 레벨에 배치된 인스턴스에서는 편집 불가.</td></tr>
+      <tr><td>TSharedPtr를 UObject에 쓰면 안 되는 이유?</td><td>UObject는 가비지 컬렉터(GC)가 관리합니다. TSharedPtr는 참조 카운팅 기반이므로 GC와 충돌하여 이중 해제(double free) 또는 댕글링 포인터가 발생합니다.</td></tr>
+      <tr><td>FName vs FString vs FText는 언제 사용?</td><td><code>FName</code>: 식별자, 비교 연산이 잦은 경우. <code>FString</code>: 문자열 조작이 필요한 경우. <code>FText</code>: UI에 표시하거나 현지화가 필요한 경우.</td></tr>
+      <tr><td>Server RPC에 WithValidation이 왜 필요한가?</td><td>클라이언트가 보내는 RPC는 치트 가능성이 있습니다. <code>WithValidation</code>은 <code>_Validate</code> 함수에서 입력값을 검증하여 부정 행위를 방지합니다.</td></tr>
+    </table>
+  </div>
+
+</div>
+
+<footer>
+  <span>언리얼 엔진 C++ 프로그래밍 가이드</span>
+  <span>출처: Epic Games 공식 문서</span>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>07 · UI 프레임워크 — RecordTales v1.0</title>
+<!-- ============================================================
+     CHANGELOG — 07-ui-framework.html
+     UI 프레임워크 설계 문서. 작업 규약: design-guide/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.0 · 2026-07-02
+       - 신규 생성. UI 프레임워크 설계.
+       - 7섹션: 개념, HUD, 패널, 모달, 토스트, 캘린더, 스켈레톤
+       - UUIManagerSubsystem (GameInstanceSubsystem) 기반 설계
+     ============================================================ -->
+<style>
+/* ============================================================
+   UE Design System — Master Stylesheet
+   (design-guide-ue-master.css)
+   언리얼 에셋 분석 · 아키텍처 설계 문서 공통 토대
+   v1.2  (Dark · Indigo Minimal · Editorial)
+
+   사용법
+   - 가이드 문서(master-visual / 01 / 02)는 <link>로 이 파일을 참조.
+   - 실제 결과물 HTML은 이 파일 내용을 <style>에 통째로 복사(inline)하여
+     단일 파일로 배포한다. (오프라인 무결성 유지)
+
+   변경 이력 (CHANGELOG) — 작업 규약: design-guide/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+   v1.2 · 2026-07-01
+     - (추가) .compare-box — 좌우 병렬 비교 카드 (Spawning vs Loading 등)
+     - (추가) .grid-3 — 3열 그리드
+     - (추가) .stat-row-4 — 4열 통계 카드
+     - (추가) .pill.pink / .pill.red — 핑크·레드 pill 변형
+     - (변경) 반응형 블록에 .stat-row-4, .grid-3 1열 폴백 추가
+   v1.1 · 2026-07-01
+     - 파일명 ue-design-system.css → design-guide-ue-master.css
+     - 프레임워크 클래스 컬러 맵 추가
+       (--ue-gamemode/gamestate/controller/pawn/instance/savegame/subsystem)
+     - 파일 타입 컬러 맵 추가 (--ue-header/source/macro)
+     - .h/.cpp 코드 탭(.codeblock) + highlight.js(hljs-*) 다크·인디고 테마
+     - 클래스 관계도(.rel-map) / 책임 배치 결정표(.tbl .owner) 스타일 추가
+     - .tree 에 프레임워크 클래스 색(.c-*), .pitfall.tip, .filetag 추가
+   v1.0
+     - 최초 에셋 분석 디자인 가이드 토큰·컴포넌트
+       (원본 design-guide-ue-asset-structure.html에서 파생, 원본 파일은 2026-07-01 삭제)
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Pretendard:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* --- 기본 토큰 --- */
+  --bg: #0D0F1A;
+  --surface: #13162A;
+  --surface-2: #1A1F38;
+  --border: #252B4A;
+  --accent: #5B6EFA;
+  --accent-2: #9B6DFF;
+  --accent-3: #38D9B4;
+  --text: #E4E8FF;
+  --text-muted: #7B82A6;
+  --text-dim: #4A5080;
+  --amber: #F59E0B;
+  --pink: #E040FB;
+  --red: #F87171;
+
+  /* --- 에셋 타입 컬러 맵 (에셋 분석 문서 전용) --- */
+  --ue-folder: #F59E0B;
+  --ue-bp:     #5B6EFA;
+  --ue-enum:   #9B6DFF;
+  --ue-mat:    #FB8C5A;
+  --ue-tex:    #38D9B4;
+  --ue-demo:   #6BD98E;
+
+  /* --- 프레임워크 클래스 컬러 맵 (C++ 아키텍처 문서 전용, v1.1 신규) --- */
+  --ue-gamemode:   #5B6EFA;
+  --ue-gamestate:  #7B9CFF;
+  --ue-controller: #38D9B4;
+  --ue-pawn:       #6BD98E;
+  --ue-instance:   #9B6DFF;
+  --ue-savegame:   #F59E0B;
+  --ue-subsystem:  #E040FB;
+
+  /* --- 파일 타입 컬러 맵 (코드 탭·파일 태그, v1.1 신규) --- */
+  --ue-header: #38D9B4;
+  --ue-source: #FB8C5A;
+  --ue-macro:  #FB8C5A;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+  font-size: 15px; line-height: 1.7; -webkit-font-smoothing: antialiased;
+}
+
+/* NAV */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(13,15,26,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px; display: flex; align-items: center; gap: 32px; height: 52px;
+}
+.nav-logo { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em; white-space: nowrap; }
+.nav-links { display: flex; gap: 22px; flex-wrap: wrap; }
+.nav-links a { color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 500; transition: color 0.2s; }
+.nav-links a:hover { color: var(--text); }
+.nav-links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+
+/* HERO */
+.hero { padding: 72px 48px 56px; max-width: 920px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+.hero-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: var(--accent); text-transform: uppercase; margin-bottom: 20px; }
+.hero h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 20px; }
+.hero h1 span { color: var(--accent); }
+.hero-sub { font-size: 16px; color: var(--text-muted); max-width: 660px; line-height: 1.75; }
+.hero-meta { margin-top: 28px; display: flex; gap: 10px; flex-wrap: wrap; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; border: 1px solid; }
+.badge-blue { color: var(--accent); border-color: var(--accent); background: rgba(91,110,250,0.08); }
+.badge-green { color: var(--accent-3); border-color: var(--accent-3); background: rgba(56,217,180,0.08); }
+.badge-purple { color: var(--accent-2); border-color: var(--accent-2); background: rgba(155,109,255,0.08); }
+
+/* CONTENT / SECTION */
+.content { max-width: 920px; margin: 0 auto; padding: 0 48px 80px; }
+.section { padding: 52px 0 0; border-top: 1px solid var(--border); margin-top: 52px; }
+.section:first-child { margin-top: 0; padding-top: 48px; border-top: none; }
+.section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 12px; }
+.section h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 20px; }
+.section h3 { font-size: 15px; font-weight: 700; color: var(--text); margin: 30px 0 10px; letter-spacing: 0.01em; }
+.section p { color: var(--text-muted); margin-bottom: 14px; line-height: 1.8; }
+.section p strong { color: var(--text); font-weight: 600; }
+
+code { font-family: 'IBM Plex Mono', monospace; font-size: 0.86em; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; color: var(--accent-3); }
+
+/* SWATCHES */
+.swatch-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 22px 0; }
+.swatch { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.swatch .chip { height: 56px; }
+.swatch .meta { padding: 10px 12px; }
+.swatch .vn { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text); font-weight: 600; }
+.swatch .hx { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--text-dim); }
+.swatch .role { font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+
+/* TYPE SCALE */
+.type-row { display: flex; align-items: baseline; gap: 18px; padding: 14px 0; border-bottom: 1px solid rgba(37,43,74,0.5); }
+.type-row:last-child { border-bottom: none; }
+.type-spec { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-dim); min-width: 150px; flex-shrink: 0; }
+.ts-h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; }
+.ts-h2 { font-size: 22px; font-weight: 700; }
+.ts-h3 { font-size: 15px; font-weight: 700; }
+.ts-body { font-size: 15px; color: var(--text-muted); }
+.ts-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); }
+.ts-code { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--accent-3); }
+
+/* CALLOUT */
+.callout { display: flex; gap: 12px; align-items: flex-start; border-radius: 8px; padding: 14px 16px; margin: 18px 0; border: 1px solid var(--border); background: var(--surface-2); font-size: 13.5px; line-height: 1.65; }
+.callout .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.callout p { margin: 0; color: var(--text-muted); }
+.callout p strong { color: var(--text); }
+.callout.info { border-left: 3px solid var(--accent); }
+.callout.tip  { border-left: 3px solid var(--accent-3); }
+.callout.warn { border-left: 3px solid var(--amber); }
+
+/* COMPONENT DEMO FRAME */
+.demo { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 16px 0; }
+.demo-head { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 7px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); }
+.demo-body { padding: 22px; }
+
+/* CODE SNIPPET */
+.snip { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 12px 0 22px; }
+.snip-head { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 8px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+.code-dot { width: 8px; height: 8px; border-radius: 50%; }
+.snip pre { padding: 14px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-muted); line-height: 1.75; overflow-x: auto; white-space: pre; }
+.snip pre .tag { color: var(--accent); }
+.snip pre .atr { color: var(--ue-mat); }
+.snip pre .val { color: var(--accent-3); }
+.snip pre .cm  { color: var(--text-dim); }
+
+/* ============================================================
+   CODE BLOCK — 실제 C++/H (탭 전환 + 복사 + 구워넣은 하이라이팅)  [v1.1 신규]
+   ============================================================ */
+.codeblock { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 16px 0 24px; }
+.codeblock-bar { display: flex; align-items: stretch; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.codeblock-tab {
+  padding: 9px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600;
+  color: var(--text-dim); background: transparent; border: none; border-right: 1px solid var(--border);
+  cursor: pointer; transition: color 0.15s, background 0.15s; box-shadow: inset 0 -2px 0 transparent;
+}
+.codeblock-tab:hover { color: var(--text-muted); }
+.codeblock-tab.active { color: var(--text); background: var(--surface); }
+.codeblock-tab.tab-h.active   { box-shadow: inset 0 -2px 0 var(--ue-header); }
+.codeblock-tab.tab-cpp.active { box-shadow: inset 0 -2px 0 var(--ue-source); }
+.codeblock-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.codeblock-copy {
+  margin-left: auto; align-self: center; margin-right: 8px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600;
+  color: var(--text-muted); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 5px; padding: 4px 10px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+}
+.codeblock-copy:hover { color: var(--text); border-color: var(--accent); }
+.codeblock-copy.copied { color: var(--accent-3); border-color: var(--accent-3); }
+.codeblock-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.codeblock-panel { display: none; }
+.codeblock-panel.active { display: block; }
+.codeblock pre { padding: 16px 18px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.75; overflow-x: auto; white-space: pre; }
+
+/* highlight.js 테마 — 다크·인디고 팔레트 매핑 */
+.hljs { color: var(--text-muted); background: var(--surface); }
+.hljs-comment, .hljs-quote { color: var(--text-dim); font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-section { color: var(--accent); font-weight: 500; }
+.hljs-literal, .hljs-symbol, .hljs-bullet { color: var(--accent-2); }
+.hljs-number { color: var(--accent-2); }
+.hljs-string, .hljs-attr, .hljs-attribute, .hljs-name { color: var(--ue-demo); }
+.hljs-type, .hljs-class .hljs-title, .hljs-title.class_, .hljs-built_in { color: var(--accent-3); }
+.hljs-title, .hljs-title.function_, .hljs-function .hljs-title { color: var(--text); }
+.hljs-params { color: var(--text-muted); }
+.hljs-meta, .hljs-meta .hljs-keyword { color: var(--ue-macro); font-weight: 600; }
+.hljs-meta .hljs-string { color: var(--ue-demo); }
+.hljs-property, .hljs-variable { color: var(--text); }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 700; }
+
+/* 파일 태그 */
+.filetag { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 3px; }
+.filetag.h   { background: rgba(56,217,180,0.14); color: var(--ue-header); }
+.filetag.cpp { background: rgba(251,140,90,0.14);  color: var(--ue-source); }
+
+/* the live mini-components */
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 4px; }
+.stat-label { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+.a-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; border-top: 2px solid var(--ue-bp); }
+.a-card .ic { font-size: 22px; margin-bottom: 10px; }
+.a-card .a-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.a-card .a-id { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--accent); margin-bottom: 8px; }
+.a-card .a-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+.tt { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 3px; }
+.tt-bool { background: rgba(91,110,250,0.14); color: var(--accent); }
+.tt-enum { background: rgba(251,140,90,0.14); color: var(--ue-mat); }
+.tt-del  { background: rgba(224,64,251,0.12); color: var(--pink); }
+
+.pills { display: flex; flex-wrap: wrap; gap: 7px; }
+.pill { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; padding: 3px 12px; border-radius: 20px; border: 1px solid; }
+.pill.blue { color: var(--accent); border-color: rgba(91,110,250,0.4); background: rgba(91,110,250,0.08); }
+.pill.purple { color: var(--accent-2); border-color: rgba(155,109,255,0.4); background: rgba(155,109,255,0.08); }
+.pill.green { color: var(--accent-3); border-color: rgba(56,217,180,0.4); background: rgba(56,217,180,0.08); }
+.pill.pink { color: var(--pink); border-color: rgba(224,64,251,0.4); background: rgba(224,64,251,0.08); }
+.pill.red { color: var(--red); border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.08); }
+
+.arch { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: stretch; }
+.arch-layer { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 16px 14px; }
+.arch-arrow { display: flex; align-items: center; justify-content: center; padding: 0 8px; color: var(--text-dim); font-size: 16px; }
+.arch-tag { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 7px; color: var(--accent); }
+.arch-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.arch-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+.tbl { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 13px; }
+.tbl th { background: var(--surface-2); color: var(--text-muted); font-weight: 600; font-size: 12px; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+.tbl td { padding: 10px 14px; color: var(--text-muted); border-bottom: 1px solid rgba(37,43,74,0.5); vertical-align: top; line-height: 1.55; }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl td:first-child { color: var(--text); }
+.tbl td code, .tbl th code { background: transparent; border: none; padding: 0; color: var(--accent); }
+
+.tree { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.9; color: var(--text-dim); white-space: pre; overflow-x: auto; }
+.tree .folder { color: var(--ue-folder); font-weight: 600; }
+.tree .bp { color: var(--ue-bp); } .tree .enum { color: var(--ue-enum); }
+.tree .mat { color: var(--ue-mat); } .tree .tex { color: var(--ue-tex); }
+.tree .note { color: var(--text-muted); }
+.tree .c-gamemode { color: var(--ue-gamemode); font-weight: 600; }
+.tree .c-gamestate { color: var(--ue-gamestate); font-weight: 600; }
+.tree .c-controller { color: var(--ue-controller); font-weight: 600; }
+.tree .c-pawn { color: var(--ue-pawn); font-weight: 600; }
+.tree .c-instance { color: var(--ue-instance); font-weight: 600; }
+.tree .c-savegame { color: var(--ue-savegame); font-weight: 600; }
+.tree .c-subsystem { color: var(--ue-subsystem); font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); }
+.legend .dot { width: 9px; height: 9px; border-radius: 2px; }
+
+/* CLASS RELATIONSHIP */
+.rel-map { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
+.rel-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+.rel-node {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 14px; border-left: 3px solid var(--text-dim);
+}
+.rel-node .rn-name { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.rel-node .rn-role { font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.4; }
+.rel-node.n-gamemode   { border-left-color: var(--ue-gamemode); }
+.rel-node.n-gamestate  { border-left-color: var(--ue-gamestate); }
+.rel-node.n-controller { border-left-color: var(--ue-controller); }
+.rel-node.n-pawn       { border-left-color: var(--ue-pawn); }
+.rel-node.n-instance   { border-left-color: var(--ue-instance); }
+.rel-node.n-savegame   { border-left-color: var(--ue-savegame); }
+.rel-node.n-subsystem  { border-left-color: var(--ue-subsystem); }
+.rel-arrow { display: flex; flex-direction: column; align-items: center; color: var(--text-dim); min-width: 84px; }
+.rel-arrow .ra-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--accent); letter-spacing: 0.04em; white-space: nowrap; }
+.rel-arrow .ra-line { font-size: 15px; line-height: 1; }
+
+/* DECISION TABLE */
+.tbl .owner { display: inline-flex; align-items: center; gap: 7px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.tbl .owner::before { content: ''; width: 9px; height: 9px; border-radius: 2px; background: var(--text-dim); flex-shrink: 0; }
+.tbl .owner.o-gamemode::before   { background: var(--ue-gamemode); }
+.tbl .owner.o-gamestate::before  { background: var(--ue-gamestate); }
+.tbl .owner.o-controller::before { background: var(--ue-controller); }
+.tbl .owner.o-pawn::before       { background: var(--ue-pawn); }
+.tbl .owner.o-instance::before   { background: var(--ue-instance); }
+.tbl .owner.o-savegame::before   { background: var(--ue-savegame); }
+.tbl .owner.o-subsystem::before  { background: var(--ue-subsystem); }
+
+.pipe-step { display: grid; grid-template-columns: 36px 1fr; gap: 0 16px; position: relative; }
+.pipe-step::before { content: ''; position: absolute; left: 17px; top: 36px; bottom: -1px; width: 2px; background: var(--border); }
+.pipe-step:last-child::before { display: none; }
+.pipe-num { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--surface-2); }
+.pipe-body { padding: 6px 0 22px; }
+.pipe-title { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+.pipe-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+.pitfall { display: flex; gap: 14px; align-items: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; border-left: 3px solid var(--amber); margin: 12px 0; }
+.pitfall.tip { border-left-color: var(--accent-3); }
+.pitfall .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.pitfall-text { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
+.pitfall-text strong { color: var(--text); }
+
+/* DO / DON'T */
+.dd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 22px 0; }
+.dd { border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; background: var(--surface-2); }
+.dd.do { border-left: 3px solid var(--accent-3); }
+.dd.dont { border-left: 3px solid var(--red); }
+.dd h4 { font-size: 13px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.dd.do h4 { color: var(--accent-3); }
+.dd.dont h4 { color: var(--red); }
+.dd ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.dd li { font-size: 12.5px; color: var(--text-muted); line-height: 1.55; padding-left: 16px; position: relative; }
+.dd li::before { content: ''; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; border-radius: 50%; }
+.dd.do li::before { background: var(--accent-3); }
+.dd.dont li::before { background: var(--red); }
+
+footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920px; margin: 0 auto; font-size: 12px; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+.stat-row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.stat-row-4 .stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+
+.compare-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
+.compare-box h4 { font-size: 14px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.compare-box p { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 10px; }
+.compare-box .pills { margin-top: 10px; }
+
+@media (max-width: 720px) {
+  .content { padding: 0 20px 60px; }
+  .hero { padding: 48px 20px 40px; }
+  .swatch-grid { grid-template-columns: 1fr 1fr; }
+  .stat-row, .stat-row-4, .dd-grid, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .arch { grid-template-columns: 1fr; }
+  .arch-arrow { transform: rotate(90deg); padding: 4px 0; }
+  .rel-row { grid-template-columns: 1fr; text-align: left; }
+  .rel-arrow { flex-direction: row; gap: 8px; min-width: 0; padding: 2px 0; }
+  .rel-arrow .ra-line { transform: rotate(90deg); }
+  .type-row { flex-direction: column; gap: 6px; }
+  .type-spec { min-width: 0; }
+  nav { padding: 0 16px; gap: 16px; }
+  .nav-links { display: none; }
+  footer { padding: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">RECORDTALES &middot; 07 UI FRAMEWORK</div>
+  <div class="nav-links">
+    <a href="#concept">개념</a>
+    <a href="#hud">HUD</a>
+    <a href="#panel">패널</a>
+    <a href="#modal">모달</a>
+    <a href="#toast">토스트</a>
+    <a href="#calendar">캘린더</a>
+    <a href="#skeleton">코드</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">RecordTales &middot; v1.0 &middot; UI Framework</div>
+  <h1>UI 프레임워크<br><span>패널 &middot; 모달 &middot; HUD</span></h1>
+  <p class="hero-sub">
+    Focus/Quests/Archive 패널 전환, 모달 스택, 토스트 알림, 캘린더 위젯, HUD 4코너 레이아웃을 관리하는 UI 프레임워크입니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">패널 매니저</span>
+    <span class="badge badge-green">모달 스택</span>
+    <span class="badge badge-purple">HUD 레이아웃</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- ============================================================
+       01 — 개념 이해
+       ============================================================ -->
+  <div class="section" id="concept">
+    <div class="section-label">01 — 개념 이해</div>
+    <h2>UI 프레임워크란</h2>
+    <p><strong>UI 프레임워크</strong>는 RecordTales의 <strong>전체 UI를 관리하는 계층적 시스템</strong>입니다. RecordTales는 전통적인 3D 게임이 아니라 <strong>UI 중심 앱</strong>이므로, 거의 모든 사용자 상호작용이 UMG(Unreal Motion Graphics: 언리얼의 UI 제작 시스템) 위젯으로 구현됩니다. 핵심 관리자는 <code>UUIManagerSubsystem</code>(<code>UGameInstanceSubsystem</code>을 상속하여 프로그램 수명 동안 유지)이며, 패널 전환, 모달 스택, 토스트 알림을 통합 관리합니다.</p>
+
+    <div class="stat-row-4">
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent)">3</div><div class="stat-label">패널</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent-3)">4+</div><div class="stat-label">모달</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent-2)">4</div><div class="stat-label">코너 HUD</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--ue-savegame)">1</div><div class="stat-label">재사용 캘린더</div></div>
+    </div>
+
+    <h3>핵심 용어</h3>
+    <div class="callout tip">
+      <span class="ic">&#128218;</span>
+      <p>
+        <strong id="term-panel-manager">패널 매니저(Panel Manager)</strong> &mdash; Focus/Quests/Archive 세 패널 중 하나만 열리도록 관리하는 시스템. 네비게이션 바 버튼으로 전환합니다.<br>
+        <strong id="term-modal-stack">모달 스택(Modal Stack)</strong> &mdash; 패널 위에 띄우는 대화 상자(길드 관리, 설정 등)를 스택(후입선출) 구조로 관리. Push로 쌓고 Pop으로 제거합니다.<br>
+        <strong id="term-toast">토스트(Toast)</strong> &mdash; 화면 하단 중앙에 1~3초간 표시 후 자동으로 사라지는 짧은 알림 메시지.<br>
+        <strong id="term-calendar-widget">캘린더 위젯(Calendar Widget)</strong> &mdash; 월별 날짜를 표시하고 선택할 수 있는 재사용 가능한 공통 위젯. 퀘스트(시작일/마감일 선택)와 아카이브(날짜 탐색)에서 사용됩니다.<br>
+        <strong id="term-hud-layout">HUD 레이아웃</strong> &mdash; 화면 네 코너와 중앙에 위젯을 배치하는 구조. 각 코너는 독립 위젯으로 분리되어 재사용 가능합니다.
+      </p>
+    </div>
+
+    <div class="callout info">
+      <span class="ic">&#128204;</span>
+      <p>RecordTales는 전통적인 3D 게임이 아닌 <strong>UI 중심 앱</strong>입니다. 거의 모든 로직이 <strong>UMG(Unreal Motion Graphics)</strong> 위젯으로 구현됩니다. 3D 월드는 배경 역할만 하며, 사용자 상호작용은 전부 위젯 버튼/슬라이더/텍스트를 통해 이루어집니다.</p>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       02 — HUD 레이아웃
+       ============================================================ -->
+  <div class="section" id="hud">
+    <div class="section-label">02 — HUD 레이아웃</div>
+    <h2>4코너 + 중앙 구성</h2>
+    <p>HUD(Head-Up Display: 게임 화면 위에 상시 표시되는 UI 레이어)는 화면을 <strong>4코너 + 중앙</strong>으로 나누고, 각 영역에 독립 위젯을 배치합니다. 이렇게 분리하면 특정 영역만 수정해도 다른 영역에 영향을 주지 않습니다.</p>
+
+    <h3>레이아웃 구조</h3>
+    <div class="tree"><span class="note">&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;</span>
+<span class="note">&#9474;</span> <span class="c-instance">Top-Left</span>          <span class="note">&#9474;</span>       <span class="c-controller">Top-Right</span> <span class="note">&#9474;</span>
+<span class="note">&#9474;</span> <span class="note">길드정보</span>            <span class="note">&#9474;</span>  <span class="note">시계 &middot; Nav &middot; 미니</span> <span class="note">&#9474;</span>
+<span class="note">&#9474;</span> <span class="note">오늘의퀘스트</span>        <span class="note">&#9474;</span>                 <span class="note">&#9474;</span>
+<span class="note">&#9500;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9508;</span>
+<span class="note">&#9474;</span>                                   <span class="note">&#9474;</span>
+<span class="note">&#9474;</span>            <span class="c-subsystem">Center</span>             <span class="note">&#9474;</span>
+<span class="note">&#9474;</span>            <span class="note">시길 (문장+격언)</span>     <span class="note">&#9474;</span>
+<span class="note">&#9474;</span>                                   <span class="note">&#9474;</span>
+<span class="note">&#9500;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9508;</span>
+<span class="note">&#9474;</span> <span class="c-pawn">Bottom-Left</span>       <span class="note">&#9474;</span>    <span class="c-savegame">Bottom-Right</span> <span class="note">&#9474;</span>
+<span class="note">&#9474;</span> <span class="note">앰비언트</span>            <span class="note">&#9474;</span>  <span class="note">Command Post</span>    <span class="note">&#9474;</span>
+<span class="note">&#9474;</span> <span class="note">음악 플레이어</span>       <span class="note">&#9474;</span>  <span class="note">(모집/관리/해금/설정)</span><span class="note">&#9474;</span>
+<span class="note">&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;</span></div>
+
+    <h3>영역별 위젯 클래스</h3>
+    <table class="tbl">
+      <tr><th>영역</th><th>위젯 클래스</th><th>역할</th></tr>
+      <tr><td>Top-Left</td><td><code>UGuildInfoWidget</code></td><td>길드 이름, 레벨, 칭호, Gold 잔액, XP 진행 바를 표시합니다.</td></tr>
+      <tr><td>Top-Left</td><td><code>UTodayQuestWidget</code></td><td>오늘의 할 일 목록을 접기/펼치기 형태로 표시합니다.</td></tr>
+      <tr><td>Top-Right</td><td><code>UClockWidget</code></td><td>현재 시각, 날짜, 요일을 실시간으로 표시합니다.</td></tr>
+      <tr><td>Top-Right</td><td><code>USessionMiniWidget</code></td><td>타이머/스톱워치가 실행 중일 때 남은 시간과 현재 단계를 축소 표시합니다.</td></tr>
+      <tr><td>Top-Right</td><td><code>UNavBarWidget</code></td><td>Focus/Quests/Archive 버튼 3개. 클릭 시 해당 패널을 엽니다.</td></tr>
+      <tr><td>Bottom-Left</td><td><code>UAmbientWidget</code></td><td>5종 앰비언트 볼륨 슬라이더와 글로벌 토글 버튼.</td></tr>
+      <tr><td>Bottom-Left</td><td><code>UMusicPlayerWidget</code></td><td>앨범아트, 재생 바, Play/Pause/이전/다음 버튼, 볼륨.</td></tr>
+      <tr><td>Bottom-Right</td><td><code>UCommandPostWidget</code></td><td>모집/관리/해금/설정 버튼 4개. 클릭 시 해당 모달을 엽니다.</td></tr>
+      <tr><td>Center</td><td><code>USigilWidget</code></td><td>길드 문장(이미지)과 격언 텍스트를 화면 중앙에 표시합니다.</td></tr>
+    </table>
+
+    <div class="callout tip">
+      <span class="ic">&#128161;</span>
+      <p>각 영역을 <strong>독립 위젯</strong>으로 분리하면, HUD 레이아웃을 변경해도 개별 위젯은 그대로 재사용 가능합니다. 예를 들어 <code>UMusicPlayerWidget</code>은 Bottom-Left에서 떼어 다른 위치에 놓아도 동작이 바뀌지 않습니다.</p>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       03 — 패널 매니저
+       ============================================================ -->
+  <div class="section" id="panel">
+    <div class="section-label">03 — 패널 매니저</div>
+    <h2>Focus / Quests / Archive 패널</h2>
+    <p>패널 매니저(앞서 설명한 단일 패널 전환 시스템)는 3개 패널을 관리하며, <strong>한 번에 하나만 열리는</strong> Single Overlay 방식을 사용합니다. 패널은 HUD 위에 전체 화면으로 덮이며, 닫으면 HUD로 돌아갑니다.</p>
+
+    <h3>패널 전환 흐름</h3>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">Nav 버튼 클릭</div><div class="pipe-desc">Top-Right의 <code>UNavBarWidget</code>에서 Focus/Quests/Archive 버튼 중 하나를 누르면 <code>UUIManagerSubsystem::OpenPanel(EPanel)</code>이 호출됩니다. <code>EPanel</code>은 Focus, Quests, Archive 세 값을 가진 열거형(UENUM)입니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">현재 패널 닫기</div><div class="pipe-desc">이미 열려 있는 패널이 있으면 <code>RemoveFromParent()</code>(위젯을 화면에서 제거하는 UMG 함수)를 호출하여 먼저 닫습니다. 패널 위젯의 참조를 <code>nullptr</code>로 초기화합니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">새 패널 위젯 생성</div><div class="pipe-desc"><code>CreateWidget&lt;T&gt;(GetWorld(), PanelClass)</code>로 요청된 패널의 위젯 인스턴스를 생성합니다. <code>PanelClass</code>는 EPanel 값에 매핑된 <code>TSubclassOf&lt;UUserWidget&gt;</code>입니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">Viewport에 추가</div><div class="pipe-desc"><code>AddToViewport(ZOrder)</code>로 화면에 표시합니다. 패널의 ZOrder(렌더링 우선순위)는 <strong>10</strong>으로 설정하여 HUD 위에 표시되게 합니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">5</div><div class="pipe-body"><div class="pipe-title">배경(Backdrop) 표시</div><div class="pipe-desc">패널 뒤에 반투명 배경을 깔아 HUD가 흐리게 보이도록 합니다. 배경 클릭 시 패널이 닫힙니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">6</div><div class="pipe-body"><div class="pipe-title">현재 패널 상태 갱신</div><div class="pipe-desc"><code>CurrentPanel</code> 변수를 새 패널의 EPanel 값으로 갱신합니다. 닫힐 때는 <code>None</code>으로 설정됩니다.</div></div></div>
+
+    <p>패널 닫기는 <strong>ESC 키</strong> 또는 <strong>배경(Backdrop) 클릭</strong>으로 트리거됩니다. 닫을 때는 위젯 제거 + 배경 숨김 + <code>CurrentPanel = None</code> 순서입니다.</p>
+
+    <h3>패널별 위젯 클래스</h3>
+    <table class="tbl">
+      <tr><th>패널</th><th>위젯 클래스</th><th>역할</th></tr>
+      <tr><td>Focus</td><td><code>UFocusPanelWidget</code></td><td>포모도로 타이머와 스톱워치의 시간/반복 횟수 설정 + 실행/일시정지/중지 버튼. <code>UFocusSubsystem</code>과 바인딩됩니다.</td></tr>
+      <tr><td>Quests</td><td><code>UQuestPanelWidget</code></td><td>할 일 목록 표시, 새 퀘스트 추가, 편집, 상세 보기, 반복 규칙 설정/해제. <code>UQuestSubsystem</code>과 바인딩됩니다.</td></tr>
+      <tr><td>Archive</td><td><code>UArchivePanelWidget</code></td><td>캘린더 위젯 + 선택한 날짜의 집중 기록과 완료된 퀘스트 표시. <code>URecordSubsystem</code>과 바인딩됩니다.</td></tr>
+    </table>
+
+    <div class="callout warn">
+      <span class="ic">&#9888;&#65039;</span>
+      <p>패널을 열 때 <strong>기존 패널을 먼저 닫지 않으면 위젯이 중첩됩니다.</strong> 반드시 Close &rarr; Open 순서를 지키세요. <code>OpenPanel()</code> 함수 내부에서 자동으로 기존 패널을 닫는 로직을 넣는 것이 안전합니다.</p>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       04 — 모달 스택
+       ============================================================ -->
+  <div class="section" id="modal">
+    <div class="section-label">04 — 모달 스택</div>
+    <h2>Push / Pop 모달 관리</h2>
+    <p>모달(Modal: 현재 화면 위에 떠서 특정 작업을 수행하는 대화 상자)은 패널 위에 표시됩니다. <strong>스택(Stack) 구조</strong>로 관리하며, Push(쌓기)로 모달을 추가하고 Pop(빼기)으로 제거합니다. <strong>최상단 모달만 사용자 입력을 수신</strong>하고, 그 아래 모달/패널은 입력이 차단됩니다.</p>
+
+    <h3>모달 목록</h3>
+    <table class="tbl">
+      <tr><th>모달</th><th>위젯 클래스</th><th>트리거</th></tr>
+      <tr><td>길드원 모집</td><td><code>URecruitmentModalWidget</code></td><td>Command Post의 "모집" 버튼</td></tr>
+      <tr><td>길드원 관리</td><td><code>UManagementModalWidget</code></td><td>Command Post의 "관리" 버튼</td></tr>
+      <tr><td>길드원 상세</td><td><code>UMemberDetailModalWidget</code></td><td>관리 모달에서 멤버 클릭</td></tr>
+      <tr><td>길드원 선택</td><td><code>UMemberPickerModalWidget</code></td><td>관리 모달에서 슬롯 클릭</td></tr>
+      <tr><td>해금 샵</td><td><code>UUnlockShopModalWidget</code></td><td>Command Post의 "해금" 버튼</td></tr>
+      <tr><td>설정</td><td><code>USettingsModalWidget</code></td><td>Command Post의 "설정" 버튼</td></tr>
+      <tr><td>기록 저장</td><td><code>URecordModalWidget</code></td><td>포커스 세션 종료 시 자동</td></tr>
+      <tr><td>카테고리 추가</td><td><code>UCategoryAddModalWidget</code></td><td>기록/퀘스트에서 카테고리 "+" 버튼</td></tr>
+      <tr><td>뮤직 라이브러리</td><td><code>UMusicLibraryModalWidget</code></td><td>음악 플레이어 라이브러리 버튼</td></tr>
+    </table>
+
+    <h3>Push / Pop 흐름</h3>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">Push &mdash; 모달 열기</div><div class="pipe-desc"><code>CreateWidget&lt;T&gt;()</code>로 모달 위젯을 생성합니다. &rarr; <code>ModalStack.Push(Widget)</code>으로 스택에 추가합니다. &rarr; <code>AddToViewport(100 + StackIndex)</code>로 화면에 표시합니다. ZOrder는 100부터 시작하여 스택 깊이만큼 증가하므로 항상 최상단이 위에 보입니다. &rarr; 이전 모달(있다면)의 입력을 차단합니다(<code>SetVisibility</code> 또는 <code>SetIsEnabled(false)</code>).</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">Pop &mdash; 모달 닫기</div><div class="pipe-desc"><code>ModalStack.Pop()</code>으로 최상단 위젯을 꺼냅니다. &rarr; <code>RemoveFromParent()</code>로 화면에서 제거합니다. &rarr; 이전 모달(있다면)의 입력을 복원합니다(<code>SetIsEnabled(true)</code>). 스택이 비면 패널 또는 HUD로 포커스가 돌아갑니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">PopAll &mdash; 전체 비우기</div><div class="pipe-desc">스택의 모든 모달을 순서대로 Pop합니다. 패널을 닫을 때나 특수 상황(앱 백그라운드 진입 등)에서 사용합니다.</div></div></div>
+
+    <div class="callout info">
+      <span class="ic">&#128204;</span>
+      <p><strong>모달 위의 모달이 가능합니다.</strong> 예: Command Post &rarr; "관리" 모달 Push &rarr; 멤버 클릭 &rarr; "상세" 모달 Push. 뒤로가기(ESC)를 누르면 "상세"가 Pop되고 "관리"가 다시 활성화됩니다.</p>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       05 — 토스트 알림
+       ============================================================ -->
+  <div class="section" id="toast">
+    <div class="section-label">05 — 토스트 알림</div>
+    <h2>자동 사라지는 알림</h2>
+    <p>토스트(앞서 설명한 짧은 알림 메시지)는 화면 <strong>하단 중앙</strong>에 표시되며, 설정된 시간(기본 2초) 후 자동으로 사라집니다. 여러 토스트가 동시에 요청되면 <strong>큐(Queue) 방식</strong>으로 하나씩 순차 표시합니다.</p>
+
+    <table class="tbl">
+      <tr><th>항목</th><th>타입</th><th>설명</th></tr>
+      <tr><td><code>Message</code></td><td><code>FString</code></td><td>표시할 텍스트. 예: "Gold가 부족합니다", "배경이 변경되었습니다".</td></tr>
+      <tr><td><code>Duration</code></td><td><code>float</code></td><td>표시 시간(초). 기본값 2.0. 짧은 알림은 1.5, 중요 알림은 3.0 등 조절 가능.</td></tr>
+    </table>
+
+    <h3>ShowToast 코드 골격</h3>
+    <div class="snip">
+      <div class="snip-head">
+        <div class="code-dot" style="background:var(--ue-source)"></div>
+        UIManagerSubsystem.cpp &mdash; ShowToast 핵심 흐름
+      </div>
+<pre><span class="tag">void</span> <span class="val">UUIManagerSubsystem</span>::<span class="atr">ShowToast</span>(<span class="tag">const</span> <span class="val">FString</span>&amp; Message, <span class="val">float</span> Duration)
+{
+    <span class="cm">// 1. 토스트 위젯 생성</span>
+    <span class="val">UToastWidget</span>* Toast = <span class="atr">CreateWidget</span>&lt;<span class="val">UToastWidget</span>&gt;(GetWorld(), ToastClass);
+
+    <span class="cm">// 2. 메시지 설정</span>
+    Toast-&gt;<span class="atr">SetMessage</span>(Message);
+
+    <span class="cm">// 3. 화면에 추가 (ZOrder 200 = 모달보다 위)</span>
+    Toast-&gt;<span class="atr">AddToViewport</span>(<span class="val">200</span>);
+
+    <span class="cm">// 4. Duration 후 자동 제거 (FTimerHandle 사용)</span>
+    <span class="val">FTimerHandle</span> Handle;
+    GetWorld()-&gt;<span class="atr">GetTimerManager</span>().<span class="atr">SetTimer</span>(
+        Handle, [Toast]()
+        {
+            <span class="tag">if</span> (<span class="atr">IsValid</span>(Toast))
+                Toast-&gt;<span class="atr">RemoveFromParent</span>();
+        },
+        Duration, <span class="tag">false</span>
+    );
+}</pre>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       06 — 캘린더 위젯
+       ============================================================ -->
+  <div class="section" id="calendar">
+    <div class="section-label">06 — 캘린더 위젯</div>
+    <h2>재사용 가능한 날짜 선택기</h2>
+    <p>캘린더 위젯(앞서 설명한 월별 날짜 선택 컴포넌트)은 <strong>범용 위젯</strong>으로 설계되어, 퀘스트 패널(시작일/마감일/반복종료일 선택)과 아카이브 패널(날짜 탐색)에서 재사용됩니다. 위젯은 자신이 어떤 목적으로 쓰이는지 알 필요가 없으며, 날짜가 선택되면 델리게이트(콜백 시스템)로 부모에게 알려줍니다.</p>
+
+    <h3>위젯 파라미터</h3>
+    <table class="tbl">
+      <tr><th>파라미터</th><th>타입</th><th>설명</th></tr>
+      <tr><td><code>Year</code></td><td><code>int32</code></td><td>현재 표시 중인 연도. 초기값은 오늘의 연도.</td></tr>
+      <tr><td><code>Month</code></td><td><code>int32</code></td><td>현재 표시 중인 월(1~12). 초기값은 오늘의 월.</td></tr>
+      <tr><td><code>SelectedDate</code></td><td><code>FString</code></td><td>사용자가 선택한 날짜 문자열(YYYY.MM.DD 형식). 선택 전에는 빈 문자열.</td></tr>
+      <tr><td><code>bShowDots</code></td><td><code>bool</code></td><td>날짜 셀에 도트(점)를 표시할지 여부. 아카이브 용도에서 기록이 있는 날짜에 점을 찍어 한눈에 알 수 있게 합니다.</td></tr>
+      <tr><td><code>OnDateSelected</code></td><td><code>FOnDateSelected</code><br>(델리게이트)</td><td>날짜를 클릭했을 때 호출되는 콜백. 부모 위젯이 이 델리게이트에 함수를 바인딩하여 선택 결과를 받습니다.</td></tr>
+    </table>
+
+    <h3>동작 방식</h3>
+    <p><strong>월 네비게이션:</strong> "이전 월"/"다음 월" 버튼을 누르면 <code>Year</code>/<code>Month</code>를 갱신하고 달력을 재렌더링합니다. 1월에서 이전을 누르면 전년도 12월로, 12월에서 다음을 누르면 다음 해 1월로 이동합니다.</p>
+    <p><strong>날짜 셀 배치:</strong> 7열(일~토) &times; 6행 그리드로 배치합니다. 해당 월에 속하지 않는 날짜(이전/다음 월)는 흐리게(<code>SetColorAndOpacity</code>으로 투명도 조절) 표시하여 구분합니다.</p>
+    <p><strong>날짜 선택:</strong> 셀을 클릭하면 <code>SelectedDate</code>를 갱신하고 <code>OnDateSelected</code> 델리게이트를 Broadcast합니다. 부모 위젯은 이 신호를 받아 자신의 로직(퀘스트 마감일 설정, 아카이브 필터링 등)을 수행합니다.</p>
+
+    <div class="callout tip">
+      <span class="ic">&#128161;</span>
+      <p><strong>델리게이트</strong>로 날짜 선택 결과를 부모에게 전달하면, 캘린더가 어떤 목적으로 쓰이는지 알 필요 없이 재사용 가능합니다. 퀘스트에서 쓸 때는 퀘스트 패널이 콜백을 등록하고, 아카이브에서 쓸 때는 아카이브 패널이 콜백을 등록합니다. 캘린더 위젯 코드는 동일합니다.</p>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       07 — 구현 스켈레톤
+       ============================================================ -->
+  <div class="section" id="skeleton">
+    <div class="section-label">07 — 구현 스켈레톤</div>
+    <h2>UUIManagerSubsystem 최소 코드</h2>
+    <p>아래는 <code>UUIManagerSubsystem</code>의 최소 동작 뼈대입니다. 헤더(<span class="filetag h">.h</span>)에 인터페이스를 선언하고, 소스(<span class="filetag cpp">.cpp</span>)에 PushModal/PopModal 스택 로직의 구현 골격을 보여줍니다.</p>
+
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">UIManagerSubsystem.h</button>
+        <button class="codeblock-tab tab-cpp" type="button">UIManagerSubsystem.cpp</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Blueprint/UserWidget.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"UIManagerSubsystem.generated.h"</span></span>
+
+<span class="hljs-comment">// 패널 종류</span>
+<span class="hljs-meta">UENUM(BlueprintType)</span>
+<span class="hljs-keyword">enum class</span> <span class="hljs-title class_">EPanel</span> : <span class="hljs-type">uint8</span>
+{
+    None,
+    Focus,
+    Quests,
+    Archive
+};
+
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> RECORDTALES_API <span class="hljs-title class_">UUIManagerSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection) <span class="hljs-keyword">override</span>;
+
+    <span class="hljs-comment">// ── 패널 ──</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "UI|Panel")</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">OpenPanel</span>(<span class="hljs-type">EPanel</span> Panel);
+
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "UI|Panel")</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">ClosePanel</span>();
+
+    <span class="hljs-comment">// ── 모달 ──</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "UI|Modal")</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">PushModal</span>(<span class="hljs-type">TSubclassOf</span>&lt;<span class="hljs-type">UUserWidget</span>&gt; ModalClass);
+
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "UI|Modal")</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">PopModal</span>();
+
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "UI|Modal")</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">PopAllModals</span>();
+
+    <span class="hljs-comment">// ── 토스트 ──</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "UI|Toast")</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">ShowToast</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Message, <span class="hljs-type">float</span> Duration = <span class="hljs-number">2.0</span>f);
+
+<span class="hljs-keyword">private</span>:
+    <span class="hljs-comment">// 패널</span>
+    <span class="hljs-type">EPanel</span> CurrentPanel = <span class="hljs-type">EPanel</span>::None;
+    <span class="hljs-meta">UPROPERTY()</span>
+    <span class="hljs-type">UUserWidget</span>* ActivePanelWidget = <span class="hljs-literal">nullptr</span>;
+
+    <span class="hljs-comment">// 모달 스택</span>
+    <span class="hljs-meta">UPROPERTY()</span>
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">UUserWidget</span>*&gt; ModalStack;
+
+    <span class="hljs-comment">// 토스트 위젯 클래스 (에디터에서 설정)</span>
+    <span class="hljs-meta">UPROPERTY(EditDefaultsOnly, Category = "UI")</span>
+    <span class="hljs-type">TSubclassOf</span>&lt;<span class="hljs-type">UUserWidget</span>&gt; ToastClass;
+
+    <span class="hljs-keyword">static</span> <span class="hljs-keyword">constexpr</span> <span class="hljs-type">int32</span> PanelZOrder = <span class="hljs-number">10</span>;
+    <span class="hljs-keyword">static</span> <span class="hljs-keyword">constexpr</span> <span class="hljs-type">int32</span> ModalBaseZOrder = <span class="hljs-number">100</span>;
+};</pre></div>
+      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"UIManagerSubsystem.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Blueprint/UserWidget.h"</span></span>
+
+<span class="hljs-keyword">void</span> <span class="hljs-title class_">UUIManagerSubsystem</span>::<span class="hljs-title function_">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection)
+{
+    <span class="hljs-type">Super</span>::<span class="hljs-title function_">Initialize</span>(Collection);
+    <span class="hljs-comment">// HUD 위젯 초기 생성은 GameMode 또는 PlayerController에서 수행</span>
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-title class_">UUIManagerSubsystem</span>::<span class="hljs-title function_">PushModal</span>(<span class="hljs-type">TSubclassOf</span>&lt;<span class="hljs-type">UUserWidget</span>&gt; ModalClass)
+{
+    <span class="hljs-keyword">if</span> (!ModalClass) <span class="hljs-keyword">return</span>;
+
+    <span class="hljs-comment">// 이전 최상단 모달의 입력을 차단</span>
+    <span class="hljs-keyword">if</span> (ModalStack.<span class="hljs-title function_">Num</span>() &gt; <span class="hljs-number">0</span>)
+    {
+        <span class="hljs-type">UUserWidget</span>* Top = ModalStack.<span class="hljs-title function_">Last</span>();
+        <span class="hljs-keyword">if</span> (<span class="hljs-built_in">IsValid</span>(Top))
+            Top-&gt;<span class="hljs-title function_">SetIsEnabled</span>(<span class="hljs-literal">false</span>);
+    }
+
+    <span class="hljs-comment">// 새 모달 위젯 생성</span>
+    <span class="hljs-type">UUserWidget</span>* Modal = <span class="hljs-built_in">CreateWidget</span>&lt;<span class="hljs-type">UUserWidget</span>&gt;(
+        <span class="hljs-title function_">GetGameInstance</span>()-&gt;<span class="hljs-title function_">GetWorld</span>(), ModalClass);
+
+    <span class="hljs-keyword">if</span> (!Modal) <span class="hljs-keyword">return</span>;
+
+    <span class="hljs-comment">// 스택에 추가 후 화면에 표시</span>
+    ModalStack.<span class="hljs-title function_">Push</span>(Modal);
+    <span class="hljs-type">int32</span> ZOrder = ModalBaseZOrder + ModalStack.<span class="hljs-title function_">Num</span>();
+    Modal-&gt;<span class="hljs-title function_">AddToViewport</span>(ZOrder);
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-title class_">UUIManagerSubsystem</span>::<span class="hljs-title function_">PopModal</span>()
+{
+    <span class="hljs-comment">// 빈 스택에서 Pop 시도 방지</span>
+    <span class="hljs-keyword">if</span> (ModalStack.<span class="hljs-title function_">Num</span>() == <span class="hljs-number">0</span>) <span class="hljs-keyword">return</span>;
+
+    <span class="hljs-comment">// 최상단 모달 제거</span>
+    <span class="hljs-type">UUserWidget</span>* Top = ModalStack.<span class="hljs-title function_">Pop</span>();
+    <span class="hljs-keyword">if</span> (<span class="hljs-built_in">IsValid</span>(Top))
+        Top-&gt;<span class="hljs-title function_">RemoveFromParent</span>();
+
+    <span class="hljs-comment">// 이전 모달 입력 복원</span>
+    <span class="hljs-keyword">if</span> (ModalStack.<span class="hljs-title function_">Num</span>() &gt; <span class="hljs-number">0</span>)
+    {
+        <span class="hljs-type">UUserWidget</span>* NewTop = ModalStack.<span class="hljs-title function_">Last</span>();
+        <span class="hljs-keyword">if</span> (<span class="hljs-built_in">IsValid</span>(NewTop))
+            NewTop-&gt;<span class="hljs-title function_">SetIsEnabled</span>(<span class="hljs-literal">true</span>);
+    }
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-title class_">UUIManagerSubsystem</span>::<span class="hljs-title function_">PopAllModals</span>()
+{
+    <span class="hljs-keyword">while</span> (ModalStack.<span class="hljs-title function_">Num</span>() &gt; <span class="hljs-number">0</span>)
+    {
+        <span class="hljs-title function_">PopModal</span>();
+    }
+}</pre></div>
+    </div>
+
+    <h3>주요 함수 설명</h3>
+    <table class="tbl">
+      <tr><th>함수</th><th>역할</th><th>핵심 로직</th></tr>
+      <tr><td><code>OpenPanel</code></td><td>패널 열기</td><td>기존 패널 닫기 &rarr; CreateWidget &rarr; AddToViewport(10) &rarr; CurrentPanel 갱신.</td></tr>
+      <tr><td><code>ClosePanel</code></td><td>패널 닫기</td><td>ActivePanelWidget-&gt;RemoveFromParent() &rarr; nullptr &rarr; CurrentPanel = None.</td></tr>
+      <tr><td><code>PushModal</code></td><td>모달 Push</td><td>이전 Top 입력 차단 &rarr; CreateWidget &rarr; Stack.Push &rarr; AddToViewport(100+N).</td></tr>
+      <tr><td><code>PopModal</code></td><td>모달 Pop</td><td>Stack.Pop &rarr; RemoveFromParent &rarr; 새 Top 입력 복원. 빈 스택 체크.</td></tr>
+      <tr><td><code>PopAllModals</code></td><td>전체 비우기</td><td>while 루프로 PopModal 반복.</td></tr>
+      <tr><td><code>ShowToast</code></td><td>토스트 표시</td><td>CreateWidget &rarr; SetMessage &rarr; AddToViewport(200) &rarr; FTimerHandle로 자동 제거.</td></tr>
+    </table>
+
+    <h3>Pitfall</h3>
+    <div class="pitfall">
+      <span class="ic">&#9888;&#65039;</span>
+      <div class="pitfall-text"><strong>모달 Pop 시 nullptr 체크 필수</strong> &mdash; 빈 스택에서 <code>Pop()</code>을 호출하면 크래시가 발생합니다. <code>PopModal()</code> 함수 시작부에 <code>if (ModalStack.Num() == 0) return;</code> 가드를 반드시 넣으세요. 또한 Pop된 위젯이 이미 GC(가비지 컬렉션)에 의해 해제된 경우를 대비하여 <code>IsValid(Top)</code> 체크도 필요합니다.</div>
+    </div>
+    <div class="pitfall">
+      <span class="ic">&#9888;&#65039;</span>
+      <div class="pitfall-text"><strong>패널과 모달의 ZOrder 충돌 주의</strong> &mdash; 패널(ZOrder=10)과 모달(ZOrder=100+)이 겹치면 입력 이벤트가 의도치 않은 위젯으로 전달될 수 있습니다. 패널은 10, 모달은 100부터 시작, 토스트는 200으로 <strong>명확히 구간을 분리</strong>하세요.</div>
+    </div>
+    <div class="pitfall">
+      <span class="ic">&#9888;&#65039;</span>
+      <div class="pitfall-text"><strong>토스트 위젯 제거 시 IsValid 체크</strong> &mdash; <code>FTimerHandle</code>의 콜백이 실행될 시점에 위젯이 이미 GC되었을 수 있습니다(레벨 전환 등). 콜백 내부에서 반드시 <code>if (IsValid(Toast))</code>를 확인한 후 <code>RemoveFromParent()</code>를 호출하세요.</div>
+    </div>
+
+    <h3>Do &amp; Don't</h3>
+    <div class="dd-grid">
+      <div class="dd do">
+        <h4>&#10003; 이렇게</h4>
+        <ul>
+          <li>패널은 Open 전에 반드시 기존 패널 Close (Close &rarr; Open 순서)</li>
+          <li>모달 ZOrder를 100+StackIndex로 자동 계산 (순서 보장)</li>
+          <li>스택 Pop 전 Num() == 0 가드 + IsValid 체크</li>
+          <li>토스트 타이머 콜백에서 IsValid 체크 후 RemoveFromParent</li>
+          <li>캘린더 위젯은 델리게이트로 날짜 선택 결과 전달 (재사용성)</li>
+        </ul>
+      </div>
+      <div class="dd dont">
+        <h4>&#10007; 이건 피하기</h4>
+        <ul>
+          <li>패널과 모달을 같은 ZOrder에 배치 (입력 충돌)</li>
+          <li>모달 스택을 무시하고 직접 AddToViewport (순서 관리 불가)</li>
+          <li>빈 스택에서 Pop 호출 (크래시)</li>
+          <li>토스트 위젯을 수동으로 제거하지 않기 (메모리 누수)</li>
+          <li>캘린더가 부모의 로직을 직접 호출 (결합도 증가)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <span>RecordTales &middot; 07 UI Framework &middot; v1.0</span>
+  <span>디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.2</span>
+</footer>
+
+<!-- 코드 탭 전환 + 복사 (오프라인 inline) -->
+<script>
+(function () {
+  document.querySelectorAll('.codeblock').forEach(function (block) {
+    var tabs = block.querySelectorAll('.codeblock-tab');
+    var panels = block.querySelectorAll('.codeblock-panel');
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) { t.classList.remove('active'); });
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        if (panels[i]) panels[i].classList.add('active');
+      });
+    });
+    var copyBtn = block.querySelector('.codeblock-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () {
+        var pre = block.querySelector('.codeblock-panel.active pre');
+        if (!pre) return;
+        var text = pre.innerText;
+        var done = function () {
+          copyBtn.textContent = '\uBCF5\uC0AC\uB428 \u2713';
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.textContent = '\uBCF5\uC0AC';
+            copyBtn.classList.remove('copied');
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+        } else {
+          fallbackCopy(text, done);
+        }
+      });
+    }
+  });
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+})();
+</script>
+
+</body>
+</html>

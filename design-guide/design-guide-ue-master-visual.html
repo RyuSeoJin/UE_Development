@@ -3,11 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>디자인 마스터 (비주얼) — UE 문서 디자인 시스템 v1.1</title>
+<title>디자인 마스터 (비주얼) — UE 문서 디자인 시스템 v1.2</title>
 <link rel="stylesheet" href="design-guide-ue-master.css">
 <!-- ============================================================
      CHANGELOG — design-guide-ue-master-visual.html
      master.css의 시각 레퍼런스. 작업 규약: design-guide/DOC-GENERATION-PLAYBOOK.md (4단계)
+     v1.2 · 2026-07-01
+       - (추가) 06 섹션: v1.2 신규 컴포넌트 데모 (.grid-3, .stat-row-4, .compare-box, .pill.pink/.red)
+       - (변경) 버전 표기 v1.1 → v1.2 (헤더·footer)
      v1.1 · 2026-07-01
        - 파일명 00-foundation.html → design-guide-ue-master-visual.html
        - 프레임워크 클래스 컬러 맵 / 파일 타입 컬러 맵 스와치 섹션 추가
@@ -36,7 +39,7 @@
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">Design System · v1.1 · Master Visual</div>
+  <div class="hero-eyebrow">Design System · v1.2 · Master Visual</div>
   <h1>UE 디자인<br><span>마스터</span></h1>
   <p class="hero-sub">
     모든 언리얼 문서(에셋 분석 · 아키텍처 설계)가 공유하는 디자인 마스터입니다. 컬러·타이포·레이아웃·기본 컴포넌트를 한 곳에 고정합니다. 스타일 원본은 <code>design-guide-ue-master.css</code> 한 파일이며, 이 문서는 그 시각 레퍼런스입니다.
@@ -276,10 +279,71 @@
     <div class="callout tip"><span class="ic">📐</span><p><strong>품질 기준선</strong>: 모바일까지 반응형, 키보드 포커스 표시, <code>prefers-reduced-motion</code> 존중. 이 세 가지는 모든 문서가 기본으로 갖춥니다.</p></div>
   </div>
 
+  <!-- 06 v1.2 신규 컴포넌트 -->
+  <div class="section" id="v12">
+    <div class="section-label">06 — v1.2 신규 컴포넌트</div>
+    <h2>그리드 · 비교 · Pill 확장</h2>
+    <p>v1.2에서 추가된 컴포넌트입니다. 기존 컴포넌트와 동일한 디자인 언어를 따릅니다.</p>
+
+    <h3>3열 그리드 (.grid-3)</h3>
+    <div class="demo"><div class="demo-head">Live</div><div class="demo-body">
+      <div class="grid-3">
+        <div class="a-card"><div class="ic">📦</div><div class="a-title">UObject</div><div class="a-id">최상위 기반 클래스</div><div class="a-desc">리플렉션 · GC · 직렬화</div></div>
+        <div class="a-card" style="border-top-color:var(--ue-gamemode)"><div class="ic">🎮</div><div class="a-title">AActor</div><div class="a-id">월드 배치 가능</div><div class="a-desc">Transform · Tick · 복제</div></div>
+        <div class="a-card" style="border-top-color:var(--ue-pawn)"><div class="ic">🏃</div><div class="a-title">ACharacter</div><div class="a-id">이동 컴포넌트 내장</div><div class="a-desc">걷기 · 점프 · 수영</div></div>
+      </div>
+    </div></div>
+
+    <h3>4열 통계 카드 (.stat-row-4)</h3>
+    <div class="demo"><div class="demo-head">Live</div><div class="demo-body">
+      <div class="stat-row-4">
+        <div class="stat-card"><div class="stat-num" style="color:var(--accent)">5</div><div class="stat-label">매크로 종류</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:var(--accent-3)">7</div><div class="stat-label">접두사 규칙</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:var(--accent-2)">11</div><div class="stat-label">핵심 클래스</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:var(--ue-savegame)">3</div><div class="stat-label">문자열 타입</div></div>
+      </div>
+    </div></div>
+
+    <h3>좌우 비교 카드 (.compare-box in .grid-2)</h3>
+    <div class="demo"><div class="demo-head">Live</div><div class="demo-body">
+      <div class="grid-2">
+        <div class="compare-box">
+          <h4 style="color:var(--accent-3)">Spawning 흐름</h4>
+          <p>런타임에 SpawnActor로 동적 생성할 때의 초기화 순서.</p>
+          <div class="pills">
+            <span class="pill green">SpawnActor</span>
+            <span class="pill green">PostActorCreated</span>
+            <span class="pill blue">BeginPlay</span>
+          </div>
+        </div>
+        <div class="compare-box">
+          <h4 style="color:var(--ue-mat)">Loading 흐름</h4>
+          <p>레벨에 미리 배치된 액터가 로드될 때의 초기화 순서.</p>
+          <div class="pills">
+            <span class="pill purple">PostLoad</span>
+            <span class="pill purple">InitializeActors</span>
+            <span class="pill blue">BeginPlay</span>
+          </div>
+        </div>
+      </div>
+    </div></div>
+
+    <h3>Pill 확장 (.pill.pink · .pill.red)</h3>
+    <div class="demo"><div class="demo-head">Live</div><div class="demo-body">
+      <div class="pills">
+        <span class="pill blue">BlueprintReadOnly</span>
+        <span class="pill green">EditAnywhere</span>
+        <span class="pill purple">Transient</span>
+        <span class="pill pink">Replicated</span>
+        <span class="pill red">Server RPC</span>
+      </div>
+    </div></div>
+  </div>
+
 </div>
 
 <footer>
-  <span>UE 문서 디자인 시스템 · Master v1.1</span>
+  <span>UE 문서 디자인 시스템 · Master v1.2</span>
   <span>기준 디자인: Dark · Indigo Minimal · Editorial</span>
 </footer>
 

@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>04 · 길드 &amp; 캐릭터 시스템 — RecordTales v1.0</title>
+<!-- ============================================================
+     CHANGELOG — 04-guild-character-system.html
+     길드 & 캐릭터 시스템 설계 문서. 작업 규약: design-guide/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.0 · 2026-07-02
+       - 신규 생성. 길드 & 캐릭터 시스템 설계.
+       - 섹션 7개: 개념 이해, 길드원 데이터 구조, 가챠 시스템,
+         스쿼드 편성, 시너지 시스템, 구현 스켈레톤, 확장 & 주의
+     ============================================================ -->
+<style>
+/* ============================================================
+   UE Design System — Master Stylesheet
+   (design-guide-ue-master.css)
+   언리얼 에셋 분석 · 아키텍처 설계 문서 공통 토대
+   v1.2  (Dark · Indigo Minimal · Editorial)
+
+   사용법
+   - 가이드 문서(master-visual / 01 / 02)는 <link>로 이 파일을 참조.
+   - 실제 결과물 HTML은 이 파일 내용을 <style>에 통째로 복사(inline)하여
+     단일 파일로 배포한다. (오프라인 무결성 유지)
+
+   변경 이력 (CHANGELOG) — 작업 규약: design-guide/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+   v1.2 · 2026-07-01
+     - (추가) .compare-box — 좌우 병렬 비교 카드 (Spawning vs Loading 등)
+     - (추가) .grid-3 — 3열 그리드
+     - (추가) .stat-row-4 — 4열 통계 카드
+     - (추가) .pill.pink / .pill.red — 핑크·레드 pill 변형
+     - (변경) 반응형 블록에 .stat-row-4, .grid-3 1열 폴백 추가
+   v1.1 · 2026-07-01
+     - 파일명 ue-design-system.css → design-guide-ue-master.css
+     - 프레임워크 클래스 컬러 맵 추가
+       (--ue-gamemode/gamestate/controller/pawn/instance/savegame/subsystem)
+     - 파일 타입 컬러 맵 추가 (--ue-header/source/macro)
+     - .h/.cpp 코드 탭(.codeblock) + highlight.js(hljs-*) 다크·인디고 테마
+     - 클래스 관계도(.rel-map) / 책임 배치 결정표(.tbl .owner) 스타일 추가
+     - .tree 에 프레임워크 클래스 색(.c-*), .pitfall.tip, .filetag 추가
+   v1.0
+     - 최초 에셋 분석 디자인 가이드 토큰·컴포넌트
+       (원본 design-guide-ue-asset-structure.html에서 파생, 원본 파일은 2026-07-01 삭제)
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Pretendard:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* --- 기본 토큰 --- */
+  --bg: #0D0F1A;
+  --surface: #13162A;
+  --surface-2: #1A1F38;
+  --border: #252B4A;
+  --accent: #5B6EFA;
+  --accent-2: #9B6DFF;
+  --accent-3: #38D9B4;
+  --text: #E4E8FF;
+  --text-muted: #7B82A6;
+  --text-dim: #4A5080;
+  --amber: #F59E0B;
+  --pink: #E040FB;
+  --red: #F87171;
+
+  /* --- 에셋 타입 컬러 맵 (에셋 분석 문서 전용) --- */
+  --ue-folder: #F59E0B;
+  --ue-bp:     #5B6EFA;
+  --ue-enum:   #9B6DFF;
+  --ue-mat:    #FB8C5A;
+  --ue-tex:    #38D9B4;
+  --ue-demo:   #6BD98E;
+
+  /* --- 프레임워크 클래스 컬러 맵 (C++ 아키텍처 문서 전용, v1.1 신규) --- */
+  --ue-gamemode:   #5B6EFA;
+  --ue-gamestate:  #7B9CFF;
+  --ue-controller: #38D9B4;
+  --ue-pawn:       #6BD98E;
+  --ue-instance:   #9B6DFF;
+  --ue-savegame:   #F59E0B;
+  --ue-subsystem:  #E040FB;
+
+  /* --- 파일 타입 컬러 맵 (코드 탭·파일 태그, v1.1 신규) --- */
+  --ue-header: #38D9B4;
+  --ue-source: #FB8C5A;
+  --ue-macro:  #FB8C5A;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+  font-size: 15px; line-height: 1.7; -webkit-font-smoothing: antialiased;
+}
+
+/* NAV */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(13,15,26,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px; display: flex; align-items: center; gap: 32px; height: 52px;
+}
+.nav-logo { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em; white-space: nowrap; }
+.nav-links { display: flex; gap: 22px; flex-wrap: wrap; }
+.nav-links a { color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 500; transition: color 0.2s; }
+.nav-links a:hover { color: var(--text); }
+.nav-links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+
+/* HERO */
+.hero { padding: 72px 48px 56px; max-width: 920px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+.hero-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: var(--accent); text-transform: uppercase; margin-bottom: 20px; }
+.hero h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 20px; }
+.hero h1 span { color: var(--accent); }
+.hero-sub { font-size: 16px; color: var(--text-muted); max-width: 660px; line-height: 1.75; }
+.hero-meta { margin-top: 28px; display: flex; gap: 10px; flex-wrap: wrap; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; border: 1px solid; }
+.badge-blue { color: var(--accent); border-color: var(--accent); background: rgba(91,110,250,0.08); }
+.badge-green { color: var(--accent-3); border-color: var(--accent-3); background: rgba(56,217,180,0.08); }
+.badge-purple { color: var(--accent-2); border-color: var(--accent-2); background: rgba(155,109,255,0.08); }
+
+/* CONTENT / SECTION */
+.content { max-width: 920px; margin: 0 auto; padding: 0 48px 80px; }
+.section { padding: 52px 0 0; border-top: 1px solid var(--border); margin-top: 52px; }
+.section:first-child { margin-top: 0; padding-top: 48px; border-top: none; }
+.section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 12px; }
+.section h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 20px; }
+.section h3 { font-size: 15px; font-weight: 700; color: var(--text); margin: 30px 0 10px; letter-spacing: 0.01em; }
+.section p { color: var(--text-muted); margin-bottom: 14px; line-height: 1.8; }
+.section p strong { color: var(--text); font-weight: 600; }
+
+code { font-family: 'IBM Plex Mono', monospace; font-size: 0.86em; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; color: var(--accent-3); }
+
+/* SWATCHES */
+.swatch-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 22px 0; }
+.swatch { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.swatch .chip { height: 56px; }
+.swatch .meta { padding: 10px 12px; }
+.swatch .vn { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text); font-weight: 600; }
+.swatch .hx { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--text-dim); }
+.swatch .role { font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+
+/* TYPE SCALE */
+.type-row { display: flex; align-items: baseline; gap: 18px; padding: 14px 0; border-bottom: 1px solid rgba(37,43,74,0.5); }
+.type-row:last-child { border-bottom: none; }
+.type-spec { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-dim); min-width: 150px; flex-shrink: 0; }
+.ts-h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; }
+.ts-h2 { font-size: 22px; font-weight: 700; }
+.ts-h3 { font-size: 15px; font-weight: 700; }
+.ts-body { font-size: 15px; color: var(--text-muted); }
+.ts-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); }
+.ts-code { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--accent-3); }
+
+/* CALLOUT */
+.callout { display: flex; gap: 12px; align-items: flex-start; border-radius: 8px; padding: 14px 16px; margin: 18px 0; border: 1px solid var(--border); background: var(--surface-2); font-size: 13.5px; line-height: 1.65; }
+.callout .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.callout p { margin: 0; color: var(--text-muted); }
+.callout p strong { color: var(--text); }
+.callout.info { border-left: 3px solid var(--accent); }
+.callout.tip  { border-left: 3px solid var(--accent-3); }
+.callout.warn { border-left: 3px solid var(--amber); }
+
+/* COMPONENT DEMO FRAME */
+.demo { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 16px 0; }
+.demo-head { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 7px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); }
+.demo-body { padding: 22px; }
+
+/* CODE SNIPPET */
+.snip { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 12px 0 22px; }
+.snip-head { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 8px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+.code-dot { width: 8px; height: 8px; border-radius: 50%; }
+.snip pre { padding: 14px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-muted); line-height: 1.75; overflow-x: auto; white-space: pre; }
+.snip pre .tag { color: var(--accent); }
+.snip pre .atr { color: var(--ue-mat); }
+.snip pre .val { color: var(--accent-3); }
+.snip pre .cm  { color: var(--text-dim); }
+
+/* CODE BLOCK */
+.codeblock { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 16px 0 24px; }
+.codeblock-bar { display: flex; align-items: stretch; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.codeblock-tab {
+  padding: 9px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600;
+  color: var(--text-dim); background: transparent; border: none; border-right: 1px solid var(--border);
+  cursor: pointer; transition: color 0.15s, background 0.15s; box-shadow: inset 0 -2px 0 transparent;
+}
+.codeblock-tab:hover { color: var(--text-muted); }
+.codeblock-tab.active { color: var(--text); background: var(--surface); }
+.codeblock-tab.tab-h.active   { box-shadow: inset 0 -2px 0 var(--ue-header); }
+.codeblock-tab.tab-cpp.active { box-shadow: inset 0 -2px 0 var(--ue-source); }
+.codeblock-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.codeblock-copy {
+  margin-left: auto; align-self: center; margin-right: 8px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600;
+  color: var(--text-muted); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 5px; padding: 4px 10px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+}
+.codeblock-copy:hover { color: var(--text); border-color: var(--accent); }
+.codeblock-copy.copied { color: var(--accent-3); border-color: var(--accent-3); }
+.codeblock-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.codeblock-panel { display: none; }
+.codeblock-panel.active { display: block; }
+.codeblock pre { padding: 16px 18px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.75; overflow-x: auto; white-space: pre; }
+
+/* highlight.js theme */
+.hljs { color: var(--text-muted); background: var(--surface); }
+.hljs-comment, .hljs-quote { color: var(--text-dim); font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-section { color: var(--accent); font-weight: 500; }
+.hljs-literal, .hljs-symbol, .hljs-bullet { color: var(--accent-2); }
+.hljs-number { color: var(--accent-2); }
+.hljs-string, .hljs-attr, .hljs-attribute, .hljs-name { color: var(--ue-demo); }
+.hljs-type, .hljs-class .hljs-title, .hljs-title.class_, .hljs-built_in { color: var(--accent-3); }
+.hljs-title, .hljs-title.function_, .hljs-function .hljs-title { color: var(--text); }
+.hljs-params { color: var(--text-muted); }
+.hljs-meta, .hljs-meta .hljs-keyword { color: var(--ue-macro); font-weight: 600; }
+.hljs-meta .hljs-string { color: var(--ue-demo); }
+.hljs-property, .hljs-variable { color: var(--text); }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 700; }
+
+/* file tag */
+.filetag { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 3px; }
+.filetag.h   { background: rgba(56,217,180,0.14); color: var(--ue-header); }
+.filetag.cpp { background: rgba(251,140,90,0.14);  color: var(--ue-source); }
+
+/* stat-row */
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 4px; }
+.stat-label { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+.a-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; border-top: 2px solid var(--ue-bp); }
+.a-card .ic { font-size: 22px; margin-bottom: 10px; }
+.a-card .a-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.a-card .a-id { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--accent); margin-bottom: 8px; }
+.a-card .a-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+.tt { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 3px; }
+.tt-bool { background: rgba(91,110,250,0.14); color: var(--accent); }
+.tt-enum { background: rgba(251,140,90,0.14); color: var(--ue-mat); }
+.tt-del  { background: rgba(224,64,251,0.12); color: var(--pink); }
+
+.pills { display: flex; flex-wrap: wrap; gap: 7px; }
+.pill { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; padding: 3px 12px; border-radius: 20px; border: 1px solid; }
+.pill.blue { color: var(--accent); border-color: rgba(91,110,250,0.4); background: rgba(91,110,250,0.08); }
+.pill.purple { color: var(--accent-2); border-color: rgba(155,109,255,0.4); background: rgba(155,109,255,0.08); }
+.pill.green { color: var(--accent-3); border-color: rgba(56,217,180,0.4); background: rgba(56,217,180,0.08); }
+.pill.pink { color: var(--pink); border-color: rgba(224,64,251,0.4); background: rgba(224,64,251,0.08); }
+.pill.red { color: var(--red); border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.08); }
+
+.arch { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: stretch; }
+.arch-layer { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 16px 14px; }
+.arch-arrow { display: flex; align-items: center; justify-content: center; padding: 0 8px; color: var(--text-dim); font-size: 16px; }
+.arch-tag { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 7px; color: var(--accent); }
+.arch-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.arch-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+.tbl { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 13px; }
+.tbl th { background: var(--surface-2); color: var(--text-muted); font-weight: 600; font-size: 12px; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+.tbl td { padding: 10px 14px; color: var(--text-muted); border-bottom: 1px solid rgba(37,43,74,0.5); vertical-align: top; line-height: 1.55; }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl td:first-child { color: var(--text); }
+.tbl td code, .tbl th code { background: transparent; border: none; padding: 0; color: var(--accent); }
+
+.tree { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.9; color: var(--text-dim); white-space: pre; overflow-x: auto; }
+.tree .folder { color: var(--ue-folder); font-weight: 600; }
+.tree .bp { color: var(--ue-bp); } .tree .enum { color: var(--ue-enum); }
+.tree .mat { color: var(--ue-mat); } .tree .tex { color: var(--ue-tex); }
+.tree .note { color: var(--text-muted); }
+.tree .c-gamemode { color: var(--ue-gamemode); font-weight: 600; }
+.tree .c-gamestate { color: var(--ue-gamestate); font-weight: 600; }
+.tree .c-controller { color: var(--ue-controller); font-weight: 600; }
+.tree .c-pawn { color: var(--ue-pawn); font-weight: 600; }
+.tree .c-instance { color: var(--ue-instance); font-weight: 600; }
+.tree .c-savegame { color: var(--ue-savegame); font-weight: 600; }
+.tree .c-subsystem { color: var(--ue-subsystem); font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); }
+.legend .dot { width: 9px; height: 9px; border-radius: 2px; }
+
+/* CLASS RELATIONSHIP */
+.rel-map { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
+.rel-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+.rel-node {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 14px; border-left: 3px solid var(--text-dim);
+}
+.rel-node .rn-name { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.rel-node .rn-role { font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.4; }
+.rel-node.n-gamemode   { border-left-color: var(--ue-gamemode); }
+.rel-node.n-gamestate  { border-left-color: var(--ue-gamestate); }
+.rel-node.n-controller { border-left-color: var(--ue-controller); }
+.rel-node.n-pawn       { border-left-color: var(--ue-pawn); }
+.rel-node.n-instance   { border-left-color: var(--ue-instance); }
+.rel-node.n-savegame   { border-left-color: var(--ue-savegame); }
+.rel-node.n-subsystem  { border-left-color: var(--ue-subsystem); }
+.rel-arrow { display: flex; flex-direction: column; align-items: center; color: var(--text-dim); min-width: 84px; }
+.rel-arrow .ra-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--accent); letter-spacing: 0.04em; white-space: nowrap; }
+.rel-arrow .ra-line { font-size: 15px; line-height: 1; }
+
+/* DECISION TABLE */
+.tbl .owner { display: inline-flex; align-items: center; gap: 7px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.tbl .owner::before { content: ''; width: 9px; height: 9px; border-radius: 2px; background: var(--text-dim); flex-shrink: 0; }
+.tbl .owner.o-gamemode::before   { background: var(--ue-gamemode); }
+.tbl .owner.o-gamestate::before  { background: var(--ue-gamestate); }
+.tbl .owner.o-controller::before { background: var(--ue-controller); }
+.tbl .owner.o-pawn::before       { background: var(--ue-pawn); }
+.tbl .owner.o-instance::before   { background: var(--ue-instance); }
+.tbl .owner.o-savegame::before   { background: var(--ue-savegame); }
+.tbl .owner.o-subsystem::before  { background: var(--ue-subsystem); }
+
+.pipe-step { display: grid; grid-template-columns: 36px 1fr; gap: 0 16px; position: relative; }
+.pipe-step::before { content: ''; position: absolute; left: 17px; top: 36px; bottom: -1px; width: 2px; background: var(--border); }
+.pipe-step:last-child::before { display: none; }
+.pipe-num { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--surface-2); }
+.pipe-body { padding: 6px 0 22px; }
+.pipe-title { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+.pipe-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+.pitfall { display: flex; gap: 14px; align-items: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; border-left: 3px solid var(--amber); margin: 12px 0; }
+.pitfall.tip { border-left-color: var(--accent-3); }
+.pitfall .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.pitfall-text { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
+.pitfall-text strong { color: var(--text); }
+
+/* DO / DON'T */
+.dd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 22px 0; }
+.dd { border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; background: var(--surface-2); }
+.dd.do { border-left: 3px solid var(--accent-3); }
+.dd.dont { border-left: 3px solid var(--red); }
+.dd h4 { font-size: 13px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.dd.do h4 { color: var(--accent-3); }
+.dd.dont h4 { color: var(--red); }
+.dd ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.dd li { font-size: 12.5px; color: var(--text-muted); line-height: 1.55; padding-left: 16px; position: relative; }
+.dd li::before { content: ''; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; border-radius: 50%; }
+.dd.do li::before { background: var(--accent-3); }
+.dd.dont li::before { background: var(--red); }
+
+footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920px; margin: 0 auto; font-size: 12px; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+.stat-row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.stat-row-4 .stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+
+.compare-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
+.compare-box h4 { font-size: 14px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.compare-box p { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 10px; }
+.compare-box .pills { margin-top: 10px; }
+
+@media (max-width: 720px) {
+  .content { padding: 0 20px 60px; }
+  .hero { padding: 48px 20px 40px; }
+  .swatch-grid { grid-template-columns: 1fr 1fr; }
+  .stat-row, .stat-row-4, .dd-grid, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .arch { grid-template-columns: 1fr; }
+  .arch-arrow { transform: rotate(90deg); padding: 4px 0; }
+  .rel-row { grid-template-columns: 1fr; text-align: left; }
+  .rel-arrow { flex-direction: row; gap: 8px; min-width: 0; padding: 2px 0; }
+  .rel-arrow .ra-line { transform: rotate(90deg); }
+  .type-row { flex-direction: column; gap: 6px; }
+  .type-spec { min-width: 0; }
+  nav { padding: 0 16px; gap: 16px; }
+  .nav-links { display: none; }
+  footer { padding: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">RECORDTALES &middot; 04 GUILD &amp; CHARACTER</div>
+  <div class="nav-links">
+    <a href="#concept">개념</a>
+    <a href="#member-data">길드원데이터</a>
+    <a href="#gacha">가챠</a>
+    <a href="#squad">편성</a>
+    <a href="#synergy">시너지</a>
+    <a href="#skeleton">코드</a>
+    <a href="#extension">주의</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">RecordTales &middot; v1.0 &middot; Guild &amp; Character</div>
+  <h1>길드 &amp; 캐릭터<br><span>모집 &middot; 편성 &middot; 시너지</span></h1>
+  <p class="hero-sub">
+    12명의 길드원 풀에서 가챠로 모집하고, 스쿼드를 편성하여 시너지 보너스를 얻는 게임화 시스템입니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">가챠 모집</span>
+    <span class="badge badge-green">스쿼드 편성</span>
+    <span class="badge badge-purple">시너지</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- ============================================================
+       01 — 개념 이해
+       ============================================================ -->
+  <div class="section" id="concept">
+    <div class="section-label">01 — 개념 이해</div>
+    <h2>길드 시스템이란</h2>
+    <p>길드 시스템은 생산성 앱(포모도로·퀘스트)에 <strong>게임화 요소를 더하는 캐릭터 수집·편성 시스템</strong>입니다. 사용자는 Gold(앱 사용 중 적립되는 인게임 화폐)를 소비해 가챠(랜덤 카드 뽑기)를 돌리고, 모집한 길드원을 스쿼드(출전 편성)에 배치합니다. 특정 길드원 조합이 갖춰지면 시너지(조합 보너스)가 활성화됩니다.</p>
+    <p>이 시스템의 모든 런타임 로직은 <code>UGuildSubsystem</code>(<code>UGameInstanceSubsystem</code>을 상속하는 서브시스템, 즉 프로그램이 실행되는 동안 자동으로 살아있는 서비스 객체)에 모여 있으며, 마스터 데이터(길드원 스탯·시너지 정의)는 <strong>DataTable</strong>(언리얼 에디터에서 표 형태로 편집하는 데이터 시트)로 관리합니다.</p>
+
+    <div class="stat-row-4">
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent)">12</div><div class="stat-label">길드원 풀</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent-2)">4</div><div class="stat-label">등급 희귀도</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent-3)">4</div><div class="stat-label">최대 편성 슬롯</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--ue-savegame)">3</div><div class="stat-label">최대 프리셋</div></div>
+    </div>
+
+    <h3 id="term-guild-concepts">핵심 용어</h3>
+    <div class="callout info"><span class="ic">&#128218;</span><p>
+      <strong>길드원(Guild Member)</strong> &mdash; 모집 가능한 캐릭터. 12명으로 구성된 고정 풀에서 가챠로 획득합니다.<br>
+      <strong>가챠(Gacha)</strong> &mdash; Gold 1,000을 소비해 랜덤 3장의 카드를 제시받고 1명을 선택하는 모집 방식.<br>
+      <strong>스쿼드(Squad)</strong> &mdash; 현재 출전 중인 길드원 편성. 슬롯(초기 2개, 최대 4개)에 길드원을 배치합니다.<br>
+      <strong>프리셋(Preset)</strong> &mdash; 스쿼드 편성 상태를 저장해두는 슬롯. 초기 1개, 해금으로 최대 3개.<br>
+      <strong>시너지(Synergy)</strong> &mdash; 특정 길드원 조합이 스쿼드에 모두 편성되면 활성화되는 보너스.<br>
+      <strong>희귀도(Rarity)</strong> &mdash; Normal / Rare / Epic / Legendary 4등급. 가챠 확률 가중치와 연동됩니다.
+    </p></div>
+
+    <div class="callout info"><span class="ic">&#128161;</span><p>길드원은 실제 게임플레이에 영향을 주지 않지만, <strong>수집·편성의 재미와 시너지 보너스로 앱 사용 동기를 높입니다.</strong></p></div>
+  </div>
+
+  <!-- ============================================================
+       02 — 길드원 데이터 구조
+       ============================================================ -->
+  <div class="section" id="member-data">
+    <div class="section-label">02 — 길드원 데이터 구조</div>
+    <h2>마스터 데이터 &amp; 런타임 보유 목록</h2>
+    <p>길드원의 정보는 두 계층으로 나뉩니다. <strong>마스터 데이터</strong>(이름·스탯·스토리 등 불변 정보)는 DataTable로 에디터에서 편집하고, <strong>런타임 보유 목록</strong>(어떤 길드원을 소유하고 있는지)은 <code>TArray&lt;FString&gt; OwnedMemberIds</code>로 SaveGame에 저장합니다.</p>
+
+    <h3>FGuildMemberRow &mdash; DataTable 행 구조체</h3>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">GuildTypes.h &mdash; Row</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title class_">FGuildMemberRow</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">FTableRowBase</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+    <span class="hljs-comment">// 고유 식별자 (예: "member_01")</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-type">FString</span> Id;
+
+    <span class="hljs-comment">// 길드원 이름 (UI에 표시)</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-type">FString</span> Name;
+
+    <span class="hljs-comment">// 희귀도 등급</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-type">EGuildRarity</span> Rarity;
+
+    <span class="hljs-comment">// 캐릭터 이미지 경로 (UTexture2D 소프트 레퍼런스)</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-type">TSoftObjectPtr</span>&lt;<span class="hljs-type">UTexture2D</span>&gt; ImagePath;
+
+    <span class="hljs-comment">// 스탯 (ATK / DEF / SPD / SPL)</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-type">FGuildStats</span> Stats;
+
+    <span class="hljs-comment">// 캐릭터 배경 스토리</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-type">FString</span> Story;
+
+    <span class="hljs-comment">// 이 길드원이 참여하는 시너지 ID 목록</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FString</span>&gt; Synergies;
+};</pre></div>
+    </div>
+
+    <h3>EGuildRarity &mdash; 희귀도 열거형</h3>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">GuildTypes.h &mdash; Rarity</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">UENUM(BlueprintType)</span>
+<span class="hljs-keyword">enum class</span> <span class="hljs-title class_">EGuildRarity</span> : <span class="hljs-type">uint8</span>
+{
+    Normal     <span class="hljs-meta">UMETA(DisplayName = "Normal")</span>,
+    Rare       <span class="hljs-meta">UMETA(DisplayName = "Rare")</span>,
+    Epic       <span class="hljs-meta">UMETA(DisplayName = "Epic")</span>,
+    Legendary  <span class="hljs-meta">UMETA(DisplayName = "Legendary")</span>
+};</pre></div>
+    </div>
+
+    <h3>FGuildStats &mdash; 스탯 구조체</h3>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">GuildTypes.h &mdash; Stats</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title class_">FGuildStats</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-type">int32</span> ATK = <span class="hljs-number">0</span>;
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-type">int32</span> DEF = <span class="hljs-number">0</span>;
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-type">int32</span> SPD = <span class="hljs-number">0</span>;
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-type">int32</span> SPL = <span class="hljs-number">0</span>;
+};</pre></div>
+    </div>
+
+    <h3>필드 설명</h3>
+    <table class="tbl">
+      <tr><th>필드</th><th>타입</th><th>설명</th></tr>
+      <tr><td><code>Id</code></td><td><code>FString</code></td><td>고유 식별자. 보유 목록·시너지 참조에 사용. 예: <code>"member_01"</code></td></tr>
+      <tr><td><code>Name</code></td><td><code>FString</code></td><td>UI에 표시할 길드원 이름.</td></tr>
+      <tr><td><code>Rarity</code></td><td><code>EGuildRarity</code></td><td>희귀도 4등급. 가챠 확률 가중치에 직접 연동.</td></tr>
+      <tr><td><code>ImagePath</code></td><td><code>TSoftObjectPtr&lt;UTexture2D&gt;</code></td><td>카드 UI에 표시할 캐릭터 이미지. 소프트 레퍼런스로 필요 시에만 로드.</td></tr>
+      <tr><td><code>Stats</code></td><td><code>FGuildStats</code></td><td>ATK(공격) / DEF(방어) / SPD(속도) / SPL(특수). 현재는 표시 전용.</td></tr>
+      <tr><td><code>Story</code></td><td><code>FString</code></td><td>캐릭터 배경 스토리 텍스트.</td></tr>
+      <tr><td><code>Synergies</code></td><td><code>TArray&lt;FString&gt;</code></td><td>이 길드원이 참여하는 시너지의 ID 목록. 편성 시 시너지 계산에 활용.</td></tr>
+    </table>
+
+    <p><strong>런타임 보유 목록</strong>은 <code>TArray&lt;FString&gt; OwnedMemberIds</code>로, 가챠에서 선택한 길드원의 <code>Id</code>를 저장합니다. 이 배열은 <code>USaveGame</code>에 직렬화되어 앱을 껐다 켜도 유지됩니다.</p>
+  </div>
+
+  <!-- ============================================================
+       03 — 가챠 시스템
+       ============================================================ -->
+  <div class="section" id="gacha">
+    <div class="section-label">03 — 가챠 시스템</div>
+    <h2>모집 흐름</h2>
+    <p>가챠(앞서 설명한 랜덤 모집 시스템)는 <strong>Gold 1,000</strong>을 소비합니다. 한 번의 모집에서 3명의 후보가 카드로 제시되며, 사용자는 그중 1명을 선택하거나 건너뛸 수 있습니다.</p>
+
+    <h3>모집 절차</h3>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">Gold 잔액 확인</div><div class="pipe-desc"><code>UEconomySubsystem</code>(Gold/XP를 관리하는 경제 서브시스템)에서 현재 Gold를 조회합니다. 1,000 미만이면 토스트 알림("Gold가 부족합니다")을 띄우고 중단합니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">Gold 1,000 차감</div><div class="pipe-desc"><code>UEconomySubsystem::AddGold(-1000)</code>을 호출하여 잔액을 깎습니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">희귀도 가중치 기반 랜덤 3명 선정</div><div class="pipe-desc">현재 길드 레벨에 따른 확률 테이블(아래 참조)로 희귀도를 먼저 결정하고, 해당 희귀도 풀에서 랜덤으로 선택합니다. <strong>이미 보유한 길드원과 같은 모집 안에서 이미 뽑힌 길드원은 후보에서 제외(중복 불가)</strong>합니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">카드 3장 UI 제시</div><div class="pipe-desc">3명의 후보를 카드 형태로 사용자에게 보여줍니다. 각 카드에는 이름·이미지·희귀도·스탯이 표시됩니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">5</div><div class="pipe-body"><div class="pipe-title">사용자 1명 선택 또는 건너뛰기</div><div class="pipe-desc">사용자가 카드를 탭하면 해당 길드원을 획득합니다. "건너뛰기"를 누르면 아무도 획득하지 않습니다(Gold는 반환되지 않습니다).</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">6</div><div class="pipe-body"><div class="pipe-title">OwnedMemberIds에 추가</div><div class="pipe-desc">선택 시 <code>OwnedMemberIds.Add(SelectedId)</code>로 보유 목록에 추가하고, SaveGame을 동기화합니다.</div></div></div>
+
+    <h3>희귀도 확률 가중치 (길드 레벨별)</h3>
+    <table class="tbl">
+      <tr><th>레벨 범위</th><th>Normal</th><th>Rare</th><th>Epic</th><th>Legendary</th></tr>
+      <tr><td>1 ~ 5</td><td>70%</td><td>20%</td><td>8%</td><td>2%</td></tr>
+      <tr><td>6 ~ 10</td><td>60%</td><td>25%</td><td>11%</td><td>4%</td></tr>
+      <tr><td>11 ~ 15</td><td>50%</td><td>28%</td><td>15%</td><td>7%</td></tr>
+      <tr><td>16 ~ 20</td><td>40%</td><td>30%</td><td>20%</td><td>10%</td></tr>
+    </table>
+    <p>위 표의 각 행에서 <strong>네 확률의 합은 반드시 100%</strong>여야 합니다. 가중치를 변경할 때 합이 100이 아니면 비정상적인 확률 분포가 됩니다.</p>
+
+    <p><strong>보유 상한: 8명.</strong> 이미 보유한 캐릭터는 가챠 후보에서 자동 제외됩니다. 따라서 보유 수가 많아질수록 미보유 풀이 좁아져 원하는 캐릭터를 얻을 확률이 올라갑니다.</p>
+
+    <div class="callout warn"><span class="ic">&#9888;&#65039;</span><p><strong>전원 보유 시 모집 불가.</strong> <code>OwnedMemberIds.Num() &gt;= 8</code>이면 가챠 버튼을 UI에서 비활성화(회색 처리)하고, 탭 시 "모든 길드원을 보유 중입니다" 토스트를 띄웁니다.</p></div>
+
+    <h3>배반(Betrayal) 이벤트</h3>
+    <p>극히 낮은 확률로 발생하는 특별 연출 이벤트입니다. 가챠 카드 제시 시 드래곤 등장 등의 특수 애니메이션이 재생됩니다. 이 이벤트의 구현은 순수 UI 레이어에서 처리하며, <code>UGuildSubsystem</code>의 로직에는 영향을 주지 않습니다.</p>
+  </div>
+
+  <!-- ============================================================
+       04 — 스쿼드 편성
+       ============================================================ -->
+  <div class="section" id="squad">
+    <div class="section-label">04 — 스쿼드 편성</div>
+    <h2>편성 규칙 &amp; 프리셋</h2>
+    <p>스쿼드(앞서 설명한 출전 편성)는 보유 중인 길드원을 슬롯에 배치하는 것입니다. <strong>초기에는 2개 슬롯</strong>만 사용할 수 있으며, 해금 시스템(Gold를 소비해 기능을 여는 구조, 05 경제 문서 참조)을 통해 <strong>3번째·4번째 슬롯</strong>을 열 수 있습니다.</p>
+
+    <h3>편성 규칙</h3>
+    <table class="tbl">
+      <tr><th>규칙</th><th>설명</th></tr>
+      <tr><td>한 캐릭터는 한 슬롯에만</td><td>같은 길드원을 두 슬롯에 중복 편성할 수 없습니다.</td></tr>
+      <tr><td>빈 슬롯 허용</td><td>반드시 모든 슬롯을 채울 필요 없습니다. 1명만 편성해도 됩니다.</td></tr>
+      <tr><td>미보유 캐릭터 편성 불가</td><td><code>OwnedMemberIds</code>에 존재하는 길드원만 배치할 수 있습니다.</td></tr>
+    </table>
+
+    <h3>프리셋 시스템</h3>
+    <p>프리셋(앞서 설명한 편성 저장 슬롯)은 현재 스쿼드 편성 상태를 저장하고 나중에 불러오는 기능입니다. <strong>초기 1개</strong> 프리셋을 사용할 수 있으며, 해금으로 최대 3개까지 확장됩니다.</p>
+    <p>데이터 구조는 <code>TArray&lt;FSquadPreset&gt;</code>이며, 각 프리셋은 <code>TArray&lt;FString&gt;</code>(슬롯별 길드원 ID)입니다. 빈 슬롯은 빈 문자열 <code>""</code>로 표현합니다.</p>
+
+    <h3>편성 변경 코드 골격</h3>
+    <div class="snip">
+      <div class="snip-head">
+        <div class="code-dot" style="background:var(--ue-header)"></div>
+        편성 변경 의사 코드
+      </div>
+<pre><span class="cm">// 슬롯에 길드원 배치</span>
+<span class="tag">void</span> <span class="val">SetSquadSlot</span>(int32 SlotIndex, FString MemberId)
+  <span class="cm">1. SlotIndex 범위 확인 (0 ~ MaxSlots-1)</span>
+  <span class="cm">2. MemberId가 OwnedMemberIds에 있는지 확인</span>
+  <span class="cm">3. MemberId가 다른 슬롯에 이미 있으면 제거</span>
+  <span class="cm">4. SquadSlots[SlotIndex] = MemberId</span>
+  <span class="cm">5. 시너지 재계산 (RecalcSynergies)</span>
+  <span class="cm">6. SaveGame 동기화</span>
+
+<span class="cm">// 슬롯에서 길드원 제거</span>
+<span class="tag">void</span> <span class="val">ClearSquadSlot</span>(int32 SlotIndex)
+  <span class="cm">1. SlotIndex 범위 확인</span>
+  <span class="cm">2. SquadSlots[SlotIndex] = ""</span>
+  <span class="cm">3. 시너지 재계산</span>
+  <span class="cm">4. SaveGame 동기화</span></pre>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       05 — 시너지 시스템
+       ============================================================ -->
+  <div class="section" id="synergy">
+    <div class="section-label">05 — 시너지 시스템</div>
+    <h2>조합 보너스</h2>
+    <p>시너지(앞서 설명한 조합 보너스)는 특정 길드원들이 모두 스쿼드에 편성되었을 때 활성화됩니다. 시너지 정의는 DataTable로 관리하며, <strong>편성이 변경될 때마다 재계산</strong>합니다.</p>
+
+    <h3>시너지 마스터 데이터</h3>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">GuildTypes.h &mdash; Synergy</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title class_">FSynergyRow</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">FTableRowBase</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+    <span class="hljs-comment">// 시너지 고유 ID (예: "synergy_fire_duo")</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-type">FString</span> Id;
+
+    <span class="hljs-comment">// 시너지 이름 (UI 표시용)</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-type">FString</span> Name;
+
+    <span class="hljs-comment">// 활성화에 필요한 길드원 ID 목록</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FString</span>&gt; RequiredMemberIds;
+
+    <span class="hljs-comment">// 보너스 설명 텍스트</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-type">FString</span> BonusDescription;
+};</pre></div>
+    </div>
+
+    <h3>시너지 상태</h3>
+    <table class="tbl">
+      <tr><th>상태</th><th>조건</th><th>UI 표시</th></tr>
+      <tr><td>Active</td><td>모든 필수 멤버가 현재 스쿼드에 편성됨</td><td>시너지 이름 + 보너스 설명을 밝게 표시</td></tr>
+      <tr><td>Inactive</td><td>필수 멤버를 모두 보유하고 있지만, 일부가 스쿼드에 미편성</td><td>시너지 이름을 반투명으로 표시 + "편성 필요" 힌트</td></tr>
+      <tr><td>Missing</td><td>필수 멤버 중 미보유 길드원이 있음</td><td>시너지 이름을 잠금 아이콘과 함께 표시</td></tr>
+    </table>
+
+    <h3>시너지 계산 흐름</h3>
+    <p>시너지 재계산은 <strong>편성 변경 시마다</strong>(스쿼드 슬롯 배치/제거, 프리셋 로드 시) 실행됩니다.</p>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">현재 스쿼드 멤버 ID 목록 가져오기</div><div class="pipe-desc"><code>SquadSlots</code> 배열에서 빈 문자열을 제외한 유효 ID를 수집합니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">모든 시너지 DataTable 순회</div><div class="pipe-desc">시너지 DataTable의 모든 행(<code>FSynergyRow</code>)을 하나씩 검사합니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">RequiredMemberIds가 모두 스쿼드에 포함?</div><div class="pipe-desc">필수 멤버 ID가 전부 현재 스쿼드에 있으면 &rarr; <strong>Active</strong>.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">일부 미편성이지만 보유?</div><div class="pipe-desc">필수 멤버를 모두 <code>OwnedMemberIds</code>에 갖고 있지만 스쿼드에 빠진 멤버가 있으면 &rarr; <strong>Inactive</strong>.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">5</div><div class="pipe-body"><div class="pipe-title">미보유 멤버 있음?</div><div class="pipe-desc">필수 멤버 중 보유하지 않은 길드원이 하나라도 있으면 &rarr; <strong>Missing</strong>.</div></div></div>
+
+    <div class="callout tip"><span class="ic">&#128161;</span><p>시너지는 <strong>순수 장식(보너스 표시)</strong>이므로 실제 능력치 계산은 필요 없습니다. UI에 "시너지 활성!" 텍스트와 보너스 설명을 표시하는 것이 전부입니다.</p></div>
+  </div>
+
+  <!-- ============================================================
+       06 — 구현 스켈레톤
+       ============================================================ -->
+  <div class="section" id="skeleton">
+    <div class="section-label">06 — 구현 스켈레톤</div>
+    <h2>UGuildSubsystem 최소 코드</h2>
+    <p>아래는 <code>UGuildSubsystem</code>의 <strong>최소 동작 뼈대</strong>입니다. 실제 프로젝트에서는 에러 핸들링·UI 연동·저장 동기화를 추가로 구현합니다.</p>
+
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">GuildSubsystem.h</button>
+        <button class="codeblock-tab tab-cpp" type="button">GuildSubsystem.cpp</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Engine/DataTable.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"GuildTypes.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"GuildSubsystem.generated.h"</span></span>
+
+<span class="hljs-comment">/** 시너지 상태 열거형 */</span>
+<span class="hljs-meta">UENUM(BlueprintType)</span>
+<span class="hljs-keyword">enum class</span> <span class="hljs-title class_">ESynergyStatus</span> : <span class="hljs-type">uint8</span>
+{
+    Active,
+    Inactive,
+    Missing
+};
+
+<span class="hljs-comment">/** 길드원 모집·편성·시너지를 관리하는 GameInstanceSubsystem */</span>
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> RECORDTALES_API <span class="hljs-title class_">UGuildSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection) <span class="hljs-keyword">override</span>;
+
+    <span class="hljs-comment">/** 가챠: Gold 소비 후 3명 후보 반환 */</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Guild")</span>
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FString</span>&gt; <span class="hljs-title function_">HireCandidates</span>();
+
+    <span class="hljs-comment">/** 후보 중 1명 선택 → 보유 목록에 추가 */</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Guild")</span>
+    <span class="hljs-keyword">bool</span> <span class="hljs-title function_">HireMember</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; MemberId);
+
+    <span class="hljs-comment">/** 스쿼드 슬롯에 길드원 배치 */</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Guild")</span>
+    <span class="hljs-keyword">bool</span> <span class="hljs-title function_">SetSquadSlot</span>(<span class="hljs-type">int32</span> SlotIndex, <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; MemberId);
+
+    <span class="hljs-comment">/** 스쿼드 슬롯에서 길드원 제거 */</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Guild")</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">ClearSquadSlot</span>(<span class="hljs-type">int32</span> SlotIndex);
+
+    <span class="hljs-comment">/** 특정 시너지의 현재 상태 조회 */</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Guild")</span>
+    <span class="hljs-type">ESynergyStatus</span> <span class="hljs-title function_">GetSynergyStatus</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; SynergyId) <span class="hljs-keyword">const</span>;
+
+    <span class="hljs-comment">/** 프리셋 저장 */</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Guild")</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">SavePreset</span>(<span class="hljs-type">int32</span> PresetIndex);
+
+    <span class="hljs-comment">/** 프리셋 불러오기 */</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Guild")</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">LoadPreset</span>(<span class="hljs-type">int32</span> PresetIndex);
+
+<span class="hljs-keyword">private</span>:
+    <span class="hljs-comment">/** DataTable 레퍼런스 (길드원 마스터) */</span>
+    <span class="hljs-meta">UPROPERTY()</span>
+    <span class="hljs-type">UDataTable</span>* MemberTable = <span class="hljs-literal">nullptr</span>;
+
+    <span class="hljs-comment">/** DataTable 레퍼런스 (시너지 마스터) */</span>
+    <span class="hljs-meta">UPROPERTY()</span>
+    <span class="hljs-type">UDataTable</span>* SynergyTable = <span class="hljs-literal">nullptr</span>;
+
+    <span class="hljs-comment">/** 보유 길드원 ID 목록 */</span>
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FString</span>&gt; OwnedMemberIds;
+
+    <span class="hljs-comment">/** 현재 스쿼드 슬롯 (인덱스 = 슬롯 번호) */</span>
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FString</span>&gt; SquadSlots;
+
+    <span class="hljs-comment">/** 프리셋 저장 */</span>
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FString</span>&gt;&gt; Presets;
+
+    <span class="hljs-comment">/** 최대 슬롯 수 (해금에 따라 변동) */</span>
+    <span class="hljs-type">int32</span> MaxSlots = <span class="hljs-number">2</span>;
+
+    <span class="hljs-comment">/** 시너지 재계산 (편성 변경 시 호출) */</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">RecalcSynergies</span>();
+};</pre></div>
+      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"GuildSubsystem.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Kismet/GameplayStatics.h"</span></span>
+
+<span class="hljs-keyword">void</span> <span class="hljs-title class_">UGuildSubsystem</span>::<span class="hljs-title function_">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection)
+{
+    <span class="hljs-type">Super</span>::<span class="hljs-title function_">Initialize</span>(Collection);
+
+    <span class="hljs-comment">// DataTable 로드 (에셋 경로는 프로젝트에 맞게 수정)</span>
+    <span class="hljs-keyword">static</span> <span class="hljs-title class_">ConstructorHelpers</span>::<span class="hljs-type">FObjectFinder</span>&lt;<span class="hljs-type">UDataTable</span>&gt; <span class="hljs-title function_">MemberDT</span>(
+        <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"/Game/Data/DT_GuildMembers"</span>));
+    <span class="hljs-keyword">if</span> (MemberDT.Succeeded()) MemberTable = MemberDT.Object;
+
+    <span class="hljs-comment">// 스쿼드 슬롯 초기화 (초기 2개)</span>
+    SquadSlots.SetNum(MaxSlots);
+    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span>&amp; Slot : SquadSlots) Slot = <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">""</span>);
+
+    <span class="hljs-comment">// 프리셋 초기화 (초기 1개)</span>
+    Presets.SetNum(<span class="hljs-number">1</span>);
+}
+
+<span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FString</span>&gt; <span class="hljs-title class_">UGuildSubsystem</span>::<span class="hljs-title function_">HireCandidates</span>()
+{
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FString</span>&gt; Candidates;
+
+    <span class="hljs-comment">// 1. Gold 잔액 확인</span>
+    <span class="hljs-keyword">auto</span>* Economy = GetGameInstance()-&gt;<span class="hljs-title function_">GetSubsystem</span>&lt;<span class="hljs-type">UEconomySubsystem</span>&gt;();
+    <span class="hljs-keyword">if</span> (!Economy || Economy-&gt;<span class="hljs-title function_">GetGold</span>() &lt; <span class="hljs-number">1000</span>)
+    {
+        <span class="hljs-comment">// Gold 부족 — 빈 배열 반환, UI에서 토스트 처리</span>
+        <span class="hljs-keyword">return</span> Candidates;
+    }
+
+    <span class="hljs-comment">// 2. Gold 차감</span>
+    Economy-&gt;<span class="hljs-title function_">AddGold</span>(-<span class="hljs-number">1000</span>);
+
+    <span class="hljs-comment">// 3. 미보유 멤버 풀 구성</span>
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FGuildMemberRow</span>*&gt; Pool;
+    <span class="hljs-keyword">if</span> (MemberTable)
+    {
+        <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FGuildMemberRow</span>*&gt; AllRows;
+        MemberTable-&gt;<span class="hljs-title function_">GetAllRows</span>(<span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"HireCandidates"</span>), AllRows);
+        <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span>* Row : AllRows)
+        {
+            <span class="hljs-keyword">if</span> (!OwnedMemberIds.<span class="hljs-title function_">Contains</span>(Row-&gt;Id))
+                Pool.<span class="hljs-title function_">Add</span>(Row);
+        }
+    }
+
+    <span class="hljs-comment">// 4. 가중치 기반 3명 선정 (간략화)</span>
+    <span class="hljs-keyword">const</span> <span class="hljs-type">int32</span> Count = <span class="hljs-built_in">FMath</span>::<span class="hljs-title function_">Min</span>(<span class="hljs-number">3</span>, Pool.<span class="hljs-title function_">Num</span>());
+    <span class="hljs-keyword">for</span> (<span class="hljs-type">int32</span> i = <span class="hljs-number">0</span>; i &lt; Count; ++i)
+    {
+        <span class="hljs-comment">// TODO: 길드 레벨별 Rarity 가중치 적용</span>
+        <span class="hljs-type">int32</span> Idx = <span class="hljs-built_in">FMath</span>::<span class="hljs-title function_">RandRange</span>(<span class="hljs-number">0</span>, Pool.<span class="hljs-title function_">Num</span>() - <span class="hljs-number">1</span>);
+        Candidates.<span class="hljs-title function_">Add</span>(Pool[Idx]-&gt;Id);
+        Pool.<span class="hljs-title function_">RemoveAt</span>(Idx);
+    }
+
+    <span class="hljs-keyword">return</span> Candidates;
+}
+
+<span class="hljs-keyword">bool</span> <span class="hljs-title class_">UGuildSubsystem</span>::<span class="hljs-title function_">HireMember</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; MemberId)
+{
+    <span class="hljs-keyword">if</span> (OwnedMemberIds.<span class="hljs-title function_">Num</span>() &gt;= <span class="hljs-number">8</span>) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+    <span class="hljs-keyword">if</span> (OwnedMemberIds.<span class="hljs-title function_">Contains</span>(MemberId)) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+
+    OwnedMemberIds.<span class="hljs-title function_">Add</span>(MemberId);
+    <span class="hljs-comment">// TODO: SaveGame 동기화</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+}
+
+<span class="hljs-keyword">bool</span> <span class="hljs-title class_">UGuildSubsystem</span>::<span class="hljs-title function_">SetSquadSlot</span>(<span class="hljs-type">int32</span> SlotIndex, <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; MemberId)
+{
+    <span class="hljs-keyword">if</span> (SlotIndex &lt; <span class="hljs-number">0</span> || SlotIndex &gt;= MaxSlots) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+    <span class="hljs-keyword">if</span> (!OwnedMemberIds.<span class="hljs-title function_">Contains</span>(MemberId)) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+
+    <span class="hljs-comment">// 다른 슬롯에서 제거 (중복 방지)</span>
+    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span>&amp; Slot : SquadSlots)
+    {
+        <span class="hljs-keyword">if</span> (Slot == MemberId) Slot = <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">""</span>);
+    }
+
+    SquadSlots[SlotIndex] = MemberId;
+    <span class="hljs-title function_">RecalcSynergies</span>();
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-title class_">UGuildSubsystem</span>::<span class="hljs-title function_">ClearSquadSlot</span>(<span class="hljs-type">int32</span> SlotIndex)
+{
+    <span class="hljs-keyword">if</span> (SlotIndex &lt; <span class="hljs-number">0</span> || SlotIndex &gt;= MaxSlots) <span class="hljs-keyword">return</span>;
+    SquadSlots[SlotIndex] = <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">""</span>);
+    <span class="hljs-title function_">RecalcSynergies</span>();
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-title class_">UGuildSubsystem</span>::<span class="hljs-title function_">RecalcSynergies</span>()
+{
+    <span class="hljs-comment">// 시너지 재계산 로직</span>
+    <span class="hljs-comment">// → GetSynergyStatus()에서 사용할 캐시를 갱신</span>
+    <span class="hljs-comment">// TODO: 시너지 DataTable 순회 + 상태 계산</span>
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-title class_">UGuildSubsystem</span>::<span class="hljs-title function_">SavePreset</span>(<span class="hljs-type">int32</span> PresetIndex)
+{
+    <span class="hljs-keyword">if</span> (PresetIndex &lt; <span class="hljs-number">0</span> || PresetIndex &gt;= Presets.<span class="hljs-title function_">Num</span>()) <span class="hljs-keyword">return</span>;
+    Presets[PresetIndex] = SquadSlots;
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-title class_">UGuildSubsystem</span>::<span class="hljs-title function_">LoadPreset</span>(<span class="hljs-type">int32</span> PresetIndex)
+{
+    <span class="hljs-keyword">if</span> (PresetIndex &lt; <span class="hljs-number">0</span> || PresetIndex &gt;= Presets.<span class="hljs-title function_">Num</span>()) <span class="hljs-keyword">return</span>;
+    SquadSlots = Presets[PresetIndex];
+    SquadSlots.<span class="hljs-title function_">SetNum</span>(MaxSlots); <span class="hljs-comment">// 슬롯 수 보정</span>
+    <span class="hljs-title function_">RecalcSynergies</span>();
+}
+
+<span class="hljs-type">ESynergyStatus</span> <span class="hljs-title class_">UGuildSubsystem</span>::<span class="hljs-title function_">GetSynergyStatus</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; SynergyId) <span class="hljs-keyword">const</span>
+{
+    <span class="hljs-comment">// TODO: 캐시된 시너지 상태 맵에서 조회</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-type">ESynergyStatus</span>::Missing;
+}</pre></div>
+    </div>
+
+    <h3>주요 함수 설명</h3>
+    <table class="tbl">
+      <tr><th>함수</th><th>역할</th><th>반환</th></tr>
+      <tr><td><code>HireCandidates()</code></td><td>Gold 차감 후 가챠 후보 3명의 ID 배열 반환</td><td><code>TArray&lt;FString&gt;</code></td></tr>
+      <tr><td><code>HireMember(MemberId)</code></td><td>선택한 길드원을 보유 목록에 추가</td><td><code>bool</code> (성공 여부)</td></tr>
+      <tr><td><code>SetSquadSlot(Index, Id)</code></td><td>지정 슬롯에 길드원 배치 + 시너지 재계산</td><td><code>bool</code> (성공 여부)</td></tr>
+      <tr><td><code>ClearSquadSlot(Index)</code></td><td>지정 슬롯 비우기 + 시너지 재계산</td><td><code>void</code></td></tr>
+      <tr><td><code>GetSynergyStatus(Id)</code></td><td>특정 시너지의 Active/Inactive/Missing 상태</td><td><code>ESynergyStatus</code></td></tr>
+      <tr><td><code>SavePreset(Index)</code></td><td>현재 스쿼드를 프리셋에 저장</td><td><code>void</code></td></tr>
+      <tr><td><code>LoadPreset(Index)</code></td><td>프리셋에서 스쿼드 복원 + 시너지 재계산</td><td><code>void</code></td></tr>
+    </table>
+  </div>
+
+  <!-- ============================================================
+       07 — 확장 & 주의
+       ============================================================ -->
+  <div class="section" id="extension">
+    <div class="section-label">07 — 확장 &amp; 주의</div>
+    <h2>Pitfall &amp; Do/Don&rsquo;t</h2>
+
+    <div class="pitfall"><span class="ic">&#9888;&#65039;</span><div class="pitfall-text"><strong>가챠 확률 가중치 합이 100이 아니면 비정상 분포.</strong> 희귀도별 확률(Normal + Rare + Epic + Legendary)의 합은 반드시 100이어야 합니다. 에디터에서 가중치를 수정할 때는 합계를 검증하는 로직을 넣거나, DataTable Validate 콜백에서 경고를 출력하세요.</div></div>
+
+    <div class="pitfall"><span class="ic">&#9888;&#65039;</span><div class="pitfall-text"><strong>보유 상한 도달 시 OwnedMemberIds.Num() 체크 필수.</strong> <code>HireMember()</code>와 <code>HireCandidates()</code> 모두에서 보유 수를 확인해야 합니다. 후보 생성 시 미보유 풀이 0이면 빈 배열을 반환하고, UI에서 가챠 버튼을 비활성화하세요.</div></div>
+
+    <div class="pitfall"><span class="ic">&#9888;&#65039;</span><div class="pitfall-text"><strong>편성에서 제거한 캐릭터가 시너지에 영향 &rarr; 즉시 재계산.</strong> <code>ClearSquadSlot()</code>과 <code>SetSquadSlot()</code> 모두 마지막에 <code>RecalcSynergies()</code>를 호출해야 합니다. 프리셋 로드(<code>LoadPreset()</code>) 시에도 마찬가지입니다. 재계산을 빼먹으면 UI에 잘못된 시너지 상태가 표시됩니다.</div></div>
+
+    <div class="dd-grid">
+      <div class="dd do">
+        <h4>&#10003; 이렇게</h4>
+        <ul>
+          <li>마스터 데이터는 DataTable로 에디터에서 관리</li>
+          <li>가챠 후보 생성 전 보유 상한·잔액 검증</li>
+          <li>편성 변경 시 항상 시너지 재계산</li>
+          <li>SaveGame 동기화를 편성·모집 후 즉시 수행</li>
+          <li>빈 슬롯은 빈 문자열로 명시적 표현</li>
+        </ul>
+      </div>
+      <div class="dd dont">
+        <h4>&#10007; 이건 피하기</h4>
+        <ul>
+          <li>확률 가중치를 하드코딩 (DataTable이나 TMap으로)</li>
+          <li>시너지 재계산 없이 슬롯 변경</li>
+          <li>보유 상한 체크 없이 HireMember 호출</li>
+          <li>프리셋 로드 후 슬롯 수 보정 누락</li>
+          <li>Gold 차감 전에 후보 생성 시작</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <span>RecordTales &middot; 길드 &amp; 캐릭터 시스템 v1.0</span>
+  <span>디자인: Dark &middot; Indigo Minimal &middot; Master v1.2</span>
+</footer>
+
+<!-- 코드 탭 전환 + 복사 (오프라인 inline) -->
+<script>
+(function () {
+  document.querySelectorAll('.codeblock').forEach(function (block) {
+    var tabs = block.querySelectorAll('.codeblock-tab');
+    var panels = block.querySelectorAll('.codeblock-panel');
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) { t.classList.remove('active'); });
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        if (panels[i]) panels[i].classList.add('active');
+      });
+    });
+    var copyBtn = block.querySelector('.codeblock-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () {
+        var pre = block.querySelector('.codeblock-panel.active pre');
+        if (!pre) return;
+        var text = pre.innerText;
+        var done = function () {
+          copyBtn.textContent = '\uBCF5\uC0AC\uB428 \u2713';
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.textContent = '\uBCF5\uC0AC';
+            copyBtn.classList.remove('copied');
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+        } else {
+          fallbackCopy(text, done);
+        }
+      });
+    }
+  });
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+})();
+</script>
+
+</body>
+</html>

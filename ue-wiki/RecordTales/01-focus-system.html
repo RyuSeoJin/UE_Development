@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>포커스 시스템 — 타이머 &amp; 스톱워치 — RecordTales v1.0</title>
+<!-- ============================================================
+     CHANGELOG — 01-focus-system.html
+     포커스(타이머+스톱워치) 시스템 설계. 작업 규약: design-guide/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.0 · 2026-07-02
+       - 신규 생성. 포커스(타이머+스톱워치) 시스템 설계.
+       - 타이머 상태 머신(5상태), 루틴 모드, 스톱워치, XP/Gold 보상 규칙,
+         UFocusSubsystem 구현 스켈레톤(.h/.cpp), 확장 & 주의 포함.
+     ============================================================ -->
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Pretendard:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* --- 기본 토큰 --- */
+  --bg: #0D0F1A;
+  --surface: #13162A;
+  --surface-2: #1A1F38;
+  --border: #252B4A;
+  --accent: #5B6EFA;
+  --accent-2: #9B6DFF;
+  --accent-3: #38D9B4;
+  --text: #E4E8FF;
+  --text-muted: #7B82A6;
+  --text-dim: #4A5080;
+  --amber: #F59E0B;
+  --pink: #E040FB;
+  --red: #F87171;
+
+  /* --- 에셋 타입 컬러 맵 --- */
+  --ue-folder: #F59E0B;
+  --ue-bp:     #5B6EFA;
+  --ue-enum:   #9B6DFF;
+  --ue-mat:    #FB8C5A;
+  --ue-tex:    #38D9B4;
+  --ue-demo:   #6BD98E;
+
+  /* --- 프레임워크 클래스 컬러 맵 --- */
+  --ue-gamemode:   #5B6EFA;
+  --ue-gamestate:  #7B9CFF;
+  --ue-controller: #38D9B4;
+  --ue-pawn:       #6BD98E;
+  --ue-instance:   #9B6DFF;
+  --ue-savegame:   #F59E0B;
+  --ue-subsystem:  #E040FB;
+
+  /* --- 파일 타입 컬러 맵 --- */
+  --ue-header: #38D9B4;
+  --ue-source: #FB8C5A;
+  --ue-macro:  #FB8C5A;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+  font-size: 15px; line-height: 1.7; -webkit-font-smoothing: antialiased;
+}
+
+/* NAV */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(13,15,26,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px; display: flex; align-items: center; gap: 32px; height: 52px;
+}
+.nav-logo { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em; white-space: nowrap; }
+.nav-links { display: flex; gap: 22px; flex-wrap: wrap; }
+.nav-links a { color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 500; transition: color 0.2s; }
+.nav-links a:hover { color: var(--text); }
+.nav-links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+
+/* HERO */
+.hero { padding: 72px 48px 56px; max-width: 920px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+.hero-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: var(--accent); text-transform: uppercase; margin-bottom: 20px; }
+.hero h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 20px; }
+.hero h1 span { color: var(--accent); }
+.hero-sub { font-size: 16px; color: var(--text-muted); max-width: 660px; line-height: 1.75; }
+.hero-meta { margin-top: 28px; display: flex; gap: 10px; flex-wrap: wrap; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; border: 1px solid; }
+.badge-blue { color: var(--accent); border-color: var(--accent); background: rgba(91,110,250,0.08); }
+.badge-green { color: var(--accent-3); border-color: var(--accent-3); background: rgba(56,217,180,0.08); }
+.badge-purple { color: var(--accent-2); border-color: var(--accent-2); background: rgba(155,109,255,0.08); }
+
+/* CONTENT / SECTION */
+.content { max-width: 920px; margin: 0 auto; padding: 0 48px 80px; }
+.section { padding: 52px 0 0; border-top: 1px solid var(--border); margin-top: 52px; }
+.section:first-child { margin-top: 0; padding-top: 48px; border-top: none; }
+.section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 12px; }
+.section h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 20px; }
+.section h3 { font-size: 15px; font-weight: 700; color: var(--text); margin: 30px 0 10px; letter-spacing: 0.01em; }
+.section p { color: var(--text-muted); margin-bottom: 14px; line-height: 1.8; }
+.section p strong { color: var(--text); font-weight: 600; }
+
+code { font-family: 'IBM Plex Mono', monospace; font-size: 0.86em; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; color: var(--accent-3); }
+
+/* CALLOUT */
+.callout { display: flex; gap: 12px; align-items: flex-start; border-radius: 8px; padding: 14px 16px; margin: 18px 0; border: 1px solid var(--border); background: var(--surface-2); font-size: 13.5px; line-height: 1.65; }
+.callout .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.callout p { margin: 0; color: var(--text-muted); }
+.callout p strong { color: var(--text); }
+.callout.info { border-left: 3px solid var(--accent); }
+.callout.tip  { border-left: 3px solid var(--accent-3); }
+.callout.warn { border-left: 3px solid var(--amber); }
+
+/* STAT CARDS */
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 4px; }
+.stat-label { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+/* PILLS */
+.pills { display: flex; flex-wrap: wrap; gap: 7px; }
+.pill { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; padding: 3px 12px; border-radius: 20px; border: 1px solid; }
+.pill.blue { color: var(--accent); border-color: rgba(91,110,250,0.4); background: rgba(91,110,250,0.08); }
+.pill.purple { color: var(--accent-2); border-color: rgba(155,109,255,0.4); background: rgba(155,109,255,0.08); }
+.pill.green { color: var(--accent-3); border-color: rgba(56,217,180,0.4); background: rgba(56,217,180,0.08); }
+.pill.pink { color: var(--pink); border-color: rgba(224,64,251,0.4); background: rgba(224,64,251,0.08); }
+.pill.red { color: var(--red); border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.08); }
+
+/* ARCH */
+.arch { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: stretch; }
+.arch-layer { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 16px 14px; }
+.arch-arrow { display: flex; align-items: center; justify-content: center; padding: 0 8px; color: var(--text-dim); font-size: 16px; }
+.arch-tag { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 7px; color: var(--accent); }
+.arch-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.arch-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+/* TABLE */
+.tbl { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 13px; }
+.tbl th { background: var(--surface-2); color: var(--text-muted); font-weight: 600; font-size: 12px; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+.tbl td { padding: 10px 14px; color: var(--text-muted); border-bottom: 1px solid rgba(37,43,74,0.5); vertical-align: top; line-height: 1.55; }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl td:first-child { color: var(--text); }
+.tbl td code, .tbl th code { background: transparent; border: none; padding: 0; color: var(--accent); }
+
+/* TREE */
+.tree { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.9; color: var(--text-dim); white-space: pre; overflow-x: auto; }
+.tree .note { color: var(--text-muted); }
+.tree .c-subsystem { color: var(--ue-subsystem); font-weight: 600; }
+
+/* PIPE-STEP */
+.pipe-step { display: grid; grid-template-columns: 36px 1fr; gap: 0 16px; position: relative; }
+.pipe-step::before { content: ''; position: absolute; left: 17px; top: 36px; bottom: -1px; width: 2px; background: var(--border); }
+.pipe-step:last-child::before { display: none; }
+.pipe-num { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--surface-2); }
+.pipe-body { padding: 6px 0 22px; }
+.pipe-title { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+.pipe-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+/* PITFALL */
+.pitfall { display: flex; gap: 14px; align-items: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; border-left: 3px solid var(--amber); margin: 14px 0; }
+.pitfall.tip { border-left-color: var(--accent-3); }
+.pitfall .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.pitfall-text { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
+.pitfall-text strong { color: var(--text); }
+
+/* COMPARE-BOX */
+.compare-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
+.compare-box h4 { font-size: 14px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.compare-box p { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 10px; }
+.compare-box .pills { margin-top: 10px; }
+
+/* CODE BLOCK */
+.codeblock { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 16px 0 24px; }
+.codeblock-bar { display: flex; align-items: stretch; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.codeblock-tab {
+  padding: 9px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600;
+  color: var(--text-dim); background: transparent; border: none; border-right: 1px solid var(--border);
+  cursor: pointer; transition: color 0.15s, background 0.15s; box-shadow: inset 0 -2px 0 transparent;
+}
+.codeblock-tab:hover { color: var(--text-muted); }
+.codeblock-tab.active { color: var(--text); background: var(--surface); }
+.codeblock-tab.tab-h.active   { box-shadow: inset 0 -2px 0 var(--ue-header); }
+.codeblock-tab.tab-cpp.active { box-shadow: inset 0 -2px 0 var(--ue-source); }
+.codeblock-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.codeblock-copy {
+  margin-left: auto; align-self: center; margin-right: 8px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600;
+  color: var(--text-muted); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 5px; padding: 4px 10px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+}
+.codeblock-copy:hover { color: var(--text); border-color: var(--accent); }
+.codeblock-copy.copied { color: var(--accent-3); border-color: var(--accent-3); }
+.codeblock-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.codeblock-panel { display: none; }
+.codeblock-panel.active { display: block; }
+.codeblock pre { padding: 16px 18px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.75; overflow-x: auto; white-space: pre; }
+
+/* highlight.js theme */
+.hljs { color: var(--text-muted); background: var(--surface); }
+.hljs-comment, .hljs-quote { color: var(--text-dim); font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-section { color: var(--accent); font-weight: 500; }
+.hljs-literal, .hljs-symbol, .hljs-bullet { color: var(--accent-2); }
+.hljs-number { color: var(--accent-2); }
+.hljs-string, .hljs-attr, .hljs-attribute, .hljs-name { color: var(--ue-demo); }
+.hljs-type, .hljs-class .hljs-title, .hljs-title.class_, .hljs-built_in { color: var(--accent-3); }
+.hljs-title, .hljs-title.function_, .hljs-function .hljs-title { color: var(--text); }
+.hljs-params { color: var(--text-muted); }
+.hljs-meta, .hljs-meta .hljs-keyword { color: var(--ue-macro); font-weight: 600; }
+.hljs-meta .hljs-string { color: var(--ue-demo); }
+.hljs-property, .hljs-variable { color: var(--text); }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 700; }
+
+/* SNIP */
+.snip { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 12px 0 22px; }
+.snip-head { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 8px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+.code-dot { width: 8px; height: 8px; border-radius: 50%; }
+.snip pre { padding: 14px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-muted); line-height: 1.75; overflow-x: auto; white-space: pre; }
+
+/* FILE TAG */
+.filetag { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 3px; }
+.filetag.h   { background: rgba(56,217,180,0.14); color: var(--ue-header); }
+.filetag.cpp { background: rgba(251,140,90,0.14);  color: var(--ue-source); }
+
+/* DO/DONT */
+.dd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 22px 0; }
+.dd { border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; background: var(--surface-2); }
+.dd.do { border-left: 3px solid var(--accent-3); }
+.dd.dont { border-left: 3px solid var(--red); }
+.dd h4 { font-size: 13px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.dd.do h4 { color: var(--accent-3); }
+.dd.dont h4 { color: var(--red); }
+.dd ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.dd li { font-size: 12.5px; color: var(--text-muted); line-height: 1.55; padding-left: 16px; position: relative; }
+.dd li::before { content: ''; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; border-radius: 50%; }
+.dd.do li::before { background: var(--accent-3); }
+.dd.dont li::before { background: var(--red); }
+
+/* GRID */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920px; margin: 0 auto; font-size: 12px; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+
+@media (max-width: 720px) {
+  .content { padding: 0 20px 60px; }
+  .hero { padding: 48px 20px 40px; }
+  .stat-row, .dd-grid, .grid-2 { grid-template-columns: 1fr; }
+  .arch { grid-template-columns: 1fr; }
+  .arch-arrow { transform: rotate(90deg); padding: 4px 0; }
+  nav { padding: 0 16px; gap: 16px; }
+  .nav-links { display: none; }
+  footer { padding: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">RECORDTALES · FOCUS SYSTEM</div>
+  <div class="nav-links">
+    <a href="#concept">개념</a>
+    <a href="#state-machine">상태머신</a>
+    <a href="#timer-settings">타이머설정</a>
+    <a href="#stopwatch">스톱워치</a>
+    <a href="#rewards">보상</a>
+    <a href="#skeleton">코드</a>
+    <a href="#extension">주의</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">RecordTales &middot; v1.0 &middot; Focus System</div>
+  <h1>포커스 시스템<br><span>타이머 &amp; 스톱워치</span></h1>
+  <p class="hero-sub">
+    포모도로 기반 타이머와 자유 시간 스톱워치를 통합한 집중 관리 시스템입니다. 상태 머신, 루틴 반복, XP/Gold 적립 규칙, 세션 기록 연동까지 설계합니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">타이머 상태 머신</span>
+    <span class="badge badge-green">스톱워치</span>
+    <span class="badge badge-purple">XP/Gold 적립</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- ===== 01 개념 이해 ===== -->
+  <div class="section" id="concept">
+    <div class="section-label">01 — 개념 이해</div>
+    <h2>포커스 시스템이란?</h2>
+    <p>
+      포커스 시스템은 <strong>포모도로(Pomodoro) 기법</strong>(25분 집중 + 5분 휴식을 반복하는 시간 관리 방법) 기반의 <strong>집중 타이머</strong>와, 정해진 시간 없이 0초부터 자유롭게 측정하는 <strong>스톱워치</strong>를 하나의 서브시스템(<code>UFocusSubsystem</code>)으로 통합한 것입니다.
+    </p>
+    <p>
+      사용자는 두 모드 중 하나를 선택해 집중 세션을 시작합니다. 타이머 모드에서는 설정된 시간이 카운트다운되고, 스톱워치 모드에서는 경과 시간이 카운트업됩니다. 세션이 완료되면 <strong>XP</strong>(경험치)와 <strong>Gold</strong>(게임 내 화폐)가 적립되어, 길드원 모집과 레벨업에 사용됩니다.
+    </p>
+
+    <div class="stat-row">
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent)">2</div><div class="stat-label">집중 모드<br>(타이머 / 스톱워치)</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent-2)">5</div><div class="stat-label">타이머 상태<br>(Idle/Focusing/Resting/<br>LastResting/Paused)</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent-3)">1~10</div><div class="stat-label">루틴 반복 횟수</div></div>
+    </div>
+
+    <h3 id="term-focus-keywords">핵심 용어</h3>
+    <div class="callout info">
+      <span class="ic">&#x1F4D6;</span>
+      <p>
+        <strong>포모도로(Pomodoro)</strong> — 25분 집중 + 5분 휴식을 1사이클로 하는 시간 관리 기법. "토마토"라는 뜻의 이탈리아어에서 유래.<br>
+        <strong>루틴(Routine)</strong> — 포모도로 사이클을 연속으로 반복하는 것. 1회면 단일 모드, 2회 이상이면 루틴 모드.<br>
+        <strong>세션(Session)</strong> — 시작 버튼을 누른 순간부터 모든 루틴이 끝나는 순간까지의 전체 시간. 하나의 세션에는 여러 사이클이 포함될 수 있음.<br>
+        <strong id="term-pomodoro-cycle">사이클(Cycle)</strong> — 집중 1회 + 휴식 1회를 묶은 단위. 루틴 4회 = 4사이클.<br>
+        <strong id="term-focus-subsystem">FocusSubsystem</strong> — <code>UGameInstanceSubsystem</code>을 상속한 서브시스템. 타이머/스톱워치 상태를 관리하고, 보상 적립과 기록 전달을 트리거함.
+      </p>
+    </div>
+  </div>
+
+  <!-- ===== 02 타이머 상태 머신 ===== -->
+  <div class="section" id="state-machine">
+    <div class="section-label">02 — 타이머 상태 머신</div>
+    <h2>5가지 상태와 전환 규칙</h2>
+    <p>
+      타이머는 <strong>상태 머신(State Machine)</strong>으로 동작합니다. 상태 머신이란 "현재 어떤 상태에 있는지"와 "어떤 조건이 충족되면 다음 상태로 넘어가는지"를 명확히 정의한 설계 패턴입니다. 포커스 타이머의 상태는 5가지이며, 각 상태에서 할 수 있는 행동과 UI 표시가 다릅니다.
+    </p>
+
+    <h3>상태 전환 흐름</h3>
+    <div class="arch">
+      <div class="arch-layer">
+        <div class="arch-tag">대기</div>
+        <div class="arch-title">Idle</div>
+        <div class="arch-desc">설정 UI 표시. 시작 버튼 대기.</div>
+      </div>
+      <div class="arch-arrow">&rarr;</div>
+      <div class="arch-layer">
+        <div class="arch-tag">집중</div>
+        <div class="arch-title">Focusing</div>
+        <div class="arch-desc">카운트다운 링. Gold 초당 +1.</div>
+      </div>
+      <div class="arch-arrow">&rarr;</div>
+      <div class="arch-layer">
+        <div class="arch-tag">휴식</div>
+        <div class="arch-title">Resting / LastResting</div>
+        <div class="arch-desc">휴식 카운트다운. Gold 멈춤.</div>
+      </div>
+    </div>
+
+    <h3>상태 상세 테이블</h3>
+    <table class="tbl">
+      <tr><th>상태</th><th>의미</th><th>전환 조건</th><th>UI 표시</th></tr>
+      <tr>
+        <td><code>Idle</code></td>
+        <td>대기 중. 아직 집중을 시작하지 않은 초기 상태</td>
+        <td>시작 버튼 클릭 &rarr; <code>Focusing</code></td>
+        <td>타이머 설정 UI (시간/루틴 조절)</td>
+      </tr>
+      <tr>
+        <td><code>Focusing</code></td>
+        <td>집중 중. 설정한 시간(기본 25분)이 카운트다운됨</td>
+        <td>시간 만료 &rarr; <code>Resting</code> 또는 <code>LastResting</code></td>
+        <td>카운트다운 링 + 남은 시간 표시</td>
+      </tr>
+      <tr>
+        <td><code>Resting</code></td>
+        <td>일반 휴식. 루틴의 중간 사이클에서 집중 후 쉬는 시간</td>
+        <td>시간 만료 &rarr; <code>Focusing</code> (다음 사이클)</td>
+        <td>휴식 카운트다운 + 현재/전체 사이클 표시</td>
+      </tr>
+      <tr>
+        <td><code>LastResting</code></td>
+        <td>마지막 휴식. 루틴의 마지막 사이클에서만 발생. 보통 더 긴 휴식(기본 15분)</td>
+        <td>시간 만료 &rarr; <code>Idle</code> (또는 자동 재시작 시 <code>Focusing</code>)</td>
+        <td>마지막 휴식 카운트다운 + 완료 안내</td>
+      </tr>
+      <tr>
+        <td><code>Paused</code></td>
+        <td>일시정지. 어떤 상태에서든 일시정지 가능. 남은 시간이 보존됨</td>
+        <td>재개 &rarr; 이전 상태(<code>Focusing</code> 또는 <code>Resting</code> 등)</td>
+        <td>일시정지 아이콘 + 남은 시간 고정 표시</td>
+      </tr>
+    </table>
+
+    <h3>단일 모드 vs 루틴 모드</h3>
+    <div class="grid-2">
+      <div class="compare-box">
+        <h4 style="color:var(--accent-3)">단일 모드 (루틴 1회)</h4>
+        <p>반복 없이 1사이클만 진행합니다. 집중이 끝나면 단일 휴식 후 <code>Idle</code>로 돌아갑니다. 짧은 작업이나 시험 용도에 적합합니다.</p>
+        <div class="pills">
+          <span class="pill blue">Focusing</span>
+          <span class="pill green">Resting</span>
+          <span class="pill purple">Idle</span>
+        </div>
+      </div>
+      <div class="compare-box">
+        <h4 style="color:var(--ue-mat)">루틴 모드 (2회 이상)</h4>
+        <p>설정한 횟수만큼 [집중 &rarr; 휴식]을 반복합니다. 마지막 사이클의 휴식만 <code>LastResting</code>(긴 휴식)으로 전환됩니다.</p>
+        <div class="pills">
+          <span class="pill blue">Focusing</span>
+          <span class="pill green">Resting</span>
+          <span class="pill blue">Focusing</span>
+          <span class="pill green">Resting</span>
+          <span class="pill blue">Focusing</span>
+          <span class="pill pink">LastResting</span>
+          <span class="pill purple">Idle</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <span class="ic">&#x1F4A1;</span>
+      <p><strong>자동 재시작이 켜지면</strong> <code>LastResting</code> 후 <code>Idle</code> 대신 <code>Focusing</code>으로 복귀합니다. 사이클 인덱스는 1로 초기화되어 새 세션이 시작됩니다. 자동 재시작은 장시간 반복 작업(공부 마라톤 등)에 유용합니다.</p>
+    </div>
+  </div>
+
+  <!-- ===== 03 타이머 설정 ===== -->
+  <div class="section" id="timer-settings">
+    <div class="section-label">03 — 타이머 설정</div>
+    <h2>사용자가 조절할 수 있는 값</h2>
+    <p>
+      타이머 설정은 <code>Idle</code> 상태에서만 변경할 수 있습니다. 설정값은 <code>URecordTalesSaveGame</code>에 저장되어 앱을 재시작해도 유지됩니다.
+    </p>
+
+    <table class="tbl">
+      <tr><th>설정</th><th>기본값</th><th>범위</th><th>저장 위치</th></tr>
+      <tr><td>집중 시간 (FocusDuration)</td><td>25분 (1500초)</td><td>1 ~ 120분</td><td><code>SaveGame</code></td></tr>
+      <tr><td>일반 휴식 (RestDuration)</td><td>5분 (300초)</td><td>1 ~ 30분</td><td><code>SaveGame</code></td></tr>
+      <tr><td>마지막 휴식 (LastRestDuration)</td><td>15분 (900초)</td><td>1 ~ 60분</td><td><code>SaveGame</code></td></tr>
+      <tr><td>반복 횟수 (RoutineCount)</td><td>4회</td><td>1 ~ 10회</td><td><code>SaveGame</code></td></tr>
+      <tr><td>자동 재시작 (bAutoRestart)</td><td>Off</td><td>On / Off</td><td><code>SaveGame</code></td></tr>
+    </table>
+
+    <h3>설정 구조체</h3>
+    <div class="snip">
+      <div class="snip-head"><span class="code-dot" style="background:var(--ue-header)"></span>FFocusSettings (USTRUCT)</div>
+      <pre><span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title class_">FFocusSettings</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
+    <span class="hljs-type">float</span> FocusDuration = <span class="hljs-number">1500.f</span>;    <span class="hljs-comment">// 25분 (초)</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
+    <span class="hljs-type">float</span> RestDuration = <span class="hljs-number">300.f</span>;      <span class="hljs-comment">// 5분 (초)</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
+    <span class="hljs-type">float</span> LastRestDuration = <span class="hljs-number">900.f</span>;  <span class="hljs-comment">// 15분 (초)</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
+    <span class="hljs-type">int32</span> RoutineCount = <span class="hljs-number">4</span>;          <span class="hljs-comment">// 반복 횟수</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
+    <span class="hljs-type">bool</span> bAutoRestart = <span class="hljs-literal">false</span>;       <span class="hljs-comment">// 자동 재시작</span>
+};</pre>
+    </div>
+  </div>
+
+  <!-- ===== 04 스톱워치 ===== -->
+  <div class="section" id="stopwatch">
+    <div class="section-label">04 — 스톱워치</div>
+    <h2>자유 시간 측정 모드</h2>
+    <p>
+      스톱워치 모드는 정해진 시간 없이 <strong>0초부터 경과 시간을 측정</strong>합니다. 타이머와 달리 카운트다운이 아닌 카운트업이며, 사용자가 직접 중지 버튼을 눌러야 세션이 종료됩니다. 코딩, 독서 등 "얼마나 했는지"를 추적하고 싶을 때 사용합니다.
+    </p>
+
+    <h3>스톱워치 상태</h3>
+    <table class="tbl">
+      <tr><th>상태</th><th>의미</th><th>전환 조건</th></tr>
+      <tr><td><code>Idle</code></td><td>아직 시작하지 않음. 경과 시간 0초</td><td>시작 버튼 &rarr; <code>Running</code></td></tr>
+      <tr><td><code>Running</code></td><td>시간 측정 중. 매 프레임 경과 시간 누적</td><td>일시정지 &rarr; <code>Paused</code>, 중지 &rarr; <code>Idle</code> (기록 저장)</td></tr>
+      <tr><td><code>Paused</code></td><td>일시정지. 경과 시간 고정</td><td>재개 &rarr; <code>Running</code>, 중지 &rarr; <code>Idle</code> (기록 저장)</td></tr>
+    </table>
+
+    <h3>XP 적립 자격</h3>
+    <p>
+      스톱워치 모드는 포모도로와 다른 보상 규칙을 적용합니다. <strong>최소 25분(1500초) 이상</strong> 경과해야 XP 적립 자격이 생기며, 분당 +10 XP로 계산합니다. 이 최소 시간 제한은 짧은 시간 남용(10초 켜고 끄기)을 방지합니다.
+    </p>
+
+    <div class="callout warn">
+      <span class="ic">&#x26A0;&#xFE0F;</span>
+      <p><strong>스톱워치는 포모도로 보상(+15 XP)을 받지 않습니다.</strong> 포모도로 보상은 정해진 시간(기본 25분)을 온전히 집중해야 받는 보상이고, 스톱워치는 자유 시간이므로 <strong>분당 +10 XP</strong>로 별도 계산합니다. Gold는 동일하게 초당 +1이 적용됩니다.</p>
+    </div>
+  </div>
+
+  <!-- ===== 05 XP/Gold 보상 규칙 ===== -->
+  <div class="section" id="rewards">
+    <div class="section-label">05 — XP/Gold 보상 규칙</div>
+    <h2>집중이 보상으로 이어지는 경로</h2>
+    <p>
+      포커스 시스템의 핵심 동기부여는 <strong>집중할수록 Gold와 XP가 쌓이는 것</strong>입니다. Gold(게임 내 화폐)는 길드원 가챠(1000 Gold)에 쓰이고, XP(경험치)는 길드 레벨을 올려 더 좋은 가챠 확률과 해금을 제공합니다. 아래 표는 모든 보상 규칙을 정리합니다.
+    </p>
+
+    <table class="tbl">
+      <tr><th>행동</th><th>보상</th><th>조건</th></tr>
+      <tr>
+        <td>포모도로 1사이클 완료</td>
+        <td><strong>+15 XP</strong></td>
+        <td>집중 시간이 만료될 때까지 완료해야 함. 중도 중지 시 미지급.</td>
+      </tr>
+      <tr>
+        <td>연속 3사이클 완료</td>
+        <td><strong>+20 XP 보너스</strong></td>
+        <td>한 세션에서 3회 연속 사이클을 완료. 4회, 5회 등에서도 3의 배수마다 추가 지급.</td>
+      </tr>
+      <tr>
+        <td>스톱워치 XP</td>
+        <td><strong>분당 +10 XP</strong></td>
+        <td>경과 시간이 1500초(25분) 이상일 때만 적립. 소수점 이하 버림.</td>
+      </tr>
+      <tr>
+        <td>집중 중 Gold 틱</td>
+        <td><strong>초당 +1 Gold</strong></td>
+        <td><code>Focusing</code> 상태(타이머)이거나 <code>Running</code> 상태(스톱워치)에서만 틱. 휴식/일시정지 시 멈춤.</td>
+      </tr>
+      <tr>
+        <td>퀘스트 완료 Gold</td>
+        <td><strong>+200 Gold</strong></td>
+        <td>퀘스트 1건 완료 시. 일일 상한 2000 Gold (10건). QuestSubsystem 관할.</td>
+      </tr>
+    </table>
+
+    <h3>보상 적립 흐름</h3>
+    <div class="pipe-step">
+      <div class="pipe-num">1</div>
+      <div class="pipe-body">
+        <div class="pipe-title">상태 변경 감지</div>
+        <div class="pipe-desc"><code>UFocusSubsystem</code>에서 사이클 완료(Focusing 만료) 또는 스톱워치 중지 이벤트가 발생합니다. 이 시점에 적립 자격을 판단합니다.</div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">2</div>
+      <div class="pipe-body">
+        <div class="pipe-title">EconomySubsystem 호출</div>
+        <div class="pipe-desc"><code>UEconomySubsystem::AddXP(Amount)</code>과 <code>AddGold(Amount)</code>를 호출해 런타임 잔고를 갱신합니다. 델리게이트(앞서 설명한 콜백 시스템)를 통해 호출하면 결합도가 낮아집니다.</div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">3</div>
+      <div class="pipe-body">
+        <div class="pipe-title">레벨업 조건 확인</div>
+        <div class="pipe-desc"><code>UEconomySubsystem</code> 내부에서 누적 XP가 다음 레벨 문턱을 넘는지 확인합니다. 넘으면 레벨을 올리고 <code>OnLevelUp</code> 델리게이트를 브로드캐스트합니다.</div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">4</div>
+      <div class="pipe-body">
+        <div class="pipe-title">SaveGame에 기록</div>
+        <div class="pipe-desc">갱신된 Gold/XP/레벨 값을 <code>URecordTalesSaveGame</code>에 복사하고 디스크에 저장합니다. 동시에 <code>URecordSubsystem</code>에 세션 기록(시작 시각, 종료 시각, 집중 시간, 획득 보상)을 전달합니다.</div>
+      </div>
+    </div>
+
+    <div class="callout info">
+      <span class="ic">&#x1F9ED;</span>
+      <p><strong>Gold 틱은 Focusing/Running 상태에서만 작동합니다.</strong> <code>Resting</code>, <code>LastResting</code>, <code>Paused</code> 상태에서는 Gold 틱이 멈춥니다. 이는 "집중한 시간만큼만 보상한다"는 설계 원칙을 반영합니다.</p>
+    </div>
+  </div>
+
+  <!-- ===== 06 구현 스켈레톤 ===== -->
+  <div class="section" id="skeleton">
+    <div class="section-label">06 — 구현 스켈레톤</div>
+    <h2>UFocusSubsystem 최소 코드</h2>
+    <p>
+      아래는 <code>UFocusSubsystem</code>의 <strong>핵심 뼈대</strong>입니다. 상태 전환, 타이머 설정, 주요 함수 시그니처를 포함하며, 세부 구현(UI 바인딩, 사운드 연동 등)은 프로젝트에 맞게 확장합니다. 헤더(<span class="filetag h">FocusSubsystem.h</span>)에 선언하고, 구현은 소스(<span class="filetag cpp">FocusSubsystem.cpp</span>)에 둡니다.
+    </p>
+
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">FocusSubsystem.h</button>
+        <button class="codeblock-tab tab-cpp" type="button">FocusSubsystem.cpp</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+
+      <!-- ===== .h 패널 ===== -->
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"FocusSubsystem.generated.h"</span></span>
+
+<span class="hljs-comment">// ── 타이머 상태 열거형 ──────────────────────────────</span>
+<span class="hljs-meta">UENUM(BlueprintType)</span>
+<span class="hljs-keyword">enum class</span> <span class="hljs-title class_">EFocusState</span> : <span class="hljs-type">uint8</span>
+{
+    Idle          <span class="hljs-meta">UMETA(DisplayName = "Idle")</span>,
+    Focusing      <span class="hljs-meta">UMETA(DisplayName = "Focusing")</span>,
+    Resting       <span class="hljs-meta">UMETA(DisplayName = "Resting")</span>,
+    LastResting   <span class="hljs-meta">UMETA(DisplayName = "LastResting")</span>,
+    Paused        <span class="hljs-meta">UMETA(DisplayName = "Paused")</span>
+};
+
+<span class="hljs-comment">// ── 스톱워치 상태 열거형 ────────────────────────────</span>
+<span class="hljs-meta">UENUM(BlueprintType)</span>
+<span class="hljs-keyword">enum class</span> <span class="hljs-title class_">EStopwatchState</span> : <span class="hljs-type">uint8</span>
+{
+    Idle,
+    Running,
+    Paused
+};
+
+<span class="hljs-comment">// ── 타이머 설정 구조체 ──────────────────────────────</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title class_">FFocusSettings</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
+    <span class="hljs-type">float</span> FocusDuration = <span class="hljs-number">1500.f</span>;
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
+    <span class="hljs-type">float</span> RestDuration = <span class="hljs-number">300.f</span>;
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
+    <span class="hljs-type">float</span> LastRestDuration = <span class="hljs-number">900.f</span>;
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
+    <span class="hljs-type">int32</span> RoutineCount = <span class="hljs-number">4</span>;
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
+    <span class="hljs-type">bool</span> bAutoRestart = <span class="hljs-literal">false</span>;
+};
+
+<span class="hljs-comment">// ── 사이클 완료 델리게이트 ──────────────────────────</span>
+<span class="hljs-meta">DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
+    FOnFocusCycleCompleted, int32, CycleIndex, float, FocusDuration);</span>
+<span class="hljs-meta">DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+    FOnStopwatchStopped, float, ElapsedSeconds);</span>
+
+<span class="hljs-comment">// ── UFocusSubsystem ─────────────────────────────────</span>
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> RECORDTALES_API <span class="hljs-title class_">UFocusSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// --- 초기화 ---</span>
+    <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection) <span class="hljs-keyword">override</span>;
+    <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">Deinitialize</span>() <span class="hljs-keyword">override</span>;
+
+    <span class="hljs-comment">// --- 타이머 제어 ---</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Focus")</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">StartFocus</span>();
+
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Focus")</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">PauseFocus</span>();
+
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Focus")</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">ResumeFocus</span>();
+
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Focus")</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">StopFocus</span>();
+
+    <span class="hljs-comment">// --- 스톱워치 제어 ---</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Focus")</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">StartStopwatch</span>();
+
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Focus")</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">StopStopwatch</span>();
+
+    <span class="hljs-comment">// --- 상태 조회 ---</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintPure, Category = "Focus")</span>
+    <span class="hljs-type">EFocusState</span> <span class="hljs-title function_">GetFocusState</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> CurrentState; }
+
+    <span class="hljs-meta">UFUNCTION(BlueprintPure, Category = "Focus")</span>
+    <span class="hljs-type">float</span> <span class="hljs-title function_">GetRemainingTime</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> RemainingTime; }
+
+    <span class="hljs-meta">UFUNCTION(BlueprintPure, Category = "Focus")</span>
+    <span class="hljs-type">int32</span> <span class="hljs-title function_">GetCurrentCycle</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> CurrentCycleIndex; }
+
+    <span class="hljs-comment">// --- 델리게이트 ---</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintAssignable)</span>
+    <span class="hljs-type">FOnFocusCycleCompleted</span> OnFocusCycleCompleted;
+
+    <span class="hljs-meta">UPROPERTY(BlueprintAssignable)</span>
+    <span class="hljs-type">FOnStopwatchStopped</span> OnStopwatchStopped;
+
+    <span class="hljs-comment">// --- 설정 ---</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Focus")</span>
+    <span class="hljs-type">FFocusSettings</span> Settings;
+
+<span class="hljs-keyword">private</span>:
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">OnTimerExpired</span>();          <span class="hljs-comment">// FTimerHandle 콜백</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">TransitionTo</span>(<span class="hljs-type">EFocusState</span> NewState);
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">BeginTimerForState</span>(<span class="hljs-type">EFocusState</span> State);
+
+    <span class="hljs-type">EFocusState</span> CurrentState = <span class="hljs-type">EFocusState</span>::Idle;
+    <span class="hljs-type">EFocusState</span> StateBeforePause = <span class="hljs-type">EFocusState</span>::Idle;
+    <span class="hljs-type">EStopwatchState</span> SWState = <span class="hljs-type">EStopwatchState</span>::Idle;
+
+    <span class="hljs-type">FTimerHandle</span> FocusTimerHandle;
+    <span class="hljs-type">float</span> RemainingTime = <span class="hljs-number">0.f</span>;     <span class="hljs-comment">// 일시정지 시 남은 시간 보존용</span>
+    <span class="hljs-type">float</span> StopwatchElapsed = <span class="hljs-number">0.f</span>;  <span class="hljs-comment">// 스톱워치 경과 시간</span>
+
+    <span class="hljs-type">int32</span> CurrentCycleIndex = <span class="hljs-number">0</span>;   <span class="hljs-comment">// 현재 사이클 (0-based)</span>
+    <span class="hljs-type">int32</span> ConsecutiveCount = <span class="hljs-number">0</span>;    <span class="hljs-comment">// 연속 완료 카운트 (보너스 XP용)</span>
+};</pre></div>
+
+      <!-- ===== .cpp 패널 ===== -->
+      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"FocusSubsystem.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Engine/World.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"TimerManager.h"</span></span>
+
+<span class="hljs-keyword">void</span> <span class="hljs-title class_">UFocusSubsystem</span>::<span class="hljs-title function_">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection)
+{
+    <span class="hljs-type">Super</span>::<span class="hljs-title function_">Initialize</span>(Collection);
+    <span class="hljs-comment">// TODO: SaveGame에서 Settings를 로드해 복원</span>
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-title class_">UFocusSubsystem</span>::<span class="hljs-title function_">Deinitialize</span>()
+{
+    <span class="hljs-comment">// 진행 중인 타이머를 정리</span>
+    <span class="hljs-keyword">if</span> (<span class="hljs-type">UWorld</span>* World = <span class="hljs-title function_">GetWorld</span>())
+    {
+        World-&gt;<span class="hljs-title function_">GetTimerManager</span>().<span class="hljs-title function_">ClearTimer</span>(FocusTimerHandle);
+    }
+    <span class="hljs-type">Super</span>::<span class="hljs-title function_">Deinitialize</span>();
+}
+
+<span class="hljs-comment">// ── 타이머 시작 ─────────────────────────────────────</span>
+<span class="hljs-keyword">void</span> <span class="hljs-title class_">UFocusSubsystem</span>::<span class="hljs-title function_">StartFocus</span>()
+{
+    <span class="hljs-keyword">if</span> (CurrentState != <span class="hljs-type">EFocusState</span>::Idle) <span class="hljs-keyword">return</span>;
+
+    CurrentCycleIndex = <span class="hljs-number">0</span>;
+    ConsecutiveCount = <span class="hljs-number">0</span>;
+    <span class="hljs-title function_">TransitionTo</span>(<span class="hljs-type">EFocusState</span>::Focusing);
+}
+
+<span class="hljs-comment">// ── 일시정지 ────────────────────────────────────────</span>
+<span class="hljs-keyword">void</span> <span class="hljs-title class_">UFocusSubsystem</span>::<span class="hljs-title function_">PauseFocus</span>()
+{
+    <span class="hljs-keyword">if</span> (CurrentState == <span class="hljs-type">EFocusState</span>::Idle ||
+        CurrentState == <span class="hljs-type">EFocusState</span>::Paused) <span class="hljs-keyword">return</span>;
+
+    <span class="hljs-comment">// 남은 시간을 저장한 뒤 타이머를 해제</span>
+    <span class="hljs-type">UWorld</span>* World = <span class="hljs-title function_">GetWorld</span>();
+    <span class="hljs-keyword">if</span> (!World) <span class="hljs-keyword">return</span>;
+
+    RemainingTime = World-&gt;<span class="hljs-title function_">GetTimerManager</span>().<span class="hljs-title function_">GetTimerRemaining</span>(FocusTimerHandle);
+    World-&gt;<span class="hljs-title function_">GetTimerManager</span>().<span class="hljs-title function_">ClearTimer</span>(FocusTimerHandle);
+
+    StateBeforePause = CurrentState;
+    CurrentState = <span class="hljs-type">EFocusState</span>::Paused;
+}
+
+<span class="hljs-comment">// ── 재개 ────────────────────────────────────────────</span>
+<span class="hljs-keyword">void</span> <span class="hljs-title class_">UFocusSubsystem</span>::<span class="hljs-title function_">ResumeFocus</span>()
+{
+    <span class="hljs-keyword">if</span> (CurrentState != <span class="hljs-type">EFocusState</span>::Paused) <span class="hljs-keyword">return</span>;
+
+    <span class="hljs-comment">// 저장해 둔 남은 시간으로 타이머를 다시 설정</span>
+    CurrentState = StateBeforePause;
+
+    <span class="hljs-type">UWorld</span>* World = <span class="hljs-title function_">GetWorld</span>();
+    <span class="hljs-keyword">if</span> (!World) <span class="hljs-keyword">return</span>;
+
+    World-&gt;<span class="hljs-title function_">GetTimerManager</span>().<span class="hljs-title function_">SetTimer</span>(
+        FocusTimerHandle,
+        <span class="hljs-keyword">this</span>,
+        &amp;<span class="hljs-type">UFocusSubsystem</span>::OnTimerExpired,
+        RemainingTime,
+        <span class="hljs-literal">false</span>  <span class="hljs-comment">// 반복 아님 (1회)</span>
+    );
+}
+
+<span class="hljs-comment">// ── 강제 중지 ───────────────────────────────────────</span>
+<span class="hljs-keyword">void</span> <span class="hljs-title class_">UFocusSubsystem</span>::<span class="hljs-title function_">StopFocus</span>()
+{
+    <span class="hljs-keyword">if</span> (<span class="hljs-type">UWorld</span>* World = <span class="hljs-title function_">GetWorld</span>())
+    {
+        World-&gt;<span class="hljs-title function_">GetTimerManager</span>().<span class="hljs-title function_">ClearTimer</span>(FocusTimerHandle);
+    }
+    CurrentState = <span class="hljs-type">EFocusState</span>::Idle;
+    <span class="hljs-comment">// 중도 중지: XP 미지급. Gold는 이미 틱된 만큼 유지.</span>
+}
+
+<span class="hljs-comment">// ── 스톱워치 시작 ───────────────────────────────────</span>
+<span class="hljs-keyword">void</span> <span class="hljs-title class_">UFocusSubsystem</span>::<span class="hljs-title function_">StartStopwatch</span>()
+{
+    <span class="hljs-keyword">if</span> (SWState != <span class="hljs-type">EStopwatchState</span>::Idle) <span class="hljs-keyword">return</span>;
+
+    StopwatchElapsed = <span class="hljs-number">0.f</span>;
+    SWState = <span class="hljs-type">EStopwatchState</span>::Running;
+    <span class="hljs-comment">// 경과 시간은 Tick()에서 DeltaTime을 누적</span>
+}
+
+<span class="hljs-comment">// ── 스톱워치 중지 ───────────────────────────────────</span>
+<span class="hljs-keyword">void</span> <span class="hljs-title class_">UFocusSubsystem</span>::<span class="hljs-title function_">StopStopwatch</span>()
+{
+    <span class="hljs-keyword">if</span> (SWState == <span class="hljs-type">EStopwatchState</span>::Idle) <span class="hljs-keyword">return</span>;
+
+    SWState = <span class="hljs-type">EStopwatchState</span>::Idle;
+
+    <span class="hljs-comment">// 25분 이상이면 보상 브로드캐스트</span>
+    <span class="hljs-keyword">if</span> (StopwatchElapsed &gt;= <span class="hljs-number">1500.f</span>)
+    {
+        OnStopwatchStopped.<span class="hljs-title function_">Broadcast</span>(StopwatchElapsed);
+    }
+}
+
+<span class="hljs-comment">// ── 타이머 만료 콜백 ────────────────────────────────</span>
+<span class="hljs-keyword">void</span> <span class="hljs-title class_">UFocusSubsystem</span>::<span class="hljs-title function_">OnTimerExpired</span>()
+{
+    <span class="hljs-keyword">switch</span> (CurrentState)
+    {
+    <span class="hljs-keyword">case</span> <span class="hljs-type">EFocusState</span>::Focusing:
+    {
+        <span class="hljs-comment">// 사이클 완료 → 보상 브로드캐스트</span>
+        CurrentCycleIndex++;
+        ConsecutiveCount++;
+        OnFocusCycleCompleted.<span class="hljs-title function_">Broadcast</span>(CurrentCycleIndex, Settings.FocusDuration);
+
+        <span class="hljs-comment">// 다음 상태 결정</span>
+        <span class="hljs-keyword">if</span> (CurrentCycleIndex &gt;= Settings.RoutineCount)
+        {
+            <span class="hljs-title function_">TransitionTo</span>(<span class="hljs-type">EFocusState</span>::LastResting);
+        }
+        <span class="hljs-keyword">else</span>
+        {
+            <span class="hljs-title function_">TransitionTo</span>(<span class="hljs-type">EFocusState</span>::Resting);
+        }
+        <span class="hljs-keyword">break</span>;
+    }
+    <span class="hljs-keyword">case</span> <span class="hljs-type">EFocusState</span>::Resting:
+        <span class="hljs-title function_">TransitionTo</span>(<span class="hljs-type">EFocusState</span>::Focusing);
+        <span class="hljs-keyword">break</span>;
+
+    <span class="hljs-keyword">case</span> <span class="hljs-type">EFocusState</span>::LastResting:
+        <span class="hljs-keyword">if</span> (Settings.bAutoRestart)
+        {
+            CurrentCycleIndex = <span class="hljs-number">0</span>;
+            <span class="hljs-title function_">TransitionTo</span>(<span class="hljs-type">EFocusState</span>::Focusing);
+        }
+        <span class="hljs-keyword">else</span>
+        {
+            CurrentState = <span class="hljs-type">EFocusState</span>::Idle;
+        }
+        <span class="hljs-keyword">break</span>;
+
+    <span class="hljs-keyword">default</span>:
+        <span class="hljs-keyword">break</span>;
+    }
+}
+
+<span class="hljs-comment">// ── 상태 전환 + 타이머 시작 ─────────────────────────</span>
+<span class="hljs-keyword">void</span> <span class="hljs-title class_">UFocusSubsystem</span>::<span class="hljs-title function_">TransitionTo</span>(<span class="hljs-type">EFocusState</span> NewState)
+{
+    CurrentState = NewState;
+    <span class="hljs-title function_">BeginTimerForState</span>(NewState);
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-title class_">UFocusSubsystem</span>::<span class="hljs-title function_">BeginTimerForState</span>(<span class="hljs-type">EFocusState</span> State)
+{
+    <span class="hljs-type">float</span> Duration = <span class="hljs-number">0.f</span>;
+    <span class="hljs-keyword">switch</span> (State)
+    {
+    <span class="hljs-keyword">case</span> <span class="hljs-type">EFocusState</span>::Focusing:    Duration = Settings.FocusDuration;    <span class="hljs-keyword">break</span>;
+    <span class="hljs-keyword">case</span> <span class="hljs-type">EFocusState</span>::Resting:     Duration = Settings.RestDuration;     <span class="hljs-keyword">break</span>;
+    <span class="hljs-keyword">case</span> <span class="hljs-type">EFocusState</span>::LastResting: Duration = Settings.LastRestDuration; <span class="hljs-keyword">break</span>;
+    <span class="hljs-keyword">default</span>: <span class="hljs-keyword">return</span>;
+    }
+
+    RemainingTime = Duration;
+
+    <span class="hljs-type">UWorld</span>* World = <span class="hljs-title function_">GetWorld</span>();
+    <span class="hljs-keyword">if</span> (!World) <span class="hljs-keyword">return</span>;
+
+    World-&gt;<span class="hljs-title function_">GetTimerManager</span>().<span class="hljs-title function_">SetTimer</span>(
+        FocusTimerHandle,
+        <span class="hljs-keyword">this</span>,
+        &amp;<span class="hljs-type">UFocusSubsystem</span>::OnTimerExpired,
+        Duration,
+        <span class="hljs-literal">false</span>
+    );
+}</pre></div>
+    </div>
+
+    <h3>주요 멤버 변수</h3>
+    <table class="tbl">
+      <tr><th>변수</th><th>타입</th><th>설명</th></tr>
+      <tr><td><code>CurrentState</code></td><td><code>EFocusState</code></td><td>현재 타이머 상태. UI가 이 값을 관찰해 화면을 갱신합니다.</td></tr>
+      <tr><td><code>StateBeforePause</code></td><td><code>EFocusState</code></td><td>일시정지 직전 상태. 재개 시 이 상태로 돌아갑니다.</td></tr>
+      <tr><td><code>FocusTimerHandle</code></td><td><code>FTimerHandle</code></td><td>엔진 타이머 핸들. <code>SetTimer</code>/<code>ClearTimer</code>로 제어합니다.</td></tr>
+      <tr><td><code>RemainingTime</code></td><td><code>float</code></td><td>일시정지 시 저장되는 남은 시간(초). 재개 시 이 값으로 타이머를 재설정합니다.</td></tr>
+      <tr><td><code>StopwatchElapsed</code></td><td><code>float</code></td><td>스톱워치 경과 시간(초). <code>Tick()</code>에서 <code>DeltaTime</code>을 누적합니다.</td></tr>
+      <tr><td><code>CurrentCycleIndex</code></td><td><code>int32</code></td><td>현재 사이클 번호(0-based). <code>RoutineCount</code>에 도달하면 LastResting으로 전환합니다.</td></tr>
+      <tr><td><code>ConsecutiveCount</code></td><td><code>int32</code></td><td>연속 완료 횟수. 3의 배수마다 +20 XP 보너스를 트리거합니다.</td></tr>
+    </table>
+
+    <div class="pitfall">
+      <span class="ic">&#x26A0;&#xFE0F;</span>
+      <div class="pitfall-text"><strong>FTimerHandle은 일시정지 시 ClearTimer &rarr; 재개 시 남은 시간으로 SetTimer.</strong> 엔진의 <code>FTimerManager</code>에는 "일시정지" API가 없습니다. 따라서 일시정지 시 <code>GetTimerRemaining()</code>으로 남은 시간을 읽고 <code>ClearTimer()</code>로 해제한 뒤, 재개 시 그 남은 시간을 <code>SetTimer()</code>에 전달해야 합니다. 이 과정에서 <code>RemainingTime</code> 저장을 빠뜨리면 재개 시 전체 시간이 다시 시작됩니다.</div>
+    </div>
+  </div>
+
+  <!-- ===== 07 확장 & 주의 ===== -->
+  <div class="section" id="extension">
+    <div class="section-label">07 — 확장 &amp; 주의</div>
+    <h2>흔한 실수와 권장 패턴</h2>
+
+    <h3>주의해야 할 함정 (Pitfall)</h3>
+    <div class="pitfall">
+      <span class="ic">&#x26A0;&#xFE0F;</span>
+      <div class="pitfall-text"><strong>Tick 기반 vs FTimerHandle 선택:</strong> 타이머 카운트다운에는 <code>FTimerHandle</code>을 사용하세요. Tick은 매 프레임 호출되어 불필요한 오버헤드가 생기고, 프레임 레이트에 따라 정밀도가 달라집니다. 반면 <strong>스톱워치의 경과 시간 누적</strong>에는 <code>Tick()</code>에서 <code>DeltaTime</code>을 더하는 방식이 적합합니다. 스톱워치는 "만료"라는 개념이 없어 <code>FTimerHandle</code>의 콜백이 필요 없기 때문입니다.</div>
+    </div>
+    <div class="pitfall">
+      <span class="ic">&#x26A0;&#xFE0F;</span>
+      <div class="pitfall-text"><strong>일시정지 시 남은 시간 저장을 잊으면 재개가 불가능합니다.</strong> <code>PauseFocus()</code>에서 반드시 <code>GetTimerRemaining()</code>으로 남은 시간을 <code>RemainingTime</code>에 저장하세요. 이 값 없이 <code>ClearTimer()</code>만 하면, 재개 시 어디서부터 이어야 하는지 알 수 없어 전체 시간을 처음부터 다시 세게 됩니다.</div>
+    </div>
+    <div class="pitfall">
+      <span class="ic">&#x26A0;&#xFE0F;</span>
+      <div class="pitfall-text"><strong>자동 재시작 시 사이클 인덱스 초기화를 빠뜨리면 무한 LastResting에 빠집니다.</strong> <code>OnTimerExpired()</code>의 <code>LastResting</code> 분기에서 <code>bAutoRestart</code>가 <code>true</code>일 때, <code>CurrentCycleIndex = 0</code>을 반드시 실행하세요. 초기화하지 않으면 인덱스가 이미 <code>RoutineCount</code> 이상이므로 다음 Focusing 만료 시 바로 다시 LastResting으로 빠져 무한 루프가 됩니다.</div>
+    </div>
+
+    <h3>Do / Don't</h3>
+    <div class="dd-grid">
+      <div class="dd do">
+        <h4>&#x2713; 이렇게</h4>
+        <ul>
+          <li>타이머 카운트다운은 <code>FTimerHandle</code>로, 스톱워치 경과 누적은 <code>Tick()</code>으로 분리</li>
+          <li>일시정지 시 <code>RemainingTime</code>을 저장하고, 재개 시 그 값으로 <code>SetTimer</code></li>
+          <li>사이클 완료 알림은 <code>OnFocusCycleCompleted</code> 델리게이트로 브로드캐스트</li>
+          <li>보상 적립은 <code>EconomySubsystem</code>에 위임 (FocusSubsystem에 금액 계산 로직을 두지 않음)</li>
+          <li>세션 기록은 <code>RecordSubsystem</code>에 전달 (관심사 분리)</li>
+        </ul>
+      </div>
+      <div class="dd dont">
+        <h4>&#x2717; 이건 피하기</h4>
+        <ul>
+          <li>타이머를 <code>Tick()</code>으로 구현하면 프레임 레이트 의존성 + 불필요한 CPU 비용 발생</li>
+          <li><code>ClearTimer</code> 전에 남은 시간을 읽지 않으면 재개 불가</li>
+          <li><code>FocusSubsystem</code> 안에서 직접 Gold/XP를 변경하면 경제 로직이 분산됨</li>
+          <li>자동 재시작 시 <code>CurrentCycleIndex</code>를 초기화하지 않으면 무한 루프</li>
+          <li><code>GetWorld()</code> 반환값을 null 체크 없이 사용하면 에디터 종료 시 크래시</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <span class="ic">&#x1F4A1;</span>
+      <p><strong>세션 종료 시 <code>RecordSubsystem</code>에 기록을 전달할 때 델리게이트를 사용하면 결합도가 낮아집니다.</strong> <code>UFocusSubsystem</code>이 <code>URecordSubsystem</code>의 헤더를 <code>#include</code>하지 않아도, <code>OnFocusCycleCompleted</code> 델리게이트에 <code>RecordSubsystem</code>이 바인딩하면 자동으로 기록이 전달됩니다. 이 패턴은 나중에 "사이클 완료 시 업적 체크" 등 새 기능을 추가할 때도 <code>FocusSubsystem</code> 코드를 건드리지 않고 확장할 수 있게 합니다.</p>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <span>RecordTales &middot; Focus System v1.0</span>
+  <span>Design: Dark &middot; Indigo Minimal &middot; Editorial</span>
+</footer>
+
+<!-- 코드 탭 전환 + 복사 (오프라인 inline) -->
+<script>
+(function () {
+  document.querySelectorAll('.codeblock').forEach(function (block) {
+    var tabs = block.querySelectorAll('.codeblock-tab');
+    var panels = block.querySelectorAll('.codeblock-panel');
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) { t.classList.remove('active'); });
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        if (panels[i]) panels[i].classList.add('active');
+      });
+    });
+    var copyBtn = block.querySelector('.codeblock-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () {
+        var pre = block.querySelector('.codeblock-panel.active pre');
+        if (!pre) return;
+        var text = pre.innerText;
+        var done = function () {
+          copyBtn.textContent = '\uBCF5\uC0AC\uB428 \u2713';
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.textContent = '\uBCF5\uC0AC';
+            copyBtn.classList.remove('copied');
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+        } else {
+          fallbackCopy(text, done);
+        }
+      });
+    }
+  });
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+})();
+</script>
+
+</body>
+</html>
