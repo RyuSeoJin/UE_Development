@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>언리얼 리플렉션 매크로 — 6대 매크로와 UHT 빌드 파이프라인</title>
+<!-- ============================================================
+     CHANGELOG — ue-reflection-macros.html
+     언리얼 리플렉션 매크로 구조 문서 (02-A 아키텍처 패턴).
+     작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.0 · 2026-07-02
+       - (추가) 최초 작성. 6대 리플렉션 매크로(UCLASS·USTRUCT·UENUM·
+         UINTERFACE·UPROPERTY·UFUNCTION) 구조, UHT 빌드 파이프라인,
+         매크로별 지정자, 실전 코드 스켈레톤, 메타데이터 확장 수록.
+       - 기준 마스터: design-guide-ue-master.css v1.3
+     ============================================================ -->
+<style>
+/* ============================================================
+   UE Design System — Master Stylesheet
+   (design-guide-ue-master.css)
+   언리얼 에셋 분석 · 아키텍처 설계 문서 공통 토대
+   v1.3  (Dark · Indigo Minimal · Editorial)
+
+   사용법
+   - 가이드 문서(master-visual / design-template의 01 / 02)는 <link>로 이 파일을 참조.
+   - 실제 결과물 HTML은 이 파일 내용을 <style>에 통째로 복사(inline)하여
+     단일 파일로 배포한다. (오프라인 무결성 유지)
+
+   변경 이력 (CHANGELOG) — 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+   v1.3 · 2026-07-02
+     - (변경) 폴더 재구조화: 템플릿(01·02) → design-template/(루트),
+       규약(DOC-GENERATION-PLAYBOOK.md) → doc-process/(루트) 이동. 스타일 변경 없음.
+   v1.2 · 2026-07-01
+     - (추가) .compare-box — 좌우 병렬 비교 카드 (Spawning vs Loading 등)
+     - (추가) .grid-3 — 3열 그리드
+     - (추가) .stat-row-4 — 4열 통계 카드
+     - (추가) .pill.pink / .pill.red — 핑크·레드 pill 변형
+     - (변경) 반응형 블록에 .stat-row-4, .grid-3 1열 폴백 추가
+   v1.1 · 2026-07-01
+     - 파일명 ue-design-system.css → design-guide-ue-master.css
+     - 프레임워크 클래스 컬러 맵 추가
+       (--ue-gamemode/gamestate/controller/pawn/instance/savegame/subsystem)
+     - 파일 타입 컬러 맵 추가 (--ue-header/source/macro)
+     - .h/.cpp 코드 탭(.codeblock) + highlight.js(hljs-*) 다크·인디고 테마
+     - 클래스 관계도(.rel-map) / 책임 배치 결정표(.tbl .owner) 스타일 추가
+     - .tree 에 프레임워크 클래스 색(.c-*), .pitfall.tip, .filetag 추가
+   v1.0
+     - 최초 에셋 분석 디자인 가이드 토큰·컴포넌트
+       (원본 design-guide-ue-asset-structure.html에서 파생, 원본 파일은 2026-07-01 삭제)
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Pretendard:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* --- 기본 토큰 --- */
+  --bg: #0D0F1A;
+  --surface: #13162A;
+  --surface-2: #1A1F38;
+  --border: #252B4A;
+  --accent: #5B6EFA;
+  --accent-2: #9B6DFF;
+  --accent-3: #38D9B4;
+  --text: #E4E8FF;
+  --text-muted: #7B82A6;
+  --text-dim: #4A5080;
+  --amber: #F59E0B;
+  --pink: #E040FB;
+  --red: #F87171;
+
+  /* --- 에셋 타입 컬러 맵 (에셋 분석 문서 전용) --- */
+  --ue-folder: #F59E0B;
+  --ue-bp:     #5B6EFA;
+  --ue-enum:   #9B6DFF;
+  --ue-mat:    #FB8C5A;
+  --ue-tex:    #38D9B4;
+  --ue-demo:   #6BD98E;
+
+  /* --- 프레임워크 클래스 컬러 맵 (C++ 아키텍처 문서 전용, v1.1 신규) --- */
+  --ue-gamemode:   #5B6EFA;
+  --ue-gamestate:  #7B9CFF;
+  --ue-controller: #38D9B4;
+  --ue-pawn:       #6BD98E;
+  --ue-instance:   #9B6DFF;
+  --ue-savegame:   #F59E0B;
+  --ue-subsystem:  #E040FB;
+
+  /* --- 파일 타입 컬러 맵 (코드 탭·파일 태그, v1.1 신규) --- */
+  --ue-header: #38D9B4;
+  --ue-source: #FB8C5A;
+  --ue-macro:  #FB8C5A;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+  font-size: 15px; line-height: 1.7; -webkit-font-smoothing: antialiased;
+}
+
+/* NAV */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(13,15,26,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px; display: flex; align-items: center; gap: 32px; height: 52px;
+}
+.nav-logo { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em; white-space: nowrap; }
+.nav-links { display: flex; gap: 22px; flex-wrap: wrap; }
+.nav-links a { color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 500; transition: color 0.2s; }
+.nav-links a:hover { color: var(--text); }
+.nav-links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+
+/* HERO */
+.hero { padding: 72px 48px 56px; max-width: 920px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+.hero-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: var(--accent); text-transform: uppercase; margin-bottom: 20px; }
+.hero h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 20px; }
+.hero h1 span { color: var(--accent); }
+.hero-sub { font-size: 16px; color: var(--text-muted); max-width: 660px; line-height: 1.75; }
+.hero-meta { margin-top: 28px; display: flex; gap: 10px; flex-wrap: wrap; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; border: 1px solid; }
+.badge-blue { color: var(--accent); border-color: var(--accent); background: rgba(91,110,250,0.08); }
+.badge-green { color: var(--accent-3); border-color: var(--accent-3); background: rgba(56,217,180,0.08); }
+.badge-purple { color: var(--accent-2); border-color: var(--accent-2); background: rgba(155,109,255,0.08); }
+
+/* CONTENT / SECTION */
+.content { max-width: 920px; margin: 0 auto; padding: 0 48px 80px; }
+.section { padding: 52px 0 0; border-top: 1px solid var(--border); margin-top: 52px; }
+.section:first-child { margin-top: 0; padding-top: 48px; border-top: none; }
+.section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 12px; }
+.section h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 20px; }
+.section h3 { font-size: 15px; font-weight: 700; color: var(--text); margin: 30px 0 10px; letter-spacing: 0.01em; }
+.section p { color: var(--text-muted); margin-bottom: 14px; line-height: 1.8; }
+.section p strong { color: var(--text); font-weight: 600; }
+
+code { font-family: 'IBM Plex Mono', monospace; font-size: 0.86em; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; color: var(--accent-3); }
+
+/* SWATCHES */
+.swatch-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 22px 0; }
+.swatch { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.swatch .chip { height: 56px; }
+.swatch .meta { padding: 10px 12px; }
+.swatch .vn { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text); font-weight: 600; }
+.swatch .hx { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--text-dim); }
+.swatch .role { font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+
+/* TYPE SCALE */
+.type-row { display: flex; align-items: baseline; gap: 18px; padding: 14px 0; border-bottom: 1px solid rgba(37,43,74,0.5); }
+.type-row:last-child { border-bottom: none; }
+.type-spec { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-dim); min-width: 150px; flex-shrink: 0; }
+.ts-h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; }
+.ts-h2 { font-size: 22px; font-weight: 700; }
+.ts-h3 { font-size: 15px; font-weight: 700; }
+.ts-body { font-size: 15px; color: var(--text-muted); }
+.ts-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); }
+.ts-code { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--accent-3); }
+
+/* CALLOUT */
+.callout { display: flex; gap: 12px; align-items: flex-start; border-radius: 8px; padding: 14px 16px; margin: 18px 0; border: 1px solid var(--border); background: var(--surface-2); font-size: 13.5px; line-height: 1.65; }
+.callout .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.callout p { margin: 0; color: var(--text-muted); }
+.callout p strong { color: var(--text); }
+.callout.info { border-left: 3px solid var(--accent); }
+.callout.tip  { border-left: 3px solid var(--accent-3); }
+.callout.warn { border-left: 3px solid var(--amber); }
+
+/* COMPONENT DEMO FRAME */
+.demo { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 16px 0; }
+.demo-head { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 7px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); }
+.demo-body { padding: 22px; }
+
+/* CODE SNIPPET */
+.snip { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 12px 0 22px; }
+.snip-head { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 8px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+.code-dot { width: 8px; height: 8px; border-radius: 50%; }
+.snip pre { padding: 14px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-muted); line-height: 1.75; overflow-x: auto; white-space: pre; }
+.snip pre .tag { color: var(--accent); }
+.snip pre .atr { color: var(--ue-mat); }
+.snip pre .val { color: var(--accent-3); }
+.snip pre .cm  { color: var(--text-dim); }
+
+/* CODE BLOCK */
+.codeblock { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 16px 0 24px; }
+.codeblock-bar { display: flex; align-items: stretch; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.codeblock-tab {
+  padding: 9px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600;
+  color: var(--text-dim); background: transparent; border: none; border-right: 1px solid var(--border);
+  cursor: pointer; transition: color 0.15s, background 0.15s; box-shadow: inset 0 -2px 0 transparent;
+}
+.codeblock-tab:hover { color: var(--text-muted); }
+.codeblock-tab.active { color: var(--text); background: var(--surface); }
+.codeblock-tab.tab-h.active   { box-shadow: inset 0 -2px 0 var(--ue-header); }
+.codeblock-tab.tab-cpp.active { box-shadow: inset 0 -2px 0 var(--ue-source); }
+.codeblock-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.codeblock-copy {
+  margin-left: auto; align-self: center; margin-right: 8px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600;
+  color: var(--text-muted); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 5px; padding: 4px 10px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+}
+.codeblock-copy:hover { color: var(--text); border-color: var(--accent); }
+.codeblock-copy.copied { color: var(--accent-3); border-color: var(--accent-3); }
+.codeblock-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.codeblock-panel { display: none; }
+.codeblock-panel.active { display: block; }
+.codeblock pre { padding: 16px 18px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.75; overflow-x: auto; white-space: pre; }
+
+/* highlight.js 테마 */
+.hljs { color: var(--text-muted); background: var(--surface); }
+.hljs-comment, .hljs-quote { color: var(--text-dim); font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-section { color: var(--accent); font-weight: 500; }
+.hljs-literal, .hljs-symbol, .hljs-bullet { color: var(--accent-2); }
+.hljs-number { color: var(--accent-2); }
+.hljs-string, .hljs-attr, .hljs-attribute, .hljs-name { color: var(--ue-demo); }
+.hljs-type, .hljs-class .hljs-title, .hljs-title.class_, .hljs-built_in { color: var(--accent-3); }
+.hljs-title, .hljs-title.function_, .hljs-function .hljs-title { color: var(--text); }
+.hljs-params { color: var(--text-muted); }
+.hljs-meta, .hljs-meta .hljs-keyword { color: var(--ue-macro); font-weight: 600; }
+.hljs-meta .hljs-string { color: var(--ue-demo); }
+.hljs-property, .hljs-variable { color: var(--text); }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 700; }
+
+/* 파일 태그 */
+.filetag { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 3px; }
+.filetag.h   { background: rgba(56,217,180,0.14); color: var(--ue-header); }
+.filetag.cpp { background: rgba(251,140,90,0.14);  color: var(--ue-source); }
+
+/* mini-components */
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 4px; }
+.stat-label { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+.a-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; border-top: 2px solid var(--ue-bp); }
+.a-card .ic { font-size: 22px; margin-bottom: 10px; }
+.a-card .a-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.a-card .a-id { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--accent); margin-bottom: 8px; }
+.a-card .a-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+.tt { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 3px; }
+.tt-bool { background: rgba(91,110,250,0.14); color: var(--accent); }
+.tt-enum { background: rgba(251,140,90,0.14); color: var(--ue-mat); }
+.tt-del  { background: rgba(224,64,251,0.12); color: var(--pink); }
+
+.pills { display: flex; flex-wrap: wrap; gap: 7px; }
+.pill { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; padding: 3px 12px; border-radius: 20px; border: 1px solid; }
+.pill.blue { color: var(--accent); border-color: rgba(91,110,250,0.4); background: rgba(91,110,250,0.08); }
+.pill.purple { color: var(--accent-2); border-color: rgba(155,109,255,0.4); background: rgba(155,109,255,0.08); }
+.pill.green { color: var(--accent-3); border-color: rgba(56,217,180,0.4); background: rgba(56,217,180,0.08); }
+.pill.pink { color: var(--pink); border-color: rgba(224,64,251,0.4); background: rgba(224,64,251,0.08); }
+.pill.red { color: var(--red); border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.08); }
+
+.arch { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: stretch; }
+.arch-layer { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 16px 14px; }
+.arch-arrow { display: flex; align-items: center; justify-content: center; padding: 0 8px; color: var(--text-dim); font-size: 16px; }
+.arch-tag { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 7px; color: var(--accent); }
+.arch-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.arch-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+.tbl { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 13px; }
+.tbl th { background: var(--surface-2); color: var(--text-muted); font-weight: 600; font-size: 12px; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+.tbl td { padding: 10px 14px; color: var(--text-muted); border-bottom: 1px solid rgba(37,43,74,0.5); vertical-align: top; line-height: 1.55; }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl td:first-child { color: var(--text); }
+.tbl td code, .tbl th code { background: transparent; border: none; padding: 0; color: var(--accent); }
+
+.tree { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.9; color: var(--text-dim); white-space: pre; overflow-x: auto; }
+.tree .folder { color: var(--ue-folder); font-weight: 600; }
+.tree .bp { color: var(--ue-bp); } .tree .enum { color: var(--ue-enum); }
+.tree .mat { color: var(--ue-mat); } .tree .tex { color: var(--ue-tex); }
+.tree .note { color: var(--text-muted); }
+.tree .c-gamemode { color: var(--ue-gamemode); font-weight: 600; }
+.tree .c-gamestate { color: var(--ue-gamestate); font-weight: 600; }
+.tree .c-controller { color: var(--ue-controller); font-weight: 600; }
+.tree .c-pawn { color: var(--ue-pawn); font-weight: 600; }
+.tree .c-instance { color: var(--ue-instance); font-weight: 600; }
+.tree .c-savegame { color: var(--ue-savegame); font-weight: 600; }
+.tree .c-subsystem { color: var(--ue-subsystem); font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); }
+.legend .dot { width: 9px; height: 9px; border-radius: 2px; }
+
+/* CLASS RELATIONSHIP */
+.rel-map { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
+.rel-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+.rel-node {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 14px; border-left: 3px solid var(--text-dim);
+}
+.rel-node .rn-name { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.rel-node .rn-role { font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.4; }
+.rel-node.n-gamemode   { border-left-color: var(--ue-gamemode); }
+.rel-node.n-gamestate  { border-left-color: var(--ue-gamestate); }
+.rel-node.n-controller { border-left-color: var(--ue-controller); }
+.rel-node.n-pawn       { border-left-color: var(--ue-pawn); }
+.rel-node.n-instance   { border-left-color: var(--ue-instance); }
+.rel-node.n-savegame   { border-left-color: var(--ue-savegame); }
+.rel-node.n-subsystem  { border-left-color: var(--ue-subsystem); }
+.rel-arrow { display: flex; flex-direction: column; align-items: center; color: var(--text-dim); min-width: 84px; }
+.rel-arrow .ra-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--accent); letter-spacing: 0.04em; white-space: nowrap; }
+.rel-arrow .ra-line { font-size: 15px; line-height: 1; }
+
+/* DECISION TABLE */
+.tbl .owner { display: inline-flex; align-items: center; gap: 7px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.tbl .owner::before { content: ''; width: 9px; height: 9px; border-radius: 2px; background: var(--text-dim); flex-shrink: 0; }
+.tbl .owner.o-gamemode::before   { background: var(--ue-gamemode); }
+.tbl .owner.o-gamestate::before  { background: var(--ue-gamestate); }
+.tbl .owner.o-controller::before { background: var(--ue-controller); }
+.tbl .owner.o-pawn::before       { background: var(--ue-pawn); }
+.tbl .owner.o-instance::before   { background: var(--ue-instance); }
+.tbl .owner.o-savegame::before   { background: var(--ue-savegame); }
+.tbl .owner.o-subsystem::before  { background: var(--ue-subsystem); }
+
+.pipe-step { display: grid; grid-template-columns: 36px 1fr; gap: 0 16px; position: relative; }
+.pipe-step::before { content: ''; position: absolute; left: 17px; top: 36px; bottom: -1px; width: 2px; background: var(--border); }
+.pipe-step:last-child::before { display: none; }
+.pipe-num { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--surface-2); }
+.pipe-body { padding: 6px 0 22px; }
+.pipe-title { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+.pipe-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+.pitfall { display: flex; gap: 14px; align-items: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; border-left: 3px solid var(--amber); margin: 14px 0; }
+.pitfall.tip { border-left-color: var(--accent-3); }
+.pitfall .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.pitfall-text { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
+.pitfall-text strong { color: var(--text); }
+
+/* DO / DON'T */
+.dd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 22px 0; }
+.dd { border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; background: var(--surface-2); }
+.dd.do { border-left: 3px solid var(--accent-3); }
+.dd.dont { border-left: 3px solid var(--red); }
+.dd h4 { font-size: 13px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.dd.do h4 { color: var(--accent-3); }
+.dd.dont h4 { color: var(--red); }
+.dd ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.dd li { font-size: 12.5px; color: var(--text-muted); line-height: 1.55; padding-left: 16px; position: relative; }
+.dd li::before { content: ''; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; border-radius: 50%; }
+.dd.do li::before { background: var(--accent-3); }
+.dd.dont li::before { background: var(--red); }
+
+footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920px; margin: 0 auto; font-size: 12px; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+.stat-row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.stat-row-4 .stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+
+.compare-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
+.compare-box h4 { font-size: 14px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.compare-box p { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 10px; }
+.compare-box .pills { margin-top: 10px; }
+
+@media (max-width: 720px) {
+  .content { padding: 0 20px 60px; }
+  .hero { padding: 48px 20px 40px; }
+  .swatch-grid { grid-template-columns: 1fr 1fr; }
+  .stat-row, .stat-row-4, .dd-grid, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .arch { grid-template-columns: 1fr; }
+  .arch-arrow { transform: rotate(90deg); padding: 4px 0; }
+  .rel-row { grid-template-columns: 1fr; text-align: left; }
+  .rel-arrow { flex-direction: row; gap: 8px; min-width: 0; padding: 2px 0; }
+  .rel-arrow .ra-line { transform: rotate(90deg); }
+  .type-row { flex-direction: column; gap: 6px; }
+  .type-spec { min-width: 0; }
+  nav { padding: 0 16px; gap: 16px; }
+  .nav-links { display: none; }
+  footer { padding: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">UE WIKI · REFLECTION MACROS</div>
+  <div class="nav-links">
+    <a href="#concept">개념</a>
+    <a href="#relation">관계</a>
+    <a href="#responsibility">책임</a>
+    <a href="#flow">흐름</a>
+    <a href="#skeleton">스켈레톤</a>
+    <a href="#extension">확장</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">Architecture · v1.0 · Reflection Macros</div>
+  <h1>언리얼 <span>리플렉션 매크로</span></h1>
+  <p class="hero-sub">
+    순수 C++에는 없는 "자기 자신을 들여다보는 능력"을 언리얼이 어떻게 구현하는지, 6개 매크로(<code>UCLASS</code>·<code>USTRUCT</code>·<code>UENUM</code>·<code>UINTERFACE</code>·<code>UPROPERTY</code>·<code>UFUNCTION</code>)의 역할과 UHT 빌드 파이프라인을 설명합니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">02-A 아키텍처 패턴</span>
+    <span class="badge badge-green">6대 매크로</span>
+    <span class="badge badge-purple">UHT 파이프라인</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- ============================================================
+       01 — 개념 이해
+       ============================================================ -->
+  <div class="section" id="concept">
+    <div class="section-label">01 — 개념 이해</div>
+    <h2>리플렉션 — 프로그램이 자기 자신을 들여다보는 능력</h2>
+
+    <p id="term-reflection"><strong>리플렉션(Reflection)</strong>이란, 프로그램이 실행 중에 "내가 어떤 클래스를 가지고 있고, 그 클래스에 어떤 변수와 함수가 있는지"를 <strong>스스로 조회</strong>할 수 있는 능력입니다. 비유하자면, 거울을 보고 자기 모습을 확인하는 것과 같습니다.</p>
+
+    <p>Java나 C#은 언어 차원에서 리플렉션을 지원하지만, <strong>순수 C++에는 리플렉션이 없습니다.</strong> C++ 컴파일러는 코드를 기계어로 바꾸는 순간 변수 이름이나 클래스 구조 정보를 버립니다. 그래서 런타임에 "이 객체에 <code>Health</code>라는 변수가 있나?"라고 물을 수 없습니다.</p>
+
+    <p>언리얼 엔진은 이 문제를 <strong>매크로 + 코드 생성 도구(UHT)</strong>로 해결합니다. 개발자가 클래스·변수·함수 위에 특수 매크로를 붙이면, 빌드 전에 <strong>UHT(Unreal Header Tool)</strong>가 헤더를 스캔해서 구조 정보를 담은 코드(<code>.generated.h</code>)를 자동 생성합니다. 이 정보 덕분에 언리얼 엔진은 런타임에 클래스 구조를 조회할 수 있습니다.</p>
+
+    <div class="callout info" id="term-key-concepts"><span class="ic">📖</span>
+    <p><strong>핵심 용어 블록</strong><br>
+    <strong>리플렉션(Reflection)</strong> — 프로그램이 자기 타입·변수·함수 정보를 런타임에 조회하는 능력<br>
+    <strong id="term-uht">UHT(Unreal Header Tool)</strong> — 빌드 전에 헤더를 스캔해 리플렉션 코드를 자동 생성하는 도구<br>
+    <strong id="term-generated-h">.generated.h</strong> — UHT가 생성하는 헤더 파일. 리플렉션·직렬화·블루프린트 바인딩 코드가 들어감<br>
+    <strong id="term-generated-body">GENERATED_BODY()</strong> — 클래스/구조체 본문에 넣는 매크로. generated.h의 코드를 클래스 안에 삽입<br>
+    <strong id="term-specifier">지정자(Specifier)</strong> — 매크로 괄호 안에 쓰는 키워드. 에디터 노출·블루프린트 접근 등 동작을 제어<br>
+    <strong id="term-serialization">직렬화(Serialization)</strong> — 객체를 바이트 스트림으로 변환해 저장/전송하는 것<br>
+    <strong id="term-gc">가비지 컬렉션(GC)</strong> — 참조 없는 UObject를 자동으로 메모리에서 해제하는 시스템</p>
+    </div>
+
+    <h3>왜 리플렉션이 필요한가 — 4가지 핵심 기능</h3>
+    <p>리플렉션이 없으면 언리얼 엔진의 핵심 기능 4가지가 동작하지 않습니다. 매크로를 붙이는 이유가 바로 이것입니다.</p>
+
+    <div class="stat-row-4">
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent)">BP</div><div class="stat-label">블루프린트 노출<br><span style="font-size:11px;color:var(--text-dim)">C++ 변수·함수를 BP에서 사용</span></div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent-3)">ED</div><div class="stat-label">에디터 편집<br><span style="font-size:11px;color:var(--text-dim)">디테일 패널에서 값 수정</span></div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent-2)">GC</div><div class="stat-label">가비지 컬렉션<br><span style="font-size:11px;color:var(--text-dim)">참조 추적 → 자동 메모리 해제</span></div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--ue-savegame)">NET</div><div class="stat-label">네트워크 복제<br><span style="font-size:11px;color:var(--text-dim)">변수 변경을 클라이언트에 전송</span></div></div>
+    </div>
+
+    <h3>순수 C++ vs 언리얼 C++ — 무엇이 달라지나</h3>
+    <div class="grid-2">
+      <div class="compare-box">
+        <h4 style="color:var(--red)">순수 C++</h4>
+        <p>컴파일 후 변수 이름·클래스 구조 정보가 사라집니다. 런타임에 "이 객체에 어떤 멤버가 있는지" 알 수 없습니다.</p>
+        <div class="pills">
+          <span class="pill red">런타임 타입 조회 불가</span>
+          <span class="pill red">에디터 노출 불가</span>
+        </div>
+      </div>
+      <div class="compare-box">
+        <h4 style="color:var(--accent-3)">언리얼 C++ (매크로 사용)</h4>
+        <p>매크로를 붙인 클래스·변수·함수의 정보를 UHT가 코드로 남깁니다. 런타임에도 구조를 조회할 수 있습니다.</p>
+        <div class="pills">
+          <span class="pill green">런타임 타입 조회</span>
+          <span class="pill green">BP·에디터·GC·복제</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>매크로를 붙이지 않은 C++ 코드는 순수 C++과 동일하게 동작합니다.</strong> 리플렉션이 필요 없는 내부 유틸리티 함수나 헬퍼 구조체에는 매크로를 붙이지 않아도 됩니다. 매크로는 "엔진에 알려야 하는 것"에만 붙입니다.</div></div>
+  </div>
+
+  <!-- ============================================================
+       02 — 관계
+       ============================================================ -->
+  <div class="section" id="relation">
+    <div class="section-label">02 — 관계</div>
+    <h2>6대 매크로 — 타입 등록 4개 + 멤버 등록 2개</h2>
+
+    <p>리플렉션 매크로는 총 <strong>6개</strong>입니다. 역할에 따라 두 계층으로 나뉩니다.</p>
+
+    <table class="tbl">
+      <tr><th>계층</th><th>매크로</th><th>한 줄 역할</th></tr>
+      <tr><td rowspan="4"><strong>타입 등록</strong><br><span style="color:var(--text-dim);font-size:12px">"이런 타입이 존재한다"를<br>엔진에 알림</span></td><td><code>UCLASS()</code></td><td>클래스를 리플렉션에 등록</td></tr>
+      <tr><td><code>USTRUCT()</code></td><td>구조체를 리플렉션에 등록</td></tr>
+      <tr><td><code>UENUM()</code></td><td>열거형을 리플렉션에 등록</td></tr>
+      <tr><td><code>UINTERFACE()</code></td><td>인터페이스를 리플렉션에 등록</td></tr>
+      <tr><td rowspan="2"><strong>멤버 등록</strong><br><span style="color:var(--text-dim);font-size:12px">"이 타입 안의 이 변수/함수를<br>엔진에 알림"</span></td><td><code>UPROPERTY()</code></td><td>멤버 변수를 리플렉션에 등록</td></tr>
+      <tr><td><code>UFUNCTION()</code></td><td>멤버 함수를 리플렉션에 등록</td></tr>
+    </table>
+
+    <h3>매크로가 코드에서 붙는 위치</h3>
+    <p><strong>타입 매크로</strong>는 클래스/구조체/열거형 <strong>선언 바로 위에</strong>, <strong>멤버 매크로</strong>는 변수/함수 <strong>선언 바로 위에</strong> 붙입니다. 아래 트리로 시각적으로 확인하세요.</p>
+
+    <div class="tree"><span class="folder">MyCharacter.h</span>
+├── <span class="mat">UCLASS()</span>                     <span class="note">← 클래스 선언 위</span>
+│   <span class="bp">class AMyCharacter : public ACharacter</span>
+│   ├── <span class="mat">UPROPERTY()</span>              <span class="note">← 변수 선언 위</span>
+│   │   <span class="tex">float Health;</span>
+│   ├── <span class="mat">UPROPERTY()</span>              <span class="note">← 변수 선언 위</span>
+│   │   <span class="tex">int32 Level;</span>
+│   ├── <span class="mat">UFUNCTION()</span>              <span class="note">← 함수 선언 위</span>
+│   │   <span class="tex">void TakeDamage(float Amount);</span>
+│   └── <span class="tex">void InternalHelper();</span>   <span class="note">← 매크로 없음 = 리플렉션 미등록</span>
+│
+├── <span class="mat">USTRUCT()</span>                    <span class="note">← 구조체 선언 위</span>
+│   <span class="bp">struct FCharacterStats</span>
+│   └── <span class="mat">UPROPERTY()</span>              <span class="note">← 구조체 멤버도 동일</span>
+│       <span class="tex">float MaxHealth;</span>
+│
+├── <span class="mat">UENUM()</span>                      <span class="note">← 열거형 선언 위</span>
+│   <span class="enum">enum class ECharacterState : uint8</span>
+│
+└── <span class="mat">UINTERFACE()</span>                 <span class="note">← 인터페이스 선언 위</span>
+    <span class="bp">class UDamageable / IDamageable</span></div>
+
+    <h3>타입 매크로와 멤버 매크로의 관계</h3>
+    <p><strong>멤버 매크로는 타입 매크로가 붙은 타입 안에서만 의미가 있습니다.</strong> <code>UCLASS()</code>가 붙지 않은 순수 C++ 클래스 안에서 <code>UPROPERTY()</code>를 쓰면 컴파일 에러가 발생합니다.</p>
+
+    <div class="rel-map">
+      <div class="rel-row">
+        <div class="rel-node n-gamemode">
+          <div class="rn-name">UCLASS() / USTRUCT()</div>
+          <div class="rn-role">타입 자체를 엔진에 등록 → GC·CDO·BP 사용 가능</div>
+        </div>
+        <div class="rel-arrow">
+          <div class="ra-label">안에 포함</div>
+          <div class="ra-line">─────→</div>
+        </div>
+        <div class="rel-node n-controller">
+          <div class="rn-name">UPROPERTY() / UFUNCTION()</div>
+          <div class="rn-role">멤버를 엔진에 등록 → 에디터 노출·BP 호출·직렬화·복제</div>
+        </div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-instance">
+          <div class="rn-name">UENUM()</div>
+          <div class="rn-role">열거형을 엔진에 등록 → BP에서 드롭다운으로 사용</div>
+        </div>
+        <div class="rel-arrow">
+          <div class="ra-label">독립 사용</div>
+          <div class="ra-line">─────→</div>
+        </div>
+        <div class="rel-node" style="border-left-color:var(--ue-savegame)">
+          <div class="rn-name">UPROPERTY() 타입으로 사용</div>
+          <div class="rn-role">UENUM으로 등록된 열거형을 UPROPERTY의 타입으로 지정</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>UENUM과 UINTERFACE는 멤버 매크로를 포함하지 않습니다.</strong> UENUM은 값 나열만 하고, UINTERFACE는 순수 가상 함수만 선언합니다(구현은 UCLASS가 담당).</div></div>
+  </div>
+
+  <!-- ============================================================
+       03 — 책임
+       ============================================================ -->
+  <div class="section" id="responsibility">
+    <div class="section-label">03 — 책임</div>
+    <h2>매크로별 역할과 주요 지정자</h2>
+
+    <p><strong>지정자(Specifier)</strong>(앞서 핵심 용어 블록에서 설명)는 매크로 괄호 안에 쓰는 키워드입니다. 지정자를 통해 "이 변수를 에디터에서 편집 가능하게 할지", "이 함수를 블루프린트에서 호출 가능하게 할지" 등을 세밀하게 제어합니다. 형식은 <code>UPROPERTY(지정자1, 지정자2)</code>입니다.</p>
+
+    <h3>UCLASS() — 클래스를 엔진에 등록</h3>
+    <p><code>UCLASS()</code>는 C++ 클래스를 언리얼 리플렉션 시스템에 등록합니다. 등록된 클래스는 GC(가비지 컬렉션) 대상이 되고, CDO(Class Default Object)가 자동 생성되며, 블루프린트에서 사용할 수 있게 됩니다.</p>
+    <table class="tbl">
+      <tr><th>지정자</th><th>효과</th><th>쓰는 상황</th></tr>
+      <tr><td><code>Blueprintable</code></td><td>이 클래스를 <strong>부모로 BP 생성 가능</strong></td><td>BP에서 상속받아 확장해야 할 때</td></tr>
+      <tr><td><code>BlueprintType</code></td><td>이 클래스를 <strong>BP 변수 타입으로 사용 가능</strong></td><td>BP에서 이 클래스의 포인터를 변수로 쓸 때</td></tr>
+      <tr><td><code>Abstract</code></td><td><strong>인스턴스 생성 금지</strong> (상속 전용)</td><td>반드시 자식 클래스로만 사용할 때</td></tr>
+      <tr><td><code>NotBlueprintable</code></td><td>BP에서 <strong>상속 금지</strong></td><td>C++ 전용 내부 클래스</td></tr>
+      <tr><td><code>config=Game</code></td><td>ini 파일에서 <strong>설정값 로드</strong></td><td>게임 설정을 외부 파일로 관리할 때</td></tr>
+    </table>
+
+    <h3>UPROPERTY() — 멤버 변수를 엔진에 등록</h3>
+    <p><code>UPROPERTY()</code>는 멤버 변수를 리플렉션에 등록합니다. 등록하면 에디터 디테일 패널에 표시되거나, 블루프린트에서 읽고 쓸 수 있거나, 네트워크 복제 대상이 됩니다. <strong>가장 자주 쓰는 매크로입니다.</strong></p>
+    <table class="tbl">
+      <tr><th>지정자</th><th>효과</th><th>쓰는 상황</th></tr>
+      <tr><td><code>EditAnywhere</code></td><td>에디터 디테일 패널에서 <strong>편집 가능</strong></td><td>레벨 디자이너가 인스턴스별 값을 조정</td></tr>
+      <tr><td><code>EditDefaultsOnly</code></td><td>BP 기본값(CDO)에서만 편집, <strong>인스턴스에서 잠금</strong></td><td>초기 수치만 설정하고 런타임에 변경 불가</td></tr>
+      <tr><td><code>VisibleAnywhere</code></td><td>에디터에서 <strong>보이지만 편집 불가</strong></td><td>컴포넌트 포인터 등 읽기 전용 확인용</td></tr>
+      <tr><td><code>BlueprintReadOnly</code></td><td>BP에서 <strong>읽기만</strong> 가능</td><td>BP가 값을 확인만 해야 할 때</td></tr>
+      <tr><td><code>BlueprintReadWrite</code></td><td>BP에서 <strong>읽기+쓰기</strong> 가능</td><td>BP에서 값을 변경해야 할 때</td></tr>
+      <tr><td><code>Replicated</code></td><td>서버 → 클라이언트 <strong>네트워크 복제</strong></td><td>멀티플레이에서 모든 클라이언트에 값 동기화</td></tr>
+      <tr><td><code>Transient</code></td><td><strong>저장(직렬화)에서 제외</strong></td><td>런타임에만 쓰는 임시 데이터</td></tr>
+    </table>
+
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>EditAnywhere와 BlueprintReadWrite는 별개입니다.</strong> <code>EditAnywhere</code>는 "에디터 디테일 패널에서 편집", <code>BlueprintReadWrite</code>는 "BP 노드에서 읽기+쓰기"입니다. 둘 다 필요하면 <code>UPROPERTY(EditAnywhere, BlueprintReadWrite)</code>처럼 같이 씁니다.</div></div>
+
+    <h3>UFUNCTION() — 멤버 함수를 엔진에 등록</h3>
+    <p><code>UFUNCTION()</code>은 멤버 함수를 리플렉션에 등록합니다. 블루프린트에서 호출 가능하게 하거나, 네트워크 RPC(원격 프로시저 호출)로 만들거나, BP에서 오버라이드하게 할 수 있습니다.</p>
+    <table class="tbl">
+      <tr><th>지정자</th><th>효과</th><th>쓰는 상황</th></tr>
+      <tr><td><code>BlueprintCallable</code></td><td>BP에서 이 함수를 <strong>노드로 호출</strong> 가능</td><td>C++ 로직을 BP에서 사용할 때 (가장 흔함)</td></tr>
+      <tr><td><code>BlueprintPure</code></td><td>실행 핀 없이 <strong>값만 반환</strong>하는 BP 노드</td><td>계산 함수, Getter 등 부작용 없는 함수</td></tr>
+      <tr><td><code>BlueprintImplementableEvent</code></td><td>C++에서 선언만, <strong>구현은 BP에서</strong></td><td>BP 디자이너가 로직을 채워야 할 때</td></tr>
+      <tr><td><code>BlueprintNativeEvent</code></td><td>C++ 기본 구현 + <strong>BP 오버라이드 가능</strong></td><td>기본 동작은 C++로 두되 BP에서 변경 허용</td></tr>
+      <tr><td><code>Server</code></td><td><strong>서버에서만 실행</strong>되는 RPC</td><td>클라이언트가 서버에 요청을 보낼 때</td></tr>
+      <tr><td><code>Client</code></td><td><strong>소유 클라이언트에서만 실행</strong>되는 RPC</td><td>서버가 특정 클라이언트에 결과를 보낼 때</td></tr>
+    </table>
+
+    <h3>USTRUCT() — 구조체를 엔진에 등록</h3>
+    <p><code>USTRUCT()</code>는 구조체(struct)를 리플렉션에 등록합니다. <code>UCLASS</code>와 달리 GC 대상이 아니고, 값 타입(복사·이동)으로 동작합니다. 데이터 묶음(HP·레벨·경험치를 한 덩어리로)을 만들 때 주로 씁니다.</p>
+    <table class="tbl">
+      <tr><th>지정자</th><th>효과</th></tr>
+      <tr><td><code>BlueprintType</code></td><td>BP에서 이 구조체를 <strong>변수 타입</strong>으로 사용 가능</td></tr>
+      <tr><td><code>Atomic</code></td><td>직렬화 시 <strong>멤버 단위가 아닌 구조체 전체</strong>를 한 번에 처리</td></tr>
+    </table>
+
+    <div class="callout tip"><span class="ic">💡</span><p><strong>USTRUCT의 접두사는 <code>F</code>입니다.</strong> 예: <code>FCharacterStats</code>, <code>FTimerHandle</code>. UCLASS의 접두사(A/U)와 다르니 주의하세요.</p></div>
+
+    <h3>UENUM() — 열거형을 엔진에 등록</h3>
+    <p><code>UENUM()</code>은 열거형(enum)을 리플렉션에 등록합니다. 등록하면 BP에서 드롭다운 메뉴로 값을 선택할 수 있고, 에디터 디테일 패널에서 열거값을 이름으로 표시합니다.</p>
+    <table class="tbl">
+      <tr><th>지정자</th><th>효과</th></tr>
+      <tr><td><code>BlueprintType</code></td><td>BP에서 이 열거형을 <strong>변수 타입·스위치 노드</strong>로 사용 가능</td></tr>
+    </table>
+
+    <div class="callout tip"><span class="ic">💡</span><p><strong>UENUM은 <code>enum class</code>(범위 지정 열거형)과 함께 쓰는 것이 표준입니다.</strong> 기본 타입은 <code>uint8</code>로 지정합니다(<code>enum class EState : uint8</code>). 이렇게 하면 BP에서 깔끔하게 사용할 수 있습니다.</p></div>
+
+    <h3>UINTERFACE() — 인터페이스를 엔진에 등록</h3>
+    <p><code>UINTERFACE()</code>는 언리얼 인터페이스를 리플렉션에 등록합니다. 언리얼 인터페이스는 <strong>두 개의 클래스</strong>가 한 쌍입니다: UHT가 인식하는 <code>UMyInterface</code>(껍데기)와 실제 순수 가상 함수를 담는 <code>IMyInterface</code>(본체).</p>
+    <table class="tbl">
+      <tr><th>지정자</th><th>효과</th></tr>
+      <tr><td><code>BlueprintType</code></td><td>BP에서 이 인터페이스 <strong>타입 변수</strong>를 사용 가능</td></tr>
+      <tr><td><code>MinimalAPI</code></td><td>모듈 외부에서 <strong>타입만 참조</strong> 가능 (함수 호출은 불가)</td></tr>
+    </table>
+  </div>
+
+  <!-- ============================================================
+       04 — 흐름
+       ============================================================ -->
+  <div class="section" id="flow">
+    <div class="section-label">04 — 흐름</div>
+    <h2>UHT 빌드 파이프라인 — 매크로가 코드가 되기까지</h2>
+
+    <p>매크로를 헤더에 쓰면 그것이 어떻게 작동하는 코드로 바뀌는지, 4단계 파이프라인을 따라갑니다.</p>
+
+    <div class="pipe-step">
+      <div class="pipe-num">1</div>
+      <div class="pipe-body">
+        <div class="pipe-title">개발자가 .h 파일에 매크로를 작성</div>
+        <div class="pipe-desc"><span class="filetag h">.h</span> 파일에 <code>UCLASS()</code>, <code>UPROPERTY()</code> 등을 붙이고, 클래스 본문에 <code>GENERATED_BODY()</code>를 넣습니다. 마지막 <code>#include</code>로 <code>MyClass.generated.h</code>를 추가합니다.</div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">2</div>
+      <div class="pipe-body">
+        <div class="pipe-title">UHT가 헤더 파일을 스캔</div>
+        <div class="pipe-desc"><strong>UHT(Unreal Header Tool)</strong>(앞서 핵심 용어 블록에서 설명)가 빌드 전에 모든 <span class="filetag h">.h</span> 파일을 읽고, <code>UCLASS</code>·<code>UPROPERTY</code>·<code>UFUNCTION</code> 등의 매크로를 찾아 클래스 구조 정보(이름·타입·지정자)를 수집합니다.</div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">3</div>
+      <div class="pipe-body">
+        <div class="pipe-title">.generated.h 와 .gen.cpp 자동 생성</div>
+        <div class="pipe-desc">UHT가 수집한 정보를 바탕으로 <strong>두 가지 파일</strong>을 자동 생성합니다.<br>
+        <strong><code>MyClass.generated.h</code></strong> — 리플렉션 메타데이터, <code>GENERATED_BODY()</code>가 확장될 코드(생성자 헬퍼, 타입 정보 등)<br>
+        <strong><code>MyClass.gen.cpp</code></strong> — 리플렉션 등록 코드(엔진 초기화 시 실행되어 타입 정보를 전역 테이블에 등록)</div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">4</div>
+      <div class="pipe-body">
+        <div class="pipe-title">C++ 컴파일러가 최종 빌드</div>
+        <div class="pipe-desc">일반 C++ 컴파일러(MSVC/Clang)가 원본 <span class="filetag h">.h</span> + <code>.generated.h</code> + <span class="filetag cpp">.cpp</span> + <code>.gen.cpp</code>를 모두 컴파일합니다. 결과물에는 리플렉션 정보가 포함되어, 런타임에 엔진이 클래스 구조를 조회할 수 있게 됩니다.</div>
+      </div>
+    </div>
+
+    <h3>generated.h가 반드시 마지막 #include여야 하는 이유</h3>
+    <p><code>.generated.h</code>는 UHT가 자동 생성하는 파일입니다. 이 파일은 <strong>그 위에 있는 모든 <code>#include</code>가 이미 처리된 상태</strong>를 전제로 코드를 생성합니다. 따라서 <code>.generated.h</code> 아래에 다른 헤더를 넣으면 UHT가 생성한 매크로 확장 순서가 꼬여 <strong>컴파일 에러</strong>가 발생합니다.</p>
+
+    <div class="dd-grid">
+      <div class="dd do">
+        <h4>✓ 올바른 순서</h4>
+        <ul>
+          <li><code>#include "CoreMinimal.h"</code></li>
+          <li><code>#include "GameFramework/Actor.h"</code></li>
+          <li><code>#include "MyClass.generated.h"</code> — 맨 마지막</li>
+        </ul>
+      </div>
+      <div class="dd dont">
+        <h4>✗ 컴파일 에러</h4>
+        <ul>
+          <li><code>#include "CoreMinimal.h"</code></li>
+          <li><code>#include "MyClass.generated.h"</code> — 너무 일찍!</li>
+          <li><code>#include "GameFramework/Actor.h"</code></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong><code>GENERATED_BODY()</code>를 빠뜨리면 컴파일 에러가 발생합니다.</strong> <code>UCLASS()</code>나 <code>USTRUCT()</code>가 붙은 타입은 반드시 본문 첫 줄에 <code>GENERATED_BODY()</code>를 넣어야 합니다. 이 매크로가 <code>.generated.h</code>의 코드를 클래스 안에 삽입하는 역할을 합니다.</div></div>
+
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong><code>.generated.h</code>가 필요한 헤더와 불필요한 헤더의 구분.</strong> <code>UCLASS</code>·<code>USTRUCT</code>·<code>UENUM</code>·<code>UINTERFACE</code> 중 하나라도 사용하는 <span class="filetag h">.h</span>만 <code>.generated.h</code>를 넣습니다. 리플렉션 매크로가 없는 순수 C++ 헤더에 넣으면 오히려 에러가 납니다(생성될 파일이 없으므로).</div></div>
+  </div>
+
+  <!-- ============================================================
+       05 — 스켈레톤
+       ============================================================ -->
+  <div class="section" id="skeleton">
+    <div class="section-label">05 — 스켈레톤</div>
+    <h2>복사해서 쓸 수 있는 매크로 예제</h2>
+
+    <p>각 매크로의 최소 동작 예제입니다. 모든 줄에 "왜 이렇게 쓰는지" 주석을 달았습니다.</p>
+
+    <h3>UCLASS + UPROPERTY + UFUNCTION — 완전한 .h / .cpp 쌍</h3>
+    <p>가장 흔한 조합입니다. 캐릭터 클래스에 체력 변수와 데미지 함수를 만드는 예제입니다.</p>
+
+    <div class="codeblock" id="cb-uclass">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" onclick="switchTab(this,'cb-uclass','h')">MyCharacter.h</button>
+        <button class="codeblock-tab tab-cpp" onclick="switchTab(this,'cb-uclass','cpp')">MyCharacter.cpp</button>
+        <button class="codeblock-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <div class="codeblock-panel active" data-lang="h"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"GameFramework/Character.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"MyCharacter.generated.h"</span></span>  <span class="hljs-comment">// 반드시 마지막 #include</span>
+
+<span class="hljs-comment">// UCLASS: 이 클래스를 엔진에 등록한다</span>
+<span class="hljs-comment">// Blueprintable → BP에서 이 클래스를 상속해 자식 BP 생성 가능</span>
+<span class="hljs-meta">UCLASS(Blueprintable)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">AMyCharacter</span> : <span class="hljs-keyword">public</span> <span class="hljs-title class_">ACharacter</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>  <span class="hljs-comment">// generated.h의 코드를 여기에 삽입 (필수)</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// 생성자 선언</span>
+    <span class="hljs-built_in">AMyCharacter</span>();
+
+    <span class="hljs-comment">// UPROPERTY: 변수를 엔진에 등록</span>
+    <span class="hljs-comment">// EditAnywhere  → 에디터 디테일 패널에서 편집 가능</span>
+    <span class="hljs-comment">// BlueprintReadWrite → BP에서 읽기+쓰기 가능</span>
+    <span class="hljs-comment">// Category → 에디터에서 "Stats" 카테고리로 묶어 표시</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = <span class="hljs-string">"Stats"</span>)</span>
+    <span class="hljs-type">float</span> Health;
+
+    <span class="hljs-comment">// VisibleAnywhere → 에디터에서 보이지만 편집 불가</span>
+    <span class="hljs-comment">// BlueprintReadOnly → BP에서 읽기만 가능</span>
+    <span class="hljs-meta">UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = <span class="hljs-string">"Stats"</span>)</span>
+    <span class="hljs-type">bool</span> bIsDead;
+
+    <span class="hljs-comment">// UFUNCTION: 함수를 엔진에 등록</span>
+    <span class="hljs-comment">// BlueprintCallable → BP에서 이 함수를 노드로 호출 가능</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = <span class="hljs-string">"Combat"</span>)</span>
+    <span class="hljs-type">void</span> <span class="hljs-title function_">ApplyDamage</span>(<span class="hljs-type">float</span> Amount);
+
+    <span class="hljs-comment">// BlueprintPure → 실행 핀 없이 값만 반환하는 BP 노드</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintPure, Category = <span class="hljs-string">"Stats"</span>)</span>
+    <span class="hljs-type">float</span> <span class="hljs-title function_">GetHealthPercent</span>() <span class="hljs-keyword">const</span>;
+
+<span class="hljs-keyword">protected</span>:
+    <span class="hljs-comment">// 이 변수는 UPROPERTY가 없으므로</span>
+    <span class="hljs-comment">// 리플렉션 미등록 → 에디터·BP·GC에서 보이지 않음</span>
+    <span class="hljs-type">float</span> InternalTimer;
+};</pre></div>
+      <div class="codeblock-panel" data-lang="cpp"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"MyCharacter.h"</span></span>
+
+<span class="hljs-comment">// 생성자: 기본값 설정</span>
+<span class="hljs-built_in">AMyCharacter</span>::<span class="hljs-built_in">AMyCharacter</span>()
+{
+    Health = <span class="hljs-number">100.0f</span>;
+    bIsDead = <span class="hljs-literal">false</span>;
+    InternalTimer = <span class="hljs-number">0.0f</span>;
+}
+
+<span class="hljs-comment">// BlueprintCallable 함수의 구현</span>
+<span class="hljs-type">void</span> <span class="hljs-title class_">AMyCharacter</span>::<span class="hljs-title function_">ApplyDamage</span>(<span class="hljs-type">float</span> Amount)
+{
+    Health -= Amount;
+
+    <span class="hljs-keyword">if</span> (Health &lt;= <span class="hljs-number">0.0f</span>)
+    {
+        Health = <span class="hljs-number">0.0f</span>;
+        bIsDead = <span class="hljs-literal">true</span>;
+    }
+}
+
+<span class="hljs-comment">// BlueprintPure 함수의 구현</span>
+<span class="hljs-type">float</span> <span class="hljs-title class_">AMyCharacter</span>::<span class="hljs-title function_">GetHealthPercent</span>() <span class="hljs-keyword">const</span>
+{
+    <span class="hljs-keyword">return</span> Health / <span class="hljs-number">100.0f</span>;  <span class="hljs-comment">// 0.0 ~ 1.0 비율로 반환</span>
+}</pre></div>
+    </div>
+
+    <h3>USTRUCT — 데이터 묶음 구조체</h3>
+    <div class="codeblock" id="cb-ustruct">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" onclick="switchTab(this,'cb-ustruct','h')">CharacterStats.h</button>
+        <button class="codeblock-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <div class="codeblock-panel active" data-lang="h"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"CharacterStats.generated.h"</span></span>
+
+<span class="hljs-comment">// USTRUCT: 구조체를 엔진에 등록</span>
+<span class="hljs-comment">// BlueprintType → BP에서 이 구조체를 변수 타입으로 사용 가능</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title class_">FCharacterStats</span>    <span class="hljs-comment">// 접두사 F (구조체 규칙)</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>       <span class="hljs-comment">// 구조체에도 필수</span>
+
+    <span class="hljs-comment">// 구조체 멤버도 UPROPERTY로 등록해야 BP에서 사용 가능</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
+    <span class="hljs-type">float</span> MaxHealth = <span class="hljs-number">100.0f</span>;
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
+    <span class="hljs-type">float</span> AttackPower = <span class="hljs-number">10.0f</span>;
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
+    <span class="hljs-type">float</span> MoveSpeed = <span class="hljs-number">600.0f</span>;
+};</pre></div>
+    </div>
+
+    <h3>UENUM — 상태 열거형</h3>
+    <div class="codeblock" id="cb-uenum">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" onclick="switchTab(this,'cb-uenum','h')">CharacterState.h</button>
+        <button class="codeblock-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <div class="codeblock-panel active" data-lang="h"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"CharacterState.generated.h"</span></span>
+
+<span class="hljs-comment">// UENUM: 열거형을 엔진에 등록</span>
+<span class="hljs-comment">// BlueprintType → BP에서 드롭다운·스위치 노드로 사용</span>
+<span class="hljs-meta">UENUM(BlueprintType)</span>
+<span class="hljs-keyword">enum class</span> <span class="hljs-title class_">ECharacterState</span> : <span class="hljs-type">uint8</span>   <span class="hljs-comment">// uint8 = BP 호환 타입</span>
+{
+    Idle       <span class="hljs-meta">UMETA(DisplayName = <span class="hljs-string">"대기"</span>)</span>,       <span class="hljs-comment">// 에디터에 "대기"로 표시</span>
+    Running    <span class="hljs-meta">UMETA(DisplayName = <span class="hljs-string">"이동"</span>)</span>,
+    Attacking  <span class="hljs-meta">UMETA(DisplayName = <span class="hljs-string">"공격"</span>)</span>,
+    Dead       <span class="hljs-meta">UMETA(DisplayName = <span class="hljs-string">"사망"</span>)</span>
+};</pre></div>
+    </div>
+
+    <h3>UINTERFACE — 인터페이스 (U + I 한 쌍)</h3>
+    <div class="codeblock" id="cb-uinterface">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" onclick="switchTab(this,'cb-uinterface','h')">Damageable.h</button>
+        <button class="codeblock-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <div class="codeblock-panel active" data-lang="h"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"UObject/Interface.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Damageable.generated.h"</span></span>
+
+<span class="hljs-comment">// UINTERFACE: 언리얼 인터페이스 등록</span>
+<span class="hljs-comment">// MinimalAPI → 모듈 외부에서 타입만 참조 가능</span>
+<span class="hljs-meta">UINTERFACE(MinimalAPI)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UDamageable</span> : <span class="hljs-keyword">public</span> <span class="hljs-title class_">UInterface</span>   <span class="hljs-comment">// U 접두사 (UHT 인식용 껍데기)</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+};
+
+<span class="hljs-comment">// 실제 인터페이스 본체 — 여기에 순수 가상 함수를 선언</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">IDamageable</span>                        <span class="hljs-comment">// I 접두사 (구현 클래스가 상속)</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// 구현 클래스가 반드시 오버라이드해야 하는 함수</span>
+    <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title function_">ReceiveDamage</span>(<span class="hljs-type">float</span> Amount) = <span class="hljs-number">0</span>;
+
+    <span class="hljs-comment">// 기본 구현이 있는 함수 (오버라이드 선택적)</span>
+    <span class="hljs-keyword">virtual</span> <span class="hljs-type">bool</span> <span class="hljs-title function_">IsDead</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>; }
+};</pre></div>
+    </div>
+
+    <div class="callout info"><span class="ic">🧭</span><p><strong>UINTERFACE는 항상 U + I 한 쌍입니다.</strong> <code>UDamageable</code>(UINTERFACE가 붙는 껍데기, UHT 인식용)과 <code>IDamageable</code>(실제 함수를 담는 본체, 구현 클래스가 상속)을 반드시 같은 헤더에 함께 선언합니다. 구현 클래스는 <code>class AMyEnemy : public ACharacter, public IDamageable</code>처럼 I 접두사 클래스를 상속합니다.</p></div>
+  </div>
+
+  <!-- ============================================================
+       06 — 확장
+       ============================================================ -->
+  <div class="section" id="extension">
+    <div class="section-label">06 — 확장</div>
+    <h2>메타데이터로 에디터를 커스터마이징</h2>
+
+    <p>지정자 외에 <code>meta=(...)</code> 키워드를 사용하면 에디터에서 변수·함수가 보이는 방식을 더 세밀하게 제어할 수 있습니다. <code>meta</code>는 리플렉션 매크로 괄호 안에 함께 씁니다.</p>
+
+    <table class="tbl">
+      <tr><th>메타 키워드</th><th>효과</th><th>사용 예</th></tr>
+      <tr><td><code>DisplayName</code></td><td>에디터/BP에 표시되는 <strong>이름을 변경</strong></td><td><code>meta=(DisplayName="체력")</code></td></tr>
+      <tr><td><code>ToolTip</code></td><td>에디터에서 마우스 올리면 나오는 <strong>설명 텍스트</strong></td><td><code>meta=(ToolTip="캐릭터의 현재 HP")</code></td></tr>
+      <tr><td><code>ClampMin / ClampMax</code></td><td>에디터에서 입력 가능한 <strong>값 범위 제한</strong></td><td><code>meta=(ClampMin="0", ClampMax="100")</code></td></tr>
+      <tr><td><code>AllowPrivateAccess</code></td><td><code>private</code> 변수를 <strong>에디터에서 편집 허용</strong></td><td><code>meta=(AllowPrivateAccess="true")</code></td></tr>
+      <tr><td><code>BindWidget</code></td><td>UMG 위젯 BP에서 같은 이름의 위젯을 <strong>자동 바인딩</strong></td><td><code>meta=(BindWidget)</code></td></tr>
+      <tr><td><code>ExposeOnSpawn</code></td><td>SpawnActor 노드에서 <strong>핀으로 노출</strong></td><td><code>meta=(ExposeOnSpawn="true")</code></td></tr>
+    </table>
+
+    <h3>meta 사용 예제</h3>
+    <div class="codeblock" id="cb-meta">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" onclick="switchTab(this,'cb-meta','h')">MetaExample.h</button>
+        <button class="codeblock-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <div class="codeblock-panel active" data-lang="h"><pre class="hljs"><span class="hljs-comment">// 에디터에 "체력"으로 표시, 0~200 범위 제한, 툴팁 추가</span>
+<span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = <span class="hljs-string">"Stats"</span>,
+    meta = (DisplayName = <span class="hljs-string">"체력"</span>, ClampMin = <span class="hljs-string">"0"</span>, ClampMax = <span class="hljs-string">"200"</span>,
+            ToolTip = <span class="hljs-string">"캐릭터의 현재 HP. 0이 되면 사망 처리."</span>))</span>
+<span class="hljs-type">float</span> Health;
+
+<span class="hljs-comment">// private 변수지만 에디터에서 편집 가능하게 허용</span>
+<span class="hljs-keyword">private</span>:
+<span class="hljs-meta">UPROPERTY(EditDefaultsOnly, Category = <span class="hljs-string">"Internal"</span>,
+    meta = (AllowPrivateAccess = <span class="hljs-string">"true"</span>))</span>
+<span class="hljs-type">float</span> RespawnDelay = <span class="hljs-number">3.0f</span>;</pre></div>
+    </div>
+
+    <div class="callout tip"><span class="ic">💡</span><p><strong>이 문서에서 다룬 것은 가장 자주 쓰는 지정자와 메타 키워드입니다.</strong> 전체 목록은 언리얼 공식 문서의 "Property Specifiers", "Function Specifiers" 페이지에서 확인할 수 있습니다. 하지만 실무에서는 위 표의 것들만으로도 대부분의 상황을 커버할 수 있습니다.</p></div>
+
+    <h3>매크로 선택 빠른 판단표</h3>
+    <p>새 코드를 작성할 때 "어떤 매크로를 써야 하지?"라는 질문에 빠르게 답하는 표입니다.</p>
+    <table class="tbl">
+      <tr><th>만들려는 것</th><th>사용할 매크로</th><th>필수 동반 요소</th></tr>
+      <tr><td>UObject/AActor 기반 클래스</td><td><code>UCLASS()</code></td><td><code>GENERATED_BODY()</code> + <code>.generated.h</code></td></tr>
+      <tr><td>데이터 묶음 (값 타입)</td><td><code>USTRUCT()</code></td><td><code>GENERATED_BODY()</code> + <code>.generated.h</code> + <code>F</code> 접두사</td></tr>
+      <tr><td>상태·종류 구분 (드롭다운)</td><td><code>UENUM()</code></td><td><code>.generated.h</code> + <code>enum class : uint8</code></td></tr>
+      <tr><td>다중 상속 계약</td><td><code>UINTERFACE()</code></td><td><code>U</code> + <code>I</code> 쌍 + <code>.generated.h</code></td></tr>
+      <tr><td>에디터/BP에 노출할 변수</td><td><code>UPROPERTY()</code></td><td>타입 매크로가 붙은 클래스/구조체 안에서만</td></tr>
+      <tr><td>BP에서 호출할 함수</td><td><code>UFUNCTION()</code></td><td><code>UCLASS()</code>가 붙은 클래스 안에서만</td></tr>
+    </table>
+  </div>
+
+</div>
+
+<footer>
+  <span>언리얼 리플렉션 매크로 · v1.0</span>
+  <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.3</span>
+</footer>
+
+<script>
+function switchTab(btn, blockId, lang) {
+  var block = document.getElementById(blockId);
+  block.querySelectorAll('.codeblock-tab').forEach(function(t) { t.classList.remove('active'); });
+  btn.classList.add('active');
+  block.querySelectorAll('.codeblock-panel').forEach(function(p) {
+    p.classList.toggle('active', p.getAttribute('data-lang') === lang);
+  });
+}
+function copyCode(btn) {
+  var block = btn.closest('.codeblock');
+  var panel = block.querySelector('.codeblock-panel.active pre');
+  if (!panel) return;
+  var text = panel.innerText;
+  navigator.clipboard.writeText(text).then(function() {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(function() { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+  });
+}
+</script>
+
+</body>
+</html>

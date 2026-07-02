@@ -3,10 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>문서 허브 & 용어집 — UE 문서 디자인 시스템 v2.3</title>
+<title>문서 허브 & 용어집 — UE 문서 디자인 시스템 v2.5</title>
 <!-- ============================================================
      CHANGELOG — design-guide-ue-index.html
      생성 문서 인덱스 + 중앙 용어집(범용 UE 용어 전용). 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md
+     v2.5 · 2026-07-03
+       - (추가) 문서 목록에 '게임플레이 프레임워크 — 전체 구조와 클래스별 설계 분석' 등록
+       - (추가) 용어집에 5개 신규 용어 추가 (Replication, Authority, RPC, BeginPlay, Tick)
+     v2.4 · 2026-07-02
+       - (추가) 문서 목록에 '리플렉션 매크로 — 6대 매크로와 UHT 빌드 파이프라인' 등록
+       - (추가) 용어집에 4개 신규 용어 추가 (지정자, USTRUCT/UENUM/UINTERFACE,
+         GENERATED_BODY(), 직렬화)
      v2.3 · 2026-07-02
        - (변경) 마스터 CSS <link> 상대참조 → <style> inline (마스터 v1.3 스냅샷) — 단독 열람 보장, 마스터 개정에 따른 사후 변형 방지 (DOC-TRACKS v1.3 정책)
      v2.2 · 2026-07-02
@@ -466,7 +473,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">Design System · v2.3 · Hub &amp; Glossary</div>
+  <div class="hero-eyebrow">Design System · v2.5 · Hub &amp; Glossary</div>
   <h1>문서 허브<br><span>&amp; 용어집</span></h1>
   <p class="hero-sub">
     지금까지 만든 언리얼 문서를 한곳에 모으고(문서 목록), 문서에 등장하는 어려운 용어를 그 용어를 설명한 문서로 연결하는(용어집) 허브입니다. 어떤 문서에서 모르는 단어를 만나면, 여기 용어집에서 "자세히 →"를 눌러 원문 설명으로 바로 이동할 수 있습니다.
@@ -492,6 +499,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>GameInstanceSubsystem — 수명 자동 관리 전역 서비스</code></td><td>아키텍처</td><td>2026-07-02</td><td><a href="./ue-architect/ue-gameinstance-subsystem.html" style="color:var(--accent)">열기 →</a></td></tr>
       <tr><td><code>상태 머신 — 상태·전이·이벤트로 동작 제어</code></td><td>아키텍처</td><td>2026-07-02</td><td><a href="./ue-architect/ue-state-machine.html" style="color:var(--accent)">열기 →</a></td></tr>
       <tr><td><code>DataTable — 코드 밖에서 관리하는 표 데이터</code></td><td>아키텍처</td><td>2026-07-02</td><td><a href="./ue-architect/ue-datatable.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>리플렉션 매크로 — 6대 매크로와 UHT 빌드 파이프라인</code></td><td>아키텍처</td><td>2026-07-02</td><td><a href="./ue-architect/ue-reflection-macros.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>게임플레이 프레임워크 — 전체 구조와 클래스별 설계 분석</code></td><td>아키텍처</td><td>2026-07-03</td><td><a href="./ue-architect/ue-gameplay-framework.html" style="color:var(--accent)">열기 →</a></td></tr>
       <tr><td><code>RecordTales 프로젝트 허브</code></td><td>프로젝트 허브</td><td>2026-07-02</td><td><a href="../Project/RecordTales/recordtales-index.html" style="color:var(--accent)">열기 →</a></td></tr>
     </table>
     <div class="callout info"><span class="ic">📁</span><p><strong>프로젝트 문서(Track B)는 각 프로젝트 허브가 관리합니다.</strong> 이 목록에는 프로젝트당 허브 행 1개만 등록하고, 개별 문서 목록·프로젝트 용어집은 프로젝트 허브에서 봅니다. (규칙: <code>doc-process/DOC-TRACKS.md</code>)</p></div>
@@ -543,6 +552,15 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>스마트 포인터 (TSharedPtr 등)</code></td><td>비-UObject의 <strong>참조 카운팅 기반 메모리 관리</strong></td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-smartptr" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
       <tr><td><code>BlueprintCallable / BlueprintPure</code></td><td>C++ 함수를 <strong>BP에서 호출</strong>하는 UFUNCTION 지정자</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-bp-callable" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
       <tr><td><code>BlueprintNativeEvent</code></td><td>C++ 기본 구현 + <strong>BP 오버라이드</strong> 가능한 패턴</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-bp-native-event" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>지정자 (Specifier)</code></td><td>리플렉션 매크로 괄호 안에 쓰는 키워드. <strong>에디터 노출·BP 접근</strong> 등 동작 제어</td><td><a href="./ue-architect/ue-reflection-macros.html#term-specifier" style="color:var(--accent)">리플렉션 매크로 →</a></td></tr>
+      <tr><td><code>USTRUCT / UENUM / UINTERFACE</code></td><td>구조체·열거형·인터페이스를 <strong>리플렉션에 등록</strong>하는 매크로</td><td><a href="./ue-architect/ue-reflection-macros.html#relation" style="color:var(--accent)">리플렉션 매크로 →</a></td></tr>
+      <tr><td><code>GENERATED_BODY()</code></td><td>generated.h의 코드를 클래스/구조체 <strong>본문에 삽입</strong>하는 매크로 (필수)</td><td><a href="./ue-architect/ue-reflection-macros.html#term-generated-body" style="color:var(--accent)">리플렉션 매크로 →</a></td></tr>
+      <tr><td><code>직렬화 (Serialization)</code></td><td>객체를 바이트 스트림으로 변환해 <strong>저장/전송</strong>하는 것</td><td><a href="./ue-architect/ue-reflection-macros.html#term-serialization" style="color:var(--accent)">리플렉션 매크로 →</a></td></tr>
+      <tr><td><code>Replication (복제)</code></td><td>서버의 데이터 변경을 클라이언트에 <strong>자동 전송</strong>하는 네트워크 동기화</td><td><a href="./ue-architect/ue-gameplay-framework.html#term-replication" style="color:var(--accent)">게임플레이 프레임워크 →</a></td></tr>
+      <tr><td><code>Authority (권한)</code></td><td>데이터의 진실(Truth)을 보유한 쪽. 보통 <strong>서버</strong>가 Authority</td><td><a href="./ue-architect/ue-gameplay-framework.html#term-authority" style="color:var(--accent)">게임플레이 프레임워크 →</a></td></tr>
+      <tr><td><code>RPC (Remote Procedure Call)</code></td><td>네트워크를 통해 <strong>원격 머신의 함수를 호출</strong>하는 방식</td><td><a href="./ue-architect/ue-gameplay-framework.html#term-rpc" style="color:var(--accent)">게임플레이 프레임워크 →</a></td></tr>
+      <tr><td><code>BeginPlay</code></td><td>액터가 월드에 준비된 후 <strong>최초 1회 호출</strong>되는 초기화 함수</td><td><a href="./ue-architect/ue-gameplay-framework.html#term-beginplay" style="color:var(--accent)">게임플레이 프레임워크 →</a></td></tr>
+      <tr><td><code>Tick</code></td><td><strong>매 프레임 호출</strong>되는 업데이트 함수</td><td><a href="./ue-architect/ue-gameplay-framework.html#term-tick" style="color:var(--accent)">게임플레이 프레임워크 →</a></td></tr>
       <tr><td><code>GameInstanceSubsystem</code></td><td>GameInstance 수명에 묶이는 <strong>자동 관리 서비스 객체</strong></td><td><a href="./ue-architect/ue-gameinstance-subsystem.html#term-gameinstance-subsystem" style="color:var(--accent)">GameInstanceSubsystem →</a></td></tr>
       <!-- TODO: FTimerHandle은 전용 범용 문서(ue-architect)가 생기면 링크 교체 (DOC-TRACKS.md §5) -->
       <tr><td><code>FTimerHandle</code></td><td>엔진 타이머 <strong>핸들</strong>. SetTimer/ClearTimer로 카운트다운 제어</td><td><a href="../Project/RecordTales/01-focus-system.html#skeleton" style="color:var(--accent)">포커스 시스템 →</a></td></tr>
@@ -567,7 +585,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>UE 문서 디자인 시스템 · Hub &amp; Glossary v2.3</span>
+  <span>UE 문서 디자인 시스템 · Hub &amp; Glossary v2.5</span>
   <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.3</span>
 </footer>
 

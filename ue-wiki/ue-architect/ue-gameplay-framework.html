@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>게임플레이 프레임워크 — 전체 구조와 클래스별 설계 분석</title>
+<!-- ============================================================
+     CHANGELOG — ue-gameplay-framework.html
+     언리얼 게임플레이 프레임워크 구조 문서 (02-A 아키텍처 패턴).
+     작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.0 · 2026-07-03
+       - (추가) 최초 작성. 게임플레이 프레임워크 전체 구조(설계 철학·클래스 맵·
+         소유/복제 관계), 10대 클래스 깊은 설계 분석(GameInstance·GameMode·
+         GameState·PlayerState·PlayerController·AIController·Pawn·Character·
+         HUD/Camera·ActorComponent), 초기화 파이프라인, 커스텀 프레임워크
+         스켈레톤 코드, 수명 범위별 데이터 배치 전략 수록.
+       - 기준 마스터: design-guide-ue-master.css v1.3
+     ============================================================ -->
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Pretendard:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg: #0D0F1A;
+  --surface: #13162A;
+  --surface-2: #1A1F38;
+  --border: #252B4A;
+  --accent: #5B6EFA;
+  --accent-2: #9B6DFF;
+  --accent-3: #38D9B4;
+  --text: #E4E8FF;
+  --text-muted: #7B82A6;
+  --text-dim: #4A5080;
+  --amber: #F59E0B;
+  --pink: #E040FB;
+  --red: #F87171;
+
+  --ue-folder: #F59E0B;
+  --ue-bp:     #5B6EFA;
+  --ue-enum:   #9B6DFF;
+  --ue-mat:    #FB8C5A;
+  --ue-tex:    #38D9B4;
+  --ue-demo:   #6BD98E;
+
+  --ue-gamemode:   #5B6EFA;
+  --ue-gamestate:  #7B9CFF;
+  --ue-controller: #38D9B4;
+  --ue-pawn:       #6BD98E;
+  --ue-instance:   #9B6DFF;
+  --ue-savegame:   #F59E0B;
+  --ue-subsystem:  #E040FB;
+
+  --ue-header: #38D9B4;
+  --ue-source: #FB8C5A;
+  --ue-macro:  #FB8C5A;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+  font-size: 15px; line-height: 1.7; -webkit-font-smoothing: antialiased;
+}
+
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(13,15,26,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px; display: flex; align-items: center; gap: 32px; height: 52px;
+}
+.nav-logo { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em; white-space: nowrap; }
+.nav-links { display: flex; gap: 22px; flex-wrap: wrap; }
+.nav-links a { color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 500; transition: color 0.2s; }
+.nav-links a:hover { color: var(--text); }
+.nav-links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+
+.hero { padding: 72px 48px 56px; max-width: 920px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+.hero-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: var(--accent); text-transform: uppercase; margin-bottom: 20px; }
+.hero h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 20px; }
+.hero h1 span { color: var(--accent); }
+.hero-sub { font-size: 16px; color: var(--text-muted); max-width: 660px; line-height: 1.75; }
+.hero-meta { margin-top: 28px; display: flex; gap: 10px; flex-wrap: wrap; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; border: 1px solid; }
+.badge-blue { color: var(--accent); border-color: var(--accent); background: rgba(91,110,250,0.08); }
+.badge-green { color: var(--accent-3); border-color: var(--accent-3); background: rgba(56,217,180,0.08); }
+.badge-purple { color: var(--accent-2); border-color: var(--accent-2); background: rgba(155,109,255,0.08); }
+
+.content { max-width: 920px; margin: 0 auto; padding: 0 48px 80px; }
+.section { padding: 52px 0 0; border-top: 1px solid var(--border); margin-top: 52px; }
+.section:first-child { margin-top: 0; padding-top: 48px; border-top: none; }
+.section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 12px; }
+.section h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 20px; }
+.section h3 { font-size: 15px; font-weight: 700; color: var(--text); margin: 30px 0 10px; letter-spacing: 0.01em; }
+.section p { color: var(--text-muted); margin-bottom: 14px; line-height: 1.8; }
+.section p strong { color: var(--text); font-weight: 600; }
+
+code { font-family: 'IBM Plex Mono', monospace; font-size: 0.86em; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; color: var(--accent-3); }
+
+.callout { display: flex; gap: 12px; align-items: flex-start; border-radius: 8px; padding: 14px 16px; margin: 18px 0; border: 1px solid var(--border); background: var(--surface-2); font-size: 13.5px; line-height: 1.65; }
+.callout .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.callout p { margin: 0; color: var(--text-muted); }
+.callout p strong { color: var(--text); }
+.callout.info { border-left: 3px solid var(--accent); }
+.callout.tip  { border-left: 3px solid var(--accent-3); }
+.callout.warn { border-left: 3px solid var(--amber); }
+
+.snip { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 12px 0 22px; }
+.snip-head { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 8px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+.code-dot { width: 8px; height: 8px; border-radius: 50%; }
+.snip pre { padding: 14px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-muted); line-height: 1.75; overflow-x: auto; white-space: pre; }
+
+.codeblock { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 16px 0 24px; }
+.codeblock-bar { display: flex; align-items: stretch; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.codeblock-tab {
+  padding: 9px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600;
+  color: var(--text-dim); background: transparent; border: none; border-right: 1px solid var(--border);
+  cursor: pointer; transition: color 0.15s, background 0.15s; box-shadow: inset 0 -2px 0 transparent;
+}
+.codeblock-tab:hover { color: var(--text-muted); }
+.codeblock-tab.active { color: var(--text); background: var(--surface); }
+.codeblock-tab.tab-h.active   { box-shadow: inset 0 -2px 0 var(--ue-header); }
+.codeblock-tab.tab-cpp.active { box-shadow: inset 0 -2px 0 var(--ue-source); }
+.codeblock-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.codeblock-copy {
+  margin-left: auto; align-self: center; margin-right: 8px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600;
+  color: var(--text-muted); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 5px; padding: 4px 10px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+}
+.codeblock-copy:hover { color: var(--text); border-color: var(--accent); }
+.codeblock-copy.copied { color: var(--accent-3); border-color: var(--accent-3); }
+.codeblock-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.codeblock-panel { display: none; }
+.codeblock-panel.active { display: block; }
+.codeblock pre { padding: 16px 18px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.75; overflow-x: auto; white-space: pre; }
+
+.hljs { color: var(--text-muted); background: var(--surface); }
+.hljs-comment, .hljs-quote { color: var(--text-dim); font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-section { color: var(--accent); font-weight: 500; }
+.hljs-literal, .hljs-symbol, .hljs-bullet { color: var(--accent-2); }
+.hljs-number { color: var(--accent-2); }
+.hljs-string, .hljs-attr, .hljs-attribute, .hljs-name { color: var(--ue-demo); }
+.hljs-type, .hljs-class .hljs-title, .hljs-title.class_, .hljs-built_in { color: var(--accent-3); }
+.hljs-title, .hljs-title.function_, .hljs-function .hljs-title { color: var(--text); }
+.hljs-params { color: var(--text-muted); }
+.hljs-meta, .hljs-meta .hljs-keyword { color: var(--ue-macro); font-weight: 600; }
+.hljs-meta .hljs-string { color: var(--ue-demo); }
+.hljs-property, .hljs-variable { color: var(--text); }
+
+.filetag { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 3px; }
+.filetag.h   { background: rgba(56,217,180,0.14); color: var(--ue-header); }
+.filetag.cpp { background: rgba(251,140,90,0.14);  color: var(--ue-source); }
+
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 4px; }
+.stat-label { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+.a-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; border-top: 2px solid var(--ue-bp); }
+.a-card .ic { font-size: 22px; margin-bottom: 10px; }
+.a-card .a-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.a-card .a-id { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--accent); margin-bottom: 8px; }
+.a-card .a-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+.pills { display: flex; flex-wrap: wrap; gap: 7px; }
+.pill { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; padding: 3px 12px; border-radius: 20px; border: 1px solid; }
+.pill.blue { color: var(--accent); border-color: rgba(91,110,250,0.4); background: rgba(91,110,250,0.08); }
+.pill.purple { color: var(--accent-2); border-color: rgba(155,109,255,0.4); background: rgba(155,109,255,0.08); }
+.pill.green { color: var(--accent-3); border-color: rgba(56,217,180,0.4); background: rgba(56,217,180,0.08); }
+.pill.pink { color: var(--pink); border-color: rgba(224,64,251,0.4); background: rgba(224,64,251,0.08); }
+.pill.red { color: var(--red); border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.08); }
+
+.arch { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: stretch; }
+.arch-layer { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 16px 14px; }
+.arch-arrow { display: flex; align-items: center; justify-content: center; padding: 0 8px; color: var(--text-dim); font-size: 16px; }
+.arch-tag { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 7px; color: var(--accent); }
+.arch-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.arch-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+.tbl { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 13px; }
+.tbl th { background: var(--surface-2); color: var(--text-muted); font-weight: 600; font-size: 12px; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+.tbl td { padding: 10px 14px; color: var(--text-muted); border-bottom: 1px solid rgba(37,43,74,0.5); vertical-align: top; line-height: 1.55; }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl td:first-child { color: var(--text); }
+.tbl td code, .tbl th code { background: transparent; border: none; padding: 0; color: var(--accent); }
+
+.tree { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.9; color: var(--text-dim); white-space: pre; overflow-x: auto; }
+.tree .folder { color: var(--ue-folder); font-weight: 600; }
+.tree .bp { color: var(--ue-bp); } .tree .enum { color: var(--ue-enum); }
+.tree .mat { color: var(--ue-mat); } .tree .tex { color: var(--ue-tex); }
+.tree .note { color: var(--text-muted); }
+.tree .c-gamemode { color: var(--ue-gamemode); font-weight: 600; }
+.tree .c-gamestate { color: var(--ue-gamestate); font-weight: 600; }
+.tree .c-controller { color: var(--ue-controller); font-weight: 600; }
+.tree .c-pawn { color: var(--ue-pawn); font-weight: 600; }
+.tree .c-instance { color: var(--ue-instance); font-weight: 600; }
+.tree .c-savegame { color: var(--ue-savegame); font-weight: 600; }
+.tree .c-subsystem { color: var(--ue-subsystem); font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); }
+.legend .dot { width: 9px; height: 9px; border-radius: 2px; }
+
+.rel-map { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
+.rel-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+.rel-node {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 14px; border-left: 3px solid var(--text-dim);
+}
+.rel-node .rn-name { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.rel-node .rn-role { font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.4; }
+.rel-node.n-gamemode   { border-left-color: var(--ue-gamemode); }
+.rel-node.n-gamestate  { border-left-color: var(--ue-gamestate); }
+.rel-node.n-controller { border-left-color: var(--ue-controller); }
+.rel-node.n-pawn       { border-left-color: var(--ue-pawn); }
+.rel-node.n-instance   { border-left-color: var(--ue-instance); }
+.rel-node.n-savegame   { border-left-color: var(--ue-savegame); }
+.rel-node.n-subsystem  { border-left-color: var(--ue-subsystem); }
+.rel-arrow { display: flex; flex-direction: column; align-items: center; color: var(--text-dim); min-width: 84px; }
+.rel-arrow .ra-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--accent); letter-spacing: 0.04em; white-space: nowrap; }
+.rel-arrow .ra-line { font-size: 15px; line-height: 1; }
+
+.tbl .owner { display: inline-flex; align-items: center; gap: 7px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.tbl .owner::before { content: ''; width: 9px; height: 9px; border-radius: 2px; background: var(--text-dim); flex-shrink: 0; }
+.tbl .owner.o-gamemode::before   { background: var(--ue-gamemode); }
+.tbl .owner.o-gamestate::before  { background: var(--ue-gamestate); }
+.tbl .owner.o-controller::before { background: var(--ue-controller); }
+.tbl .owner.o-pawn::before       { background: var(--ue-pawn); }
+.tbl .owner.o-instance::before   { background: var(--ue-instance); }
+.tbl .owner.o-savegame::before   { background: var(--ue-savegame); }
+.tbl .owner.o-subsystem::before  { background: var(--ue-subsystem); }
+
+.pipe-step { display: grid; grid-template-columns: 36px 1fr; gap: 0 16px; position: relative; }
+.pipe-step::before { content: ''; position: absolute; left: 17px; top: 36px; bottom: -1px; width: 2px; background: var(--border); }
+.pipe-step:last-child::before { display: none; }
+.pipe-num { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--surface-2); }
+.pipe-body { padding: 6px 0 22px; }
+.pipe-title { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+.pipe-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+.pitfall { display: flex; gap: 14px; align-items: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; border-left: 3px solid var(--amber); margin: 14px 0; }
+.pitfall.tip { border-left-color: var(--accent-3); }
+.pitfall .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.pitfall-text { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
+.pitfall-text strong { color: var(--text); }
+
+.dd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 22px 0; }
+.dd { border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; background: var(--surface-2); }
+.dd.do { border-left: 3px solid var(--accent-3); }
+.dd.dont { border-left: 3px solid var(--red); }
+.dd h4 { font-size: 13px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.dd.do h4 { color: var(--accent-3); }
+.dd.dont h4 { color: var(--red); }
+.dd ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.dd li { font-size: 12.5px; color: var(--text-muted); line-height: 1.55; padding-left: 16px; position: relative; }
+.dd li::before { content: ''; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; border-radius: 50%; }
+.dd.do li::before { background: var(--accent-3); }
+.dd.dont li::before { background: var(--red); }
+
+footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920px; margin: 0 auto; font-size: 12px; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.stat-row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.stat-row-4 .stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+
+.compare-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
+.compare-box h4 { font-size: 14px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.compare-box p { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 10px; }
+.compare-box .pills { margin-top: 10px; }
+
+@media (max-width: 720px) {
+  .content { padding: 0 20px 60px; }
+  .hero { padding: 48px 20px 40px; }
+  .stat-row, .stat-row-4, .dd-grid, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .arch { grid-template-columns: 1fr; }
+  .arch-arrow { transform: rotate(90deg); padding: 4px 0; }
+  .rel-row { grid-template-columns: 1fr; text-align: left; }
+  .rel-arrow { flex-direction: row; gap: 8px; min-width: 0; padding: 2px 0; }
+  .rel-arrow .ra-line { transform: rotate(90deg); }
+  nav { padding: 0 16px; gap: 16px; }
+  .nav-links { display: none; }
+  footer { padding: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">UE WIKI · GAMEPLAY FRAMEWORK</div>
+  <div class="nav-links">
+    <a href="#concept">개념</a>
+    <a href="#relation">관계</a>
+    <a href="#responsibility">책임</a>
+    <a href="#flow">흐름</a>
+    <a href="#skeleton">스켈레톤</a>
+    <a href="#extension">확장</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">Architecture · v1.0 · Gameplay Framework</div>
+  <h1>게임플레이<br><span>프레임워크</span></h1>
+  <p class="hero-sub">
+    언리얼 엔진이 게임의 규칙·상태·입력·물리적 표현을 어떻게 클래스 단위로 분리하고 조립하는지를 전체 구조와 클래스별 깊은 설계 분석으로 설명합니다. <code>GameInstance</code>부터 <code>Character</code>까지 — 왜 이렇게 나뉘었고, 각 클래스에 무엇을 두어야 하는지를 다룹니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">02-A 아키텍처 패턴</span>
+    <span class="badge badge-green">10대 클래스 분석</span>
+    <span class="badge badge-purple">수명 범위별 설계</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- ============================================================
+       01 — 개념 이해
+       ============================================================ -->
+  <div class="section" id="concept">
+    <div class="section-label">01 — 개념 이해</div>
+    <h2>게임플레이 프레임워크 — 왜 이렇게 많은 클래스로 나뉘었는가</h2>
+
+    <p><strong>게임플레이 프레임워크(Gameplay Framework)</strong>는 언리얼 엔진이 게임의 핵심 시스템(규칙·상태·입력·물리적 표현)을 관리하기 위해 제공하는 <strong>모듈식 클래스 모음</strong>입니다. 하나의 거대한 "Game" 클래스를 만드는 대신, 역할별로 클래스를 쪼개서 각각 독립적으로 교체·확장할 수 있게 설계되어 있습니다.</p>
+
+    <p>이 설계를 이해하려면 먼저 <strong>3가지 핵심 설계 철학</strong>을 잡아야 합니다. 이 철학이 "왜 이 클래스가 존재하는가"에 대한 답입니다.</p>
+
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--accent)">1</div>
+        <div class="stat-label"><strong style="color:var(--text)">의도와 몸의 분리</strong><br><span style="font-size:11px;color:var(--text-dim)">Controller vs Pawn</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--accent-3)">2</div>
+        <div class="stat-label"><strong style="color:var(--text)">규칙과 상태의 분리</strong><br><span style="font-size:11px;color:var(--text-dim)">GameMode vs GameState</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--accent-2)">3</div>
+        <div class="stat-label"><strong style="color:var(--text)">수명 범위별 배치</strong><br><span style="font-size:11px;color:var(--text-dim)">앱 → 레벨 → 플레이어 → 물리적</span></div>
+      </div>
+    </div>
+
+    <h3>철학 1 — 의도와 몸의 분리 (Controller vs Pawn)</h3>
+    <p>"<strong>무엇을 할지 결정하는 것</strong>"과 "<strong>물리적으로 실행하는 것</strong>"을 별도 클래스로 나눕니다. <code>Controller</code>(컨트롤러)는 의도(입력·AI 판단)를 담당하고, <code>Pawn</code>(폰)은 월드에서의 물리적 존재(이동·충돌·메시)를 담당합니다. 컨트롤러가 폰을 <strong>Possess(빙의)</strong>하면 조종이 시작됩니다.</p>
+    <p>이 분리 덕분에: 캐릭터가 죽어도 Controller는 살아있어 리스폰이 자연스럽고, 같은 Controller가 다른 Pawn을 Possess하면 차량 탑승·빙의 전환이 가능합니다.</p>
+
+    <h3>철학 2 — 규칙과 상태의 분리 (GameMode vs GameState)</h3>
+    <p>"<strong>게임이 어떻게 진행되는가</strong>"(규칙)와 "<strong>지금 어떤 상태인가</strong>"(점수·진행도)를 나눕니다. <code>GameMode</code>는 규칙을 정의하고 <strong>서버에만 존재</strong>합니다(클라이언트가 규칙을 조작할 수 없게). <code>GameState</code>는 현재 상태를 담고 <strong>모든 클라이언트에 복제</strong>됩니다(모두가 점수를 알아야 하므로).</p>
+
+    <h3>철학 3 — 수명 범위별 데이터 배치</h3>
+    <p>데이터가 <strong>얼마나 오래 살아야 하는가</strong>에 따라 둘 클래스가 달라집니다. 앱 전체 수명이 필요한 데이터(설정, 세이브)는 <code>GameInstance</code>에, 레벨 단위는 <code>GameMode/GameState</code>에, 플레이어 단위는 <code>PlayerState/Controller</code>에 둡니다.</p>
+
+    <div class="callout info" id="term-key-concepts"><span class="ic">📖</span>
+    <p><strong>핵심 용어 블록</strong><br>
+    <strong id="term-possess">Possess(빙의)</strong> — 컨트롤러가 폰을 소유·조종하는 관계. <code>Controller->Possess(Pawn)</code>으로 시작<br>
+    <strong id="term-replication">Replication(복제)</strong> — 서버의 데이터 변경을 모든 클라이언트에 자동 전송하는 네트워크 동기화<br>
+    <strong id="term-authority">Authority(권한)</strong> — 데이터의 진실(Truth)을 보유한 쪽. 보통 서버가 Authority<br>
+    <strong id="term-cdo">CDO(Class Default Object)</strong> — 클래스마다 엔진이 만드는 기본값 템플릿 오브젝트<br>
+    <strong id="term-tick">Tick</strong> — 매 프레임 호출되는 업데이트 함수<br>
+    <strong id="term-beginplay">BeginPlay</strong> — 액터가 월드에 완전히 준비된 후 최초 1회 호출되는 함수<br>
+    <strong id="term-rpc">RPC(Remote Procedure Call)</strong> — 네트워크를 통해 원격 머신의 함수를 호출하는 방식</p>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       02 — 관계
+       ============================================================ -->
+  <div class="section" id="relation">
+    <div class="section-label">02 — 관계</div>
+    <h2>전체 클래스 맵 — 소유·생성·복제 관계</h2>
+
+    <h3>수명 범위별 클래스 계층</h3>
+    <p>각 클래스는 <strong>수명 범위</strong>가 다릅니다. 아래 트리에서 위로 갈수록 오래 살고, 아래로 갈수록 자주 생성·파괴됩니다.</p>
+
+    <div class="tree"><span class="folder">수명 범위별 계층</span>
+│
+├── <span class="c-instance">UGameInstance</span>              <span class="note">← 앱 전체 (엔진 시작 ~ 종료, 레벨 전환에도 유지)</span>
+│   └── <span class="c-subsystem">UGameInstanceSubsystem</span> <span class="note">← GameInstance 수명에 묶인 서비스</span>
+│
+├── <span class="c-gamemode">AGameModeBase</span>              <span class="note">← 레벨 단위 (레벨 로드 시 생성, 서버 전용)</span>
+│   ├── <span class="c-gamestate">AGameStateBase</span>         <span class="note">← 레벨 단위 (GameMode가 생성, 모든 클라이언트에 복제)</span>
+│   │   └── PlayerArray              <span class="note">← 접속 중인 모든 PlayerState 목록</span>
+│   └── DefaultPawnClass             <span class="note">← 스폰할 Pawn 클래스 지정</span>
+│
+├── <span class="c-controller">APlayerController</span>          <span class="note">← 플레이어 단위 (플레이어 접속 시 생성)</span>
+│   ├── <span class="c-pawn">APawn / ACharacter</span>      <span class="note">← 물리적 존재 (Possess로 조종)</span>
+│   │   └── <span class="tex">UActorComponent[]</span>    <span class="note">← 기능 부여 (이동·메시·카메라...)</span>
+│   ├── <span class="mat">AHUD</span>                     <span class="note">← 화면 오버레이 (인간 플레이어 전용)</span>
+│   ├── <span class="mat">APlayerCameraManager</span>     <span class="note">← 카메라 전환·블렌딩</span>
+│   └── <span class="c-savegame">APlayerState</span>           <span class="note">← 플레이어별 공유 데이터 (모든 클라이언트에 복제)</span>
+│
+└── <span class="enum">AAIController</span>                <span class="note">← AI 전용 (비헤이비어 트리·네비게이션)</span>
+    └── <span class="c-pawn">APawn</span>                    <span class="note">← AI가 조종하는 폰</span></div>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--ue-instance)"></span>GameInstance</span>
+      <span><span class="dot" style="background:var(--ue-gamemode)"></span>GameMode</span>
+      <span><span class="dot" style="background:var(--ue-gamestate)"></span>GameState</span>
+      <span><span class="dot" style="background:var(--ue-controller)"></span>Controller</span>
+      <span><span class="dot" style="background:var(--ue-pawn)"></span>Pawn</span>
+      <span><span class="dot" style="background:var(--ue-savegame)"></span>PlayerState</span>
+      <span><span class="dot" style="background:var(--ue-subsystem)"></span>Subsystem</span>
+    </div>
+
+    <h3>소유·생성 관계 (누가 누구를 만드는가)</h3>
+    <div class="rel-map">
+      <div class="rel-row">
+        <div class="rel-node n-instance"><div class="rn-name">UGameInstance</div><div class="rn-role">앱 시작 시 엔진이 생성</div></div>
+        <div class="rel-arrow"><div class="ra-label">레벨 로드 시</div><div class="ra-line">─────→</div></div>
+        <div class="rel-node n-gamemode"><div class="rn-name">AGameModeBase</div><div class="rn-role">엔진이 월드에 스폰 (서버 전용)</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-gamemode"><div class="rn-name">AGameModeBase</div><div class="rn-role">규칙 정의자</div></div>
+        <div class="rel-arrow"><div class="ra-label">자동 생성</div><div class="ra-line">─────→</div></div>
+        <div class="rel-node n-gamestate"><div class="rn-name">AGameStateBase</div><div class="rn-role">전체 게임 상태 (복제됨)</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-gamemode"><div class="rn-name">AGameModeBase</div><div class="rn-role">플레이어 접속 처리</div></div>
+        <div class="rel-arrow"><div class="ra-label">PostLogin 시</div><div class="ra-line">─────→</div></div>
+        <div class="rel-node n-controller"><div class="rn-name">APlayerController</div><div class="rn-role">+ PlayerState + HUD + Pawn 생성</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-controller"><div class="rn-name">APlayerController</div><div class="rn-role">의도 전달자</div></div>
+        <div class="rel-arrow"><div class="ra-label">Possess</div><div class="ra-line">─────→</div></div>
+        <div class="rel-node n-pawn"><div class="rn-name">APawn / ACharacter</div><div class="rn-role">물리적 몸 (조종 대상)</div></div>
+      </div>
+    </div>
+
+    <h3>네트워크 복제 범위</h3>
+    <p><strong>복제(Replication)</strong>(앞서 핵심 용어 블록에서 설명)란 서버의 데이터 변경이 클라이언트에 자동 전송되는 것입니다. 모든 클래스가 복제되는 것은 아닙니다.</p>
+    <table class="tbl">
+      <tr><th>클래스</th><th>서버에 존재</th><th>클라이언트에 복제</th><th>이유</th></tr>
+      <tr><td><code>GameMode</code></td><td>O</td><td><strong style="color:var(--red)">X</strong></td><td>규칙은 서버만 알면 됨 (치팅 방지)</td></tr>
+      <tr><td><code>GameState</code></td><td>O</td><td><strong style="color:var(--accent-3)">O (전원)</strong></td><td>점수·진행도는 모든 플레이어가 알아야 함</td></tr>
+      <tr><td><code>PlayerState</code></td><td>O</td><td><strong style="color:var(--accent-3)">O (전원)</strong></td><td>다른 플레이어의 이름·점수를 볼 수 있어야 함</td></tr>
+      <tr><td><code>PlayerController</code></td><td>O</td><td><strong style="color:var(--accent)">O (소유자만)</strong></td><td>내 입력은 나만 알면 됨</td></tr>
+      <tr><td><code>Pawn</code></td><td>O</td><td><strong style="color:var(--accent-3)">O (전원)</strong></td><td>모든 플레이어가 다른 캐릭터를 볼 수 있어야 함</td></tr>
+      <tr><td><code>GameInstance</code></td><td>로컬</td><td><strong style="color:var(--red)">X</strong></td><td>클라이언트별 독립 (세이브·설정용)</td></tr>
+    </table>
+  </div>
+
+  <!-- ============================================================
+       03 — 책임
+       ============================================================ -->
+  <div class="section" id="responsibility">
+    <div class="section-label">03 — 책임</div>
+    <h2>클래스별 깊은 설계 분석</h2>
+    <p>각 클래스의 역할, 주요 멤버·함수, "여기에 두어야 할 것"과 "두면 안 되는 것"을 분석합니다.</p>
+
+    <!-- ---- GameInstance ---- -->
+    <h3 id="term-gameinstance" style="border-left:3px solid var(--ue-instance);padding-left:12px">UGameInstance — 세션 전역 영속 객체</h3>
+    <p><code>UGameInstance</code>는 엔진이 시작될 때 생성되어 <strong>종료될 때까지 유지</strong>되는 유일한 클래스입니다. 레벨이 바뀌어도 파괴되지 않습니다. <strong>AActor가 아닙니다</strong>(UObject를 상속) — 월드에 배치되지 않고, Tick도 없습니다.</p>
+    <table class="tbl">
+      <tr><th>구분</th><th>내용</th></tr>
+      <tr><td>주요 함수</td><td><code>Init()</code> — 최초 초기화, <code>OnStart()</code> — 게임 시작 시, <code>Shutdown()</code> — 종료 시</td></tr>
+      <tr><td>여기에 두어야 할 것</td><td>세이브/로드 관리자, 유저 설정(볼륨·해상도), 레벨 간 전달할 데이터, Subsystem 등록</td></tr>
+      <tr><td>두면 안 되는 것</td><td>레벨별 점수, 현재 매치 규칙, 입력 처리 — 이것들은 수명이 더 짧은 클래스의 몫</td></tr>
+    </table>
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>GameInstanceSubsystem</strong>을 활용하면 GameInstance 수명에 묶인 서비스를 모듈식으로 분리할 수 있습니다. GameInstance 자체를 비대하게 만드는 대신, 기능별 Subsystem을 만드는 것이 권장됩니다.</div></div>
+
+    <!-- ---- GameMode ---- -->
+    <h3 id="term-gamemode" style="border-left:3px solid var(--ue-gamemode);padding-left:12px">AGameModeBase — 게임 규칙과 권한 (서버 전용)</h3>
+    <p><code>AGameModeBase</code>는 게임의 <strong>규칙·구조·진행 방식</strong>을 정의합니다. "이 매치에서 몇 명이 플레이하는가", "어떤 Pawn을 스폰하는가", "승리 조건은 무엇인가"를 결정합니다. <strong>서버에만 존재</strong>하며, 클라이언트에서 <code>GetWorld()->GetAuthGameMode()</code>를 호출하면 <code>nullptr</code>이 반환됩니다.</p>
+    <table class="tbl">
+      <tr><th>구분</th><th>내용</th></tr>
+      <tr><td>주요 프로퍼티</td><td><code>DefaultPawnClass</code> — 스폰할 폰 클래스, <code>PlayerControllerClass</code> — 사용할 컨트롤러 클래스, <code>GameStateClass</code> — 사용할 게임스테이트 클래스</td></tr>
+      <tr><td>주요 함수</td><td><code>InitGame()</code> — 게임 초기화, <code>PreLogin()</code> — 접속 검증, <code>PostLogin()</code> — 접속 후 처리, <code>HandleStartingNewPlayer()</code> — 신규 플레이어 셋업, <code>SpawnDefaultPawnFor()</code> — 폰 스폰, <code>RestartPlayer()</code> — 리스폰</td></tr>
+      <tr><td>여기에 두어야 할 것</td><td>매치 규칙(시간 제한·인원), 플레이어 접속/퇴장 처리, 스폰 위치 결정, 승패 판정 로직, 게임 단계 전환(대기→시작→종료)</td></tr>
+      <tr><td>두면 안 되는 것</td><td>점수 데이터(→ GameState), 입력 처리(→ Controller), 시각 효과(→ Pawn/HUD)</td></tr>
+    </table>
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>GameMode는 클라이언트에서 접근할 수 없습니다.</strong> 클라이언트가 알아야 하는 정보(남은 시간, 점수)는 반드시 GameState에 복제된 변수로 넣어야 합니다. GameMode에 넣으면 클라이언트 UI에서 표시할 수 없습니다.</div></div>
+    <div class="callout info"><span class="ic">🧭</span><p><strong>AGameModeBase vs AGameMode</strong>: <code>AGameModeBase</code>는 경량 베이스 클래스이고, <code>AGameMode</code>는 그 위에 매치 상태 머신(Waiting → Playing → Ended)을 추가한 확장 클래스입니다. 멀티플레이어 대전 게임이 아니라면 <code>AGameModeBase</code>로 충분합니다.</p></div>
+
+    <!-- ---- GameState ---- -->
+    <h3 id="term-gamestate" style="border-left:3px solid var(--ue-gamestate);padding-left:12px">AGameStateBase — 모든 클라이언트가 공유하는 전체 상태</h3>
+    <p><code>AGameStateBase</code>는 <strong>모든 플레이어가 알아야 하는 게임 전체 정보</strong>를 담습니다. 팀 점수, 남은 시간, 현재 라운드, 접속 중인 플레이어 목록 등입니다. GameMode가 자동으로 생성하고, <strong>모든 클라이언트에 복제</strong>됩니다.</p>
+    <table class="tbl">
+      <tr><th>구분</th><th>내용</th></tr>
+      <tr><td>주요 프로퍼티</td><td><code>PlayerArray</code> — 현재 접속된 모든 PlayerState 배열, <code>AuthorityGameMode</code> — 서버에서만 유효한 GameMode 포인터</td></tr>
+      <tr><td>주요 함수</td><td><code>GetServerWorldTimeSeconds()</code> — 서버 기준 게임 시간</td></tr>
+      <tr><td>여기에 두어야 할 것</td><td>팀 점수, 매치 타이머, 현재 라운드/웨이브 번호, 목표 달성 상태 — "팀 단위"이거나 "게임 전체"인 데이터</td></tr>
+      <tr><td>두면 안 되는 것</td><td>개별 플레이어 체력·탄약(→ PlayerState), 규칙 로직(→ GameMode), 세이브 데이터(→ GameInstance)</td></tr>
+    </table>
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>GameState는 논리적 액터입니다.</strong> 월드에 스폰되지만 눈에 보이는 메시나 충돌이 없습니다. 순수하게 데이터를 담고 복제하는 역할만 합니다.</div></div>
+
+    <!-- ---- PlayerState ---- -->
+    <h3 id="term-playerstate" style="border-left:3px solid var(--ue-savegame);padding-left:12px">APlayerState — 개별 플레이어의 공유 데이터</h3>
+    <p><code>APlayerState</code>는 <strong>특정 플레이어 한 명의 데이터</strong> 중 다른 플레이어도 알아야 하는 정보를 담습니다. 이름, 점수, 팀 번호 등입니다. 플레이어가 접속하면 GameMode가 자동 생성하고, <strong>모든 클라이언트에 복제</strong>됩니다.</p>
+    <table class="tbl">
+      <tr><th>구분</th><th>내용</th></tr>
+      <tr><td>주요 프로퍼티</td><td><code>PlayerName</code> — 플레이어 이름 (FString), <code>PlayerId</code> — 고유 ID, <code>Score</code> — 점수 (float, 기본 제공), <code>bIsABot</code> — AI 여부</td></tr>
+      <tr><td>여기에 두어야 할 것</td><td>킬/데스 수, 팀 번호, 플레이어 레벨, 선택한 캐릭터 종류 — "이 플레이어에 대해 다른 플레이어도 볼 수 있어야 하는" 데이터</td></tr>
+      <tr><td>두면 안 되는 것</td><td>입력 매핑(→ Controller), 나만 아는 인벤토리 상세(→ Controller 또는 Pawn), 월드 전체 상태(→ GameState)</td></tr>
+    </table>
+    <div class="callout info"><span class="ic">🧭</span><p><strong>PlayerState vs PlayerController 구분 기준</strong>: "다른 플레이어도 이 정보를 알아야 하는가?" 예(이름·점수·팀) → <code>PlayerState</code>(전원 복제). 아니오(내 입력·UI 상태) → <code>PlayerController</code>(소유자만 복제).</p></div>
+
+    <!-- ---- PlayerController ---- -->
+    <h3 id="term-playercontroller" style="border-left:3px solid var(--ue-controller);padding-left:12px">APlayerController — 인간 플레이어의 의도 처리</h3>
+    <p><code>APlayerController</code>는 <strong>인간 플레이어의 입력을 받아 의도를 Pawn에 전달</strong>하는 클래스입니다. 키보드·마우스·게임패드 입력을 읽고, HUD·카메라·UI를 관리합니다. 물리적 표현(메시·충돌)이 없고, <strong>소유 클라이언트에만 복제</strong>됩니다.</p>
+    <table class="tbl">
+      <tr><th>구분</th><th>내용</th></tr>
+      <tr><td>주요 함수</td><td><code>SetupInputComponent()</code> — 입력 바인딩, <code>Possess(APawn*)</code> — 폰 빙의, <code>UnPossess()</code> — 빙의 해제, <code>GetPawn()</code> / <code>GetCharacter()</code> — 현재 조종 중인 폰 가져오기, <code>SetViewTarget()</code> — 카메라 전환</td></tr>
+      <tr><td>소유하는 것</td><td><code>PlayerInput</code> — 입력 시스템, <code>PlayerCameraManager</code> — 카메라 블렌딩, <code>MyHUD</code> — HUD 인스턴스, <code>PlayerState</code> — 플레이어 상태</td></tr>
+      <tr><td>여기에 두어야 할 것</td><td>입력 처리, UI/메뉴 전환, 카메라 설정, 채팅 입력, 서버 RPC 전송 — "이 플레이어의 의도와 표시"</td></tr>
+      <tr><td>두면 안 되는 것</td><td>이동 로직(→ Pawn/MovementComponent), 게임 규칙(→ GameMode), 다른 플레이어가 볼 데이터(→ PlayerState)</td></tr>
+    </table>
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>Pawn이 죽어도 PlayerController는 살아있습니다.</strong> 리스폰 대기 화면, 관전 모드 전환 등은 Controller에서 처리합니다. Pawn의 <code>Destroyed()</code>에 게임 종료 로직을 넣으면, Controller가 새 Pawn을 받을 기회를 잃습니다.</div></div>
+
+    <!-- ---- AIController ---- -->
+    <h3 id="term-aicontroller" style="border-left:3px solid var(--ue-controller);padding-left:12px">AAIController — AI의 행동 결정</h3>
+    <p><code>AAIController</code>는 PlayerController의 AI 대응물입니다. 인간 입력 대신 <strong>비헤이비어 트리(Behavior Tree)</strong>, <strong>스테이트 트리(State Tree)</strong>, <strong>EQS(Environment Query System)</strong> 등을 사용해 판단합니다. 네비게이션 시스템과 직접 연동되어 AI 폰의 이동 경로를 계산합니다.</p>
+    <table class="tbl">
+      <tr><th>구분</th><th>내용</th></tr>
+      <tr><td>주요 함수</td><td><code>RunBehaviorTree()</code> — 비헤이비어 트리 실행, <code>MoveToLocation()</code> / <code>MoveToActor()</code> — 네비게이션 이동, <code>GetPerceptionComponent()</code> — AI 감각(시각·청각)</td></tr>
+      <tr><td>여기에 두어야 할 것</td><td>AI 판단 로직, 네비게이션 요청, 감각 시스템 설정, 비헤이비어 트리 참조</td></tr>
+      <tr><td>두면 안 되는 것</td><td>이동 물리(→ MovementComponent), 애니메이션(→ Pawn/Mesh), 체력(→ Pawn 또는 PlayerState)</td></tr>
+    </table>
+
+    <!-- ---- Pawn ---- -->
+    <h3 id="term-pawn" style="border-left:3px solid var(--ue-pawn);padding-left:12px">APawn — 월드의 물리적 표현</h3>
+    <p><code>APawn</code>은 <strong>월드에서 물리적으로 존재하는 몸</strong>입니다. 컨트롤러가 Possess하면 조종이 시작됩니다. AActor를 상속하므로 Transform(위치·회전·스케일), Tick, 컴포넌트를 가집니다. 가장 기본적인 "조종 가능한 것"이며, 이동 방식은 자유입니다.</p>
+    <table class="tbl">
+      <tr><th>구분</th><th>내용</th></tr>
+      <tr><td>주요 함수</td><td><code>SetupPlayerInputComponent()</code> — 입력 바인딩 (Controller가 호출), <code>GetController()</code> — 현재 조종 중인 컨트롤러, <code>AddMovementInput()</code> — 이동 입력 전달</td></tr>
+      <tr><td>기본 컴포넌트</td><td>충돌(RootComponent), 이동(MovementComponent — 선택적)</td></tr>
+      <tr><td>파생 클래스</td><td><code>ADefaultPawn</code> — 에디터 기본 폰 (구체 메시 + 이동), <code>ASpectatorPawn</code> — 관전용 (충돌 없이 자유 비행), <code>ACharacter</code> — 보행 전용 (아래 참조)</td></tr>
+      <tr><td>여기에 두어야 할 것</td><td>체력(싱글플레이), 충돌 설정, 물리 반응, 시각 효과(메시·파티클), 이동 능력</td></tr>
+      <tr><td>두면 안 되는 것</td><td>입력 매핑(→ Controller), 게임 규칙(→ GameMode), 세이브 데이터(→ GameInstance)</td></tr>
+    </table>
+
+    <!-- ---- Character ---- -->
+    <h3 id="term-character" style="border-left:3px solid var(--ue-pawn);padding-left:12px">ACharacter — 보행·점프·수영을 내장한 폰</h3>
+    <p><code>ACharacter</code>는 Pawn의 <strong>특화 서브클래스</strong>로, 인간형 캐릭터에 필요한 <strong>이족 보행 이동 시스템</strong>을 내장합니다. 대부분의 게임에서 플레이어 캐릭터는 이 클래스를 상속합니다.</p>
+    <table class="tbl">
+      <tr><th>내장 컴포넌트</th><th>역할</th></tr>
+      <tr><td><code>UCharacterMovementComponent</code></td><td><strong>핵심.</strong> 걷기·달리기·점프·낙하·수영·비행·사용자 정의 이동 모드. 네트워크 이동 예측(클라이언트 측 예측 + 서버 보정)까지 내장</td></tr>
+      <tr><td><code>USkeletalMeshComponent</code></td><td>애니메이션이 적용되는 메시. 캐릭터의 시각적 몸</td></tr>
+      <tr><td><code>UCapsuleComponent</code></td><td>충돌 판정용 캡슐. 이동과 물리의 기준점</td></tr>
+    </table>
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>Character를 쓸 필요가 없는 경우도 있습니다.</strong> 탑다운 전략 게임(클릭으로 유닛 이동), 차량 게임, 우주 비행 게임처럼 이족 보행이 필요 없으면 <code>APawn</code>을 직접 상속하고 자체 MovementComponent를 만드는 것이 더 가볍고 유연합니다.</div></div>
+
+    <!-- ---- HUD & Camera ---- -->
+    <h3 style="border-left:3px solid var(--ue-mat);padding-left:12px">AHUD & Camera — 화면 표시와 시점</h3>
+    <p><code>AHUD</code>는 화면에 오버레이되는 정보(체력바·미니맵·크로스헤어)를 그리는 클래스입니다. 인간 플레이어당 1개씩 PlayerController가 소유합니다. 현재는 UMG(Unreal Motion Graphics) 위젯이 HUD 역할을 대체하는 추세이지만, <code>DrawHUD()</code>를 통한 캔버스 직접 그리기는 디버그 표시에 여전히 유용합니다.</p>
+    <p><code>APlayerCameraManager</code>는 카메라 전환·블렌딩을 관리합니다. <code>SetViewTarget()</code>으로 시점을 바꾸면 이 매니저가 부드러운 전환을 처리합니다.</p>
+
+    <!-- ---- ActorComponent ---- -->
+    <h3 id="term-actorcomponent" style="border-left:3px solid var(--ue-tex);padding-left:12px">UActorComponent — 컴포지션 패턴의 핵심</h3>
+    <p><code>UActorComponent</code>는 액터에 <strong>기능을 부여하는 모듈</strong>입니다. 상속 대신 <strong>컴포지션(조합)</strong>으로 기능을 조립합니다. "이 액터는 이동도 하고, 소리도 내고, 파티클도 뿌린다" → 각각 MovementComponent, AudioComponent, ParticleComponent를 붙이면 됩니다.</p>
+    <table class="tbl">
+      <tr><th>종류</th><th>예</th><th>역할</th></tr>
+      <tr><td><strong>UActorComponent</strong></td><td>게임 로직 컴포넌트</td><td>Transform 없음. 순수 로직(인벤토리·상태 머신)</td></tr>
+      <tr><td><strong>USceneComponent</strong></td><td>SpringArm, Arrow</td><td>Transform 있음. 부모-자식 부착 가능</td></tr>
+      <tr><td><strong>UPrimitiveComponent</strong></td><td>StaticMesh, SkeletalMesh</td><td>렌더링 + 충돌 + 물리</td></tr>
+    </table>
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>설계 원칙: 상속보다 컴포지션을 선호하세요.</strong> "비행하는 캐릭터"를 만들 때 <code>AFlyingCharacter</code>를 새로 만드는 대신, 기존 Character에 <code>UFlyingMovementComponent</code>를 붙이는 것이 재사용성과 유연성이 높습니다.</div></div>
+  </div>
+
+  <!-- ============================================================
+       04 — 흐름
+       ============================================================ -->
+  <div class="section" id="flow">
+    <div class="section-label">04 — 흐름</div>
+    <h2>게임 시작부터 플레이까지 — 초기화 파이프라인</h2>
+
+    <p>"플레이어가 게임에 접속하면 무슨 일이 벌어지는가"를 시간순으로 추적합니다. 각 단계에서 어떤 클래스가 생성되고, 누가 누구를 호출하는지 확인하세요.</p>
+
+    <div class="pipe-step">
+      <div class="pipe-num">1</div>
+      <div class="pipe-body">
+        <div class="pipe-title">UGameInstance::Init()</div>
+        <div class="pipe-desc"><strong>엔진 시작 시 최초 1회.</strong> GameInstance가 생성되고 초기화됩니다. 세이브 로드, 전역 서비스 초기화 등을 여기서 수행합니다. GameInstanceSubsystem들도 이 시점에 자동 생성됩니다.</div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">2</div>
+      <div class="pipe-body">
+        <div class="pipe-title">AGameModeBase::InitGame()</div>
+        <div class="pipe-desc"><strong>레벨 로드 직후.</strong> 엔진이 월드에 GameMode를 스폰합니다. GameMode는 자신의 <code>GameStateClass</code>로 GameState를 자동 생성합니다. 이 시점에서 아직 플레이어는 없습니다.</div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">3</div>
+      <div class="pipe-body">
+        <div class="pipe-title">AGameModeBase::PreLogin()</div>
+        <div class="pipe-desc"><strong>플레이어 접속 요청 시.</strong> 서버가 이 플레이어를 받아들일지 검증합니다(서버 풀? 밴? 버전 불일치?). 거부하면 에러 문자열을 채워서 반환합니다. <strong>싱글플레이에서는 호출되지 않습니다.</strong></div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">4</div>
+      <div class="pipe-body">
+        <div class="pipe-title">AGameModeBase::Login() → PlayerController 생성</div>
+        <div class="pipe-desc">접속이 승인되면 <code>PlayerControllerClass</code>에 지정된 클래스로 <strong>PlayerController를 스폰</strong>합니다. PlayerController는 자동으로 <strong>PlayerState</strong>를 생성합니다.</div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">5</div>
+      <div class="pipe-body">
+        <div class="pipe-title">AGameModeBase::PostLogin()</div>
+        <div class="pipe-desc"><strong>접속 완료 후 처리.</strong> 여기서 <code>HandleStartingNewPlayer()</code>가 호출되어 PlayerStart 위치를 찾고, <code>SpawnDefaultPawnFor()</code>로 <strong>Pawn을 스폰</strong>합니다. 환영 메시지, 팀 배정 등 초기 셋업을 오버라이드할 수 있는 핵심 시점입니다.</div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">6</div>
+      <div class="pipe-body">
+        <div class="pipe-title">Controller::Possess(Pawn)</div>
+        <div class="pipe-desc">PlayerController가 스폰된 Pawn을 <strong>Possess(빙의)</strong>합니다. 이 순간부터 입력이 Pawn에 전달되고, 카메라가 Pawn 시점으로 전환됩니다. Pawn의 <code>PossessedBy()</code>와 Controller의 <code>OnPossess()</code>가 호출됩니다.</div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">7</div>
+      <div class="pipe-body">
+        <div class="pipe-title">AActor::BeginPlay()</div>
+        <div class="pipe-desc"><strong>모든 액터가 준비된 후.</strong> 월드의 모든 액터에 대해 <code>BeginPlay()</code>(앞서 핵심 용어 블록에서 설명)가 호출됩니다. 여기서부터 게임 로직이 정상 실행됩니다. <code>Tick()</code>도 이 이후에 시작됩니다.</div>
+      </div>
+    </div>
+
+    <h3>시각적 흐름 요약</h3>
+    <div class="arch">
+      <div class="arch-layer"><div class="arch-tag">Phase 1</div><div class="arch-title">엔진 시작</div><div class="arch-desc">GameInstance 생성</div></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-layer"><div class="arch-tag">Phase 2</div><div class="arch-title">레벨 로드</div><div class="arch-desc">GameMode + GameState 생성</div></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-layer"><div class="arch-tag">Phase 3</div><div class="arch-title">플레이어 접속</div><div class="arch-desc">Controller + PlayerState + Pawn + Possess</div></div>
+    </div>
+
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>생성자에서 게임 로직을 실행하지 마세요.</strong> 생성자는 CDO 생성 시에도 호출되므로, 월드에 대한 가정(다른 액터 존재, 타이머 설정 등)이 통하지 않습니다. 게임 로직은 반드시 <code>BeginPlay()</code> 이후에 시작하세요.</div></div>
+  </div>
+
+  <!-- ============================================================
+       05 — 스켈레톤
+       ============================================================ -->
+  <div class="section" id="skeleton">
+    <div class="section-label">05 — 스켈레톤</div>
+    <h2>커스텀 프레임워크 최소 구성 — 4파일 세트</h2>
+
+    <p>자기만의 게임 뼈대를 만들려면 최소 4개 클래스를 커스텀해야 합니다: <strong>GameMode, GameState, PlayerController, Character</strong>. 아래는 복사해서 바로 사용할 수 있는 최소 코드입니다.</p>
+
+    <h3>1. 커스텀 GameMode</h3>
+    <div class="codeblock" id="cb-gm">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" onclick="switchTab(this,'cb-gm','h')">MyGameMode.h</button>
+        <button class="codeblock-tab tab-cpp" onclick="switchTab(this,'cb-gm','cpp')">MyGameMode.cpp</button>
+        <button class="codeblock-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <div class="codeblock-panel active" data-lang="h"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"GameFramework/GameModeBase.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"MyGameMode.generated.h"</span></span>
+
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">AMyGameMode</span> : <span class="hljs-keyword">public</span> <span class="hljs-title class_">AGameModeBase</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-built_in">AMyGameMode</span>();
+
+    <span class="hljs-comment">// 플레이어 접속 완료 시 호출 — 팀 배정, 환영 처리 등</span>
+    <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title function_">PostLogin</span>(<span class="hljs-built_in">APlayerController</span>* NewPlayer) <span class="hljs-keyword">override</span>;
+};</pre></div>
+      <div class="codeblock-panel" data-lang="cpp"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"MyGameMode.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"MyGameState.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"MyPlayerController.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"MyCharacter.h"</span></span>
+
+<span class="hljs-built_in">AMyGameMode</span>::<span class="hljs-built_in">AMyGameMode</span>()
+{
+    <span class="hljs-comment">// 이 게임에서 사용할 클래스를 지정</span>
+    GameStateClass       = <span class="hljs-built_in">AMyGameState</span>::StaticClass();
+    PlayerControllerClass = <span class="hljs-built_in">AMyPlayerController</span>::StaticClass();
+    DefaultPawnClass     = <span class="hljs-built_in">AMyCharacter</span>::StaticClass();
+}
+
+<span class="hljs-type">void</span> <span class="hljs-title class_">AMyGameMode</span>::<span class="hljs-title function_">PostLogin</span>(<span class="hljs-built_in">APlayerController</span>* NewPlayer)
+{
+    <span class="hljs-built_in">Super</span>::PostLogin(NewPlayer);
+
+    <span class="hljs-comment">// 여기에 팀 배정, 환영 메시지 등 초기 셋업</span>
+    <span class="hljs-built_in">UE_LOG</span>(LogTemp, Log, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"Player joined: %s"</span>),
+        *NewPlayer-&gt;GetPlayerState&lt;<span class="hljs-built_in">APlayerState</span>&gt;()-&gt;GetPlayerName());
+}</pre></div>
+    </div>
+
+    <h3>2. 커스텀 GameState</h3>
+    <div class="codeblock" id="cb-gs">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" onclick="switchTab(this,'cb-gs','h')">MyGameState.h</button>
+        <button class="codeblock-tab tab-cpp" onclick="switchTab(this,'cb-gs','cpp')">MyGameState.cpp</button>
+        <button class="codeblock-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <div class="codeblock-panel active" data-lang="h"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"GameFramework/GameStateBase.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"MyGameState.generated.h"</span></span>
+
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">AMyGameState</span> : <span class="hljs-keyword">public</span> <span class="hljs-title class_">AGameStateBase</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// 모든 클라이언트에 복제되는 팀 점수</span>
+    <span class="hljs-meta">UPROPERTY(Replicated, BlueprintReadOnly, Category = <span class="hljs-string">"Score"</span>)</span>
+    <span class="hljs-type">int32</span> TeamScore;
+
+    <span class="hljs-comment">// 복제할 프로퍼티 목록을 엔진에 알려주는 함수</span>
+    <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title function_">GetLifetimeReplicatedProps</span>(
+        <span class="hljs-built_in">TArray</span>&lt;<span class="hljs-built_in">FLifetimeProperty</span>&gt;&amp; OutLifetimeProps) <span class="hljs-keyword">const</span> <span class="hljs-keyword">override</span>;
+
+    <span class="hljs-comment">// 서버에서 호출: 점수 추가</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = <span class="hljs-string">"Score"</span>)</span>
+    <span class="hljs-type">void</span> <span class="hljs-title function_">AddTeamScore</span>(<span class="hljs-type">int32</span> Amount);
+};</pre></div>
+      <div class="codeblock-panel" data-lang="cpp"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"MyGameState.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Net/UnrealNetwork.h"</span></span>
+
+<span class="hljs-type">void</span> <span class="hljs-title class_">AMyGameState</span>::<span class="hljs-title function_">GetLifetimeReplicatedProps</span>(
+    <span class="hljs-built_in">TArray</span>&lt;<span class="hljs-built_in">FLifetimeProperty</span>&gt;&amp; OutLifetimeProps) <span class="hljs-keyword">const</span>
+{
+    <span class="hljs-built_in">Super</span>::GetLifetimeReplicatedProps(OutLifetimeProps);
+    <span class="hljs-comment">// TeamScore를 모든 클라이언트에 복제하도록 등록</span>
+    <span class="hljs-built_in">DOREPLIFETIME</span>(<span class="hljs-built_in">AMyGameState</span>, TeamScore);
+}
+
+<span class="hljs-type">void</span> <span class="hljs-title class_">AMyGameState</span>::<span class="hljs-title function_">AddTeamScore</span>(<span class="hljs-type">int32</span> Amount)
+{
+    <span class="hljs-comment">// Authority(서버)에서만 수정 → Replicated로 자동 전파</span>
+    <span class="hljs-keyword">if</span> (HasAuthority())
+    {
+        TeamScore += Amount;
+    }
+}</pre></div>
+    </div>
+
+    <h3>3. 커스텀 PlayerController</h3>
+    <div class="codeblock" id="cb-pc">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" onclick="switchTab(this,'cb-pc','h')">MyPlayerController.h</button>
+        <button class="codeblock-tab tab-cpp" onclick="switchTab(this,'cb-pc','cpp')">MyPlayerController.cpp</button>
+        <button class="codeblock-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <div class="codeblock-panel active" data-lang="h"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"GameFramework/PlayerController.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"MyPlayerController.generated.h"</span></span>
+
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">AMyPlayerController</span> : <span class="hljs-keyword">public</span> <span class="hljs-title class_">APlayerController</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">protected</span>:
+    <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title function_">BeginPlay</span>() <span class="hljs-keyword">override</span>;
+
+    <span class="hljs-comment">// Enhanced Input을 사용한 입력 설정</span>
+    <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title function_">SetupInputComponent</span>() <span class="hljs-keyword">override</span>;
+};</pre></div>
+      <div class="codeblock-panel" data-lang="cpp"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"MyPlayerController.h"</span></span>
+
+<span class="hljs-type">void</span> <span class="hljs-title class_">AMyPlayerController</span>::<span class="hljs-title function_">BeginPlay</span>()
+{
+    <span class="hljs-built_in">Super</span>::BeginPlay();
+    <span class="hljs-comment">// 마우스 커서 표시, UI 모드 설정 등</span>
+}
+
+<span class="hljs-type">void</span> <span class="hljs-title class_">AMyPlayerController</span>::<span class="hljs-title function_">SetupInputComponent</span>()
+{
+    <span class="hljs-built_in">Super</span>::SetupInputComponent();
+    <span class="hljs-comment">// Enhanced Input 바인딩을 여기에 설정</span>
+    <span class="hljs-comment">// InputComponent-&gt;BindAction(...);</span>
+}</pre></div>
+    </div>
+
+    <h3>4. 커스텀 Character</h3>
+    <div class="codeblock" id="cb-ch">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" onclick="switchTab(this,'cb-ch','h')">MyCharacter.h</button>
+        <button class="codeblock-tab tab-cpp" onclick="switchTab(this,'cb-ch','cpp')">MyCharacter.cpp</button>
+        <button class="codeblock-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <div class="codeblock-panel active" data-lang="h"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"GameFramework/Character.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"MyCharacter.generated.h"</span></span>
+
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">AMyCharacter</span> : <span class="hljs-keyword">public</span> <span class="hljs-title class_">ACharacter</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-built_in">AMyCharacter</span>();
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = <span class="hljs-string">"Stats"</span>)</span>
+    <span class="hljs-type">float</span> MaxHealth = <span class="hljs-number">100.0f</span>;
+
+    <span class="hljs-meta">UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = <span class="hljs-string">"Stats"</span>)</span>
+    <span class="hljs-type">float</span> CurrentHealth;
+
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = <span class="hljs-string">"Combat"</span>)</span>
+    <span class="hljs-type">void</span> <span class="hljs-title function_">ApplyDamage</span>(<span class="hljs-type">float</span> Amount);
+
+<span class="hljs-keyword">protected</span>:
+    <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title function_">BeginPlay</span>() <span class="hljs-keyword">override</span>;
+};</pre></div>
+      <div class="codeblock-panel" data-lang="cpp"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"MyCharacter.h"</span></span>
+
+<span class="hljs-built_in">AMyCharacter</span>::<span class="hljs-built_in">AMyCharacter</span>()
+{
+    <span class="hljs-comment">// CharacterMovementComponent는 ACharacter가 자동 생성</span>
+    <span class="hljs-comment">// 여기서 이동 속도 등을 조정</span>
+    GetCharacterMovement()-&gt;MaxWalkSpeed = <span class="hljs-number">600.0f</span>;
+}
+
+<span class="hljs-type">void</span> <span class="hljs-title class_">AMyCharacter</span>::<span class="hljs-title function_">BeginPlay</span>()
+{
+    <span class="hljs-built_in">Super</span>::BeginPlay();
+    CurrentHealth = MaxHealth;
+}
+
+<span class="hljs-type">void</span> <span class="hljs-title class_">AMyCharacter</span>::<span class="hljs-title function_">ApplyDamage</span>(<span class="hljs-type">float</span> Amount)
+{
+    CurrentHealth -= Amount;
+    <span class="hljs-keyword">if</span> (CurrentHealth &lt;= <span class="hljs-number">0.0f</span>)
+    {
+        CurrentHealth = <span class="hljs-number">0.0f</span>;
+        <span class="hljs-comment">// 사망 처리: Controller에 알림 → 리스폰 요청 등</span>
+    }
+}</pre></div>
+    </div>
+
+    <h3>Project Settings에 등록하기</h3>
+    <p>위 4개 클래스를 만든 뒤, <strong>Project Settings &gt; Maps &amp; Modes &gt; Default GameMode</strong>에서 <code>AMyGameMode</code>를 지정합니다. 나머지(GameState·Controller·Pawn)는 GameMode 생성자에서 지정했으므로 자동으로 적용됩니다.</p>
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>월드별로 다른 GameMode를 쓸 수도 있습니다.</strong> 레벨 에디터에서 <strong>World Settings &gt; GameMode Override</strong>를 지정하면, 해당 레벨에서만 다른 GameMode가 적용됩니다. 메인 메뉴용 GameMode와 인게임 GameMode를 분리할 때 유용합니다.</div></div>
+  </div>
+
+  <!-- ============================================================
+       06 — 확장
+       ============================================================ -->
+  <div class="section" id="extension">
+    <div class="section-label">06 — 확장</div>
+    <h2>수명 범위별 데이터 배치 전략</h2>
+
+    <p>"이 데이터를 어느 클래스에 두어야 하나?"는 게임플레이 프레임워크에서 가장 자주 마주치는 설계 질문입니다. 아래 판단 가이드를 따라가면 답이 나옵니다.</p>
+
+    <h3>데이터 배치 결정표</h3>
+    <table class="tbl">
+      <tr><th>데이터 성격</th><th>배치 클래스</th><th>이유</th></tr>
+      <tr><td>앱 전체 수명 (설정, 세이브 슬롯, 유저 프로필)</td><td><span class="owner o-instance">GameInstance</span></td><td>레벨 전환에도 유지되는 유일한 클래스</td></tr>
+      <tr><td>현재 매치의 규칙 (시간 제한, 인원, 스폰 규칙)</td><td><span class="owner o-gamemode">GameMode</span></td><td>서버 전용 → 치팅 불가, 규칙은 서버만 정의</td></tr>
+      <tr><td>전체 게임 상태 (팀 점수, 라운드, 목표)</td><td><span class="owner o-gamestate">GameState</span></td><td>모든 클라이언트에 복제 → UI에서 표시 가능</td></tr>
+      <tr><td>플레이어별 공개 데이터 (이름, 킬수, 팀)</td><td><span class="owner o-savegame">PlayerState</span></td><td>다른 플레이어도 볼 수 있어야 → 전원 복제</td></tr>
+      <tr><td>플레이어별 비공개 데이터 (입력, UI 상태)</td><td><span class="owner o-controller">PlayerController</span></td><td>나만 알면 됨 → 소유자만 복제</td></tr>
+      <tr><td>물리적 상태 (위치, 체력, 무기, 애니메이션)</td><td><span class="owner o-pawn">Pawn / Character</span></td><td>월드에서 보이는 것 → 전원 복제, 파괴/리스폰됨</td></tr>
+    </table>
+
+    <h3>빠른 판단 플로차트</h3>
+    <p>데이터를 어디에 둘지 모를 때 아래 질문을 순서대로 따라가세요.</p>
+
+    <div class="pipe-step">
+      <div class="pipe-num">Q1</div>
+      <div class="pipe-body">
+        <div class="pipe-title">레벨이 바뀌어도 유지되어야 하는가?</div>
+        <div class="pipe-desc"><strong>예</strong> → <code>GameInstance</code> (또는 <code>SaveGame</code>으로 디스크 저장)</div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">Q2</div>
+      <div class="pipe-body">
+        <div class="pipe-title">서버만 알면 되는 규칙인가?</div>
+        <div class="pipe-desc"><strong>예</strong> → <code>GameMode</code> (클라이언트에 복제되지 않음)</div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">Q3</div>
+      <div class="pipe-body">
+        <div class="pipe-title">모든 플레이어가 알아야 하는 전체 상태인가?</div>
+        <div class="pipe-desc"><strong>예</strong> → <code>GameState</code> (전원 복제)</div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">Q4</div>
+      <div class="pipe-body">
+        <div class="pipe-title">특정 플레이어의 데이터인가?</div>
+        <div class="pipe-desc">다른 플레이어도 봐야 하면 → <code>PlayerState</code>, 나만 알면 → <code>PlayerController</code></div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">Q5</div>
+      <div class="pipe-body">
+        <div class="pipe-title">월드에서 물리적으로 존재하는 것인가?</div>
+        <div class="pipe-desc"><strong>예</strong> → <code>Pawn / Character</code> (죽으면 파괴되고 리스폰됨)</div>
+      </div>
+    </div>
+
+    <h3>싱글플레이 vs 멀티플레이 — 무엇이 달라지나</h3>
+    <div class="grid-2">
+      <div class="compare-box">
+        <h4 style="color:var(--accent-3)">싱글플레이</h4>
+        <p>모든 클래스가 같은 프로세스에 있으므로 복제 걱정이 없습니다. GameMode에 점수를 넣어도 동작은 합니다.</p>
+        <p>하지만 <strong>나중에 멀티를 추가할 가능성이 조금이라도 있다면</strong>, 처음부터 프레임워크 규칙대로 분리하는 것이 좋습니다.</p>
+        <div class="pills">
+          <span class="pill green">복제 불필요</span>
+          <span class="pill green">구조 단순</span>
+        </div>
+      </div>
+      <div class="compare-box">
+        <h4 style="color:var(--accent)">멀티플레이</h4>
+        <p>"누가 이 데이터를 볼 수 있는가"가 핵심 설계 기준이 됩니다. GameMode는 서버 전용, GameState와 PlayerState는 복제 대상입니다.</p>
+        <p><strong>복제 범위를 잘못 잡으면</strong> 클라이언트에서 null 참조, 점수 미표시, 치팅 등의 문제가 발생합니다.</p>
+        <div class="pills">
+          <span class="pill blue">복제 범위 설계</span>
+          <span class="pill purple">Authority 관리</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout tip"><span class="ic">💡</span><p><strong>가장 흔한 실수:</strong> "체력을 어디에 둘까?"에 대해 — 싱글플레이라면 Pawn에 두면 간단합니다. 멀티플레이라면 Pawn에 <code>Replicated</code> UPROPERTY로 두되, 서버에서만 수정(<code>HasAuthority()</code> 체크)하고 클라이언트는 복제된 값을 읽기만 합니다.</p></div>
+  </div>
+
+</div>
+
+<footer>
+  <span>게임플레이 프레임워크 · v1.0</span>
+  <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.3</span>
+</footer>
+
+<script>
+function switchTab(btn, blockId, lang) {
+  var block = document.getElementById(blockId);
+  block.querySelectorAll('.codeblock-tab').forEach(function(t) { t.classList.remove('active'); });
+  btn.classList.add('active');
+  block.querySelectorAll('.codeblock-panel').forEach(function(p) {
+    p.classList.toggle('active', p.getAttribute('data-lang') === lang);
+  });
+}
+function copyCode(btn) {
+  var block = btn.closest('.codeblock');
+  var panel = block.querySelector('.codeblock-panel.active pre');
+  if (!panel) return;
+  navigator.clipboard.writeText(panel.innerText).then(function() {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(function() { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+  });
+}
+</script>
+
+</body>
+</html>
