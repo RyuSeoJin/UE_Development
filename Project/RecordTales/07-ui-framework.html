@@ -3,10 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>07 · UI 프레임워크 — RecordTales v1.0</title>
+<title>07 · UI 프레임워크 — RecordTales v1.1</title>
 <!-- ============================================================
      CHANGELOG — 07-ui-framework.html
-     UI 프레임워크 설계 문서. 작업 규약: design-guide/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     UI 프레임워크 설계 문서. 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.1 · 2026-07-02
+       - (추가) 08 — 데이터 설계 섹션: 프로토타입 v14(TestFile/RecordTales.html) 실측 기준 —
+         UI 상태 전수 휘발 원칙·저장 데이터 소유자 분리 원칙.
+       - (변경) 문서 버전 표기 v1.0 → v1.1, nav에 "데이터" 링크 추가.
      v1.0 · 2026-07-02
        - 신규 생성. UI 프레임워크 설계.
        - 7섹션: 개념, HUD, 패널, 모달, 토스트, 캘린더, 스켈레톤
@@ -24,7 +28,7 @@
    - 실제 결과물 HTML은 이 파일 내용을 <style>에 통째로 복사(inline)하여
      단일 파일로 배포한다. (오프라인 무결성 유지)
 
-   변경 이력 (CHANGELOG) — 작업 규약: design-guide/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+   변경 이력 (CHANGELOG) — 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
    v1.2 · 2026-07-01
      - (추가) .compare-box — 좌우 병렬 비교 카드 (Spawning vs Loading 등)
      - (추가) .grid-3 — 3열 그리드
@@ -380,11 +384,12 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <a href="#toast">토스트</a>
     <a href="#calendar">캘린더</a>
     <a href="#skeleton">코드</a>
+    <a href="#data-design">데이터</a>
   </div>
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">RecordTales &middot; v1.0 &middot; UI Framework</div>
+  <div class="hero-eyebrow">RecordTales &middot; v1.1 &middot; UI Framework</div>
   <h1>UI 프레임워크<br><span>패널 &middot; 모달 &middot; HUD</span></h1>
   <p class="hero-sub">
     Focus/Quests/Archive 패널 전환, 모달 스택, 토스트 알림, 캘린더 위젯, HUD 4코너 레이아웃을 관리하는 UI 프레임워크입니다.
@@ -802,10 +807,33 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     </div>
   </div>
 
+
+  <!-- ============================================================
+       08 — 데이터 설계
+       ============================================================ -->
+  <div class="section" id="data-design">
+    <div class="section-label">08 — 데이터 설계</div>
+    <h2>UI 프레임워크의 데이터 (실측 기준)</h2>
+    <p>이 섹션은 프로토타입 v14(<code>TestFile/RecordTales.html</code>) 코드에서 <strong>실측한 데이터 기준</strong>입니다. 본문의 예시 수치와 다를 경우 이 섹션이 우선하며, 전 시스템 통합 스키마는 프로젝트 허브의 <strong>08 데이터 설계 명세</strong> 문서에 있습니다.</p>
+
+    <h3>원칙 — UI 상태는 전부 휘발</h3>
+    <p>UI 프레임워크가 다루는 상태는 <strong>모두 저장 금지</strong>입니다. 세이브에 넣을 데이터가 하나도 없다는 것이 이 시스템의 데이터 설계 결론입니다. 아래는 프로토타입 전역 상태에서 UI에 속하는 것의 전수 목록입니다.</p>
+    <table class="tbl">
+      <tr><th>상태</th><th>보관 위치</th><th>초기값</th></tr>
+      <tr><td>열린 패널 (<code>EPanel</code>: Focus/Quests/Archive)</td><td><code>UUIManagerSubsystem</code> (Transient)</td><td>닫힘</td></tr>
+      <tr><td>퀘스트 뷰 (list/create/edit/detail), 탭(즐겨찾기/반복), 상태 필터, 더보기 카운트(10)</td><td><code>UUIManagerSubsystem</code></td><td>list · 즐겨찾기 · 전체 · 10</td></tr>
+      <tr><td>아카이브 캘린더 연/월·선택일·필터</td><td><code>UUIManagerSubsystem</code></td><td>이번 달 · 전체</td></tr>
+      <tr><td>모달 상태 (가챠·편성·해금 상점·기록 저장), 토스트 큐</td><td><code>UUIManagerSubsystem</code></td><td>닫힘</td></tr>
+      <tr><td>타임라인 오버레이 접힘 여부</td><td><code>UUIManagerSubsystem</code></td><td>펼침</td></tr>
+    </table>
+
+    <div class="callout"><span class="ic">&#128161;</span><p><strong>UI가 참조하는 저장 데이터는 소유자가 따로 있습니다.</strong> 배경 선택(<code>CurrentBackground</code>)·카테고리 색(<code>CategoryColors</code>)·타이머 설정처럼 화면에 보이지만 저장되는 값은 <code>URecordTalesSaveGame</code> 소속이며, UI는 각 Subsystem을 통해 읽기만 합니다. UI 위젯이 세이브 객체를 직접 들고 있으면 안 됩니다.</p></div>
+  </div>
+
 </div>
 
 <footer>
-  <span>RecordTales &middot; 07 UI Framework &middot; v1.0</span>
+  <span>RecordTales &middot; 07 UI Framework &middot; v1.1</span>
   <span>디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.2</span>
 </footer>
 

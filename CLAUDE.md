@@ -1,29 +1,36 @@
 # UE_Development
 
-언리얼 엔진 개발 문서화 프로젝트. 핵심 산출물은 `design-guide/`의 디자인 시스템과 그 기준으로 `ue-wiki/`에 생성하는 문서(HTML)다.
+언리얼 엔진 개발 문서화 프로젝트. 핵심 산출물은 `design-guide/`·`design-template/`의 디자인 시스템과 그 기준으로 `ue-wiki/`에 생성하는 문서(HTML)다.
 
 ## 폴더 구조
-- `design-guide/` — 템플릿·마스터 CSS·규약(편집 대상). `design-guide-ue-master.css`, `design-guide-ue-master-visual.html`, `01-ue-asset-analysis.html`, `02-ue-architecture.html`, `DOC-GENERATION-PLAYBOOK.md`.
-- `ue-wiki/ue-asset/` — 에셋 분석 결과 문서 저장.
-- `ue-wiki/ue-architect/` — 아키텍처/기능 구조 문서 저장 + 문서 허브(`design-guide-ue-index.html`).
+- `doc-process/` — 문서 생성 절차 규약. `DOC-GENERATION-PLAYBOOK.md`(공통 절차) + `DOC-TRACKS.md`(트랙 규약 — 유형 판별·저장 위치·허브·용어집의 단일 소스).
+- `design-guide/` — 디자인 일관성 규칙(스타일). `design-guide-ue-master.css`, `design-guide-ue-master-visual.html`.
+- `design-template/` — 문서 포맷 템플릿(성장 영역). `TEMPLATE-CATALOG.md`(템플릿 목록+판별 기준), `01-ue-asset-analysis.html`, `02-ue-architecture.html`, 이후 추가되는 템플릿.
+- `ue-wiki/` — **Track A: UE 지식 위키** (범용 지식). 중앙 허브 `design-guide-ue-index.html`(위키 루트), `ue-architect/`(유형 ① 엔진 기능/프레임워크 문서), `ue-asset/<판매에셋이름>/`(유형 ② 판매 에셋 MCP 분석, 에셋별 폴더).
+- `Project/` — **Track B: 프로젝트 개발 문서** (유형 ③). 프로젝트별 하위 폴더(예: `Project/RecordTales/`)에 문서 일체 + 프로젝트 허브(`<이름>-index.html`, 문서 목록·용어집).
+
+**용어집 이원화**: 중앙 용어집(중앙 허브)에는 **범용 UE 용어만**(에셋·프로젝트 고유명사 금지), 프로젝트 용어집(프로젝트 허브)에는 해당 프로젝트 고유명사 허용. 배치 기준: "정의 문장에서 프로젝트/에셋 이름을 지워도 성립하는가?" (상세: `doc-process/DOC-TRACKS.md`)
 
 ## 문서 제작 요청 시 (필수)
 
-사용자가 언리얼 관련 **설명/분석/설계 문서 제작**을 요청하면(예: "~~ 시스템 구조 문서 만들어줘", "이 에셋 분석해줘", "~~ 기능 구현 문서"), **반드시 `design-guide/DOC-GENERATION-PLAYBOOK.md` 규약을 처음부터 끝까지 따른다.**
+사용자가 언리얼 관련 **설명/분석/설계 문서 제작**을 요청하면(예: "~~ 시스템 구조 문서 만들어줘", "이 에셋 분석해줘", "~~ 기능 구현 문서"), **반드시 `doc-process/DOC-GENERATION-PLAYBOOK.md` 규약을 처음부터 끝까지 따르고**, 요청 유형(① 엔진 기능/프레임워크 → `ue-wiki/ue-architect/` / ② 판매 에셋 MCP 분석 → `ue-wiki/ue-asset/<판매에셋이름>/` / ③ 프로젝트 기능 개발 → `Project/<프로젝트이름>/`)에 따라 **`doc-process/DOC-TRACKS.md`의 트랙 규칙(저장 위치·허브·용어집)을 적용한다.**
 
-규약 요약(자세한 건 playbook 참조):
+규약 요약(자세한 건 playbook 참조). **사용자 확인 ①·②를 받기 전에는 본문 작성을 시작하지 않는다.**
 1. **디자인 소스(STEP 1)**: `design-guide/design-guide-ue-master.css`(스타일 기준) + `design-guide-ue-master-visual.html`(시각 배치 참고).
-2. **포맷 판별(STEP 2)**: 에셋 분석 → `01-ue-asset-analysis.html` 구조 / 아키텍처·기능 구현 → `02-ue-architecture.html` 구조(템플릿 A·B).
-3. **문서 체계화 단순화(STEP 3)**: 섹션 목록 + 컴포넌트를 초안으로 나열, 사용자에게 공유.
-4. **갭 체크 & 마스터 갱신(STEP 4)**: 초안 기준으로 마스터에 없는 컴포넌트가 있으면 → `master.css`·`master-visual.html`을 먼저 갱신(버전+1).
-5. **문서 체계화 설계/구조화(STEP 5)**: 확정된 마스터 기준으로 섹션별 상세 구성·배치·용어·코드 범위를 확정한 뒤 본문 작성.
+2. **초안 아웃라인 & 사용자 확인 ①(STEP 2)**: 독자의 이해 경로 기준으로 섹션 목록(이해 순서는 템플릿마다 다르므로 `TEMPLATE-CATALOG.md`의 템플릿별 섹션 구조 기준) + 섹션별 컴포넌트 + 섹션별 설명 전략(막힐 용어·전제 표시)을 초안으로 → 카탈로그로 템플릿 가판별 → 사용자에게 공유하고 방향 확인.
+3. **작업 판별 & 사용자 확인 ②(STEP 3)**: 카탈로그 기준으로 케이스 판별 후 재확인 질문.
+   - **Case A** 기존 템플릿으로 가능 → "[템플릿명] 기반으로 작성 예정인데 괜찮을까요?"
+   - **Case B** 템플릿은 가능하나 마스터에 없는 디자인 필요 → "[템플릿명] 기반으로 작성되어 [저장 위치]에 저장될 예정인데, {특정 기능}에 대해 마스터를 갱신하고 진행해도 괜찮을까요?" ({특정 기능}=신규 디자인 간략 설명 필수)
+   - **Case C** 부합 템플릿 없음 → "새로운 템플릿 규칙서를 작성 후 진행해도 괜찮을까요?" → 승인 시 신규 템플릿 생성 + 카탈로그 등록.
+4. **갱신(STEP 4, Case B/C)**: 승인 범위만, 없는 것만 추가 — 마스터 갱신(`master.css`·`master-visual.html` 먼저, 버전+1) 또는 신규 템플릿 생성(`design-template/NN-이름.html` + 카탈로그 등록, 기존 템플릿 변형 금지). 기존 토큰·컴포넌트·섹션은 이번 문서에서 미사용이어도 제거 금지(제거는 별도 사용자 승인).
+5. **문서 체계화 설계/구조화(STEP 5)**: 확정된 마스터·템플릿 기준으로 섹션별 상세 구성·배치·용어·코드 범위를 확정한 뒤 본문 작성.
 6. **변경 이력(STEP 6)**: 초기 버전과 달라진 점은 각 파일 상단 CHANGELOG 주석에 빠짐없이 기록(형식: 소스 주석 블록).
 
 **작성 원칙(필수)**: 생성하는 모든 문서는 초보자도 혼자 따라 할 수 있도록 용어 풀이·구체 절차(메뉴/노드/경로/클래스 이름)·전제와 결과·근거를 빠짐없이 담는다. "안다고 가정하고 건너뛰기" 금지.
 
-**결과물 출력 방식**: CSS를 `<style>`에 inline 복사(단일 파일·오프라인), C++ 하이라이팅은 hljs `<span>`을 미리 구워넣기, 탭/복사만 inline JS.
+**결과물 출력 방식**: 모든 결과물 문서는 트랙 무관 마스터 CSS를 `<style>`에 **inline**한 단일 파일(허브 포함) — 생성 시점 마스터 버전을 스냅샷으로 고정(이후 마스터 개정에 영향받지 않음, 단독 열람 보장), 기준 버전을 CHANGELOG·footer에 기록. 마스터 개정 반영은 문서 개별 재생성으로만. `<link>` 참조는 디자인 규칙서 3건(master-visual·design-template 템플릿 01·02)에만 허용. C++ 하이라이팅은 hljs `<span>`을 미리 구워넣기, 탭/복사만 inline JS. 본문에서 다른 문서로의 상대 링크 금지(연결은 허브·용어집 담당).
 
-**출력 위치**: 에셋 분석 결과 → `ue-wiki/ue-asset/`, 아키텍처/기능 결과 → `ue-wiki/ue-architect/`. 결과물은 CSS를 inline해 단독으로 열린다(상대경로 링크 X).
+**출력 위치**: `doc-process/DOC-TRACKS.md`의 트랙 규칙을 따른다(유형 ①→`ue-wiki/ue-architect/`, ②→`ue-wiki/ue-asset/<판매에셋이름>/`, ③→`Project/<프로젝트이름>/`).
 
 ## TestFile 참조 규칙
 
@@ -34,4 +41,4 @@
 
 상태 전환: 사용자가 "TestFile 참조 켜줘/꺼줘" 또는 "TestFile ON/OFF"라고 말하면 이 섹션의 상태를 변경한다.
 
-**문서 허브 갱신(필수)**: 문서를 만들 때마다 `ue-wiki/ue-architect/design-guide-ue-index.html`의 문서 목록에 등록하고, 어려운 용어는 용어집에 추가(용어 설명 위치에 `id="term-…"` 앵커 부여해 링크). 용어는 처음 1회만 풀어 설명하고 이후엔 용어만 쓰되, 핵심 용어 블록·재힌트·한 개념 한 용어 원칙을 지킨다.
+**트랙별 허브 갱신(필수)**: 문서를 만들 때마다 트랙에 맞는 허브를 갱신한다 — Track A(유형 ①·②)는 중앙 허브 `ue-wiki/design-guide-ue-index.html`, Track B(유형 ③)는 프로젝트 허브 `Project/<프로젝트이름>/<이름>-index.html`(중앙 허브에는 프로젝트 허브 행 1개만). 어려운 용어는 배치 기준(`DOC-TRACKS.md` §4)에 맞는 용어집에 추가(용어 설명 위치에 `id="term-…"` 앵커 부여해 링크). 용어는 처음 1회만 풀어 설명하고 이후엔 용어만 쓰되, 핵심 용어 블록·재힌트·한 개념 한 용어 원칙을 지킨다.

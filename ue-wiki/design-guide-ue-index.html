@@ -1,3 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>문서 허브 & 용어집 — UE 문서 디자인 시스템 v2.3</title>
+<!-- ============================================================
+     CHANGELOG — design-guide-ue-index.html
+     생성 문서 인덱스 + 중앙 용어집(범용 UE 용어 전용). 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md
+     v2.3 · 2026-07-02
+       - (변경) 마스터 CSS <link> 상대참조 → <style> inline (마스터 v1.3 스냅샷) — 단독 열람 보장, 마스터 개정에 따른 사후 변형 방지 (DOC-TRACKS v1.3 정책)
+     v2.2 · 2026-07-02
+       - (변경) Track A 출력 규칙 전환(inline → 마스터 CSS 상대참조)에 따라 문서 목록의
+         'C++ 프로그래밍 완전 구조 가이드' 버전 표기 v2.0 → v2.1 동기화
+     v2.1 · 2026-07-02
+       - (변경) 위치 이동: ue-wiki/ue-architect/ → ue-wiki/ (Track A 전체를 대표하는 허브이므로 위키 루트로)
+       - (변경) 내부 링크 재계산: ../../ → ../ (design-guide·design-template·Project),
+         아키텍처 문서 링크 ./ → ./ue-architect/
+     v2.0 · 2026-07-02
+       - (추가) 문서 목록에 범용 문서 3건 등록: 'GameInstanceSubsystem', '상태 머신', 'DataTable'
+         (RecordTales 문서에서 범용 개념 승격 — DOC-TRACKS.md §5)
+       - (변경) 용어집 GameInstanceSubsystem·상태 머신·DataTable 링크를 신규 범용 문서로 교체
+         (TODO 잔여: FTimerHandle 1건만 RecordTales 임시 링크 유지)
+     v1.9 · 2026-07-02
+       - (변경) 트랙 규약(DOC-TRACKS.md) 도입에 따른 재편: 이 허브는 Track A(UE 지식 위키) 전용
+       - (제거) 문서 목록의 RecordTales 개별 문서 행 8개 — 프로젝트 문서는 프로젝트 허브가 관리,
+         'RecordTales 프로젝트 허브' 행 1개만 유지 + 안내 콜아웃 추가
+       - (제거) 용어집의 프로젝트 고유·맥락 용어 20개(포모도로, 가챠, 스쿼드, 시너지, 해금 트리,
+         칭호, 마스터 레코드, 인스턴스, 반복 규칙, 자정 롤오버, D-Day, FFocusRecord, 캘린더 도트,
+         기간 필터, 앰비언트 사운드, 뮤직 플레이어, 배경 테마, 패널 매니저, 모달 스택, 토스트)
+         → RecordTales 프로젝트 용어집으로 이관 + 이원화 안내 콜아웃 추가
+       - (유지) 범용 용어 4개(GameInstanceSubsystem, FTimerHandle, 상태 머신, DataTable) —
+         전용 범용 문서 생성 전까지 링크는 RecordTales 문서를 임시 참조(TODO 주석)
+       - (추가) 기준 문서 표에 doc-process/DOC-TRACKS.md 등록
+       - (변경) 표기 버전을 CHANGELOG와 동기화 (v1.1 → v1.9)
+     v1.8 · 2026-07-02
+       - (변경) RecordTales 폴더 이동(ue-wiki/RecordTales → Project/RecordTales) 반영:
+         문서 목록·용어집 링크를 ../../Project/RecordTales/ 로 갱신
+     v1.7 · 2026-07-02
+       - (변경) 폴더 재구조화 반영: 템플릿(01·02) 링크를 ../../design-guide/ →
+         ../../design-template/ 로 갱신 (규약은 doc-process/ 로 이동)
+       - (추가) 기준 문서 표에 design-template/TEMPLATE-CATALOG.md 등록,
+         규약 경로를 doc-process/ 로 표기
+     v1.6 · 2026-07-02
+       - (추가) 문서 목록에 '오디오 & 비주얼 시스템', 'UI 프레임워크' 등록
+       - (추가) 용어집에 6개 신규 용어 추가 (앰비언트 사운드, 뮤직 플레이어,
+         배경 테마, 패널 매니저, 모달 스택, 토스트)
+     v1.4 · 2026-07-02
+       - (추가) 문서 목록에 'RecordTales 프로젝트 개요', '포커스 시스템 — 타이머 & 스톱워치' 등록
+       - (추가) 용어집에 4개 신규 용어 추가 (GameInstanceSubsystem, 포모도로, FTimerHandle, 상태 머신)
+     v1.4 · 2026-07-02
+       - (추가) 문서 목록에 '길드 & 캐릭터 시스템', '경제 & 진행도 시스템' 등록
+       - (추가) 용어집에 6개 신규 용어 추가 (가챠, 스쿼드, 시너지, DataTable, 해금 트리, 칭호)
+     v1.5 · 2026-07-02
+       - (추가) 문서 목록에 '퀘스트 시스템', '아카이브 시스템' 등록
+       - (추가) 용어집에 8개 신규 용어 추가 (마스터 레코드, 인스턴스, 반복 규칙,
+         자정 롤오버, D-Day, FFocusRecord, 캘린더 도트, 기간 필터)
+     v1.3 · 2026-07-01
+       - (변경) 문서 목록의 C++ 구조 가이드 버전을 v2.0으로 갱신
+       - (추가) 용어집에 7개 신규 용어 추가 (접두사 규칙, .generated.h,
+         FString/FVector/TArray, UE_LOG, 스마트 포인터, BlueprintCallable, BlueprintNativeEvent)
+     v1.2 · 2026-07-01
+       - (추가) 문서 목록에 'UE C++ 프로그래밍 완전 구조 가이드' 등록
+       - (추가) 용어집에 12개 신규 용어 추가 (UObject, AActor, UActorComponent,
+         리플렉션, UCLASS/UPROPERTY/UFUNCTION, GC, CDO, UHT, UBT, 모듈, 델리게이트)
+     v1.1 · 2026-07-01
+       - 신규 생성. 두 역할: (1) 생성 문서 목록 (2) 중앙 용어집(Glossary).
+       - 용어집은 '용어 · 뜻 · 자세히→' 형태로, 각 용어를 설명한 문서(+섹션)로 링크.
+       - 프레임워크 클래스·Possess 등 핵심 용어를 02 아키텍처 문서로 시드 링크.
+       - 위치 이동: design-guide/ → ue-wiki/ue-architect/ , 내부 링크를 ../../design-guide/ 로 갱신.
+     ============================================================ -->
+<style>
 /* ============================================================
    UE Design System — Master Stylesheet
    (design-guide-ue-master.css)
@@ -376,3 +448,128 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   footer { padding: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">UE DESIGN SYSTEM · 문서 허브</div>
+  <div class="nav-links">
+    <a href="#docs">문서 목록</a>
+    <a href="#glossary">용어집</a>
+    <a href="#howto">사용법</a>
+    <a href="../design-guide/design-guide-ue-master-visual.html">마스터</a>
+    <a href="../design-template/01-ue-asset-analysis.html">에셋 분석</a>
+    <a href="../design-template/02-ue-architecture.html">아키텍처</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">Design System · v2.3 · Hub &amp; Glossary</div>
+  <h1>문서 허브<br><span>&amp; 용어집</span></h1>
+  <p class="hero-sub">
+    지금까지 만든 언리얼 문서를 한곳에 모으고(문서 목록), 문서에 등장하는 어려운 용어를 그 용어를 설명한 문서로 연결하는(용어집) 허브입니다. 어떤 문서에서 모르는 단어를 만나면, 여기 용어집에서 "자세히 →"를 눌러 원문 설명으로 바로 이동할 수 있습니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">생성 문서 인덱스</span>
+    <span class="badge badge-green">중앙 용어집</span>
+    <span class="badge badge-purple">교차 링크</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- 01 문서 목록 -->
+  <div class="section" id="docs">
+    <div class="section-label">01 — 생성 문서 목록</div>
+    <h2>지금까지 만든 문서</h2>
+    <p>새 문서를 만들면 <strong>이 표에 등록</strong>합니다(유형·날짜·링크). 아직 생성된 콘텐츠 문서가 없다면 아래 안내가 보입니다.</p>
+
+    <table class="tbl">
+      <tr><th>문서</th><th>유형</th><th>날짜</th><th>열기</th></tr>
+      <tr><td><code>언리얼 엔진 C++ 프로그래밍 완전 구조 가이드 v2.1</code></td><td>아키텍처</td><td>2026-07-01</td><td><a href="./ue-architect/ue-cpp-programming-structure.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>GameInstanceSubsystem — 수명 자동 관리 전역 서비스</code></td><td>아키텍처</td><td>2026-07-02</td><td><a href="./ue-architect/ue-gameinstance-subsystem.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>상태 머신 — 상태·전이·이벤트로 동작 제어</code></td><td>아키텍처</td><td>2026-07-02</td><td><a href="./ue-architect/ue-state-machine.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>DataTable — 코드 밖에서 관리하는 표 데이터</code></td><td>아키텍처</td><td>2026-07-02</td><td><a href="./ue-architect/ue-datatable.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>RecordTales 프로젝트 허브</code></td><td>프로젝트 허브</td><td>2026-07-02</td><td><a href="../Project/RecordTales/recordtales-index.html" style="color:var(--accent)">열기 →</a></td></tr>
+    </table>
+    <div class="callout info"><span class="ic">📁</span><p><strong>프로젝트 문서(Track B)는 각 프로젝트 허브가 관리합니다.</strong> 이 목록에는 프로젝트당 허브 행 1개만 등록하고, 개별 문서 목록·프로젝트 용어집은 프로젝트 허브에서 봅니다. (규칙: <code>doc-process/DOC-TRACKS.md</code>)</p></div>
+
+    <h3>기준 문서 (디자인 시스템)</h3>
+    <table class="tbl">
+      <tr><th>파일</th><th>역할</th></tr>
+      <tr><td><a href="../design-guide/design-guide-ue-master-visual.html" style="color:var(--accent)">design-guide-ue-master-visual.html</a></td><td>컬러·타이포·컴포넌트 시각 레퍼런스</td></tr>
+      <tr><td><a href="../design-template/01-ue-asset-analysis.html" style="color:var(--accent)">01-ue-asset-analysis.html</a></td><td>에셋 분석 문서 템플릿</td></tr>
+      <tr><td><a href="../design-template/02-ue-architecture.html" style="color:var(--accent)">02-ue-architecture.html</a></td><td>아키텍처/기능 구현 문서 템플릿</td></tr>
+      <tr><td><code>design-template/TEMPLATE-CATALOG.md</code></td><td>템플릿 목록 + 판별 기준</td></tr>
+      <tr><td><code>doc-process/DOC-GENERATION-PLAYBOOK.md</code></td><td>문서 자동 제작 규약 (공통 절차)</td></tr>
+      <tr><td><code>doc-process/DOC-TRACKS.md</code></td><td>트랙 규약 (유형 판별·저장 위치·용어집 이원화)</td></tr>
+    </table>
+  </div>
+
+  <!-- 02 용어집 -->
+  <div class="section" id="glossary">
+    <div class="section-label">02 — 용어집 (Glossary)</div>
+    <h2>핵심 용어</h2>
+    <p>문서에서 모르는 용어를 만나면 여기서 뜻을 확인하고, <strong>"자세히 →"</strong>로 그 용어를 본격 설명한 문서로 이동하세요. 새 문서에서 어려운 용어가 등장하면 이 표에 추가합니다.</p>
+
+    <table class="tbl">
+      <tr><th>용어</th><th>뜻 (한 줄)</th><th>자세히</th></tr>
+      <tr><td><code>GameMode</code></td><td>게임의 규칙·승패 판정을 담당하는 <strong>서버 전용</strong> 클래스</td><td><a href="../design-template/02-ue-architecture.html#components" style="color:var(--accent)">02 아키텍처 →</a></td></tr>
+      <tr><td><code>GameState</code></td><td>모든 플레이어에게 복제되는 <strong>공유 상태</strong>(점수판 등)</td><td><a href="../design-template/02-ue-architecture.html#components" style="color:var(--accent)">02 아키텍처 →</a></td></tr>
+      <tr><td><code>PlayerController</code></td><td>플레이어의 <strong>입력·카메라·UI</strong>를 소유(폰이 죽어도 유지)</td><td><a href="../design-template/02-ue-architecture.html#components" style="color:var(--accent)">02 아키텍처 →</a></td></tr>
+      <tr><td><code>Pawn / Character</code></td><td>플레이어가 <strong>조종하는 물리적 몸</strong>(이동·체력 등)</td><td><a href="../design-template/02-ue-architecture.html#components" style="color:var(--accent)">02 아키텍처 →</a></td></tr>
+      <tr><td><code>GameInstance</code></td><td>레벨이 바뀌어도 유지되는 <strong>세션 전역·영속</strong> 객체</td><td><a href="../design-template/02-ue-architecture.html#components" style="color:var(--accent)">02 아키텍처 →</a></td></tr>
+      <tr><td><code>SaveGame</code></td><td>디스크에 저장되어 <strong>재실행 후에도 남는</strong> 데이터</td><td><a href="../design-template/02-ue-architecture.html#components" style="color:var(--accent)">02 아키텍처 →</a></td></tr>
+      <tr><td><code>Possess</code></td><td>컨트롤러가 폰을 <strong>소유·조종하는 관계</strong></td><td><a href="../design-template/02-ue-architecture.html#components" style="color:var(--accent)">02 아키텍처 →</a></td></tr>
+      <tr><td><code>UObject</code></td><td>언리얼 모든 오브젝트의 <strong>최상위 부모 클래스</strong> (리플렉션·GC·직렬화 제공)</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-uobject" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>AActor</code></td><td><strong>월드에 배치 가능한</strong> 오브젝트 (Transform·Tick·복제 지원)</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-actor" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>UActorComponent</code></td><td>액터에 붙여 <strong>기능을 부여하는 모듈</strong> (컴포지션 패턴)</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-component" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>리플렉션</code></td><td>코드 구조 정보를 <strong>런타임에 조회</strong>하는 시스템</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-reflection" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>UCLASS / UPROPERTY / UFUNCTION</code></td><td>클래스·변수·함수를 <strong>리플렉션에 등록</strong>하는 매크로</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-uclass" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>가비지 컬렉션 (GC)</code></td><td>참조 없는 UObject를 <strong>자동 해제</strong>하는 메모리 관리</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-gc" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>CDO (Class Default Object)</code></td><td>클래스마다 엔진이 만드는 <strong>기본값 템플릿 오브젝트</strong></td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-cdo" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>UHT (Unreal Header Tool)</code></td><td>매크로를 스캔해 <strong>.generated.h를 생성</strong>하는 빌드 전 도구</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-uht" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>UBT (Unreal Build Tool)</code></td><td>언리얼 전용 <strong>빌드 도구</strong> (모듈·의존성 관리)</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-ubt" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>모듈 (Module)</code></td><td>코드를 묶는 <strong>최소 빌드 단위</strong> (.Build.cs로 관리)</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-module" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>델리게이트 (Delegate)</code></td><td>함수 포인터를 안전하게 감싼 <strong>콜백 시스템</strong></td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-delegate" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>접두사 규칙 (A/U/F/E/T/I/b)</code></td><td>클래스 역할을 <strong>이름 앞 글자로 구분</strong>하는 네이밍 표준</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-prefix" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>.generated.h</code></td><td>UHT가 자동 생성하는 헤더. <strong>반드시 마지막 #include</strong></td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-generated-h" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>FString / FName / FText</code></td><td>언리얼 전용 <strong>문자열 3종</strong> (조작/식별/현지화)</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-fstring" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>FVector / FRotator / FTransform</code></td><td>3D <strong>위치·회전·변환</strong> 타입</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-fvector" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>TArray / TMap / TSet</code></td><td>STL 대신 쓰는 언리얼 <strong>컨테이너</strong> (UPROPERTY 통합)</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-tarray" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>UE_LOG</code></td><td>카테고리별 필터링 가능한 언리얼 <strong>로깅 매크로</strong></td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-ue-log" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>스마트 포인터 (TSharedPtr 등)</code></td><td>비-UObject의 <strong>참조 카운팅 기반 메모리 관리</strong></td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-smartptr" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>BlueprintCallable / BlueprintPure</code></td><td>C++ 함수를 <strong>BP에서 호출</strong>하는 UFUNCTION 지정자</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-bp-callable" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>BlueprintNativeEvent</code></td><td>C++ 기본 구현 + <strong>BP 오버라이드</strong> 가능한 패턴</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-bp-native-event" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>GameInstanceSubsystem</code></td><td>GameInstance 수명에 묶이는 <strong>자동 관리 서비스 객체</strong></td><td><a href="./ue-architect/ue-gameinstance-subsystem.html#term-gameinstance-subsystem" style="color:var(--accent)">GameInstanceSubsystem →</a></td></tr>
+      <!-- TODO: FTimerHandle은 전용 범용 문서(ue-architect)가 생기면 링크 교체 (DOC-TRACKS.md §5) -->
+      <tr><td><code>FTimerHandle</code></td><td>엔진 타이머 <strong>핸들</strong>. SetTimer/ClearTimer로 카운트다운 제어</td><td><a href="../Project/RecordTales/01-focus-system.html#skeleton" style="color:var(--accent)">포커스 시스템 →</a></td></tr>
+      <tr><td><code>상태 머신 (State Machine)</code></td><td>현재 상태와 전환 조건을 정의해 <strong>동작을 제어</strong>하는 패턴</td><td><a href="./ue-architect/ue-state-machine.html#term-state-machine" style="color:var(--accent)">상태 머신 →</a></td></tr>
+      <tr><td><code>DataTable</code></td><td>언리얼 에디터에서 <strong>표 형태로 편집하는 데이터 시트</strong> (마스터 데이터 관리)</td><td><a href="./ue-architect/ue-datatable.html#term-datatable" style="color:var(--accent)">DataTable →</a></td></tr>
+    </table>
+    <div class="callout info"><span class="ic">📚</span><p><strong>용어집 이원화</strong>: 이 중앙 용어집에는 <strong>범용 UE 용어만</strong> 등록합니다. 프로젝트 고유 용어(가챠·스쿼드·마스터 레코드 등)는 각 <strong>프로젝트 허브의 용어집</strong>에서 봅니다 (예: <a href="../Project/RecordTales/recordtales-index.html#glossary" style="color:var(--accent)">RecordTales 용어집 →</a>). 배치 기준: <code>doc-process/DOC-TRACKS.md</code> §4.</p></div>
+    <div class="callout tip"><span class="ic">💡</span><p>용어집은 <strong>보조 수단</strong>입니다. 각 문서는 처음 등장 용어를 자체적으로 한 번 풀어 설명하므로, 링크 없이도 문서 하나만으로 이해됩니다. 용어집은 "더 깊이 보고 싶을 때"의 지름길입니다.</p></div>
+  </div>
+
+  <!-- 03 사용법 -->
+  <div class="section" id="howto">
+    <div class="section-label">03 — 이 허브가 작동하는 방식</div>
+    <h2>어떻게 연결되나</h2>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">문서에서 용어를 처음 만남</div><div class="pipe-desc">그 문서 안에서 용어가 처음 나오면 괄호로 뜻을 풀어 설명합니다. (예: "Possess(컨트롤러가 폰을 소유하는 것)")</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">더 알고 싶으면 용어집으로</div><div class="pipe-desc">이 허브의 용어집에서 같은 용어를 찾아 "자세히 →" 링크를 누릅니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">원문 설명으로 점프</div><div class="pipe-desc">그 용어를 본격적으로 다룬 문서의 해당 섹션으로 이동합니다.</div></div></div>
+
+    <div class="callout warn"><span class="ic">⚠️</span><p><strong>링크는 파일들이 같은 폴더에 함께 있을 때 작동합니다.</strong> 문서 하나만 떼어 외부로 보내면 "자세히" 링크는 열리지 않지만, 문서 안 용어 설명은 그대로 남아 있어 이해에는 지장이 없습니다.</p></div>
+  </div>
+
+</div>
+
+<footer>
+  <span>UE 문서 디자인 시스템 · Hub &amp; Glossary v2.3</span>
+  <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.3</span>
+</footer>
+
+</body>
+</html>

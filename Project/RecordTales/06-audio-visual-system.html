@@ -3,10 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>06 · 오디오 & 비주얼 시스템 — RecordTales v1.0</title>
+<title>06 · 오디오 & 비주얼 시스템 — RecordTales v1.1</title>
 <!-- ============================================================
      CHANGELOG — 06-audio-visual-system.html
-     오디오 & 비주얼 시스템 설계 문서. 작업 규약: design-guide/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     오디오 & 비주얼 시스템 설계 문서. 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.1 · 2026-07-02
+       - (추가) 08 — 데이터 설계 섹션: 프로토타입 v14(TestFile/RecordTales.html) 실측 기준 —
+         곡 6·앰비언트 5·배경 9 실측표(비용 통합), trackIdx 인덱스 연결 제거 결정.
+       - (변경) 문서 버전 표기 v1.0 → v1.1, nav에 "데이터" 링크 추가.
      v1.0 · 2026-07-02
        - 신규 생성. 오디오 & 비주얼 시스템 설계.
        - 7섹션: 개념, 앰비언트, 뮤직, 배경테마, 해금연동, 스켈레톤, 확장&주의
@@ -24,7 +28,7 @@
    - 실제 결과물 HTML은 이 파일 내용을 <style>에 통째로 복사(inline)하여
      단일 파일로 배포한다. (오프라인 무결성 유지)
 
-   변경 이력 (CHANGELOG) — 작업 규약: design-guide/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+   변경 이력 (CHANGELOG) — 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
    v1.2 · 2026-07-01
      - (추가) .compare-box — 좌우 병렬 비교 카드 (Spawning vs Loading 등)
      - (추가) .grid-3 — 3열 그리드
@@ -398,11 +402,12 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <a href="#unlock-link">해금연동</a>
     <a href="#skeleton">코드</a>
     <a href="#extension">주의</a>
+    <a href="#data-design">데이터</a>
   </div>
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">RecordTales &middot; v1.0 &middot; Audio &amp; Visual</div>
+  <div class="hero-eyebrow">RecordTales &middot; v1.1 &middot; Audio &amp; Visual</div>
   <h1>오디오 &amp; 비주얼<br><span>앰비언트 &middot; 뮤직 &middot; 배경 테마</span></h1>
   <p class="hero-sub">
     환경 음향 5종 믹싱, BGM 플레이어, 배경 테마 교체를 관리하는 오디오&middot;비주얼 시스템입니다. 해금 시스템과 연동하여 콘텐츠를 점진적으로 개방합니다.
@@ -785,10 +790,54 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     </div>
   </div>
 
+
+  <!-- ============================================================
+       08 — 데이터 설계
+       ============================================================ -->
+  <div class="section" id="data-design">
+    <div class="section-label">08 — 데이터 설계</div>
+    <h2>오디오 &amp; 비주얼 데이터 (실측 기준)</h2>
+    <p>이 섹션은 프로토타입 v14(<code>TestFile/RecordTales.html</code>) 코드에서 <strong>실측한 데이터 기준</strong>입니다. 본문의 예시 수치와 다를 경우 이 섹션이 우선하며, 전 시스템 통합 스키마는 프로젝트 허브의 <strong>08 데이터 설계 명세</strong> 문서에 있습니다.</p>
+
+    <h3>DT_MusicTracks — 6곡 (해금 비용 통합)</h3>
+    <p>프로토타입은 곡 목록(<code>TRACKS</code>)과 해금 정보(<code>CONTENT_UNLOCKS</code>)를 배열 인덱스(<code>trackIdx</code>)로 연결하지만, 인덱스 연결은 행 삽입 시 깨지기 쉬우므로 <strong>곡 테이블에 <code>Cost</code> 열(0 = 기본 제공)로 통합</strong>합니다.</p>
+    <table class="tbl">
+      <tr><th>RowName</th><th>제목</th><th>장르</th><th>길이</th><th>비용 (Gold)</th></tr>
+      <tr><td><code>ember-vigil</code></td><td>The Ember Vigil</td><td>Medieval</td><td>252s</td><td>0 (기본)</td></tr>
+      <tr><td><code>rain-over-stone-keep</code></td><td>Rain Over Stone Keep</td><td>Lo-fi Fantasy</td><td>198s</td><td>0 (기본)</td></tr>
+      <tr><td><code>torchlit-library</code></td><td>Torchlit Library</td><td>Lo-fi</td><td>221s</td><td>3,000</td></tr>
+      <tr><td><code>forge-of-stars</code></td><td>Forge of Stars</td><td>Medieval</td><td>243s</td><td>5,000</td></tr>
+      <tr><td><code>moonlit-vow</code></td><td>Moonlit Vow</td><td>Ambient</td><td>304s</td><td>8,000</td></tr>
+      <tr><td><code>whispers-of-the-arch</code></td><td>Whispers of the Arch</td><td>Orchestral</td><td>287s</td><td>12,000</td></tr>
+    </table>
+    <div class="callout"><span class="ic">&#128161;</span><p><strong>장르 탭(전체/Medieval/Lo-fi/Ambient/Orchestral)은 데이터가 아닙니다.</strong> Lo-fi와 Lo-fi Fantasy를 한 탭으로 묶는 것은 UI 편의 규칙이며 <code>Genre</code> 값에서 파생되므로, 그룹 테이블을 따로 만들지 않습니다.</p></div>
+
+    <h3>DT_AmbientSounds — 5종</h3>
+    <table class="tbl">
+      <tr><th>RowName</th><th>이름</th><th>비고</th></tr>
+      <tr><td><code>rain</code> / <code>wind</code> / <code>fire</code> / <code>forest</code> / <code>ocean</code></td><td>Rain / Wind / Fire / Forest / Ocean</td><td>루프 사운드 에셋 소프트 참조. 볼륨(0~100)은 휘발 상태 — 저장하지 않음</td></tr>
+    </table>
+
+    <h3>DT_Backgrounds — 9행 (기본 1 + 해금 8, 실측 비용)</h3>
+    <table class="tbl">
+      <tr><th>RowName</th><th>이름</th><th>비용 (Gold)</th></tr>
+      <tr><td><code>default</code></td><td>기본 배경</td><td>0</td></tr>
+      <tr><td><code>bg1</code></td><td>Misty Forest (안개 낀 숲)</td><td>2,000</td></tr>
+      <tr><td><code>bg2</code></td><td>Ancient Library (고대 도서관)</td><td>3,000</td></tr>
+      <tr><td><code>bg3</code></td><td>Stone Keep (돌의 요새)</td><td>5,000</td></tr>
+      <tr><td><code>bg4</code></td><td>Starry Night (별이 빛나는 밤)</td><td>7,000</td></tr>
+      <tr><td><code>bg5</code></td><td>Mountain Pass (산악 고개)</td><td>10,000</td></tr>
+      <tr><td><code>bg6</code></td><td>Royal Throne Room (왕의 옥좌실)</td><td>14,000</td></tr>
+      <tr><td><code>bg7</code></td><td>Dragon's Lair (용의 둥지)</td><td>20,000</td></tr>
+      <tr><td><code>bg8</code></td><td>Celestial Realm (천상의 영역)</td><td>30,000</td></tr>
+    </table>
+    <p>프로토타입의 배경은 CSS 그라데이션 문자열이지만 UE에서는 텍스처/머티리얼 에셋 소프트 참조(<code>TSoftObjectPtr&lt;UTexture2D&gt;</code>)로 대체합니다. 저장 데이터는 <code>CurrentBackground : FName</code>(기본 <code>default</code>) 하나이며, 해금 여부는 <code>UnlockedIds</code>에 RowName 포함 여부로 판정합니다.</p>
+  </div>
+
 </div>
 
 <footer>
-  <span>RecordTales &middot; 06 Audio &amp; Visual System &middot; v1.0</span>
+  <span>RecordTales &middot; 06 Audio &amp; Visual System &middot; v1.1</span>
   <span>디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.2</span>
 </footer>
 

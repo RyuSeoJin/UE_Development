@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "ue-dev",
+      "name": "static-docs",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "4599", "--directory", "."],
-      "port": 4599
+      "runtimeArgs": ["-m", "http.server", "8734"],
+      "port": 8734
     }
   ]
 }

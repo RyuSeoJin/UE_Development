@@ -1,3 +1,25 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DataTable — 코드 밖에서 관리하는 표 데이터 · UE 아키텍처</title>
+<!-- ============================================================
+     CHANGELOG — ue-datatable.html
+     유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿).
+     작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.2 · 2026-07-02
+       - (변경) 마스터 CSS <link> 상대참조 → <style> inline (마스터 v1.3 스냅샷) — 단독 열람 보장, 마스터 개정에 따른 사후 변형 방지 (DOC-TRACKS v1.3 정책)
+     v1.1 · 2026-07-02
+       - (변경) 출력 규칙 트랙별 분리(DOC-TRACKS.md v1.2): inline <style>을 마스터 CSS 상대참조
+         <link href="../../design-guide/design-guide-ue-master.css">로 전환 (Track A 규칙)
+       - (수정) 마스터에 없던 owner-cell 클래스를 마스터 지원 마크업(.tbl + span.owner)으로 교체
+     v1.0 · 2026-07-02
+       - 신규 생성. DataTable 범용 아키텍처 문서.
+       - RecordTales 프로젝트 문서의 프로젝트 맥락을 제거하고 일반화 (DOC-TRACKS.md §5 범용 개념 승격)
+       - 중앙 용어집 'DataTable' 링크가 이 문서를 가리킴 (id="term-datatable")
+     ============================================================ -->
+<style>
 /* ============================================================
    UE Design System — Master Stylesheet
    (design-guide-ue-master.css)
@@ -376,3 +398,269 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   footer { padding: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">UE WIKI · DATATABLE</div>
+  <div class="nav-links">
+    <a href="#concept">개념</a>
+    <a href="#relation">관계</a>
+    <a href="#responsibility">선택 기준</a>
+    <a href="#flow">제작 절차</a>
+    <a href="#skeleton">스켈레톤</a>
+    <a href="#extend">확장</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">UE Architecture · Type ① · 02-A</div>
+  <h1>Data<br><span>Table</span></h1>
+  <p class="hero-sub">
+    아이템 스펙·몬스터 능력치·상점 가격처럼 <strong>자주 바뀌는 수치 데이터를 코드 밖의 표</strong>로 빼서 관리하는 언리얼의 표준 방법입니다. 구조체 한 개를 정의하면 에디터에서 엑셀처럼 편집하고, CSV로 임포트하고, 코드 한 줄로 조회할 수 있습니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">엔진 자체 기능</span>
+    <span class="badge badge-green">UE4 · UE5</span>
+    <span class="badge badge-purple">C++ · Blueprint · CSV/JSON</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- 01 개념 -->
+  <div class="section" id="concept">
+    <div class="section-label">01 — 개념 · 역할</div>
+    <h2>왜 데이터를 코드 밖으로 빼는가</h2>
+    <p>
+      검의 공격력을 <code>Damage = 25;</code>처럼 코드에 직접 쓰면(하드코딩), 밸런스를 조금 고칠 때마다 <strong>프로그래머가 코드를 수정하고 다시 컴파일</strong>해야 합니다. 아이템이 수백 개가 되면 이 방식은 유지가 불가능하고, 기획자는 수치 하나 바꾸는 데도 프로그래머를 거쳐야 합니다.
+    </p>
+    <p>
+      <strong id="term-datatable">DataTable</strong>은 이런 반복 데이터를 <strong>행(Row) 단위의 표</strong>로 만든 에셋입니다. 표의 열(컬럼) 구성은 C++ 구조체 하나로 정의하고, 내용은 에디터에서 직접 편집하거나 CSV/JSON 파일로 임포트합니다. 결과: 수치 변경에 컴파일이 필요 없고, 기획자가 스프레드시트로 밸런싱한 것을 그대로 게임에 반영할 수 있습니다.
+    </p>
+
+    <div class="callout info"><span class="ic">🔑</span><p><strong>핵심 용어</strong> — <strong>DataTable</strong>: 같은 구조의 행이 모인 표 형태의 에셋. · <strong>FTableRowBase</strong>: DataTable의 행이 되려면 반드시 상속해야 하는 기반 구조체. · <strong>RowName</strong>: 각 행을 식별하는 고유 이름(<code>FName</code>) — 표의 "기본 키". · <strong>CSV 임포트</strong>: 쉼표로 구분된 텍스트 파일(엑셀/구글시트에서 내보내기 가능)을 DataTable로 읽어 들이는 것.</p></div>
+
+    <div class="stat-row">
+      <div class="stat-card"><div class="stat-num">1개</div><div class="stat-label">행 구조 정의 구조체 (열 = 필드)</div></div>
+      <div class="stat-card"><div class="stat-num">0회</div><div class="stat-label">수치 변경 시 필요한 컴파일</div></div>
+      <div class="stat-card"><div class="stat-num">CSV/JSON</div><div class="stat-label">외부 편집 · 임포트 포맷</div></div>
+    </div>
+  </div>
+
+  <!-- 02 관계 -->
+  <div class="section" id="relation">
+    <div class="section-label">02 — 구성 요소 관계</div>
+    <h2>구조체 · 에셋 · 코드가 연결되는 방식</h2>
+    <p>DataTable은 세 조각의 협업입니다: <strong>구조체(형태 정의)</strong> → <strong>DataTable 에셋(내용 보관)</strong> → <strong>조회 코드(사용)</strong>.</p>
+
+    <div class="tree"><span class="note">// 행 구조체는 FTableRowBase를 상속해야 DataTable이 인식</span>
+FTableRowBase                       <span class="note">// 엔진 제공 기반 구조체 (Engine/DataTable.h)</span>
+└─ <span class="c-savegame">FItemRow</span>                        <span class="note">// ← 우리가 정의 (표의 열 구성 = 필드)</span>
+   ├─ DisplayName : FText
+   ├─ Damage      : int32
+   └─ Icon        : TSoftObjectPtr&lt;UTexture2D&gt;</div>
+
+    <div class="rel-map">
+      <div class="rel-row">
+        <div class="rel-node n-savegame"><div class="rn-name">FItemRow (구조체)</div><div class="rn-role">열 구성 정의 · C++</div></div>
+        <div class="rel-arrow"><span class="ra-label">Row Type으로 지정</span><span class="ra-line">→</span></div>
+        <div class="rel-node n-instance"><div class="rn-name">DT_Items (에셋)</div><div class="rn-role">행 데이터 보관 · 에디터/CSV 편집</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-instance"><div class="rn-name">DT_Items (에셋)</div><div class="rn-role">행 데이터 보관</div></div>
+        <div class="rel-arrow"><span class="ra-label">FindRow(RowName)</span><span class="ra-line">→</span></div>
+        <div class="rel-node n-controller"><div class="rn-name">게임 코드 / BP</div><div class="rn-role">읽기 전용 조회 · 사용</div></div>
+      </div>
+    </div>
+
+    <div class="callout warn"><span class="ic">⚠️</span><p>DataTable은 <strong>런타임 읽기 전용</strong>으로 쓰는 것이 원칙입니다. 플레이 중 값이 변해야 하는 데이터(현재 체력 등)는 DataTable이 아니라 액터·Subsystem의 변수이며, DataTable에는 그 <strong>초기값·정의</strong>만 둡니다.</p></div>
+  </div>
+
+  <!-- 03 선택 기준 -->
+  <div class="section" id="responsibility">
+    <div class="section-label">03 — 데이터 보관 방식 선택</div>
+    <h2>하드코딩 · DataTable · DataAsset, 언제 무엇을</h2>
+
+    <div class="grid-2">
+      <div class="compare-box">
+        <h4>DataTable</h4>
+        <div class="pills"><span class="pill blue">같은 구조 × 많은 행</span><span class="pill green">CSV 밸런싱</span></div>
+        <p>아이템 300개, 몬스터 80종처럼 <strong>동일한 형태가 반복</strong>되는 데이터. 스프레드시트에서 일괄 편집·임포트하는 워크플로우가 강점.</p>
+      </div>
+      <div class="compare-box">
+        <h4>DataAsset</h4>
+        <div class="pills"><span class="pill purple">구조가 다른 낱개</span><span class="pill pink">에셋 참조 중심</span></div>
+        <p>캐릭터 클래스 정의, 무기 설정처럼 <strong>하나하나가 개별 에셋</strong>인 데이터. 행 단위 표가 아니라 상속·에셋 참조가 필요할 때.</p>
+      </div>
+    </div>
+
+    <table class="tbl">
+      <tr><th>데이터 성격</th><th>보관 방식</th><th>왜</th></tr>
+      <tr><td>수백 행의 동일 구조 스펙 (아이템·몬스터·드롭률)</td><td><span class="owner"><code>UDataTable</code></span></td><td>행 반복 구조 + CSV 일괄 편집. 이 문서의 주제</td></tr>
+      <tr><td>레벨·시간에 따라 연속으로 변하는 수치 곡선 (성장 곡선)</td><td><span class="owner"><code>UCurveTable</code> / <code>UCurveFloat</code></span></td><td>이산 행이 아닌 보간 곡선이 필요 — 레벨 17.5의 값도 계산 가능</td></tr>
+      <tr><td>구조가 제각각인 설정 덩어리 (게임 모드 구성, 무기 정의)</td><td><span class="owner"><code>UPrimaryDataAsset</code></span></td><td>표에 안 맞는 개별 에셋. 에셋 매니저로 비동기 로드 가능</td></tr>
+      <tr><td>거의 안 바뀌는 상수 한두 개</td><td><span class="owner">코드 상수 / Config</span></td><td>표를 만들 관리 비용이 더 큼 — 다만 밸런싱 대상이 되는 순간 DataTable로 승격</td></tr>
+    </table>
+  </div>
+
+  <!-- 04 제작 절차 -->
+  <div class="section" id="flow">
+    <div class="section-label">04 — 제작 · 임포트 절차</div>
+    <h2>구조체 정의부터 조회까지 4단계</h2>
+    <p>전제: C++ 프로젝트(구조체 정의용), 에디터 사용 가능. 각 단계의 끝에 확인해야 할 결과를 함께 적었습니다.</p>
+
+    <div class="pipe-step"><div class="pipe-num">01</div><div class="pipe-body"><div class="pipe-title">행 구조체 정의 (.h)</div><div class="pipe-desc"><code>FTableRowBase</code>를 상속한 <code>USTRUCT(BlueprintType)</code> 구조체를 만들고 컴파일합니다(05 섹션 코드). <strong>결과 확인</strong>: 에디터 재시작 후 Row Type 목록에 구조체 이름이 나타남.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">02</div><div class="pipe-body"><div class="pipe-title">DataTable 에셋 생성</div><div class="pipe-desc">Content Browser에서 <strong>우클릭 ▸ Miscellaneous ▸ Data Table</strong> → "Pick Row Structure" 창에서 <code>ItemRow</code> 선택 → 이름을 <code>DT_Items</code>처럼 지정. <strong>결과 확인</strong>: 더블클릭하면 표 편집기가 열림.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">03</div><div class="pipe-body"><div class="pipe-title">내용 채우기 — 에디터 또는 CSV</div><div class="pipe-desc">(방법 A) 표 편집기 상단 <strong>+ Add</strong> 버튼으로 행 추가, RowName과 값을 직접 입력. (방법 B) 첫 열이 RowName인 CSV를 만들어 Content Browser로 <strong>드래그&드롭</strong> → 임포트 창에서 Row Type 선택. <strong>결과 확인</strong>: 행들이 표에 표시됨. CSV 재임포트는 에셋 우클릭 ▸ <strong>Reimport</strong>.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">04</div><div class="pipe-body"><div class="pipe-title">코드/BP에서 조회</div><div class="pipe-desc">C++은 <code>FindRow&lt;FItemRow&gt;()</code>(05 섹션), BP는 <strong>Get Data Table Row</strong> 노드 사용. <strong>결과 확인</strong>: 존재하는 RowName으로 조회 시 값이, 없는 이름으로는 null/실패 핀이 반환됨.</div></div></div>
+
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>에디터 수정과 CSV 재임포트는 충돌합니다</strong> — 표 편집기에서 고친 내용은 CSV 원본에 반영되지 않으므로, Reimport하면 에디터 수정분이 <strong>덮어써져 사라집니다</strong>. 팀에서 "진실은 CSV" 또는 "진실은 에셋" 중 하나를 정하고 한쪽으로만 편집하세요.</div></div>
+  </div>
+
+  <!-- 05 스켈레톤 -->
+  <div class="section" id="skeleton">
+    <div class="section-label">05 — 구현 스켈레톤</div>
+    <h2>행 구조체 정의와 조회 코드</h2>
+    <p>모듈 이름 <code>MYGAME_API</code>는 자기 프로젝트로 바꾸세요. 조회 예시는 임의 액터 클래스 안의 함수로 작성했습니다.</p>
+
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">ItemRow.h</button>
+        <button class="codeblock-tab tab-cpp" type="button">ItemQuery.cpp</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Engine/DataTable.h"</span></span>       <span class="hljs-comment">// FTableRowBase가 여기 있음</span>
+<span class="hljs-meta">#include <span class="hljs-string">"ItemRow.generated.h"</span></span>       <span class="hljs-comment">// 반드시 마지막 #include</span>
+
+<span class="hljs-comment">// DataTable의 행 = 이 구조체 하나. 필드가 곧 표의 열이 됩니다.</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> MYGAME_API <span class="hljs-type">FItemRow</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">FTableRowBase</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+    <span class="hljs-comment">// 화면 표시용 이름 (FText = 현지화 대상 문자열)</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = <span class="hljs-string">"Item"</span>)</span>
+    <span class="hljs-type">FText</span> DisplayName;
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = <span class="hljs-string">"Item"</span>)</span>
+    <span class="hljs-type">int32</span> Damage = <span class="hljs-number">0</span>;
+
+    <span class="hljs-comment">// 아이콘은 소프트 참조: 표를 로드해도 텍스처까지 전부 로드되지 않게</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = <span class="hljs-string">"Item"</span>)</span>
+    <span class="hljs-type">TSoftObjectPtr&lt;UTexture2D&gt;</span> Icon;
+};</pre></div>
+      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"ItemRow.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Engine/DataTable.h"</span></span>
+
+<span class="hljs-comment">// 헤더에 선언해 둔 DataTable 참조.</span>
+<span class="hljs-comment">// UPROPERTY(EditDefaultsOnly, Category="Item") UDataTable* ItemTable;</span>
+<span class="hljs-comment">// → 에디터에서 BP 디폴트로 DT_Items 에셋을 지정해 둡니다.</span>
+
+<span class="hljs-type">int32</span> <span class="hljs-type">AMyShop</span>::<span class="hljs-title">GetItemDamage</span>(<span class="hljs-type">FName</span> RowName) <span class="hljs-keyword">const</span>
+{
+    <span class="hljs-keyword">if</span> (!ItemTable) { <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>; }   <span class="hljs-comment">// 테이블 미지정 방어</span>
+
+    <span class="hljs-comment">// 두 번째 인자(ContextString)는 실패 로그에 찍힐 위치 표시용</span>
+    <span class="hljs-keyword">const</span> <span class="hljs-type">FItemRow</span>* Row =
+        ItemTable-&gt;<span class="hljs-title">FindRow</span>&lt;<span class="hljs-type">FItemRow</span>&gt;(RowName, TEXT(<span class="hljs-string">"GetItemDamage"</span>));
+
+    <span class="hljs-comment">// RowName 오타·행 삭제 시 nullptr — 반드시 체크</span>
+    <span class="hljs-keyword">if</span> (!Row)
+    {
+        <span class="hljs-meta">UE_LOG(LogTemp, Warning, TEXT(<span class="hljs-string">"Item row not found: %s"</span>), *RowName.ToString());</span>
+        <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+    }
+    <span class="hljs-keyword">return</span> Row-&gt;Damage;
+}
+
+<span class="hljs-comment">// 전체 행 순회가 필요할 때 (도감·상점 목록 등)</span>
+<span class="hljs-type">void</span> <span class="hljs-type">AMyShop</span>::<span class="hljs-title">ListAllItems</span>() <span class="hljs-keyword">const</span>
+{
+    <span class="hljs-keyword">if</span> (!ItemTable) { <span class="hljs-keyword">return</span>; }
+
+    <span class="hljs-type">TArray&lt;FItemRow*&gt;</span> Rows;
+    ItemTable-&gt;<span class="hljs-title">GetAllRows</span>&lt;<span class="hljs-type">FItemRow</span>&gt;(TEXT(<span class="hljs-string">"ListAllItems"</span>), Rows);
+
+    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">const</span> <span class="hljs-type">FItemRow</span>* Row : Rows)
+    {
+        <span class="hljs-meta">UE_LOG(LogTemp, Log, TEXT(<span class="hljs-string">"%s (Damage %d)"</span>), *Row-&gt;DisplayName.ToString(), Row-&gt;Damage);</span>
+    }
+}</pre></div>
+    </div>
+  </div>
+
+  <!-- 06 확장 -->
+  <div class="section" id="extend">
+    <div class="section-label">06 — 확장 & 주의</div>
+    <h2>더 나아가기와 흔한 함정</h2>
+
+    <div class="grid-3">
+      <div class="a-card"><div class="ic">📈</div><div class="a-title">성장 곡선</div><div class="a-id">UCurveTable</div><div class="a-desc">레벨별 경험치처럼 연속 수치는 CurveTable로 — 중간 값을 보간으로 얻습니다.</div></div>
+      <div class="a-card"><div class="ic">🧩</div><div class="a-title">테이블 합성</div><div class="a-id">CompositeDataTable</div><div class="a-desc">기본 표 + DLC/시즌 표를 겹쳐 하나처럼 조회. 원본을 건드리지 않는 확장.</div></div>
+      <div class="a-card"><div class="ic">🗂️</div><div class="a-title">행 핸들 참조</div><div class="a-id">FDataTableRowHandle</div><div class="a-desc">"어떤 표의 어떤 행"을 UPROPERTY로 지정 — 에디터에서 드롭다운으로 행을 고를 수 있습니다.</div></div>
+    </div>
+
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>RowName 오타는 컴파일러가 못 잡습니다</strong> — <code>FindRow</code>는 이름이 틀리면 조용히 <code>nullptr</code>를 반환합니다. 반환값 체크를 생략하면 크래시가 "표를 고친 다음 날" 터집니다. 조회 함수를 한 곳에 모으고 실패 로그를 남기세요(05 섹션 패턴).</div></div>
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>구조체 필드를 바꾸면 기존 데이터 확인</strong> — 필드 이름 변경·삭제 후에는 에셋을 열어 값이 올바로 남았는지 확인하고, CSV가 진실인 팀은 CSV 헤더도 함께 고쳐 Reimport하세요. 헤더와 필드 이름이 다르면 그 열은 기본값으로 채워집니다.</div></div>
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>큰 에셋은 소프트 참조로</strong> — 행에 텍스처·메시를 하드 참조(<code>UTexture2D*</code>)로 넣으면 표를 로드할 때 전부 함께 로드됩니다. <code>TSoftObjectPtr</code>로 선언하고 필요할 때만 로드하세요.</div></div>
+  </div>
+
+</div>
+
+<footer>
+  <span>UE 아키텍처 문서 · DataTable v1.2</span>
+  <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.3</span>
+</footer>
+
+<script>
+(function () {
+  document.querySelectorAll('.codeblock').forEach(function (block) {
+    var tabs = block.querySelectorAll('.codeblock-tab');
+    var panels = block.querySelectorAll('.codeblock-panel');
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) { t.classList.remove('active'); });
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        if (panels[i]) panels[i].classList.add('active');
+      });
+    });
+    var copyBtn = block.querySelector('.codeblock-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () {
+        var pre = block.querySelector('.codeblock-panel.active pre');
+        if (!pre) return;
+        var text = pre.innerText;
+        var done = function () {
+          copyBtn.textContent = '복사됨 ✓';
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.textContent = '복사';
+            copyBtn.classList.remove('copied');
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+        } else {
+          fallbackCopy(text, done);
+        }
+      });
+    }
+  });
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+})();
+</script>
+</body>
+</html>

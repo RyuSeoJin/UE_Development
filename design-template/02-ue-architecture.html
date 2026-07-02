@@ -3,11 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>02 · 아키텍처 설계 템플릿 — UE 문서 디자인 시스템 v1.1</title>
-<link rel="stylesheet" href="design-guide-ue-master.css">
+<title>02 · 아키텍처 설계 템플릿 — UE 문서 디자인 시스템 v1.3</title>
+<link rel="stylesheet" href="../design-guide/design-guide-ue-master.css">
 <!-- ============================================================
      CHANGELOG — 02-ue-architecture.html
-     아키텍처/기능 구현 문서 템플릿. 작업 규약: design-guide/DOC-GENERATION-PLAYBOOK.md (4단계)
+     아키텍처/기능 구현 문서 템플릿. 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.3 · 2026-07-02
+       - (변경) 문서 허브 이동(ue-wiki/ue-architect/ → ue-wiki/) 반영: nav 허브 링크 갱신
+     v1.2 · 2026-07-02
+       - (변경) 폴더 재구조화: design-guide/ → design-template/ 로 이동
+       - (변경) 마스터 CSS·비주얼 링크를 ../design-guide/ 상대경로로 갱신
+       - (변경) 작업 규약 경로 design-guide/ → doc-process/DOC-GENERATION-PLAYBOOK.md
      v1.1 · 2026-07-01
        - 신규 생성. C++/아키텍처 설계 문서 템플릿.
        - 컴포넌트: 클래스 계층 트리, 클래스 관계도(.rel-map),
@@ -22,21 +28,21 @@
 <nav>
   <div class="nav-logo">UE DESIGN SYSTEM · 02 ARCHITECTURE</div>
   <div class="nav-links">
-    <a href="design-guide-ue-master-visual.html">← 마스터</a>
+    <a href="../design-guide/design-guide-ue-master-visual.html">← 마스터</a>
     <a href="01-ue-asset-analysis.html">← 에셋 분석</a>
     <a href="#components">컴포넌트</a>
     <a href="#code">코드 탭</a>
     <a href="#template-a">템플릿 A</a>
     <a href="#template-b">템플릿 B</a>
-    <a href="../ue-wiki/ue-architect/design-guide-ue-index.html">문서 허브</a>
+    <a href="../ue-wiki/design-guide-ue-index.html">문서 허브</a>
   </div>
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">Design System · v1.1 · Architecture</div>
+  <div class="hero-eyebrow">Design System · v1.3 · Architecture</div>
   <h1>UE 아키텍처<br><span>설계 템플릿</span></h1>
   <p class="hero-sub">
-    "이 기능을 어느 클래스에, 어떻게 나눠 설계할지"와 "그대로 복사할 수 있는 <code>.h</code>/<code>.cpp</code> 코드"를 담는 문서용 컴포넌트·템플릿입니다. GameMode·PlayerController·GameInstance·SaveGame 같은 프레임워크 클래스의 책임 분배를 시각화하고, 하이라이팅이 구워진 코드 탭으로 오프라인에서도 완결됩니다. 토대는 <a href="design-guide-ue-master-visual.html" style="color:var(--accent)">디자인 마스터</a>를 따릅니다.
+    "이 기능을 어느 클래스에, 어떻게 나눠 설계할지"와 "그대로 복사할 수 있는 <code>.h</code>/<code>.cpp</code> 코드"를 담는 문서용 컴포넌트·템플릿입니다. GameMode·PlayerController·GameInstance·SaveGame 같은 프레임워크 클래스의 책임 분배를 시각화하고, 하이라이팅이 구워진 코드 탭으로 오프라인에서도 완결됩니다. 토대는 <a href="../design-guide/design-guide-ue-master-visual.html" style="color:var(--accent)">디자인 마스터</a>를 따릅니다.
   </p>
   <div class="hero-meta">
     <span class="badge badge-blue">클래스 관계도</span>
@@ -51,7 +57,7 @@
   <div class="section" id="components">
     <div class="section-label">04 — 아키텍처 전용 컴포넌트</div>
     <h2>아키텍처를 그리는 블록들</h2>
-    <p>범용 블록(콜아웃·파이프라인·표 등)은 <a href="design-guide-ue-master-visual.html#base" style="color:var(--accent)">디자인 마스터</a>에 있습니다. 여기서는 <strong>클래스 관계·책임·코드</strong>를 표현하는 전용 컴포넌트만 다룹니다.</p>
+    <p>범용 블록(콜아웃·파이프라인·표 등)은 <a href="../design-guide/design-guide-ue-master-visual.html#base" style="color:var(--accent)">디자인 마스터</a>에 있습니다. 여기서는 <strong>클래스 관계·책임·코드</strong>를 표현하는 전용 컴포넌트만 다룹니다.</p>
 
     <h3>프레임워크 클래스 컬러 범례</h3>
     <div class="demo"><div class="demo-head">Live</div><div class="demo-body">
@@ -230,7 +236,7 @@ USaveGame
 </div>
 
 <footer>
-  <span>UE 문서 디자인 시스템 · Architecture v1.1</span>
+  <span>UE 문서 디자인 시스템 · Architecture v1.3</span>
   <span>기준 디자인: Dark · Indigo Minimal · Editorial</span>
 </footer>
 

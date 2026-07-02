@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RecordTales 데이터 설계 명세 — v1.0</title>
+<!-- ============================================================
+     CHANGELOG — 08-data-design.html
+     RecordTales 데이터 설계 통합 명세 (프로토타입 → UE 데이터 자산 번역).
+     작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.0 · 2026-07-02
+       - 신규 생성. 프로토타입(TestFile/RecordTales.html, "Grimhollow — Guild Master" v14)의
+         전체 데이터를 전수 조사하여 정적(DataTable/Settings)·동적(SaveGame)·휘발(런타임)
+         3계층으로 분류하고, 보관처 결정표 + UENUM/USTRUCT 스키마 + 실측 수치 CSV +
+         SaveGame 통합 구조 + 엔진 등록/검증 절차를 정의.
+       - 02-B(기능 구현 명세) 템플릿 기반. Case A (마스터 v1.3 갱신 없음).
+     ============================================================ -->
+<style>
+/* ============================================================
+   UE Design System — Master Stylesheet
+   (design-guide-ue-master.css)
+   언리얼 에셋 분석 · 아키텍처 설계 문서 공통 토대
+   v1.3  (Dark · Indigo Minimal · Editorial)
+
+   사용법
+   - 가이드 문서(master-visual / design-template의 01 / 02)는 <link>로 이 파일을 참조.
+   - 실제 결과물 HTML은 이 파일 내용을 <style>에 통째로 복사(inline)하여
+     단일 파일로 배포한다. (오프라인 무결성 유지)
+
+   변경 이력 (CHANGELOG) — 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+   v1.3 · 2026-07-02
+     - (변경) 폴더 재구조화: 템플릿(01·02) → design-template/(루트),
+       규약(DOC-GENERATION-PLAYBOOK.md) → doc-process/(루트) 이동. 스타일 변경 없음.
+   v1.2 · 2026-07-01
+     - (추가) .compare-box — 좌우 병렬 비교 카드 (Spawning vs Loading 등)
+     - (추가) .grid-3 — 3열 그리드
+     - (추가) .stat-row-4 — 4열 통계 카드
+     - (추가) .pill.pink / .pill.red — 핑크·레드 pill 변형
+     - (변경) 반응형 블록에 .stat-row-4, .grid-3 1열 폴백 추가
+   v1.1 · 2026-07-01
+     - 파일명 ue-design-system.css → design-guide-ue-master.css
+     - 프레임워크 클래스 컬러 맵 추가
+       (--ue-gamemode/gamestate/controller/pawn/instance/savegame/subsystem)
+     - 파일 타입 컬러 맵 추가 (--ue-header/source/macro)
+     - .h/.cpp 코드 탭(.codeblock) + highlight.js(hljs-*) 다크·인디고 테마
+     - 클래스 관계도(.rel-map) / 책임 배치 결정표(.tbl .owner) 스타일 추가
+     - .tree 에 프레임워크 클래스 색(.c-*), .pitfall.tip, .filetag 추가
+   v1.0
+     - 최초 에셋 분석 디자인 가이드 토큰·컴포넌트
+       (원본 design-guide-ue-asset-structure.html에서 파생, 원본 파일은 2026-07-01 삭제)
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Pretendard:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* --- 기본 토큰 --- */
+  --bg: #0D0F1A;
+  --surface: #13162A;
+  --surface-2: #1A1F38;
+  --border: #252B4A;
+  --accent: #5B6EFA;
+  --accent-2: #9B6DFF;
+  --accent-3: #38D9B4;
+  --text: #E4E8FF;
+  --text-muted: #7B82A6;
+  --text-dim: #4A5080;
+  --amber: #F59E0B;
+  --pink: #E040FB;
+  --red: #F87171;
+
+  /* --- 에셋 타입 컬러 맵 (에셋 분석 문서 전용) --- */
+  --ue-folder: #F59E0B;
+  --ue-bp:     #5B6EFA;
+  --ue-enum:   #9B6DFF;
+  --ue-mat:    #FB8C5A;
+  --ue-tex:    #38D9B4;
+  --ue-demo:   #6BD98E;
+
+  /* --- 프레임워크 클래스 컬러 맵 (C++ 아키텍처 문서 전용, v1.1 신규) ---
+     역할이 다른 프레임워크 클래스를 트리·관계도·태그에서 일관되게 구분한다.
+     새 클래스 계열이 필요하면 여기에 1개 추가하고 00-foundation 색상표에 기록. */
+  --ue-gamemode:   #5B6EFA;  /* GameMode / GameModeBase — 규칙·권한(서버 전용)      */
+  --ue-gamestate:  #7B9CFF;  /* GameState / GameStateBase — 공유 상태(전원 복제)     */
+  --ue-controller: #38D9B4;  /* PlayerController — 입력·의도(플레이어별)             */
+  --ue-pawn:       #6BD98E;  /* Pawn / Character — 물리적 표현·조종 대상            */
+  --ue-instance:   #9B6DFF;  /* GameInstance — 세션 전역·영속                       */
+  --ue-savegame:   #F59E0B;  /* SaveGame — 디스크 직렬화                            */
+  --ue-subsystem:  #E040FB;  /* Subsystem / Manager — 수명 범위형 서비스            */
+
+  /* --- 파일 타입 컬러 맵 (코드 탭·파일 태그, v1.1 신규) --- */
+  --ue-header: #38D9B4;      /* .h  헤더(선언)   */
+  --ue-source: #FB8C5A;      /* .cpp 소스(구현)  */
+  --ue-macro:  #FB8C5A;      /* UCLASS / UPROPERTY / UFUNCTION 등 리플렉션 매크로 */
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+  font-size: 15px; line-height: 1.7; -webkit-font-smoothing: antialiased;
+}
+
+/* NAV */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(13,15,26,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px; display: flex; align-items: center; gap: 32px; height: 52px;
+}
+.nav-logo { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em; white-space: nowrap; }
+.nav-links { display: flex; gap: 22px; flex-wrap: wrap; }
+.nav-links a { color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 500; transition: color 0.2s; }
+.nav-links a:hover { color: var(--text); }
+.nav-links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+
+/* HERO */
+.hero { padding: 72px 48px 56px; max-width: 920px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+.hero-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: var(--accent); text-transform: uppercase; margin-bottom: 20px; }
+.hero h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 20px; }
+.hero h1 span { color: var(--accent); }
+.hero-sub { font-size: 16px; color: var(--text-muted); max-width: 660px; line-height: 1.75; }
+.hero-meta { margin-top: 28px; display: flex; gap: 10px; flex-wrap: wrap; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; border: 1px solid; }
+.badge-blue { color: var(--accent); border-color: var(--accent); background: rgba(91,110,250,0.08); }
+.badge-green { color: var(--accent-3); border-color: var(--accent-3); background: rgba(56,217,180,0.08); }
+.badge-purple { color: var(--accent-2); border-color: var(--accent-2); background: rgba(155,109,255,0.08); }
+
+/* CONTENT / SECTION */
+.content { max-width: 920px; margin: 0 auto; padding: 0 48px 80px; }
+.section { padding: 52px 0 0; border-top: 1px solid var(--border); margin-top: 52px; }
+.section:first-child { margin-top: 0; padding-top: 48px; border-top: none; }
+.section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 12px; }
+.section h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 20px; }
+.section h3 { font-size: 15px; font-weight: 700; color: var(--text); margin: 30px 0 10px; letter-spacing: 0.01em; }
+.section p { color: var(--text-muted); margin-bottom: 14px; line-height: 1.8; }
+.section p strong { color: var(--text); font-weight: 600; }
+
+code { font-family: 'IBM Plex Mono', monospace; font-size: 0.86em; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; color: var(--accent-3); }
+
+/* SWATCHES */
+.swatch-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 22px 0; }
+.swatch { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.swatch .chip { height: 56px; }
+.swatch .meta { padding: 10px 12px; }
+.swatch .vn { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text); font-weight: 600; }
+.swatch .hx { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--text-dim); }
+.swatch .role { font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+
+/* TYPE SCALE */
+.type-row { display: flex; align-items: baseline; gap: 18px; padding: 14px 0; border-bottom: 1px solid rgba(37,43,74,0.5); }
+.type-row:last-child { border-bottom: none; }
+.type-spec { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-dim); min-width: 150px; flex-shrink: 0; }
+.ts-h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; }
+.ts-h2 { font-size: 22px; font-weight: 700; }
+.ts-h3 { font-size: 15px; font-weight: 700; }
+.ts-body { font-size: 15px; color: var(--text-muted); }
+.ts-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); }
+.ts-code { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--accent-3); }
+
+/* CALLOUT */
+.callout { display: flex; gap: 12px; align-items: flex-start; border-radius: 8px; padding: 14px 16px; margin: 18px 0; border: 1px solid var(--border); background: var(--surface-2); font-size: 13.5px; line-height: 1.65; }
+.callout .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.callout p { margin: 0; color: var(--text-muted); }
+.callout p strong { color: var(--text); }
+.callout.info { border-left: 3px solid var(--accent); }
+.callout.tip  { border-left: 3px solid var(--accent-3); }
+.callout.warn { border-left: 3px solid var(--amber); }
+
+/* COMPONENT DEMO FRAME */
+.demo { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 16px 0; }
+.demo-head { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 7px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); }
+.demo-body { padding: 22px; }
+
+/* CODE SNIPPET (수동 escape HTML · 의사코드/마크업 예시용) */
+.snip { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 12px 0 22px; }
+.snip-head { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 8px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+.code-dot { width: 8px; height: 8px; border-radius: 50%; }
+.snip pre { padding: 14px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-muted); line-height: 1.75; overflow-x: auto; white-space: pre; }
+.snip pre .tag { color: var(--accent); }
+.snip pre .atr { color: var(--ue-mat); }
+.snip pre .val { color: var(--accent-3); }
+.snip pre .cm  { color: var(--text-dim); }
+
+/* ============================================================
+   CODE BLOCK — 실제 C++/H (탭 전환 + 복사 + 구워넣은 하이라이팅)  [v1.1 신규]
+   - highlight.js 호환 클래스명(hljs-*)을 사용해, 생성 시점에 span을 미리 박아 넣는다.
+   - .h / .cpp 는 탭으로 전환, 각 패널당 <pre class="hljs"> 하나.
+   ============================================================ */
+.codeblock { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 16px 0 24px; }
+.codeblock-bar { display: flex; align-items: stretch; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.codeblock-tab {
+  padding: 9px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600;
+  color: var(--text-dim); background: transparent; border: none; border-right: 1px solid var(--border);
+  cursor: pointer; transition: color 0.15s, background 0.15s; box-shadow: inset 0 -2px 0 transparent;
+}
+.codeblock-tab:hover { color: var(--text-muted); }
+.codeblock-tab.active { color: var(--text); background: var(--surface); }
+.codeblock-tab.tab-h.active   { box-shadow: inset 0 -2px 0 var(--ue-header); }
+.codeblock-tab.tab-cpp.active { box-shadow: inset 0 -2px 0 var(--ue-source); }
+.codeblock-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.codeblock-copy {
+  margin-left: auto; align-self: center; margin-right: 8px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600;
+  color: var(--text-muted); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 5px; padding: 4px 10px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+}
+.codeblock-copy:hover { color: var(--text); border-color: var(--accent); }
+.codeblock-copy.copied { color: var(--accent-3); border-color: var(--accent-3); }
+.codeblock-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.codeblock-panel { display: none; }
+.codeblock-panel.active { display: block; }
+.codeblock pre { padding: 16px 18px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.75; overflow-x: auto; white-space: pre; }
+
+/* highlight.js 테마 — 다크·인디고 팔레트 매핑 */
+.hljs { color: var(--text-muted); background: var(--surface); }
+.hljs-comment, .hljs-quote { color: var(--text-dim); font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-section { color: var(--accent); font-weight: 500; }        /* class, return, virtual, const, if ... */
+.hljs-literal, .hljs-symbol, .hljs-bullet { color: var(--accent-2); }                                /* true / false / nullptr */
+.hljs-number { color: var(--accent-2); }                                                             /* 숫자 */
+.hljs-string, .hljs-attr, .hljs-attribute, .hljs-name { color: var(--ue-demo); }                     /* 문자열 */
+.hljs-type, .hljs-class .hljs-title, .hljs-title.class_, .hljs-built_in { color: var(--accent-3); }  /* FVector, AActor, TArray ... */
+.hljs-title, .hljs-title.function_, .hljs-function .hljs-title { color: var(--text); }               /* 함수 이름 */
+.hljs-params { color: var(--text-muted); }
+.hljs-meta, .hljs-meta .hljs-keyword { color: var(--ue-macro); font-weight: 600; }                   /* #include, UCLASS/UPROPERTY/UFUNCTION */
+.hljs-meta .hljs-string { color: var(--ue-demo); }                                                   /* #include "..." 경로 */
+.hljs-property, .hljs-variable { color: var(--text); }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 700; }
+
+/* 파일 태그 (본문 인라인 · .h / .cpp 표기용) */
+.filetag { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 3px; }
+.filetag.h   { background: rgba(56,217,180,0.14); color: var(--ue-header); }
+.filetag.cpp { background: rgba(251,140,90,0.14);  color: var(--ue-source); }
+
+/* the live mini-components */
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 4px; }
+.stat-label { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+.a-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; border-top: 2px solid var(--ue-bp); }
+.a-card .ic { font-size: 22px; margin-bottom: 10px; }
+.a-card .a-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.a-card .a-id { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--accent); margin-bottom: 8px; }
+.a-card .a-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+.tt { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 3px; }
+.tt-bool { background: rgba(91,110,250,0.14); color: var(--accent); }
+.tt-enum { background: rgba(251,140,90,0.14); color: var(--ue-mat); }
+.tt-del  { background: rgba(224,64,251,0.12); color: var(--pink); }
+
+.pills { display: flex; flex-wrap: wrap; gap: 7px; }
+.pill { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; padding: 3px 12px; border-radius: 20px; border: 1px solid; }
+.pill.blue { color: var(--accent); border-color: rgba(91,110,250,0.4); background: rgba(91,110,250,0.08); }
+.pill.purple { color: var(--accent-2); border-color: rgba(155,109,255,0.4); background: rgba(155,109,255,0.08); }
+.pill.green { color: var(--accent-3); border-color: rgba(56,217,180,0.4); background: rgba(56,217,180,0.08); }
+.pill.pink { color: var(--pink); border-color: rgba(224,64,251,0.4); background: rgba(224,64,251,0.08); }   /* [v1.2 신규] */
+.pill.red { color: var(--red); border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.08); }    /* [v1.2 신규] */
+
+.arch { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: stretch; }
+.arch-layer { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 16px 14px; }
+.arch-arrow { display: flex; align-items: center; justify-content: center; padding: 0 8px; color: var(--text-dim); font-size: 16px; }
+.arch-tag { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 7px; color: var(--accent); }
+.arch-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.arch-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+.tbl { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 13px; }
+.tbl th { background: var(--surface-2); color: var(--text-muted); font-weight: 600; font-size: 12px; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+.tbl td { padding: 10px 14px; color: var(--text-muted); border-bottom: 1px solid rgba(37,43,74,0.5); vertical-align: top; line-height: 1.55; }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl td:first-child { color: var(--text); }
+.tbl td code, .tbl th code { background: transparent; border: none; padding: 0; color: var(--accent); }
+
+.tree { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.9; color: var(--text-dim); white-space: pre; overflow-x: auto; }
+.tree .folder { color: var(--ue-folder); font-weight: 600; }
+.tree .bp { color: var(--ue-bp); } .tree .enum { color: var(--ue-enum); }
+.tree .mat { color: var(--ue-mat); } .tree .tex { color: var(--ue-tex); }
+.tree .note { color: var(--text-muted); }
+/* 클래스 계층 트리에서 쓰는 프레임워크 색 (에셋 트리와 동일 컴포넌트 재사용) */
+.tree .c-gamemode { color: var(--ue-gamemode); font-weight: 600; }
+.tree .c-gamestate { color: var(--ue-gamestate); font-weight: 600; }
+.tree .c-controller { color: var(--ue-controller); font-weight: 600; }
+.tree .c-pawn { color: var(--ue-pawn); font-weight: 600; }
+.tree .c-instance { color: var(--ue-instance); font-weight: 600; }
+.tree .c-savegame { color: var(--ue-savegame); font-weight: 600; }
+.tree .c-subsystem { color: var(--ue-subsystem); font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); }
+.legend .dot { width: 9px; height: 9px; border-radius: 2px; }
+
+/* ============================================================
+   CLASS RELATIONSHIP — 클래스 관계(소유·possess·참조) 행  [v1.1 신규]
+   ============================================================ */
+.rel-map { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
+.rel-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+.rel-node {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 14px; border-left: 3px solid var(--text-dim);
+}
+.rel-node .rn-name { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.rel-node .rn-role { font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.4; }
+.rel-node.n-gamemode   { border-left-color: var(--ue-gamemode); }
+.rel-node.n-gamestate  { border-left-color: var(--ue-gamestate); }
+.rel-node.n-controller { border-left-color: var(--ue-controller); }
+.rel-node.n-pawn       { border-left-color: var(--ue-pawn); }
+.rel-node.n-instance   { border-left-color: var(--ue-instance); }
+.rel-node.n-savegame   { border-left-color: var(--ue-savegame); }
+.rel-node.n-subsystem  { border-left-color: var(--ue-subsystem); }
+.rel-arrow { display: flex; flex-direction: column; align-items: center; color: var(--text-dim); min-width: 84px; }
+.rel-arrow .ra-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--accent); letter-spacing: 0.04em; white-space: nowrap; }
+.rel-arrow .ra-line { font-size: 15px; line-height: 1; }
+
+/* ============================================================
+   DECISION TABLE — 책임 배치 결정표  [v1.1 신규]
+   "이 데이터/기능을 어느 클래스에 둘까"를 근거와 함께.
+   .tbl 을 기반으로 첫 열에 클래스 색 점을 붙인다.
+   ============================================================ */
+.tbl .owner { display: inline-flex; align-items: center; gap: 7px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.tbl .owner::before { content: ''; width: 9px; height: 9px; border-radius: 2px; background: var(--text-dim); flex-shrink: 0; }
+.tbl .owner.o-gamemode::before   { background: var(--ue-gamemode); }
+.tbl .owner.o-gamestate::before  { background: var(--ue-gamestate); }
+.tbl .owner.o-controller::before { background: var(--ue-controller); }
+.tbl .owner.o-pawn::before       { background: var(--ue-pawn); }
+.tbl .owner.o-instance::before   { background: var(--ue-instance); }
+.tbl .owner.o-savegame::before   { background: var(--ue-savegame); }
+.tbl .owner.o-subsystem::before  { background: var(--ue-subsystem); }
+
+.pipe-step { display: grid; grid-template-columns: 36px 1fr; gap: 0 16px; position: relative; }
+.pipe-step::before { content: ''; position: absolute; left: 17px; top: 36px; bottom: -1px; width: 2px; background: var(--border); }
+.pipe-step:last-child::before { display: none; }
+.pipe-num { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--surface-2); }
+.pipe-body { padding: 6px 0 22px; }
+.pipe-title { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+.pipe-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+.pitfall { display: flex; gap: 14px; align-items: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; border-left: 3px solid var(--amber); }
+.pitfall.tip { border-left-color: var(--accent-3); }
+.pitfall .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.pitfall-text { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
+.pitfall-text strong { color: var(--text); }
+
+/* DO / DON'T */
+.dd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 22px 0; }
+.dd { border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; background: var(--surface-2); }
+.dd.do { border-left: 3px solid var(--accent-3); }
+.dd.dont { border-left: 3px solid var(--red); }
+.dd h4 { font-size: 13px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.dd.do h4 { color: var(--accent-3); }
+.dd.dont h4 { color: var(--red); }
+.dd ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.dd li { font-size: 12.5px; color: var(--text-muted); line-height: 1.55; padding-left: 16px; position: relative; }
+.dd li::before { content: ''; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; border-radius: 50%; }
+.dd.do li::before { background: var(--accent-3); }
+.dd.dont li::before { background: var(--red); }
+
+footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920px; margin: 0 auto; font-size: 12px; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+/* ============================================================
+   GRID-3 — 3열 그리드  [v1.2 신규]
+   ============================================================ */
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+/* ============================================================
+   STAT-ROW-4 — 4열 통계 카드  [v1.2 신규]
+   ============================================================ */
+.stat-row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.stat-row-4 .stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+
+/* ============================================================
+   COMPARE-BOX — 좌우 병렬 비교 카드  [v1.2 신규]
+   .grid-2 안에 2개를 넣어 Spawning vs Loading 등 비교에 사용.
+   ============================================================ */
+.compare-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
+.compare-box h4 { font-size: 14px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.compare-box p { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 10px; }
+.compare-box .pills { margin-top: 10px; }
+
+@media (max-width: 720px) {
+  .content { padding: 0 20px 60px; }
+  .hero { padding: 48px 20px 40px; }
+  .swatch-grid { grid-template-columns: 1fr 1fr; }
+  .stat-row, .stat-row-4, .dd-grid, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .arch { grid-template-columns: 1fr; }
+  .arch-arrow { transform: rotate(90deg); padding: 4px 0; }
+  .rel-row { grid-template-columns: 1fr; text-align: left; }
+  .rel-arrow { flex-direction: row; gap: 8px; min-width: 0; padding: 2px 0; }
+  .rel-arrow .ra-line { transform: rotate(90deg); }
+  .type-row { flex-direction: column; gap: 6px; }
+  .type-spec { min-width: 0; }
+  nav { padding: 0 16px; gap: 16px; }
+  .nav-links { display: none; }
+  footer { padding: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">RECORDTALES &middot; 08 DATA DESIGN</div>
+  <div class="nav-links">
+    <a href="#inventory">인벤토리</a>
+    <a href="#placement">보관처 결정</a>
+    <a href="#types">공통 타입</a>
+    <a href="#static-schema">정적 스키마</a>
+    <a href="#dynamic-schema">동적 스키마</a>
+    <a href="#register">등록</a>
+    <a href="#verify">검증</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">RecordTales &middot; v1.0 &middot; Data Design Specification</div>
+  <h1>데이터 설계 명세<br><span>DataTable &middot; SaveGame &middot; Settings</span></h1>
+  <p class="hero-sub">
+    웹 프로토타입(Grimhollow &mdash; Guild Master v14)에 흩어져 있는 모든 데이터를 전수 조사하여,
+    언리얼 엔진의 데이터 자산(DataTable &middot; Settings &middot; SaveGame)으로 번역하는 단일 기준 문서입니다.
+    모든 수치는 프로토타입 코드에서 실측한 값입니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">정적 8테이블</span>
+    <span class="badge badge-green">SaveGame 1클래스</span>
+    <span class="badge badge-purple">공통 타입 9종</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- ============================================================
+       01 — 요구사항: 데이터 인벤토리
+       ============================================================ -->
+  <div class="section" id="inventory">
+    <div class="section-label">01 — 요구사항 &middot; 데이터 인벤토리</div>
+    <h2>프로토타입 데이터 전수 조사</h2>
+    <p>프로토타입은 단일 HTML 파일 안의 자바스크립트 상수와 전역 상태 객체(<code>A</code>)에 모든 데이터를 담고 있습니다. 언리얼로 옮길 때는 이 데이터를 성격에 따라 <strong>3계층</strong>으로 나눕니다. 이 분류가 이 문서 전체의 뼈대입니다.</p>
+
+    <div class="stat-row-4">
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent)">정적</div><div class="stat-label">기획 데이터 &mdash; 에디터에서 편집</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--ue-savegame)">동적</div><div class="stat-label">플레이어 상태 &mdash; SaveGame 저장</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--text-muted)">휘발</div><div class="stat-label">세션 상태 &mdash; 저장하지 않음</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent-3)">1곳</div><div class="stat-label">데이터당 보관처는 하나</div></div>
+    </div>
+
+    <h3 id="term-data-tiers">핵심 용어</h3>
+    <div class="callout info"><span class="ic">&#128218;</span><p>
+      <strong>데이터 3계층 (정적/동적/휘발)</strong> &mdash; 데이터를 "누가, 언제 바꾸는가"로 나누는 기준. <strong>정적</strong>은 기획자가 에디터에서 밸런싱하는 값(캐릭터 스탯, 해금 비용), <strong>동적</strong>은 플레이어마다 달라져 저장해야 하는 값(보유 골드, 완료한 퀘스트), <strong>휘발</strong>은 세션 중에만 의미 있어 저장하면 오히려 버그가 되는 값(남은 타이머 초, 열려 있는 패널)입니다.<br>
+      <strong>DataTable (데이터테이블)</strong> &mdash; 언리얼에서 표 형태의 정적 데이터를 담는 에셋. 각 행은 <code>FTableRowBase</code>를 상속한 구조체이며, CSV 파일로 임포트/재임포트할 수 있어 스프레드시트로 밸런싱할 수 있습니다.<br>
+      <strong>FTableRowBase</strong> &mdash; DataTable의 행이 되기 위해 반드시 상속해야 하는 기본 구조체. 이걸 상속해야 에디터의 Data Table 생성 목록에 나타납니다.<br>
+      <strong>RowName (행 이름)</strong> &mdash; DataTable에서 각 행을 식별하는 고유 이름(<code>FName</code> 타입). 다른 데이터가 이 행을 가리킬 때는 데이터를 복사하지 않고 RowName만 저장합니다(참조 방식).<br>
+      <strong>USaveGame (세이브게임)</strong> &mdash; 플레이어 상태를 디스크에 저장/로드하는 언리얼 기본 클래스. <code>UPROPERTY()</code>가 붙은 멤버만 직렬화(파일로 변환)됩니다.<br>
+      <strong>UDeveloperSettings (개발자 설정)</strong> &mdash; Project Settings 화면에 자동 노출되는 설정 클래스. 테이블로 만들기엔 낱개인 전역 상수(가챠 비용, 골드 틱 주기 등)의 홈입니다.<br>
+      <strong>TSoftObjectPtr (소프트 참조)</strong> &mdash; 에셋을 즉시 메모리에 올리지 않고 경로만 들고 있다가 필요할 때 로드하는 참조. 텍스처·사운드처럼 큰 에셋을 테이블에 연결할 때 사용합니다.
+    </p></div>
+
+    <h3>전수 인벤토리 트리</h3>
+    <p>프로토타입의 심볼 이름을 그대로 병기했습니다. 아래 트리에 없는 데이터는 이 프로젝트에 존재하지 않습니다.</p>
+    <div class="tree">
+<b style="color:var(--accent)">정적 — 기획 데이터 (에디터 편집 대상)</b>
+├─ <code>POOL</code> — 고정 캐릭터 12명 (등급별 3명 × 4등급: 이름·종족·직업·스탯·스토리·관계)
+├─ <code>SYNERGIES</code> — 시너지 7종 (페어 5 + 트리오 2)
+├─ <code>UNLOCKS_V2</code> — 기능 해금 17종 (프리셋 2 · 편성 슬롯 2 · 보상 강화 5×3계열)
+├─ <code>CONTENT_UNLOCKS</code> — 콘텐츠 해금 12종 (곡 4 + 배경 8)
+├─ <code>levelUpXp / levelUpGoldCost</code> — 레벨업 공식 (100×1.4^(Lv-1) / 500×Lv)
+├─ <code>GUILD_TITLES_V2</code> — 길드 칭호 (Lv1~20 구간별 10종)
+├─ <code>RARITY_BY_LEVEL_V2</code> — 레벨 구간별 가챠 확률 7브래킷
+├─ <code>TRACKS / TRACK_GENRE_GROUPS</code> — BGM 6곡 · 장르 그룹 5종
+├─ <code>SOUNDS</code> — 앰비언트 사운드 5종 (Rain·Wind·Fire·Forest·Ocean)
+├─ <code>STAT_POOL</code> — 능력치 종류 9종 (모두 % 단위)
+├─ <code>categories</code> 초기값 — 기본 카테고리 6종 (공부·프로젝트·업무·독서·운동·기타)
+└─ 낱개 상수 — <code>HIRE_COST</code>(1,000) · 골드 틱(6초당 +10) · <code>questGoldDailyCap</code>(2,000)
+                · <code>guildMemberCap</code>(8) · <code>MAX_LEVEL</code>(99) · <code>MAX_DESIGN_LEVEL</code>(20)
+                · 타이머 기본값(25/5/15/5분 · 반복 4회) · XP 보상값
+
+<b style="color:var(--ue-savegame)">동적 — 플레이어 상태 (SaveGame 저장 대상)</b>
+├─ <code>A.records[]</code> — 집중 기록 (카테고리·시간·모드·메모·시각)
+├─ <code>A.todos[] + idCounters + lastRolloverDate</code> — 퀘스트 마스터 + 일일 ID 카운터 + 롤오버 기준일
+├─ <code>A.guildMembers[] / squadPresets / activePreset / hireHistory</code> — 보유 길드원·편성·모집 이력
+├─ <code>A.gold / guildLevel / guildXp / guildTotalXp / unlockedIds / questGoldToday</code> — 경제·진행도
+├─ <code>A.focusStreakCount / currentBgId</code> — 연속 집중 카운트 · 적용 중 배경
+├─ <code>A.focusDuration ~ autoRestart</code> — 타이머 사용자 설정
+└─ <code>A.categories / catColors</code> — 사용자 편집 카테고리 목록·색상
+
+<b style="color:var(--text-muted)">휘발 — 세션 상태 (저장 금지)</b>
+├─ 타이머 진행: <code>timerState · remainingTime · cycleIndex · accFocusTime · goldTickCounter</code>
+├─ 스톱워치 진행: <code>swElapsed · swRunning · swPaused</code>
+├─ 가챠 진행: <code>hireState · hireCandidates(3장) · hirePreselectedIdx</code>
+├─ 재생 상태: <code>MP(곡 인덱스·재생 위치) · PREVIEW(미리듣기)</code>
+└─ UI 상태: <code>currentPanel · questsView · statusFilter · 캘린더 연/월 · 필터류 전부</code>
+    </div>
+
+    <div class="callout"><span class="ic">&#128161;</span><p><strong>왜 "인스턴스 캐시(<code>A.instances</code>)"가 동적 목록에 없나요?</strong> 프로토타입의 반복 퀘스트 인스턴스는 마스터 레코드에서 <strong>날짜를 넣으면 언제든 다시 계산되는 파생 데이터</strong>입니다(마스터의 <code>recurData</code> 맵에 날짜별 완료 상태만 저장). 파생 데이터는 저장하지 않고 필요할 때 재계산하는 것이 원칙입니다 &mdash; 저장하면 원본(마스터)과 어긋날 위험만 생깁니다.</p></div>
+  </div>
+
+  <!-- ============================================================
+       02 — 설계 결정: 데이터 보관처
+       ============================================================ -->
+  <div class="section" id="placement">
+    <div class="section-label">02 — 설계 결정 &middot; 데이터 보관처</div>
+    <h2>데이터 보관처 결정표</h2>
+    <p>각 데이터 그룹을 <strong>어디에, 왜 두는지</strong>가 이 문서의 가장 중요한 결정입니다. 판단 기준은 세 가지 질문입니다.</p>
+
+      <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">기획자가 밸런싱하며 바꾸는 값인가?</div><div class="pipe-desc">그렇다면 코드가 아니라 에디터에서 편집돼야 합니다 &rarr; 행이 여러 개면 <strong>DataTable</strong>, 낱개 상수면 <strong>UDeveloperSettings</strong>.</div></div></div>
+      <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">플레이어마다 값이 다른가?</div><div class="pipe-desc">그렇다면 디스크에 남아야 합니다 &rarr; <strong>USaveGame</strong>. 정적 데이터를 가리킬 때는 복사하지 말고 RowName(행 이름)만 저장합니다.</div></div></div>
+      <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">앱을 껐다 켜면 사라져도 되는가?</div><div class="pipe-desc">그렇다면 저장하지 않습니다 &rarr; 각 <strong>Subsystem의 멤버 변수</strong>(휘발). 실수로 저장하면 "재시작했는데 타이머가 돌고 있는" 류의 버그가 됩니다.</div></div></div>
+
+    <table class="tbl owner">
+      <tr><th>데이터 그룹 (프로토타입 심볼)</th><th>보관처</th><th>근거</th></tr>
+      <tr><td>캐릭터 12명 (<code>POOL</code>)</td><td><code>DT_GuildMembers</code> (DataTable)</td><td>등급·스탯·스토리는 밸런싱 대상. 가챠는 테이블 행 전체를 풀로 순회하므로 행 단위 관리가 자연스러움</td></tr>
+      <tr><td>시너지 7종 (<code>SYNERGIES</code>)</td><td><code>DT_Synergies</code> (DataTable)</td><td>멤버 조합·보너스 수치가 밸런싱 대상. 멤버는 <code>DT_GuildMembers</code>의 RowName 배열로 참조</td></tr>
+      <tr><td>기능 해금 17종 (<code>UNLOCKS_V2</code>)</td><td><code>DT_Unlocks</code> (DataTable)</td><td>비용·선행 조건 체인이 표 구조 그 자체. <code>Requires</code> 열이 같은 테이블의 RowName을 가리킴</td></tr>
+      <tr><td>콘텐츠 해금 (<code>CONTENT_UNLOCKS</code>)</td><td><code>DT_MusicTracks</code> · <code>DT_Backgrounds</code>에 <strong>통합</strong></td><td><b>정규화 결정</b>: 프로토타입은 콘텐츠(TRACKS)와 해금 정보(CONTENT_UNLOCKS)를 별도 배열 + 인덱스(<code>trackIdx</code>)로 연결하지만, 둘은 1:1 관계이므로 UE에서는 콘텐츠 테이블에 <code>Cost</code>(0 = 기본 제공) 열로 흡수. 인덱스 연결은 행 삽입 시 깨지기 쉬움</td></tr>
+      <tr><td>레벨 진행 (공식·칭호·가챠 확률)</td><td><code>DT_GuildLevels</code> (DataTable, Lv1~20 행)</td><td><b>정규화 결정</b>: 공식(1.4^n)·칭호 배열·확률 브래킷 3곳에 흩어진 레벨 데이터를 레벨당 1행으로 통합. 기획자가 "Lv7에서 뭐가 열리지?"를 한 행에서 봄. Lv21+는 공식 폴백(&sect;04-5)</td></tr>
+      <tr><td>BGM 6곡 (<code>TRACKS</code>)</td><td><code>DT_MusicTracks</code> (DataTable)</td><td>곡별 메타(제목·장르·길이) + <code>TSoftObjectPtr&lt;USoundBase&gt;</code>로 실제 오디오 에셋 연결</td></tr>
+      <tr><td>앰비언트 5종 (<code>SOUNDS</code>)</td><td><code>DT_AmbientSounds</code> (DataTable)</td><td>루프 사운드 에셋 연결 + 이름·아이콘. 볼륨은 동적(플레이어 설정)</td></tr>
+      <tr><td>배경 8종 (<code>CONTENT_UNLOCKS</code>의 bg)</td><td><code>DT_Backgrounds</code> (DataTable)</td><td>프로토타입의 CSS 그라데이션은 UE에서 텍스처/머티리얼 에셋으로 대체 &rarr; 소프트 참조 열</td></tr>
+      <tr><td>낱개 상수 (가챠 비용·골드 틱·상한류·XP 보상·타이머 기본값·기본 카테고리)</td><td><code>URecordTalesSettings</code> (UDeveloperSettings)</td><td>행이 하나뿐인 값을 테이블로 만들면 과설계. Project Settings &#9656; Game에 자동 노출되어 재컴파일 없이 조정 가능(Config=Game)</td></tr>
+      <tr><td>플레이어 상태 전부 (기록·퀘스트·길드원·경제·설정)</td><td><code>URecordTalesSaveGame</code> (USaveGame)</td><td>플레이어마다 다르고 재시작 후에도 남아야 함. 구성은 &sect;05</td></tr>
+      <tr><td>세션·UI 상태</td><td>각 Subsystem 멤버 변수 (저장 안 함)</td><td>타이머 진행·가챠 카드·열린 패널은 세션 안에서만 유효. <code>UPROPERTY(Transient)</code>로 직렬화 제외 명시</td></tr>
+    </table>
+
+    <h3>프로토타입 실측값 vs 정의만 있는 값</h3>
+    <div class="pitfall"><span class="ic">&#9888;&#65039;</span><div class="pitfall-text"><strong>프로토타입에는 "선언만 되고 배선되지 않은" 상수가 있습니다.</strong> 코드를 그대로 믿고 옮기면 실제 동작과 다른 밸런스가 들어갑니다. 이 문서의 모든 테이블은 <strong>실제 호출부에서 실측한 값</strong>을 기본으로 하고, 미배선 값은 아래처럼 따로 표시합니다.
+      <br>&middot; <code>XP_REWARDS</code> 상수(스톱워치 분당 10 · 타이머 20 · 퀘스트 50) &mdash; <strong>정의만 존재.</strong> 실제 지급 코드는 타이머 사이클 완료 +15, 3연속 보너스 +20, 스톱워치(25분 이상) +15, 퀘스트 마스터 완료 +10, 반복 인스턴스 완료 +5.
+      <br>&middot; <code>getRewardMultiplier()</code>(해금 티어당 +20% 보상 배율) &mdash; 함수는 있으나 <strong>지급 코드에 곱해지지 않음.</strong> UE 구현에서는 배선하는 것을 전제로 Settings에 필드를 마련합니다.
+      <br>&middot; 퀘스트 골드 보상 &mdash; <code>questGoldDailyCap</code>(일 2,000)은 있으나 <strong>지급 로직 자체가 미구현.</strong> 상한 필드만 예약하고 지급량은 기획 확정 필요.
+    </div></div>
+  </div>
+
+  <!-- ============================================================
+       03 — 공통 타입
+       ============================================================ -->
+  <div class="section" id="types">
+    <div class="section-label">03 — 공통 타입 &middot; UENUM</div>
+    <h2>열거형과 공용 구조체</h2>
+    <p>프로토타입은 상태를 문자열(<code>'timer'</code>, <code>'daily'</code>&hellip;)로 구분합니다. 문자열은 오타가 곧 버그이므로, UE에서는 전부 <strong>UENUM(열거형: 허용된 값만 담을 수 있는 타입)</strong>으로 바꿉니다. 이름은 기존 01~07 문서에서 이미 쓰던 것을 그대로 따릅니다(한 개념 한 용어).</p>
+
+    <table class="tbl">
+      <tr><th>UENUM</th><th>값</th><th>프로토타입 문자열</th><th>주 사용처</th></tr>
+      <tr><td><code>EFocusMode</code></td><td>Timer, Stopwatch</td><td><code>'timer' / 'sw'</code></td><td>기록 모드 구분</td></tr>
+      <tr><td><code>EFocusState</code></td><td>Idle, Focusing, Resting, LastResting, Paused</td><td><code>timerState</code></td><td>타이머 상태 머신 (휘발)</td></tr>
+      <tr><td><code>EQuestRecurrence</code></td><td>None, Daily, Weekly, Monthly</td><td><code>recurrence</code></td><td>반복 규칙</td></tr>
+      <tr><td><code>EQuestStatus</code></td><td>Upcoming, Active, Overdue, Done, Suspended</td><td>파생값 (저장 안 함)</td><td>날짜·완료 여부에서 <strong>계산</strong>되는 상태 &mdash; 저장하면 자정이 지날 때 어긋남</td></tr>
+      <tr><td><code>EGuildRarity</code></td><td>Normal, Rare, Epic, Legendary</td><td><code>'normal'~'legendary'</code></td><td>캐릭터 등급</td></tr>
+      <tr><td><code>EMemberStat</code></td><td>FocusTime, GoldGain, QuestReward, StopwatchReward, AccuracyBonus, XpBonus, StreakBonus, AllReward, XpBoost</td><td><code>STAT_POOL</code> 9종</td><td>캐릭터 스탯·시너지 보너스 종류</td></tr>
+      <tr><td><code>EUnlockCategory</code></td><td>Preset, Squad, Stopwatch, Timer, Quest</td><td><code>UNLOCKS_V2.cat</code></td><td>기능 해금 분류</td></tr>
+      <tr><td><code>EPeriodFilter</code></td><td>Daily, Weekly, Monthly</td><td><code>archPeriodFilter</code></td><td>아카이브 조회 (휘발)</td></tr>
+      <tr><td><code>EPanel</code></td><td>Focus, Quests, Archive</td><td><code>currentPanel</code></td><td>UI 패널 (휘발)</td></tr>
+    </table>
+
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">RecordTalesTypes.h &mdash; 공통 타입</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 공통 타입 — 모든 서브시스템/테이블이 공유. 기존 문서(01~07)의 타입명과 동일.</span>
+<span class="hljs-meta">#pragma once</span>
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"RecordTalesTypes.generated.h"</span></span>
+
+<span class="hljs-meta">UENUM(BlueprintType)</span>
+<span class="hljs-keyword">enum class</span> <span class="hljs-title">EFocusMode</span> : <span class="hljs-keyword">uint8</span> { Timer, Stopwatch };
+
+<span class="hljs-meta">UENUM(BlueprintType)</span>
+<span class="hljs-keyword">enum class</span> <span class="hljs-title">EQuestRecurrence</span> : <span class="hljs-keyword">uint8</span> { None, Daily, Weekly, Monthly };
+
+<span class="hljs-meta">UENUM(BlueprintType)</span>
+<span class="hljs-keyword">enum class</span> <span class="hljs-title">EGuildRarity</span> : <span class="hljs-keyword">uint8</span> { Normal, Rare, Epic, Legendary };
+
+<span class="hljs-comment">// 능력치 종류 9종 — 프로토타입 STAT_POOL 순서 그대로. 값은 전부 % 단위.</span>
+<span class="hljs-meta">UENUM(BlueprintType)</span>
+<span class="hljs-keyword">enum class</span> <span class="hljs-title">EMemberStat</span> : <span class="hljs-keyword">uint8</span>
+{
+    FocusTime,        <span class="hljs-comment">// 집중 시간</span>
+    GoldGain,         <span class="hljs-comment">// 골드 획득</span>
+    QuestReward,      <span class="hljs-comment">// 퀘스트 보상</span>
+    StopwatchReward,  <span class="hljs-comment">// 스톱워치 보상</span>
+    AccuracyBonus,    <span class="hljs-comment">// 명중 보너스</span>
+    XpBonus,          <span class="hljs-comment">// 경험치 보너스</span>
+    StreakBonus,      <span class="hljs-comment">// 연속 보상</span>
+    AllReward,        <span class="hljs-comment">// 모든 보상</span>
+    XpBoost           <span class="hljs-comment">// 경험치 부스트</span>
+};
+
+<span class="hljs-meta">UENUM(BlueprintType)</span>
+<span class="hljs-keyword">enum class</span> <span class="hljs-title">EUnlockCategory</span> : <span class="hljs-keyword">uint8</span> { Preset, Squad, Stopwatch, Timer, Quest };
+
+<span class="hljs-comment">// 스탯 1개 = (종류, 수치%). 캐릭터 스탯·시너지 보너스가 공용으로 사용.</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title">FStatBonus</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    EMemberStat Stat = EMemberStat::FocusTime;
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-keyword">float</span> Value = <span class="hljs-number">0.f</span>;   <span class="hljs-comment">// % 단위 (4 = +4%)</span>
+};</pre></div>
+    </div>
+
+    <div class="callout"><span class="ic">&#128161;</span><p><strong><code>EQuestStatus</code>만 저장하지 않는 이유.</strong> Upcoming(시작 전)/Active(진행 중)/Overdue(기한 초과)는 "오늘 날짜"와 비교해야 정해지는 값입니다. 어제 저장한 Active가 오늘은 Overdue일 수 있으므로, 저장은 원인(시작일·마감일·완료 시각)만 하고 상태는 조회 시점에 계산합니다.</p></div>
+  </div>
+
+  <!-- ============================================================
+       04 — 정적 데이터 스키마
+       ============================================================ -->
+  <div class="section" id="static-schema">
+    <div class="section-label">04 — 정적 데이터 스키마 &middot; DataTable</div>
+    <h2>테이블별 행 구조체와 실측 데이터</h2>
+    <p>테이블은 총 <strong>7개</strong>입니다. 각 항목마다 ① 행 구조체(.h) ② 실측 데이터 표(CSV로 그대로 옮기면 되는 값) 순으로 정리합니다.</p>
+
+    <h3 id="term-dt-guildmembers">04-1 &middot; DT_GuildMembers &mdash; 캐릭터 12명</h3>
+    <p>RowName은 캐릭터 영문 이름을 사용합니다(시너지·세이브가 이 이름으로 참조). 프로토타입의 이모지 초상화는 <code>TSoftObjectPtr&lt;UTexture2D&gt;</code>로 대체합니다.</p>
+
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">GuildMemberRow.h</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// DT_GuildMembers 행. RowName = 캐릭터 영문 이름 (예: "Cael").</span>
+<span class="hljs-comment">// 04 문서 초판의 ATK/DEF/SPD/SPL 모델은 v14 프로토타입에서 % 보너스 모델로 대체됨.</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title">FGuildMemberRow</span> : <span class="hljs-keyword">public</span> FTableRowBase
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    FText DisplayName;                          <span class="hljs-comment">// UI 표시명</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    EGuildRarity Rarity = EGuildRarity::Normal;
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    FText Race;                                 <span class="hljs-comment">// Human, Elf, Dwarf ...</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    FText Job;                                  <span class="hljs-comment">// Archer, Knight ...</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    TSoftObjectPtr&lt;UTexture2D&gt; Portrait;        <span class="hljs-comment">// 초상화 (이모지 대체)</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    TArray&lt;FStatBonus&gt; Stats;                   <span class="hljs-comment">// Normal 1개, Rare+ 2개</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(MultiLine=<span class="hljs-keyword">true</span>))</span>
+    FText Story;                                <span class="hljs-comment">// 배경 스토리</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    TArray&lt;FName&gt; Likes;                        <span class="hljs-comment">// 호감 — 이 테이블의 RowName</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    TArray&lt;FName&gt; Dislikes;                     <span class="hljs-comment">// 반감 — 이 테이블의 RowName</span>
+};</pre></div>
+    </div>
+
+    <table class="tbl">
+      <tr><th>RowName</th><th>등급</th><th>종족</th><th>직업</th><th>스탯 (%)</th><th>Likes</th><th>Dislikes</th></tr>
+      <tr><td><code>Cael</code></td><td>Normal</td><td>Human</td><td>Archer</td><td>퀘스트 보상 +4</td><td>Mira, Lyra</td><td>Brom</td></tr>
+      <tr><td><code>Brom</code></td><td>Normal</td><td>Human</td><td>Berserker</td><td>집중 시간 +3</td><td>Jora</td><td>Cael, Korin</td></tr>
+      <tr><td><code>Jora</code></td><td>Normal</td><td>Dwarf</td><td>Guardian</td><td>골드 획득 +3</td><td>Brom, Aldric</td><td>&mdash;</td></tr>
+      <tr><td><code>Aldric</code></td><td>Rare</td><td>Human</td><td>Knight</td><td>집중 시간 +8 &middot; 퀘스트 보상 +5</td><td>Lyra, Jora</td><td>Vex</td></tr>
+      <tr><td><code>Mira</code></td><td>Rare</td><td>Elf</td><td>Ranger</td><td>명중 보너스 +8 &middot; 골드 획득 +5</td><td>Cael, Korin</td><td>&mdash;</td></tr>
+      <tr><td><code>Vex</code></td><td>Rare</td><td>Human</td><td>Trickster</td><td>연속 보상 +8 &middot; 집중 시간 +5</td><td>Saron</td><td>Aldric, Astaroth</td></tr>
+      <tr><td><code>Lyra</code></td><td>Epic</td><td>Human</td><td>Sword Saint</td><td>골드 획득 +12 &middot; 스톱워치 보상 +10</td><td>Aldric, Cael</td><td>Drakthus</td></tr>
+      <tr><td><code>Korin</code></td><td>Epic</td><td>Elf</td><td>Sage</td><td>집중 시간 +12 &middot; 경험치 보너스 +10</td><td>Mira, Seraphine</td><td>Brom</td></tr>
+      <tr><td><code>Saron</code></td><td>Epic</td><td>Half-Demon</td><td>Assassin</td><td>퀘스트 보상 +12 &middot; 연속 보상 +10</td><td>Vex, Drakthus</td><td>&mdash;</td></tr>
+      <tr><td><code>Astaroth</code></td><td>Legendary</td><td>Demon Lord</td><td>Overlord</td><td>모든 보상 +18 &middot; 집중 시간 +15</td><td>Drakthus, Seraphine</td><td>Vex</td></tr>
+      <tr><td><code>Seraphine</code></td><td>Legendary</td><td>Celestial</td><td>High Priest</td><td>경험치 부스트 +18 &middot; 골드 획득 +15</td><td>Korin, Astaroth</td><td>&mdash;</td></tr>
+      <tr><td><code>Drakthus</code></td><td>Legendary</td><td>Dragon</td><td>Dragonkin</td><td>연속 보상 +18 &middot; 스톱워치 보상 +15</td><td>Astaroth, Saron</td><td>Lyra</td></tr>
+    </table>
+    <p>스토리 텍스트 12편은 프로토타입 <code>POOL</code>의 <code>story</code> 필드를 CSV의 <code>Story</code> 열로 그대로 옮깁니다(생략 없이 전문 이관).</p>
+
+    <h3 id="term-dt-synergies">04-2 &middot; DT_Synergies &mdash; 시너지 7종</h3>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">SynergyRow.h</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// DT_Synergies 행. Members 전원이 활성 스쿼드에 있을 때만 발동.</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title">FSynergyRow</span> : <span class="hljs-keyword">public</span> FTableRowBase
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    FText DisplayName;              <span class="hljs-comment">// 예: 검술 라이벌</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    TArray&lt;FName&gt; Members;          <span class="hljs-comment">// DT_GuildMembers RowName 2~3개</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    FStatBonus Bonus;               <span class="hljs-comment">// 발동 시 부여되는 보너스 1개</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(MultiLine=<span class="hljs-keyword">true</span>))</span>
+    FText Description;
+};</pre></div>
+    </div>
+
+    <table class="tbl">
+      <tr><th>RowName</th><th>이름</th><th>멤버</th><th>보너스</th></tr>
+      <tr><td><code>sword-rivals</code></td><td>검술 라이벌</td><td>Aldric, Lyra</td><td>집중 시간 +5%</td></tr>
+      <tr><td><code>archer-duo</code></td><td>활잡이 듀오</td><td>Cael, Mira</td><td>명중 보너스 +6%</td></tr>
+      <tr><td><code>elf-bond</code></td><td>엘프의 인연</td><td>Mira, Korin</td><td>경험치 보너스 +4%</td></tr>
+      <tr><td><code>shadow-pact</code></td><td>그림자 협정</td><td>Vex, Saron</td><td>연속 보상 +5%</td></tr>
+      <tr><td><code>guardian-bond</code></td><td>수호의 맹세</td><td>Aldric, Jora</td><td>집중 시간 +3%</td></tr>
+      <tr><td><code>demon-court</code></td><td>마계의 군림</td><td>Astaroth, Drakthus, Seraphine</td><td>모든 보상 +10%</td></tr>
+      <tr><td><code>human-honor</code></td><td>인간의 명예</td><td>Aldric, Cael, Lyra</td><td>퀘스트 보상 +7%</td></tr>
+    </table>
+
+    <h3 id="term-dt-unlocks">04-3 &middot; DT_Unlocks &mdash; 기능 해금 17종</h3>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">UnlockItemRow.h</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// DT_Unlocks 행. Requires가 비어 있지 않으면 그 행을 먼저 사야 구매 가능.</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title">FUnlockItemRow</span> : <span class="hljs-keyword">public</span> FTableRowBase
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    EUnlockCategory Category = EUnlockCategory::Preset;
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-keyword">int32</span> Cost = <span class="hljs-number">0</span>;            <span class="hljs-comment">// Gold</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-keyword">int32</span> Tier = <span class="hljs-number">0</span>;            <span class="hljs-comment">// 보상 강화 계열만 1~5, 그 외 0</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    FName Requires;             <span class="hljs-comment">// 선행 해금 RowName (없으면 None)</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    FText Description;          <span class="hljs-comment">// 예: 편성 슬롯 3</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    FText Detail;               <span class="hljs-comment">// 예: 2 → 3</span>
+};</pre></div>
+    </div>
+
+    <table class="tbl">
+      <tr><th>RowName</th><th>분류</th><th>비용</th><th>효과</th><th>선행</th></tr>
+      <tr><td><code>preset2</code> / <code>preset3</code></td><td>Preset</td><td>8,000 / 25,000</td><td>스쿼드 프리셋 1&rarr;2 / 2&rarr;3</td><td>&mdash; / preset2</td></tr>
+      <tr><td><code>squad3</code> / <code>squad4</code></td><td>Squad</td><td>15,000 / 50,000</td><td>편성 슬롯 2&rarr;3 / 3&rarr;4</td><td>&mdash; / squad3</td></tr>
+      <tr><td><code>stopwatch1~5</code></td><td>Stopwatch</td><td>3,000 / 8,000 / 18,000 / 35,000 / 60,000</td><td>스톱워치 보상 +20%씩 (최대 +100%)</td><td>직전 티어</td></tr>
+      <tr><td><code>timer1~5</code></td><td>Timer</td><td>3,000 / 8,000 / 18,000 / 35,000 / 60,000</td><td>타이머 보상 +20%씩 (최대 +100%)</td><td>직전 티어</td></tr>
+      <tr><td><code>quest1~5</code></td><td>Quest</td><td>3,000 / 8,000 / 18,000 / 35,000 / 60,000</td><td>퀘스트 보상 +20%씩 (최대 +100%)</td><td>직전 티어</td></tr>
+    </table>
+    <div class="callout"><span class="ic">&#128161;</span><p><strong>기본값(해금 0개 상태)</strong>: 프리셋 1개 &middot; 편성 슬롯 2개 &middot; 보상 배율 +0%. 현재 효과는 보유한 해금 ID 중 가장 높은 티어로 계산합니다(티어 스킵 불가 &mdash; <code>Requires</code> 체인이 순서를 보장).</p></div>
+
+    <h3 id="term-dt-guildlevels">04-4 &middot; DT_GuildLevels &mdash; 레벨 진행 (Lv1~20)</h3>
+    <p>필요 XP는 <code>floor(100 &times; 1.4^(Lv-1))</code>, 레벨업 골드는 <code>500 &times; Lv</code>의 계산 결과를 행으로 굳힌 것입니다. 가챠 확률은 프로토타입의 7개 브래킷(1·3·5·8·12·16·20레벨 이상)을 레벨별로 전개했습니다.</p>
+
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">GuildLevelRow.h</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// DT_GuildLevels 행. RowName = 레벨 숫자 ("1"~"20").</span>
+<span class="hljs-comment">// Lv21~98은 행 없이 공식 폴백: XP=floor(100*1.4^(Lv-1)), Gold=500*Lv,</span>
+<span class="hljs-comment">// 칭호·확률은 Lv20 행 값을 그대로 사용 (MAX_DESIGN_LEVEL=20 디자인 캡).</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title">FGuildLevelRow</span> : <span class="hljs-keyword">public</span> FTableRowBase
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-keyword">int32</span> RequiredXp = <span class="hljs-number">0</span>;       <span class="hljs-comment">// 이 레벨 → 다음 레벨</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-keyword">int32</span> RequiredGold = <span class="hljs-number">0</span>;
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    FText Title;                <span class="hljs-comment">// 이 레벨의 칭호</span>
+
+    <span class="hljs-comment">// 가챠 확률 (합계 100). 순서: Normal / Rare / Epic / Legendary</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-keyword">int32</span> WeightNormal = <span class="hljs-number">0</span>;
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-keyword">int32</span> WeightRare = <span class="hljs-number">0</span>;
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-keyword">int32</span> WeightEpic = <span class="hljs-number">0</span>;
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-keyword">int32</span> WeightLegendary = <span class="hljs-number">0</span>;
+};</pre></div>
+    </div>
+
+    <table class="tbl">
+      <tr><th>Lv</th><th>필요 XP</th><th>필요 Gold</th><th>칭호</th><th>확률 N/R/E/L (%)</th></tr>
+      <tr><td>1</td><td>100</td><td>500</td><td>견습 길드마스터</td><td>80 / 20 / 0 / 0</td></tr>
+      <tr><td>2</td><td>140</td><td>1,000</td><td>초보 길드마스터</td><td>80 / 20 / 0 / 0</td></tr>
+      <tr><td>3</td><td>195</td><td>1,500</td><td>초보 길드마스터</td><td>60 / 35 / 5 / 0</td></tr>
+      <tr><td>4</td><td>274</td><td>2,000</td><td>정식 길드마스터</td><td>60 / 35 / 5 / 0</td></tr>
+      <tr><td>5</td><td>384</td><td>2,500</td><td>정식 길드마스터</td><td>45 / 40 / 13 / 2</td></tr>
+      <tr><td>6</td><td>537</td><td>3,000</td><td>숙련 길드마스터</td><td>45 / 40 / 13 / 2</td></tr>
+      <tr><td>7</td><td>752</td><td>3,500</td><td>숙련 길드마스터</td><td>45 / 40 / 13 / 2</td></tr>
+      <tr><td>8</td><td>1,054</td><td>4,000</td><td>노련한 길드마스터</td><td>30 / 40 / 25 / 5</td></tr>
+      <tr><td>9</td><td>1,475</td><td>4,500</td><td>노련한 길드마스터</td><td>30 / 40 / 25 / 5</td></tr>
+      <tr><td>10</td><td>2,066</td><td>5,000</td><td>전략가 길드마스터</td><td>30 / 40 / 25 / 5</td></tr>
+      <tr><td>11</td><td>2,892</td><td>5,500</td><td>전략가 길드마스터</td><td>30 / 40 / 25 / 5</td></tr>
+      <tr><td>12</td><td>4,049</td><td>6,000</td><td>원로 길드마스터</td><td>15 / 35 / 35 / 15</td></tr>
+      <tr><td>13</td><td>5,669</td><td>6,500</td><td>원로 길드마스터</td><td>15 / 35 / 35 / 15</td></tr>
+      <tr><td>14</td><td>7,937</td><td>7,000</td><td>대길드마스터</td><td>15 / 35 / 35 / 15</td></tr>
+      <tr><td>15</td><td>11,112</td><td>7,500</td><td>대길드마스터</td><td>15 / 35 / 35 / 15</td></tr>
+      <tr><td>16</td><td>15,556</td><td>8,000</td><td>대길드마스터</td><td>5 / 25 / 40 / 30</td></tr>
+      <tr><td>17</td><td>21,779</td><td>8,500</td><td>전설의 길드마스터</td><td>5 / 25 / 40 / 30</td></tr>
+      <tr><td>18</td><td>30,491</td><td>9,000</td><td>전설의 길드마스터</td><td>5 / 25 / 40 / 30</td></tr>
+      <tr><td>19</td><td>42,687</td><td>9,500</td><td>전설의 길드마스터</td><td>5 / 25 / 40 / 30</td></tr>
+      <tr><td>20</td><td>59,763</td><td>10,000</td><td>만고불변의 길드마스터</td><td>0 / 15 / 45 / 40</td></tr>
+    </table>
+    <div class="pitfall"><span class="ic">&#9888;&#65039;</span><div class="pitfall-text"><strong>레벨업은 자동이 아닙니다.</strong> 프로토타입 v2 사양은 XP와 Gold를 <strong>모두</strong> 충족한 뒤 사용자가 레벨업 버튼을 눌러야 레벨이 오릅니다(XP는 필요량만큼 차감, 초과분 이월). 공식 폴백을 계산할 때는 <code>double</code>로 계산 후 <code>int32</code> 캐스팅해야 오버플로를 피합니다.</div></div>
+
+    <h3 id="term-dt-music">04-5 &middot; DT_MusicTracks / DT_AmbientSounds / DT_Backgrounds</h3>
+    <p>콘텐츠 3종은 같은 패턴입니다: 메타 정보 + 소프트 에셋 참조 + <code>Cost</code>(0 = 기본 제공). 해금 여부 판정은 "<code>Cost == 0</code> 이거나 SaveGame의 <code>UnlockedIds</code>에 RowName이 있으면 해금"으로 통일합니다.</p>
+
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">ContentRows.h</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// DT_MusicTracks 행. RowName 예: "ember-vigil". Cost 0 = 기본 제공.</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title">FMusicTrackRow</span> : <span class="hljs-keyword">public</span> FTableRowBase
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    FText Title;
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    FText Genre;                                <span class="hljs-comment">// Medieval, Lo-fi ...</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-keyword">float</span> Duration = <span class="hljs-number">0.f</span>;                       <span class="hljs-comment">// 초</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    TSoftObjectPtr&lt;USoundBase&gt; Sound;
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-keyword">int32</span> Cost = <span class="hljs-number">0</span>;                            <span class="hljs-comment">// Gold. 0 = 기본 제공</span>
+};
+
+<span class="hljs-comment">// DT_AmbientSounds 행. RowName: rain / wind / fire / forest / ocean.</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title">FAmbientSoundRow</span> : <span class="hljs-keyword">public</span> FTableRowBase
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    FText DisplayName;
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    TSoftObjectPtr&lt;USoundBase&gt; LoopSound;       <span class="hljs-comment">// 루프 재생용</span>
+};
+
+<span class="hljs-comment">// DT_Backgrounds 행. 프로토타입의 CSS 그라데이션은 텍스처 에셋으로 대체.</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title">FBackgroundRow</span> : <span class="hljs-keyword">public</span> FTableRowBase
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    FText DisplayName;
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    TSoftObjectPtr&lt;UTexture2D&gt; Texture;
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-keyword">int32</span> Cost = <span class="hljs-number">0</span>;                            <span class="hljs-comment">// 0 = 기본 배경</span>
+};</pre></div>
+    </div>
+
+    <table class="tbl">
+      <tr><th>테이블</th><th>RowName</th><th>내용</th><th>비용 (Gold)</th></tr>
+      <tr><td rowspan="6"><code>DT_MusicTracks</code></td><td><code>ember-vigil</code></td><td>The Ember Vigil &middot; Medieval &middot; 252s</td><td>0 (기본)</td></tr>
+      <tr><td><code>rain-over-stone-keep</code></td><td>Rain Over Stone Keep &middot; Lo-fi Fantasy &middot; 198s</td><td>0 (기본)</td></tr>
+      <tr><td><code>torchlit-library</code></td><td>Torchlit Library &middot; Lo-fi &middot; 221s</td><td>3,000</td></tr>
+      <tr><td><code>forge-of-stars</code></td><td>Forge of Stars &middot; Medieval &middot; 243s</td><td>5,000</td></tr>
+      <tr><td><code>moonlit-vow</code></td><td>Moonlit Vow &middot; Ambient &middot; 304s</td><td>8,000</td></tr>
+      <tr><td><code>whispers-of-the-arch</code></td><td>Whispers of the Arch &middot; Orchestral &middot; 287s</td><td>12,000</td></tr>
+      <tr><td rowspan="5"><code>DT_AmbientSounds</code></td><td><code>rain</code></td><td>Rain</td><td>&mdash;</td></tr>
+      <tr><td><code>wind</code></td><td>Wind</td><td>&mdash;</td></tr>
+      <tr><td><code>fire</code></td><td>Fire</td><td>&mdash;</td></tr>
+      <tr><td><code>forest</code></td><td>Forest</td><td>&mdash;</td></tr>
+      <tr><td><code>ocean</code></td><td>Ocean</td><td>&mdash;</td></tr>
+      <tr><td rowspan="9"><code>DT_Backgrounds</code></td><td><code>default</code></td><td>기본 배경</td><td>0 (기본)</td></tr>
+      <tr><td><code>bg1</code></td><td>Misty Forest (안개 낀 숲)</td><td>2,000</td></tr>
+      <tr><td><code>bg2</code></td><td>Ancient Library (고대 도서관)</td><td>3,000</td></tr>
+      <tr><td><code>bg3</code></td><td>Stone Keep (돌의 요새)</td><td>5,000</td></tr>
+      <tr><td><code>bg4</code></td><td>Starry Night (별이 빛나는 밤)</td><td>7,000</td></tr>
+      <tr><td><code>bg5</code></td><td>Mountain Pass (산악 고개)</td><td>10,000</td></tr>
+      <tr><td><code>bg6</code></td><td>Royal Throne Room (왕의 옥좌실)</td><td>14,000</td></tr>
+      <tr><td><code>bg7</code></td><td>Dragon&rsquo;s Lair (용의 둥지)</td><td>20,000</td></tr>
+      <tr><td><code>bg8</code></td><td>Celestial Realm (천상의 영역)</td><td>30,000</td></tr>
+    </table>
+    <div class="callout"><span class="ic">&#128161;</span><p><strong>장르 그룹(전체/Medieval/Lo-fi/Ambient/Orchestral)은 테이블로 만들지 않습니다.</strong> 프로토타입의 <code>TRACK_GENRE_GROUPS</code>는 Lo-fi와 Lo-fi Fantasy를 한 탭으로 묶는 UI 편의 규칙일 뿐, 곡의 <code>Genre</code>에서 파생됩니다. UI 코드에서 Genre 문자열로 필터링합니다.</p></div>
+
+    <h3 id="term-rt-settings">04-6 &middot; URecordTalesSettings &mdash; 낱개 밸런스 상수</h3>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">RecordTalesSettings.h</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// Project Settings ▸ Game ▸ Record Tales 에 자동 노출. 값은 프로토타입 실측.</span>
+<span class="hljs-meta">UCLASS(Config=Game, DefaultConfig, meta=(DisplayName=<span class="hljs-string">"Record Tales"</span>))</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title">URecordTalesSettings</span> : <span class="hljs-keyword">public</span> UDeveloperSettings
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// ── 경제 ──</span>
+    <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category=<span class="hljs-string">"Economy"</span>)</span>
+    <span class="hljs-keyword">int32</span> StartingGold = <span class="hljs-number">5000</span>;
+
+    <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category=<span class="hljs-string">"Economy"</span>)</span>
+    <span class="hljs-keyword">float</span> GoldTickInterval = <span class="hljs-number">6.f</span>;      <span class="hljs-comment">// 집중/스톱워치 진행 중 6초마다</span>
+
+    <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category=<span class="hljs-string">"Economy"</span>)</span>
+    <span class="hljs-keyword">int32</span> GoldTickAmount = <span class="hljs-number">10</span>;         <span class="hljs-comment">// +10 Gold</span>
+
+    <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category=<span class="hljs-string">"Economy"</span>)</span>
+    <span class="hljs-keyword">int32</span> QuestGoldDailyCap = <span class="hljs-number">2000</span>;    <span class="hljs-comment">// 지급 로직은 미배선 — 상한만 예약</span>
+
+    <span class="hljs-comment">// ── XP 보상 (실측값) ──</span>
+    <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category=<span class="hljs-string">"XP"</span>)</span>
+    <span class="hljs-keyword">int32</span> XpTimerCycleComplete = <span class="hljs-number">15</span>;   <span class="hljs-comment">// 포모도로 집중 1사이클 완주</span>
+
+    <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category=<span class="hljs-string">"XP"</span>)</span>
+    <span class="hljs-keyword">int32</span> XpStreakBonus = <span class="hljs-number">20</span>;          <span class="hljs-comment">// 연속 3사이클마다 추가</span>
+
+    <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category=<span class="hljs-string">"XP"</span>)</span>
+    <span class="hljs-keyword">int32</span> StreakInterval = <span class="hljs-number">3</span>;
+
+    <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category=<span class="hljs-string">"XP"</span>)</span>
+    <span class="hljs-keyword">int32</span> XpStopwatchComplete = <span class="hljs-number">15</span>;    <span class="hljs-comment">// 1,500초(25분) 이상 사용 시 1회</span>
+
+    <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category=<span class="hljs-string">"XP"</span>)</span>
+    <span class="hljs-keyword">int32</span> StopwatchXpThreshold = <span class="hljs-number">1500</span>; <span class="hljs-comment">// 초</span>
+
+    <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category=<span class="hljs-string">"XP"</span>)</span>
+    <span class="hljs-keyword">int32</span> XpQuestMasterComplete = <span class="hljs-number">10</span>;  <span class="hljs-comment">// 단발 퀘스트 완료</span>
+
+    <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category=<span class="hljs-string">"XP"</span>)</span>
+    <span class="hljs-keyword">int32</span> XpQuestInstanceComplete = <span class="hljs-number">5</span>; <span class="hljs-comment">// 반복 인스턴스 완료</span>
+
+    <span class="hljs-comment">// ── 길드 ──</span>
+    <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category=<span class="hljs-string">"Guild"</span>)</span>
+    <span class="hljs-keyword">int32</span> HireCost = <span class="hljs-number">1000</span>;             <span class="hljs-comment">// 가챠 1회</span>
+
+    <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category=<span class="hljs-string">"Guild"</span>)</span>
+    <span class="hljs-keyword">int32</span> GuildMemberCap = <span class="hljs-number">8</span>;          <span class="hljs-comment">// 보유 상한</span>
+
+    <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category=<span class="hljs-string">"Guild"</span>)</span>
+    <span class="hljs-keyword">int32</span> MaxLevel = <span class="hljs-number">99</span>;
+
+    <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category=<span class="hljs-string">"Guild"</span>)</span>
+    <span class="hljs-keyword">int32</span> MaxDesignLevel = <span class="hljs-number">20</span>;         <span class="hljs-comment">// 칭호·확률이 멈추는 디자인 캡</span>
+
+    <span class="hljs-comment">// ── 타이머 기본값 (분) — 새 유저의 초기 설정 ──</span>
+    <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category=<span class="hljs-string">"Timer"</span>)</span>
+    <span class="hljs-keyword">int32</span> DefaultFocusMinutes = <span class="hljs-number">25</span>;
+    <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category=<span class="hljs-string">"Timer"</span>)</span>
+    <span class="hljs-keyword">int32</span> DefaultRestMinutes = <span class="hljs-number">5</span>;
+    <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category=<span class="hljs-string">"Timer"</span>)</span>
+    <span class="hljs-keyword">int32</span> DefaultLastRestMinutes = <span class="hljs-number">15</span>;
+    <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category=<span class="hljs-string">"Timer"</span>)</span>
+    <span class="hljs-keyword">int32</span> DefaultSingleRestMinutes = <span class="hljs-number">5</span>; <span class="hljs-comment">// 반복 1회일 때의 휴식</span>
+    <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category=<span class="hljs-string">"Timer"</span>)</span>
+    <span class="hljs-keyword">int32</span> DefaultRepeatCount = <span class="hljs-number">4</span>;
+
+    <span class="hljs-comment">// ── 카테고리 초기값 — 유저 목록은 SaveGame에서 관리 ──</span>
+    <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category=<span class="hljs-string">"Quest"</span>)</span>
+    TArray&lt;FString&gt; DefaultCategories =
+        { <span class="hljs-string">"공부"</span>, <span class="hljs-string">"프로젝트"</span>, <span class="hljs-string">"업무"</span>, <span class="hljs-string">"독서"</span>, <span class="hljs-string">"운동"</span>, <span class="hljs-string">"기타"</span> };
+};</pre></div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       05 — 동적 데이터 스키마
+       ============================================================ -->
+  <div class="section" id="dynamic-schema">
+    <div class="section-label">05 — 동적 데이터 스키마 &middot; SaveGame</div>
+    <h2>URecordTalesSaveGame 구성</h2>
+    <p>플레이어 상태는 <strong>세이브 클래스 하나</strong>에 모읍니다(슬롯 분할은 시스템이 커진 뒤의 최적화 과제). 정적 데이터를 가리킬 때는 반드시 <strong>RowName 참조</strong>를 사용합니다 &mdash; 프로토타입은 가챠 시점에 캐릭터 스탯을 통째로 복사하지만, 복사 방식은 이후 밸런스 패치가 이미 뽑힌 캐릭터에 적용되지 않는 문제가 있습니다.</p>
+
+    <div class="rel-map">
+      <div class="rel-row">
+        <div class="rel-node c-savegame"><b>URecordTalesSaveGame</b><span>FocusRecords &middot; QuestMasters &middot; OwnedMembers &middot; 경제 상태 &middot; 설정</span></div>
+        <div class="rel-arrow"><span class="ra-line"></span><span class="ra-label">FName RowName 참조</span></div>
+        <div class="rel-node c-instance"><b>정적 DataTable 7종</b><span>DT_GuildMembers &middot; DT_Unlocks &middot; DT_MusicTracks &hellip;</span></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node c-subsystem"><b>각 Subsystem (휘발 상태)</b><span>타이머 진행 &middot; 가챠 카드 &middot; UI 필터 &mdash; 저장 안 함</span></div>
+        <div class="rel-arrow"><span class="ra-line"></span><span class="ra-label">읽기/쓰기</span></div>
+        <div class="rel-node c-savegame"><b>SaveGame 슬롯 "RecordTalesSave"</b><span>변경 즉시 SaveGameToSlot</span></div>
+      </div>
+    </div>
+
+    <h3 id="term-focus-record">05-1 &middot; FFocusRecord &mdash; 집중 기록</h3>
+    <p>프로토타입은 한 기록에 날짜를 <strong>4가지 형태</strong>(date, dateLong, clock, ts)로 중복 저장합니다. UE에서는 <code>FDateTime</code>(날짜+시각을 담는 언리얼 표준 타입) <strong>하나만</strong> 저장하고 나머지는 표시 시점에 파생시킵니다 &mdash; 같은 사실을 두 곳에 저장하면 언젠가 서로 어긋납니다.</p>
+
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">SaveTypes.h &mdash; FFocusRecord</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 집중 세션 1회의 기록. 프로토타입 A.records[] 의 한 항목.</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title">FFocusRecord</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+    <span class="hljs-meta">UPROPERTY()</span>
+    FString Category;               <span class="hljs-comment">// 사용자 카테고리 (예: 공부)</span>
+
+    <span class="hljs-meta">UPROPERTY()</span>
+    <span class="hljs-keyword">int32</span> DurationSeconds = <span class="hljs-number">0</span>;     <span class="hljs-comment">// 집중한 시간(초)</span>
+
+    <span class="hljs-meta">UPROPERTY()</span>
+    EFocusMode Mode = EFocusMode::Timer;
+
+    <span class="hljs-meta">UPROPERTY()</span>
+    FString Notes;                  <span class="hljs-comment">// 세션 메모 (빈 문자열 허용)</span>
+
+    <span class="hljs-meta">UPROPERTY()</span>
+    FDateTime Timestamp;            <span class="hljs-comment">// 기록 시각 — date/clock 등은 여기서 파생</span>
+};</pre></div>
+    </div>
+
+    <h3 id="term-quest-master-data">05-2 &middot; FQuestMasterData &mdash; 퀘스트 마스터 + ID 규칙</h3>
+    <p>퀘스트는 <strong>마스터(원본) + 날짜별 인스턴스 상태</strong> 구조입니다. 마스터에 반복 규칙이 있고, 반복 퀘스트의 날짜별 완료·중단 상태는 마스터 안의 맵(<code>RecurData</code>)에만 기록합니다.</p>
+
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">SaveTypes.h &mdash; Quest</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 반복 인스턴스의 날짜별 상태. 키는 날짜 문자열 "YYYY.MM.DD".</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title">FQuestInstanceData</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">bool</span> bDone = <span class="hljs-keyword">false</span>;
+    <span class="hljs-meta">UPROPERTY()</span> FDateTime DoneAt;
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">bool</span> bSuspended = <span class="hljs-keyword">false</span>;
+    <span class="hljs-meta">UPROPERTY()</span> FString SuspendReason;
+};
+
+<span class="hljs-comment">// 퀘스트 마스터(원본). 프로토타입 A.todos[] 의 한 항목.</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title">FQuestMasterData</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+    <span class="hljs-meta">UPROPERTY()</span>
+    FString Id;                     <span class="hljs-comment">// "YYYYMMDD" + 5자리 시퀀스 (아래 규칙)</span>
+
+    <span class="hljs-meta">UPROPERTY()</span> FString Title;
+    <span class="hljs-meta">UPROPERTY()</span> FString Description;
+    <span class="hljs-meta">UPROPERTY()</span> FString Category;
+
+    <span class="hljs-meta">UPROPERTY()</span>
+    EQuestRecurrence Recurrence = EQuestRecurrence::None;
+
+    <span class="hljs-meta">UPROPERTY()</span> FDateTime StartDate;            <span class="hljs-comment">// 필수</span>
+
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">bool</span> bHasDeadline = <span class="hljs-keyword">false</span>;
+    <span class="hljs-meta">UPROPERTY()</span> FDateTime Deadline;
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">int32</span> DeadlineOffset = <span class="hljs-number">1</span>;      <span class="hljs-comment">// 반복 퀘스트: 발생일 + N일 마감</span>
+
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">bool</span> bHasRecurrenceEnd = <span class="hljs-keyword">false</span>;
+    <span class="hljs-meta">UPROPERTY()</span> FDateTime RecurrenceEnd;        <span class="hljs-comment">// 미설정 시 시작일 + 1년</span>
+
+    <span class="hljs-comment">// 단발 퀘스트의 완료/중단 (반복은 RecurData가 담당)</span>
+    <span class="hljs-meta">UPROPERTY()</span> FDateTime DoneAt;
+    <span class="hljs-meta">UPROPERTY()</span> FDateTime SuspendedAt;
+    <span class="hljs-meta">UPROPERTY()</span> FString SuspendReason;
+
+    <span class="hljs-comment">// 날짜키("YYYY.MM.DD") → 그 날짜 인스턴스의 상태</span>
+    <span class="hljs-meta">UPROPERTY()</span>
+    TMap&lt;FString, FQuestInstanceData&gt; RecurData;
+
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">bool</span> bIsFavorite = <span class="hljs-keyword">false</span>;
+};</pre></div>
+    </div>
+
+    <table class="tbl">
+      <tr><th>규칙</th><th>내용 (프로토타입 실측)</th></tr>
+      <tr><td>ID 형식</td><td><code>YYYYMMDD</code> + 5자리 시퀀스 (예: <code>2026070200001</code>). 날짜별 카운터(<code>IdCounters</code>)가 1부터 증가</td></tr>
+      <tr><td>발생 판정</td><td>None: 시작일 당일만 &middot; Daily: 매일 &middot; Weekly: 시작일과 같은 요일 &middot; Monthly: 시작일과 같은 일(日)</td></tr>
+      <tr><td>반복 종료</td><td>종료일 미설정 시 시작일 + 1년까지만 인스턴스 생성</td></tr>
+      <tr><td>자정 롤오버</td><td>날짜가 바뀌면(<code>LastRolloverDate</code> &lt; 오늘) 지난 날짜부터 순차 처리. 앱을 며칠 껐다 켜도 밀린 날짜를 모두 따라잡음</td></tr>
+      <tr><td>상태 파생</td><td>Upcoming/Active/Overdue/Done/Suspended는 저장하지 않고 시작일·마감·완료 시각과 오늘 날짜로 계산 (&sect;03)</td></tr>
+    </table>
+
+    <h3 id="term-owned-member">05-3 &middot; 길드 상태 &mdash; 보유·편성·모집 이력</h3>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">SaveTypes.h &mdash; Guild</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 보유 길드원 1명. 스탯은 저장하지 않는다 — DT_GuildMembers를 RowName으로 참조.</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title">FOwnedGuildMember</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+    <span class="hljs-meta">UPROPERTY()</span>
+    FGuid InstanceId;               <span class="hljs-comment">// 보유 단위 식별자 (프로토타입 Date.now() 대체)</span>
+
+    <span class="hljs-meta">UPROPERTY()</span>
+    FName MemberRow;                <span class="hljs-comment">// DT_GuildMembers RowName (예: "Cael")</span>
+
+    <span class="hljs-meta">UPROPERTY()</span>
+    <span class="hljs-keyword">int32</span> Level = <span class="hljs-number">1</span>;               <span class="hljs-comment">// 성장 여지용 — 프로토타입은 항상 1</span>
+
+    <span class="hljs-meta">UPROPERTY()</span>
+    FDateTime HiredAt;
+};
+
+<span class="hljs-comment">// 가챠 이력 1건 — 뽑고 선택했는지 / 패스했는지.</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title">FHireHistoryEntry</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+    <span class="hljs-meta">UPROPERTY()</span> FName MemberRow;
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">bool</span> bSelected = <span class="hljs-keyword">false</span>;   <span class="hljs-comment">// false = 패스</span>
+    <span class="hljs-meta">UPROPERTY()</span> FDateTime At;
+};
+
+<span class="hljs-comment">// 스쿼드 프리셋 1개 — 편성된 길드원의 InstanceId 목록 (슬롯 순서 유지).</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title">FSquadPreset</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+    <span class="hljs-meta">UPROPERTY()</span>
+    TArray&lt;FGuid&gt; MemberInstanceIds;
+};</pre></div>
+    </div>
+
+    <div class="pitfall"><span class="ic">&#9888;&#65039;</span><div class="pitfall-text"><strong>중복 보유 정책은 기획 확정이 필요합니다.</strong> 프로토타입 가챠는 같은 캐릭터가 후보로 중복 등장할 수 있고, 이미 보유한 캐릭터를 또 뽑는 것을 막는 코드가 없습니다. 그런데 시너지·편성 로직은 이름 기반이라 중복 보유는 아무 이득이 없습니다. <strong>권장: 뽑기 확정 시 이미 보유한 캐릭터면 거부(또는 골드 환급)</strong> &mdash; 어느 쪽이든 결정을 데이터 규칙으로 명문화하고 <code>UGuildSubsystem</code>에서 강제하세요.</div></div>
+
+    <h3 id="term-savegame-root">05-4 &middot; 통합 세이브 클래스</h3>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">RecordTalesSaveGame.h</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 슬롯 이름 "RecordTalesSave", UserIndex 0. 변경 즉시 저장이 원칙.</span>
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title">URecordTalesSaveGame</span> : <span class="hljs-keyword">public</span> USaveGame
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// ── 마이그레이션 대비 ──</span>
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">int32</span> SaveVersion = <span class="hljs-number">1</span>;   <span class="hljs-comment">// 구조 변경 시 +1, 로드 시 분기</span>
+
+    <span class="hljs-comment">// ── 기록 (03 아카이브) ──</span>
+    <span class="hljs-meta">UPROPERTY()</span> TArray&lt;FFocusRecord&gt; FocusRecords;
+
+    <span class="hljs-comment">// ── 퀘스트 (02) ──</span>
+    <span class="hljs-meta">UPROPERTY()</span> TArray&lt;FQuestMasterData&gt; QuestMasters;
+    <span class="hljs-meta">UPROPERTY()</span> TMap&lt;FString, <span class="hljs-keyword">int32</span>&gt; IdCounters;    <span class="hljs-comment">// "YYYYMMDD" → 다음 시퀀스</span>
+    <span class="hljs-meta">UPROPERTY()</span> FDateTime LastRolloverDate;           <span class="hljs-comment">// 마지막 롤오버 처리일</span>
+
+    <span class="hljs-comment">// ── 길드 (04) ──</span>
+    <span class="hljs-meta">UPROPERTY()</span> TArray&lt;FOwnedGuildMember&gt; OwnedMembers;   <span class="hljs-comment">// 상한 8 (Settings)</span>
+    <span class="hljs-meta">UPROPERTY()</span> TArray&lt;FSquadPreset&gt; SquadPresets;        <span class="hljs-comment">// 해금에 따라 1~3개</span>
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">int32</span> ActivePresetIndex = <span class="hljs-number">0</span>;
+    <span class="hljs-meta">UPROPERTY()</span> TArray&lt;FHireHistoryEntry&gt; HireHistory;
+
+    <span class="hljs-comment">// ── 경제 · 진행도 (05) ──</span>
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">int64</span> Gold = <span class="hljs-number">5000</span>;         <span class="hljs-comment">// int64 — 상한 없는 재화는 넉넉하게</span>
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">int32</span> GuildLevel = <span class="hljs-number">1</span>;
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">int32</span> GuildXp = <span class="hljs-number">0</span>;          <span class="hljs-comment">// 현재 레벨에서 모은 XP</span>
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">int64</span> GuildTotalXp = <span class="hljs-number">0</span>;     <span class="hljs-comment">// 누적 통계용</span>
+    <span class="hljs-meta">UPROPERTY()</span> TArray&lt;FName&gt; UnlockedIds;    <span class="hljs-comment">// DT_Unlocks·콘텐츠 RowName</span>
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">int32</span> QuestGoldToday = <span class="hljs-number">0</span>;
+    <span class="hljs-meta">UPROPERTY()</span> FDateTime QuestGoldDate;      <span class="hljs-comment">// 날짜가 바뀌면 QuestGoldToday 리셋</span>
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">int32</span> FocusStreakCount = <span class="hljs-number">0</span>;
+
+    <span class="hljs-comment">// ── 표시 설정 (06) ──</span>
+    <span class="hljs-meta">UPROPERTY()</span> FName CurrentBackground = <span class="hljs-string">"default"</span>;
+
+    <span class="hljs-comment">// ── 타이머 사용자 설정 (01) — 기본값은 Settings에서 복사 ──</span>
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">int32</span> FocusMinutes = <span class="hljs-number">25</span>;
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">int32</span> RestMinutes = <span class="hljs-number">5</span>;
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">int32</span> LastRestMinutes = <span class="hljs-number">15</span>;
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">int32</span> SingleRestMinutes = <span class="hljs-number">5</span>;
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">int32</span> RepeatCount = <span class="hljs-number">4</span>;
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">bool</span> bIsRoutine = <span class="hljs-keyword">false</span>;
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">bool</span> bAutoRestart = <span class="hljs-keyword">false</span>;
+
+    <span class="hljs-comment">// ── 카테고리 — 사용자가 추가/삭제 가능하므로 동적 ──</span>
+    <span class="hljs-meta">UPROPERTY()</span> TArray&lt;FString&gt; Categories;   <span class="hljs-comment">// 첫 실행 시 Settings 기본값 복사</span>
+    <span class="hljs-meta">UPROPERTY()</span> TMap&lt;FString, FLinearColor&gt; CategoryColors;
+};</pre></div>
+    </div>
+
+    <h3>05-5 &middot; 저장하지 않는 것 (휘발 상태 명세)</h3>
+    <p>아래는 <strong>SaveGame에 넣으면 안 되는</strong> 상태의 전체 목록입니다. 각 Subsystem이 <code>UPROPERTY(Transient)</code> 멤버로 들고, 앱 시작 시 초기값으로 리셋됩니다.</p>
+    <table class="tbl">
+      <tr><th>상태</th><th>보관 위치</th><th>저장하지 않는 이유</th></tr>
+      <tr><td>타이머 진행 (<code>EFocusState</code>, 남은 초, 사이클 번호, 누적 집중 초, 골드 틱 카운터)</td><td><code>UFocusSubsystem</code></td><td>재시작 후 "돌고 있던 타이머"를 복원하면 실제 흐른 시간과 어긋남. 프로토타입도 미저장</td></tr>
+      <tr><td>스톱워치 진행 (경과 초, 실행/일시정지)</td><td><code>UFocusSubsystem</code></td><td>동일</td></tr>
+      <tr><td>가챠 진행 (상태, 후보 3장, 선택 인덱스)</td><td><code>UGuildSubsystem</code></td><td>세션 한정 연출 상태. 단, 아래 Pitfall 참조</td></tr>
+      <tr><td>음악/앰비언트 재생 위치·볼륨 슬라이더</td><td><code>UAudioSubsystem</code></td><td>재생 위치 복원은 가치 대비 복잡도만 높음</td></tr>
+      <tr><td>UI 상태 (열린 패널, 리스트/작성 뷰, 상태 필터, 캘린더 연/월, 더보기 카운트)</td><td><code>UUIManagerSubsystem</code></td><td>화면 상태는 매 세션 초기 화면에서 시작</td></tr>
+    </table>
+    <div class="pitfall"><span class="ic">&#9888;&#65039;</span><div class="pitfall-text"><strong>가챠 도중 종료 = 골드 증발.</strong> 프로토타입은 모집(1,000 Gold 차감) 직후 후보 3장을 휘발 상태로만 들고 있어, 이 시점에 앱이 꺼지면 골드만 사라집니다. UE 구현에서는 <strong>차감과 동시에 후보 3장(RowName 3개)을 SaveGame에 임시 필드로 기록</strong>하고, 선택/패스가 끝나면 비우는 것을 권장합니다. 이 필드(<code>PendingHireCandidates</code>)는 v1 스키마에 예약만 해 두어도 됩니다.</div></div>
+  </div>
+
+  <!-- ============================================================
+       06 — 엔진 등록 절차
+       ============================================================ -->
+  <div class="section" id="register">
+    <div class="section-label">06 — 엔진 등록 절차</div>
+    <h2>에디터에서 데이터 자산 만들기</h2>
+    <p>구조체 헤더가 컴파일된 상태를 전제로, 에디터에서 실제 에셋을 만드는 순서입니다.</p>
+
+    <h3>콘텐츠 폴더 구조</h3>
+    <div class="tree">
+Content/
+└─ <span style="color:var(--ue-folder)">RecordTales/</span>
+   ├─ <span style="color:var(--ue-folder)">Data/</span>
+   │  ├─ <code>DT_GuildMembers</code>   ← GuildMemberRow
+   │  ├─ <code>DT_Synergies</code>      ← SynergyRow
+   │  ├─ <code>DT_Unlocks</code>        ← UnlockItemRow
+   │  ├─ <code>DT_GuildLevels</code>    ← GuildLevelRow
+   │  ├─ <code>DT_MusicTracks</code>    ← MusicTrackRow
+   │  ├─ <code>DT_AmbientSounds</code>  ← AmbientSoundRow
+   │  └─ <code>DT_Backgrounds</code>    ← BackgroundRow
+   ├─ <span style="color:var(--ue-folder)">Audio/</span>   (USoundBase 에셋 — 트랙 6 + 앰비언트 5)
+   └─ <span style="color:var(--ue-folder)">Textures/</span> (초상화 12 + 배경 9)
+    </div>
+
+      <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">DataTable 에셋 생성</div><div class="pipe-desc">Content Browser에서 <code>Content/RecordTales/Data</code> 폴더를 연 뒤 <strong>우클릭 &#9656; Miscellaneous &#9656; Data Table</strong>. "Pick Row Structure" 창에서 해당 행 구조체(예: <code>GuildMemberRow</code>)를 선택합니다. 구조체가 목록에 없다면 <code>FTableRowBase</code> 상속 누락이거나 컴파일 전입니다.</div></div></div>
+      <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">CSV 임포트</div><div class="pipe-desc">&sect;04의 표를 CSV로 옮긴 파일(첫 열 = RowName)을 준비하고, DataTable 에셋을 열어 <strong>Reimport</strong> 또는 Content Browser <strong>Import</strong>로 불러옵니다. 이후 밸런싱은 CSV 수정 &rarr; Reimport 반복으로 진행합니다.</div></div></div>
+      <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">Settings 확인</div><div class="pipe-desc"><code>URecordTalesSettings</code>가 컴파일되면 <strong>Edit &#9656; Project Settings &#9656; Game &#9656; Record Tales</strong> 섹션이 자동 생성됩니다. 값을 바꾸면 <code>Config/DefaultGame.ini</code>에 기록됩니다.</div></div></div>
+      <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">테이블 참조 연결</div><div class="pipe-desc">각 Subsystem이 자기 테이블을 <code>TSoftObjectPtr&lt;UDataTable&gt;</code> 프로퍼티로 들고, <code>Initialize()</code>에서 로드합니다. 하드코딩 경로 대신 Settings에 테이블 경로 프로퍼티를 두면 재배치에 안전합니다.</div></div></div>
+      <div class="pipe-step"><div class="pipe-num">5</div><div class="pipe-body"><div class="pipe-title">SaveGame 로드/생성</div><div class="pipe-desc">게임 시작 시 <code>UGameplayStatics::DoesSaveGameExist("RecordTalesSave", 0)</code> 확인 &rarr; 있으면 <code>LoadGameFromSlot</code>, 없으면 <code>CreateSaveGameObject(URecordTalesSaveGame::StaticClass())</code>로 새로 만들고 Settings의 초기값(시작 골드 5,000 · 기본 카테고리 6종 · 타이머 기본값)을 채워 첫 저장합니다.</div></div></div>
+      <div class="pipe-step"><div class="pipe-num">6</div><div class="pipe-body"><div class="pipe-title">저장 시점</div><div class="pipe-desc">Gold/XP 변동 &middot; 퀘스트/기록 생성·완료 &middot; 가챠 확정 &middot; 해금 구매 &middot; 설정 변경 직후 <strong>즉시</strong> <code>SaveGameToSlot</code>. 프로토타입은 저장이 아예 없으므로(새로고침 = 전체 초기화), 저장 시점 설계는 UE 구현에서 새로 갖는 책임입니다.</div></div></div>
+  </div>
+
+  <!-- ============================================================
+       07 — 검증
+       ============================================================ -->
+  <div class="section" id="verify">
+    <div class="section-label">07 — 검증</div>
+    <h2>데이터 무결성 체크리스트</h2>
+    <p>테이블을 다 채운 뒤, 아래를 순서대로 확인합니다. 특히 <strong>참조 무결성</strong>(RowName이 실제로 존재하는가)은 에디터가 자동으로 검사해 주지 않으므로 직접 확인해야 합니다.</p>
+
+    <table class="tbl">
+      <tr><th>#</th><th>확인 항목</th><th>기대값</th></tr>
+      <tr><td>1</td><td><code>DT_GuildMembers</code> 행 수</td><td>12 (등급별 3명 &times; 4)</td></tr>
+      <tr><td>2</td><td><code>DT_Synergies</code> 행 수 / 멤버 참조</td><td>7행. 모든 <code>Members</code> 값이 <code>DT_GuildMembers</code>의 RowName에 존재</td></tr>
+      <tr><td>3</td><td><code>DT_Unlocks</code> 행 수 / 선행 체인</td><td>17행. 모든 <code>Requires</code>가 같은 테이블의 RowName (순환 없음)</td></tr>
+      <tr><td>4</td><td><code>DT_GuildLevels</code> 행 수 / 확률 합</td><td>20행. 모든 행에서 N+R+E+L = 100</td></tr>
+      <tr><td>5</td><td>콘텐츠 테이블 행 수</td><td>곡 6 (기본 2 + 해금 4) &middot; 앰비언트 5 &middot; 배경 9 (기본 1 + 해금 8)</td></tr>
+      <tr><td>6</td><td>세이브 라운드트립</td><td>저장 &rarr; 앱 재시작 &rarr; 로드 후 Gold·퀘스트·보유 길드원·설정이 동일</td></tr>
+      <tr><td>7</td><td>자정 롤오버</td><td>기기 날짜를 +2일로 바꾸고 실행 &rarr; 밀린 2일치 반복 인스턴스가 모두 생성</td></tr>
+      <tr><td>8</td><td>파생 상태 재현</td><td>마감 지난 퀘스트가 로드 직후 Overdue로 표시 (저장된 상태가 아니라 계산 결과)</td></tr>
+    </table>
+
+    <p>2~4번은 손으로 훑는 대신, 에디터 전용 검증 함수를 만들어 두는 것을 권장합니다. 예: <code>UGuildSubsystem</code>에 시너지 테이블을 순회하며 <code>DT_GuildMembers-&gt;FindRow()</code>가 <code>nullptr</code>이면 경고 로그를 남기는 <code>ValidateTables()</code>를 두고 <code>Initialize()</code>에서 개발 빌드에만 호출합니다.</p>
+
+    <div class="dd-grid">
+      <div class="dd do">
+        <h4>&#10003; 이렇게</h4>
+        <ul>
+          <li>데이터당 보관처는 한 곳 &mdash; 정적은 테이블, 동적은 세이브, 파생값은 계산</li>
+          <li>정적 데이터 참조는 항상 RowName(FName)으로</li>
+          <li>세이브에 <code>SaveVersion</code>을 처음부터 넣고 시작</li>
+          <li>실측값을 기본으로, 미배선 상수는 표시해 두고 기획 확정 후 배선</li>
+          <li>테이블 검증 함수를 개발 빌드에서 자동 실행</li>
+        </ul>
+      </div>
+      <div class="dd dont">
+        <h4>&#10007; 이건 피하기</h4>
+        <ul>
+          <li>가챠 시점에 캐릭터 스탯을 세이브로 복사 (밸런스 패치가 안 먹힘)</li>
+          <li>날짜를 문자열 4종으로 중복 저장 (프로토타입의 date/dateLong/clock/ts)</li>
+          <li>퀘스트 상태(Overdue 등)를 저장 (자정이 지나면 거짓이 됨)</li>
+          <li>배열 인덱스로 콘텐츠 연결 (프로토타입의 trackIdx &mdash; 행 삽입 시 전부 밀림)</li>
+          <li>타이머 진행 상태를 세이브에 포함</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <span>RecordTales &middot; 데이터 설계 명세 v1.0</span>
+  <span>디자인: Dark &middot; Indigo Minimal &middot; Master v1.3</span>
+</footer>
+
+<!-- 코드 탭 전환 + 복사 (오프라인 inline) -->
+<script>
+(function () {
+  document.querySelectorAll('.codeblock').forEach(function (block) {
+    var tabs = block.querySelectorAll('.codeblock-tab');
+    var panels = block.querySelectorAll('.codeblock-panel');
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) { t.classList.remove('active'); });
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        if (panels[i]) panels[i].classList.add('active');
+      });
+    });
+    var copyBtn = block.querySelector('.codeblock-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () {
+        var pre = block.querySelector('.codeblock-panel.active pre');
+        if (!pre) return;
+        var text = pre.innerText;
+        var done = function () {
+          copyBtn.textContent = '복사됨 ✓';
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.textContent = '복사';
+            copyBtn.classList.remove('copied');
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+        } else {
+          fallbackCopy(text, done);
+        }
+      });
+    }
+  });
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+})();
+</script>
+
+</body>
+</html>

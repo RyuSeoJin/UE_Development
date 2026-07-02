@@ -1,3 +1,25 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>상태 머신 — 상태·전이·이벤트로 동작 제어 · UE 아키텍처</title>
+<!-- ============================================================
+     CHANGELOG — ue-state-machine.html
+     유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿).
+     작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.2 · 2026-07-02
+       - (변경) 마스터 CSS <link> 상대참조 → <style> inline (마스터 v1.3 스냅샷) — 단독 열람 보장, 마스터 개정에 따른 사후 변형 방지 (DOC-TRACKS v1.3 정책)
+     v1.1 · 2026-07-02
+       - (변경) 출력 규칙 트랙별 분리(DOC-TRACKS.md v1.2): inline <style>을 마스터 CSS 상대참조
+         <link href="../../design-guide/design-guide-ue-master.css">로 전환 (Track A 규칙)
+       - (수정) 마스터에 없던 owner-cell 클래스를 마스터 지원 마크업(.tbl + span.owner)으로 교체
+     v1.0 · 2026-07-02
+       - 신규 생성. 상태 머신 범용 아키텍처 문서.
+       - RecordTales 프로젝트 문서의 프로젝트 맥락을 제거하고 일반화 (DOC-TRACKS.md §5 범용 개념 승격)
+       - 중앙 용어집 '상태 머신' 링크가 이 문서를 가리킴 (id="term-state-machine")
+     ============================================================ -->
+<style>
 /* ============================================================
    UE Design System — Master Stylesheet
    (design-guide-ue-master.css)
@@ -376,3 +398,292 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   footer { padding: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">UE WIKI · STATE MACHINE</div>
+  <div class="nav-links">
+    <a href="#concept">개념</a>
+    <a href="#relation">전이도</a>
+    <a href="#responsibility">방식 선택</a>
+    <a href="#flow">전이 흐름</a>
+    <a href="#skeleton">스켈레톤</a>
+    <a href="#extend">확장</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">UE Architecture · Type ① · 02-A</div>
+  <h1>상태 머신<br><span>State Machine</span></h1>
+  <p class="hero-sub">
+    "지금 어떤 상태인가"와 "어떤 조건에서 다른 상태로 넘어가는가"를 명시적으로 정의해 동작을 제어하는 패턴입니다. if문 덩어리로 뒤엉키기 쉬운 게임 로직(타이머, 캐릭터 행동, UI 모드)을 <strong>상태·전이·이벤트</strong> 세 가지 개념으로 정리하는 방법을 다룹니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">설계 패턴</span>
+    <span class="badge badge-green">엔진 버전 무관</span>
+    <span class="badge badge-purple">C++ · Blueprint · AnimBP</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- 01 개념 -->
+  <div class="section" id="concept">
+    <div class="section-label">01 — 개념 · 역할</div>
+    <h2>신호등은 왜 헷갈리지 않는가</h2>
+    <p>
+      신호등은 빨강·노랑·초록 중 <strong>항상 정확히 하나의 상태</strong>에만 있고, "빨강 → 초록"처럼 <strong>정해진 경로로만</strong> 바뀝니다. 그래서 복잡한 교차로에서도 동작을 예측할 수 있습니다. 상태 머신은 이 아이디어를 코드에 옮긴 것입니다.
+    </p>
+    <p>
+      상태 머신 없이 기능을 키우다 보면 이런 코드가 됩니다: <code>if (bIsRunning &amp;&amp; !bIsPaused &amp;&amp; RemainingTime &gt; 0 &amp;&amp; !bFinished) { ... }</code>. bool 변수가 4개면 조합은 16가지인데, 그중 실제로 의미 있는 조합은 몇 개뿐이고 나머지는 "있어서는 안 되는 상태"입니다. 버그는 대부분 그 틈에서 나옵니다. <strong id="term-state-machine">상태 머신(State Machine)</strong>은 의미 있는 상태만 열거형으로 선언하고, 상태 사이의 이동(전이)을 함수 한 곳으로 모아 <strong>불가능한 상태 조합 자체를 없애 버리는</strong> 설계입니다.
+    </p>
+
+    <div class="callout info"><span class="ic">🔑</span><p><strong>핵심 용어</strong> — <strong>상태(State)</strong>: 객체가 놓일 수 있는 명확한 국면 하나 (예: Idle, Running). 항상 정확히 하나만 활성. · <strong>전이(Transition)</strong>: 한 상태에서 다른 상태로의 이동. 허용된 경로만 존재. · <strong>이벤트(Event)</strong>: 전이를 일으키는 계기 (버튼 입력, 시간 만료). · <strong>가드 조건(Guard)</strong>: 이벤트가 와도 전이를 허용할지 검사하는 조건문. · <strong>Enter/Exit 처리</strong>: 상태에 들어갈 때/나갈 때 1회 실행하는 부수 작업.</p></div>
+
+    <div class="stat-row">
+      <div class="stat-card"><div class="stat-num">1개</div><div class="stat-label">동시에 활성인 상태</div></div>
+      <div class="stat-card"><div class="stat-num">명시적</div><div class="stat-label">허용된 전이만 존재</div></div>
+      <div class="stat-card"><div class="stat-num">한 곳</div><div class="stat-label">상태 변경 코드의 위치</div></div>
+    </div>
+  </div>
+
+  <!-- 02 전이도 -->
+  <div class="section" id="relation">
+    <div class="section-label">02 — 상태 전이도</div>
+    <h2>상태와 전이를 그림으로 먼저 그린다</h2>
+    <p>구현 전에 전이도를 그리는 것이 상태 머신 설계의 첫 단계입니다. 아래는 타이머류 기능에서 가장 흔한 4상태 예시입니다 — 화살표에 없는 이동(예: Finished → Paused)은 <strong>코드에서도 불가능해야</strong> 합니다.</p>
+
+    <div class="rel-map">
+      <div class="rel-row">
+        <div class="rel-node n-instance"><div class="rn-name">Idle</div><div class="rn-role">대기 · 초기 상태</div></div>
+        <div class="rel-arrow"><span class="ra-label">Start 이벤트</span><span class="ra-line">→</span></div>
+        <div class="rel-node n-controller"><div class="rn-name">Running</div><div class="rn-role">진행 중</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-controller"><div class="rn-name">Running</div><div class="rn-role">진행 중</div></div>
+        <div class="rel-arrow"><span class="ra-label">Pause ⇄ Resume</span><span class="ra-line">↔</span></div>
+        <div class="rel-node n-savegame"><div class="rn-name">Paused</div><div class="rn-role">일시정지</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-controller"><div class="rn-name">Running</div><div class="rn-role">진행 중</div></div>
+        <div class="rel-arrow"><span class="ra-label">시간 만료 / Stop</span><span class="ra-line">→</span></div>
+        <div class="rel-node n-gamemode"><div class="rn-name">Finished</div><div class="rn-role">종료 → Reset 시 Idle로</div></div>
+      </div>
+    </div>
+
+    <div class="callout tip"><span class="ic">💡</span><p>전이도를 그리다 "이 상태에서 저 상태로 가도 되나?"가 애매하면 그 자체가 설계 질문입니다. 코드를 쓰기 전에 결정하세요 — 예: "Paused에서 바로 Finished로 갈 수 있는가?(정지 중 강제 종료 허용?)"</p></div>
+  </div>
+
+  <!-- 03 방식 선택 -->
+  <div class="section" id="responsibility">
+    <div class="section-label">03 — 구현 방식 선택</div>
+    <h2>세 가지 구현 방식과 선택 기준</h2>
+
+    <div class="grid-2">
+      <div class="compare-box">
+        <h4>enum 기반 (가벼움)</h4>
+        <div class="pills"><span class="pill blue">상태 4~7개</span><span class="pill green">추천 기본값</span></div>
+        <p><code>UENUM</code>으로 상태를 선언하고 <code>switch</code>와 전이 함수 하나로 관리. 코드가 한눈에 들어오고 디버깅이 쉽습니다. 대부분의 게임플레이 기능(타이머·문 열림·간단한 AI)은 이걸로 충분합니다.</p>
+      </div>
+      <div class="compare-box">
+        <h4>클래스 기반 (State 패턴)</h4>
+        <div class="pills"><span class="pill purple">상태 8개+</span><span class="pill pink">상태별 로직 큼</span></div>
+        <p>상태 하나를 클래스 하나로 만들어 Enter/Tick/Exit을 가상 함수로 분리. 상태별 코드가 길어질 때 switch 비대화를 막지만, 파일 수와 간접 참조가 늘어나는 비용이 있습니다.</p>
+      </div>
+    </div>
+
+    <table class="tbl">
+      <tr><th>상황</th><th>방식</th><th>왜</th></tr>
+      <tr><td>타이머·UI 모드·간단한 기믹 (상태 4~7개)</td><td><span class="owner">enum 기반</span></td><td>가장 적은 코드로 불가능한 상태를 제거. 이 문서의 스켈레톤(05)</td></tr>
+      <tr><td>보스 AI처럼 상태별 로직이 수십 줄 이상</td><td><span class="owner">클래스 기반 (State 패턴)</span></td><td>상태별 파일 분리로 유지보수 확보. enum으로 시작했다가 승격해도 늦지 않음</td></tr>
+      <tr><td>캐릭터 애니메이션 (걷기·점프·착지 블렌딩)</td><td><span class="owner">AnimBP 스테이트 머신</span></td><td>애니메이션 블루프린트에 시각적 상태 머신 에디터가 내장되어 있음 — 애니메이션 전환은 코드로 재발명하지 말 것</td></tr>
+      <tr><td>행동 "선택"이 핵심인 AI (우선순위·조건 판단)</td><td><span class="owner">Behavior Tree</span></td><td>상태 머신은 "지금 무엇인가", BT는 "다음에 무엇을 할까"에 특화 — 둘은 경쟁이 아니라 용도가 다름</td></tr>
+    </table>
+  </div>
+
+  <!-- 04 전이 흐름 -->
+  <div class="section" id="flow">
+    <div class="section-label">04 — 전이 처리 흐름</div>
+    <h2>이벤트 하나가 처리되는 5단계</h2>
+    <p>어떤 구현 방식이든 전이 처리의 뼈대는 같습니다. 이 순서를 <strong>SetState 함수 한 곳</strong>에 고정해 두면, 상태 변경 버그를 추적할 때 볼 곳이 한 군데로 줄어듭니다.</p>
+
+    <div class="pipe-step"><div class="pipe-num">01</div><div class="pipe-body"><div class="pipe-title">이벤트 수신</div><div class="pipe-desc">입력·타이머 만료·외부 호출이 전이 요청 함수를 부릅니다. (예: <code>RequestStart()</code>)</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">02</div><div class="pipe-body"><div class="pipe-title">가드 조건 검사</div><div class="pipe-desc">현재 상태에서 허용된 전이인지 확인. 전이도(02 섹션)에 없는 경로면 <strong>아무 것도 하지 않고 반환</strong> — 조용한 무시가 정답입니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">03</div><div class="pipe-body"><div class="pipe-title">Exit 처리</div><div class="pipe-desc">이전 상태에서 나가며 정리할 것 (예: Running에서 나갈 때 타이머 해제).</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">04</div><div class="pipe-body"><div class="pipe-title">상태 갱신 + Enter 처리</div><div class="pipe-desc">상태 변수를 새 값으로 바꾸고, 새 상태에 들어가며 할 일 실행 (예: Running 진입 시 타이머 시작).</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">05</div><div class="pipe-body"><div class="pipe-title">변경 알림</div><div class="pipe-desc">델리게이트로 "상태가 바뀌었다"를 방송 — UI 등 관심 있는 쪽이 구독. 상태 머신이 UI를 직접 알 필요가 없어집니다.</div></div></div>
+
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>전이 중 재진입(re-entrancy)</strong> — Enter 처리나 변경 알림 안에서 또 SetState를 부르면 반쯤 바뀐 상태 위에 전이가 겹칩니다. Enter/알림에서는 전이를 직접 부르지 말고, 필요하면 "다음 프레임에 전이 예약" 방식으로 미루세요.</div></div>
+  </div>
+
+  <!-- 05 스켈레톤 -->
+  <div class="section" id="skeleton">
+    <div class="section-label">05 — 구현 스켈레톤</div>
+    <h2>enum 기반 최소 구현</h2>
+    <p>전제: C++ 클래스(액터·컴포넌트·Subsystem 어디든) 안에 넣을 수 있는 형태입니다. 모듈 이름 <code>MYGAME_API</code>는 자기 프로젝트로 바꾸세요. 핵심은 <strong>상태 변수를 private으로 숨기고, 변경은 SetState 한 곳으로만</strong> 하는 것입니다.</p>
+
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">TimerMachine.h</button>
+        <button class="codeblock-tab tab-cpp" type="button">TimerMachine.cpp</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"TimerMachine.generated.h"</span></span>  <span class="hljs-comment">// 반드시 마지막 #include</span>
+
+<span class="hljs-comment">// 상태: 의미 있는 국면만 열거. bool 조합 대신 이것 하나가 진실.</span>
+<span class="hljs-meta">UENUM(BlueprintType)</span>
+<span class="hljs-keyword">enum class</span> <span class="hljs-type">ETimerState</span> : <span class="hljs-type">uint8</span>
+{
+    Idle,       <span class="hljs-comment">// 대기</span>
+    Running,    <span class="hljs-comment">// 진행 중</span>
+    Paused,     <span class="hljs-comment">// 일시정지</span>
+    Finished    <span class="hljs-comment">// 종료</span>
+};
+
+<span class="hljs-comment">// 상태 변경 방송: UI 등이 구독 (State, OldState)</span>
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTimerStateChanged, <span class="hljs-type">ETimerState</span>, NewState, <span class="hljs-type">ETimerState</span>, OldState);
+
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> MYGAME_API <span class="hljs-type">UTimerMachine</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UObject</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// 이벤트 = 전이 요청. 허용 여부는 내부 가드가 판단.</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-type">void</span> <span class="hljs-title">RequestStart</span>();
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-type">void</span> <span class="hljs-title">RequestPause</span>();
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-type">void</span> <span class="hljs-title">RequestFinish</span>();
+
+    <span class="hljs-meta">UFUNCTION(BlueprintPure)</span>
+    <span class="hljs-type">ETimerState</span> <span class="hljs-title">GetState</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> State; }
+
+    <span class="hljs-meta">UPROPERTY(BlueprintAssignable)</span>
+    <span class="hljs-type">FOnTimerStateChanged</span> OnStateChanged;
+
+<span class="hljs-keyword">private</span>:
+    <span class="hljs-comment">// 상태 변경의 유일한 통로. 외부에서 State를 직접 못 만짐.</span>
+    <span class="hljs-type">void</span> <span class="hljs-title">SetState</span>(<span class="hljs-type">ETimerState</span> NewState);
+
+    <span class="hljs-meta">UPROPERTY()</span>
+    <span class="hljs-type">ETimerState</span> State = <span class="hljs-type">ETimerState</span>::Idle;
+};</pre></div>
+      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"TimerMachine.h"</span></span>
+
+<span class="hljs-type">void</span> <span class="hljs-type">UTimerMachine</span>::<span class="hljs-title">RequestStart</span>()
+{
+    <span class="hljs-comment">// 가드: Idle에서만 시작 허용 (전이도에 있는 경로만)</span>
+    <span class="hljs-keyword">if</span> (State == <span class="hljs-type">ETimerState</span>::Idle)
+    {
+        <span class="hljs-title">SetState</span>(<span class="hljs-type">ETimerState</span>::Running);
+    }
+}
+
+<span class="hljs-type">void</span> <span class="hljs-type">UTimerMachine</span>::<span class="hljs-title">RequestPause</span>()
+{
+    <span class="hljs-comment">// Running ⇄ Paused 토글</span>
+    <span class="hljs-keyword">if</span> (State == <span class="hljs-type">ETimerState</span>::Running)      { <span class="hljs-title">SetState</span>(<span class="hljs-type">ETimerState</span>::Paused); }
+    <span class="hljs-keyword">else if</span> (State == <span class="hljs-type">ETimerState</span>::Paused)  { <span class="hljs-title">SetState</span>(<span class="hljs-type">ETimerState</span>::Running); }
+}
+
+<span class="hljs-type">void</span> <span class="hljs-type">UTimerMachine</span>::<span class="hljs-title">RequestFinish</span>()
+{
+    <span class="hljs-keyword">if</span> (State == <span class="hljs-type">ETimerState</span>::Running || State == <span class="hljs-type">ETimerState</span>::Paused)
+    {
+        <span class="hljs-title">SetState</span>(<span class="hljs-type">ETimerState</span>::Finished);
+    }
+}
+
+<span class="hljs-type">void</span> <span class="hljs-type">UTimerMachine</span>::<span class="hljs-title">SetState</span>(<span class="hljs-type">ETimerState</span> NewState)
+{
+    <span class="hljs-keyword">if</span> (State == NewState) { <span class="hljs-keyword">return</span>; }   <span class="hljs-comment">// 같은 상태로의 전이는 무시</span>
+
+    <span class="hljs-keyword">const</span> <span class="hljs-type">ETimerState</span> OldState = State;
+
+    <span class="hljs-comment">// (03) Exit 처리: 이전 상태 정리 — 예: Running에서 나가면 틱 타이머 해제</span>
+
+    State = NewState;                     <span class="hljs-comment">// (04) 상태 갱신</span>
+
+    <span class="hljs-comment">// (04) Enter 처리: 새 상태 진입 작업 — 예: Running 진입 시 틱 타이머 시작</span>
+
+    OnStateChanged.<span class="hljs-title">Broadcast</span>(State, OldState);   <span class="hljs-comment">// (05) 변경 알림</span>
+}</pre></div>
+    </div>
+
+    <div class="callout info"><span class="ic">🧭</span><p>주석의 (03)(04)(05)는 04 섹션 전이 처리 5단계와 같은 번호입니다. Exit/Enter에 실제 작업(타이머 시작·해제 등)을 채우는 것이 이 뼈대를 자기 기능으로 완성하는 방법입니다.</p></div>
+  </div>
+
+  <!-- 06 확장 -->
+  <div class="section" id="extend">
+    <div class="section-label">06 — 확장 & 주의</div>
+    <h2>더 큰 상태 머신으로 갈 때</h2>
+
+    <div class="grid-3">
+      <div class="a-card"><div class="ic">🎬</div><div class="a-title">AnimBP 전환</div><div class="a-id">Animation State Machine</div><div class="a-desc">애니메이션 전환은 AnimBP 내장 상태 머신 에디터로. 게임플레이 상태 머신이 "의미"를, AnimBP가 "겉모습"을 담당.</div></div>
+      <div class="a-card"><div class="ic">🌲</div><div class="a-title">계층 상태 머신</div><div class="a-id">HFSM</div><div class="a-desc">상태 안에 하위 상태 머신을 중첩 (전투 상태 안에 근접/원거리). 상태 폭발을 구조로 눌러 담는 기법.</div></div>
+      <div class="a-card"><div class="ic">🧠</div><div class="a-title">행동 선택은 BT로</div><div class="a-id">Behavior Tree</div><div class="a-desc">"다음 행동 고르기"가 복잡해지면 상태 머신을 늘리기보다 Behavior Tree와 역할 분담.</div></div>
+    </div>
+
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>상태 폭발</strong> — "PausedButAlmostFinished" 같은 조합 상태가 생기기 시작하면 신호입니다. 상태는 국면만 담고, 세부 수치(남은 시간 등)는 일반 변수로 두세요. 상태 수가 8개를 넘으면 계층화(HFSM)나 클래스 기반 전환을 검토하세요.</div></div>
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>Tick에서 직접 전이 판정 남발</strong> — 매 프레임 조건을 검사해 SetState를 부르면 한 프레임에 여러 번 전이될 수 있습니다. 전이는 이벤트(입력·타이머 만료·델리게이트)에서 요청하고, Tick은 현재 상태의 "진행"만 담당하게 하세요.</div></div>
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>디버깅 팁</strong> — SetState 안에 <code>UE_LOG</code>로 <code>OldState → NewState</code>를 남기면 상태 흐름 전체가 로그 한 줄씩으로 보입니다. 변경 통로가 한 곳이라 가능한 이점입니다.</div></div>
+  </div>
+
+</div>
+
+<footer>
+  <span>UE 아키텍처 문서 · State Machine v1.2</span>
+  <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.3</span>
+</footer>
+
+<script>
+(function () {
+  document.querySelectorAll('.codeblock').forEach(function (block) {
+    var tabs = block.querySelectorAll('.codeblock-tab');
+    var panels = block.querySelectorAll('.codeblock-panel');
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) { t.classList.remove('active'); });
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        if (panels[i]) panels[i].classList.add('active');
+      });
+    });
+    var copyBtn = block.querySelector('.codeblock-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () {
+        var pre = block.querySelector('.codeblock-panel.active pre');
+        if (!pre) return;
+        var text = pre.innerText;
+        var done = function () {
+          copyBtn.textContent = '복사됨 ✓';
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.textContent = '복사';
+            copyBtn.classList.remove('copied');
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+        } else {
+          fallbackCopy(text, done);
+        }
+      });
+    }
+  });
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+})();
+</script>
+</body>
+</html>

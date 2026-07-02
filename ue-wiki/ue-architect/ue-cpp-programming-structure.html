@@ -7,7 +7,12 @@
 <!-- ============================================================
      CHANGELOG — ue-cpp-programming-structure.html
      언리얼 C++ 프로그래밍의 전체 구조를 설명하는 아키텍처 문서(템플릿 A).
-     작업 규약: design-guide/DOC-GENERATION-PLAYBOOK.md
+     작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     v2.2 · 2026-07-02
+       - (변경) 마스터 CSS <link> 상대참조 → <style> inline (마스터 v1.3 스냅샷) — 단독 열람 보장, 마스터 개정에 따른 사후 변형 방지 (DOC-TRACKS v1.3 정책)
+     v2.1 · 2026-07-02
+       - (변경) 출력 규칙 트랙별 분리(DOC-TRACKS.md v1.2): inline <style>을 마스터 CSS 상대참조
+         <link href="../../design-guide/design-guide-ue-master.css">로 전환 (Track A 규칙)
      v2.0 · 2026-07-01
        - (추가) 02 네이밍 컨벤션 전용 섹션 (접두사 7종, .generated.h 규칙)
        - (추가) 11 블루프린트 연동 패턴 전용 섹션 (5패턴 코드)
@@ -33,14 +38,17 @@
    UE Design System — Master Stylesheet
    (design-guide-ue-master.css)
    언리얼 에셋 분석 · 아키텍처 설계 문서 공통 토대
-   v1.2  (Dark · Indigo Minimal · Editorial)
+   v1.3  (Dark · Indigo Minimal · Editorial)
 
    사용법
-   - 가이드 문서(master-visual / 01 / 02)는 <link>로 이 파일을 참조.
+   - 가이드 문서(master-visual / design-template의 01 / 02)는 <link>로 이 파일을 참조.
    - 실제 결과물 HTML은 이 파일 내용을 <style>에 통째로 복사(inline)하여
      단일 파일로 배포한다. (오프라인 무결성 유지)
 
-   변경 이력 (CHANGELOG) — 작업 규약: design-guide/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+   변경 이력 (CHANGELOG) — 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+   v1.3 · 2026-07-02
+     - (변경) 폴더 재구조화: 템플릿(01·02) → design-template/(루트),
+       규약(DOC-GENERATION-PLAYBOOK.md) → doc-process/(루트) 이동. 스타일 변경 없음.
    v1.2 · 2026-07-01
      - (추가) .compare-box — 좌우 병렬 비교 카드 (Spawning vs Loading 등)
      - (추가) .grid-3 — 3열 그리드
@@ -147,7 +155,7 @@ nav {
 
 code { font-family: 'IBM Plex Mono', monospace; font-size: 0.86em; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; color: var(--accent-3); }
 
-/* SWATCH */
+/* SWATCHES */
 .swatch-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 22px 0; }
 .swatch { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
 .swatch .chip { height: 56px; }
@@ -181,7 +189,7 @@ code { font-family: 'IBM Plex Mono', monospace; font-size: 0.86em; background: v
 .demo-head { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 7px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); }
 .demo-body { padding: 22px; }
 
-/* CODE SNIPPET */
+/* CODE SNIPPET (수동 escape HTML · 의사코드/마크업 예시용) */
 .snip { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 12px 0 22px; }
 .snip-head { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 8px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
 .code-dot { width: 8px; height: 8px; border-radius: 50%; }
@@ -193,6 +201,8 @@ code { font-family: 'IBM Plex Mono', monospace; font-size: 0.86em; background: v
 
 /* ============================================================
    CODE BLOCK — 실제 C++/H (탭 전환 + 복사 + 구워넣은 하이라이팅)  [v1.1 신규]
+   - highlight.js 호환 클래스명(hljs-*)을 사용해, 생성 시점에 span을 미리 박아 넣는다.
+   - .h / .cpp 는 탭으로 전환, 각 패널당 <pre class="hljs"> 하나.
    ============================================================ */
 .codeblock { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 16px 0 24px; }
 .codeblock-bar { display: flex; align-items: stretch; background: var(--surface-2); border-bottom: 1px solid var(--border); }
@@ -222,20 +232,20 @@ code { font-family: 'IBM Plex Mono', monospace; font-size: 0.86em; background: v
 /* highlight.js 테마 — 다크·인디고 팔레트 매핑 */
 .hljs { color: var(--text-muted); background: var(--surface); }
 .hljs-comment, .hljs-quote { color: var(--text-dim); font-style: italic; }
-.hljs-keyword, .hljs-selector-tag, .hljs-section { color: var(--accent); font-weight: 500; }
-.hljs-literal, .hljs-symbol, .hljs-bullet { color: var(--accent-2); }
-.hljs-number { color: var(--accent-2); }
-.hljs-string, .hljs-attr, .hljs-attribute, .hljs-name { color: var(--ue-demo); }
-.hljs-type, .hljs-class .hljs-title, .hljs-title.class_, .hljs-built_in { color: var(--accent-3); }
-.hljs-title, .hljs-title.function_, .hljs-function .hljs-title { color: var(--text); }
+.hljs-keyword, .hljs-selector-tag, .hljs-section { color: var(--accent); font-weight: 500; }        /* class, return, virtual, const, if ... */
+.hljs-literal, .hljs-symbol, .hljs-bullet { color: var(--accent-2); }                                /* true / false / nullptr */
+.hljs-number { color: var(--accent-2); }                                                             /* 숫자 */
+.hljs-string, .hljs-attr, .hljs-attribute, .hljs-name { color: var(--ue-demo); }                     /* 문자열 */
+.hljs-type, .hljs-class .hljs-title, .hljs-title.class_, .hljs-built_in { color: var(--accent-3); }  /* FVector, AActor, TArray ... */
+.hljs-title, .hljs-title.function_, .hljs-function .hljs-title { color: var(--text); }               /* 함수 이름 */
 .hljs-params { color: var(--text-muted); }
-.hljs-meta, .hljs-meta .hljs-keyword { color: var(--ue-macro); font-weight: 600; }
-.hljs-meta .hljs-string { color: var(--ue-demo); }
+.hljs-meta, .hljs-meta .hljs-keyword { color: var(--ue-macro); font-weight: 600; }                   /* #include, UCLASS/UPROPERTY/UFUNCTION */
+.hljs-meta .hljs-string { color: var(--ue-demo); }                                                   /* #include "..." 경로 */
 .hljs-property, .hljs-variable { color: var(--text); }
 .hljs-emphasis { font-style: italic; }
 .hljs-strong { font-weight: 700; }
 
-/* 파일 태그 */
+/* 파일 태그 (본문 인라인 · .h / .cpp 표기용) */
 .filetag { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 3px; }
 .filetag.h   { background: rgba(56,217,180,0.14); color: var(--ue-header); }
 .filetag.cpp { background: rgba(251,140,90,0.14);  color: var(--ue-source); }
@@ -284,6 +294,7 @@ code { font-family: 'IBM Plex Mono', monospace; font-size: 0.86em; background: v
 .tree .bp { color: var(--ue-bp); } .tree .enum { color: var(--ue-enum); }
 .tree .mat { color: var(--ue-mat); } .tree .tex { color: var(--ue-tex); }
 .tree .note { color: var(--text-muted); }
+/* 클래스 계층 트리에서 쓰는 프레임워크 색 (에셋 트리와 동일 컴포넌트 재사용) */
 .tree .c-gamemode { color: var(--ue-gamemode); font-weight: 600; }
 .tree .c-gamestate { color: var(--ue-gamestate); font-weight: 600; }
 .tree .c-controller { color: var(--ue-controller); font-weight: 600; }
@@ -319,6 +330,8 @@ code { font-family: 'IBM Plex Mono', monospace; font-size: 0.86em; background: v
 
 /* ============================================================
    DECISION TABLE — 책임 배치 결정표  [v1.1 신규]
+   "이 데이터/기능을 어느 클래스에 둘까"를 근거와 함께.
+   .tbl 을 기반으로 첫 열에 클래스 색 점을 붙인다.
    ============================================================ */
 .tbl .owner { display: inline-flex; align-items: center; gap: 7px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
 .tbl .owner::before { content: ''; width: 9px; height: 9px; border-radius: 2px; background: var(--text-dim); flex-shrink: 0; }
@@ -338,7 +351,7 @@ code { font-family: 'IBM Plex Mono', monospace; font-size: 0.86em; background: v
 .pipe-title { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
 .pipe-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
 
-.pitfall { display: flex; gap: 14px; align-items: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; border-left: 3px solid var(--amber); margin: 12px 0; }
+.pitfall { display: flex; gap: 14px; align-items: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; border-left: 3px solid var(--amber); }
 .pitfall.tip { border-left-color: var(--accent-3); }
 .pitfall .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
 .pitfall-text { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
@@ -375,6 +388,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
 /* ============================================================
    COMPARE-BOX — 좌우 병렬 비교 카드  [v1.2 신규]
+   .grid-2 안에 2개를 넣어 Spawning vs Loading 등 비교에 사용.
    ============================================================ */
 .compare-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
 .compare-box h4 { font-size: 14px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
@@ -398,6 +412,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   footer { padding: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
 </style>
 </head>
 <body>
@@ -421,7 +436,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">Architecture Guide &middot; v2.0 &middot; Template A</div>
+  <div class="hero-eyebrow">Architecture Guide &middot; v2.2 &middot; Template A</div>
   <h1>언리얼 엔진 C++ /<br><span>프로그래밍 완전 구조 가이드</span></h1>
   <p class="hero-sub">
     표준 C++과 달라지는 지점부터 UObject 체계, 리플렉션 매크로, 프레임워크 클래스 책임 분배, 오브젝트 생명주기, 빌드 시스템, 메모리 관리, 델리게이트, 블루프린트 연동 패턴까지 &mdash; <strong>언리얼 C++ 개발의 전체 그림</strong>을 한 문서에 담습니다. 언리얼을 처음 접하는 C++ 개발자가 "엔진이 코드를 어떻게 다루는지" 이해하고, 직접 프로젝트를 만들 수 있는 수준을 목표로 합니다.
@@ -1545,8 +1560,8 @@ OnHealthChanged.<span class="hljs-title function_">Broadcast</span>(CurrentHealt
 </div>
 
 <footer>
-  <span>UE C++ 프로그래밍 완전 구조 가이드 &middot; v2.0</span>
-  <span>디자인: Dark / Indigo Minimal / Editorial / Master v1.2</span>
+  <span>UE C++ 프로그래밍 완전 구조 가이드 &middot; v2.2</span>
+  <span>디자인: Dark / Indigo Minimal / Editorial / Master v1.3</span>
 </footer>
 
 <!-- 코드 탭 전환 + 복사 (오프라인 inline) -->

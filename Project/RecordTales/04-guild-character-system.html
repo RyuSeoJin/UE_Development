@@ -3,10 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>04 · 길드 &amp; 캐릭터 시스템 — RecordTales v1.0</title>
+<title>04 · 길드 &amp; 캐릭터 시스템 — RecordTales v1.1</title>
 <!-- ============================================================
      CHANGELOG — 04-guild-character-system.html
-     길드 & 캐릭터 시스템 설계 문서. 작업 규약: design-guide/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     길드 & 캐릭터 시스템 설계 문서. 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.1 · 2026-07-02
+       - (추가) 08 — 데이터 설계 섹션: 프로토타입 v14(TestFile/RecordTales.html) 실측 기준 —
+         v14 % 스탯 모델로 캐릭터 12명·시너지 7종 실측표 등재, RowName 참조 저장 구조·가챠 수치·중복 보유 정책 이슈.
+       - (변경) 문서 버전 표기 v1.0 → v1.1, nav에 "데이터" 링크 추가.
      v1.0 · 2026-07-02
        - 신규 생성. 길드 & 캐릭터 시스템 설계.
        - 섹션 7개: 개념 이해, 길드원 데이터 구조, 가챠 시스템,
@@ -24,7 +28,7 @@
    - 실제 결과물 HTML은 이 파일 내용을 <style>에 통째로 복사(inline)하여
      단일 파일로 배포한다. (오프라인 무결성 유지)
 
-   변경 이력 (CHANGELOG) — 작업 규약: design-guide/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+   변경 이력 (CHANGELOG) — 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
    v1.2 · 2026-07-01
      - (추가) .compare-box — 좌우 병렬 비교 카드 (Spawning vs Loading 등)
      - (추가) .grid-3 — 3열 그리드
@@ -378,11 +382,12 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <a href="#synergy">시너지</a>
     <a href="#skeleton">코드</a>
     <a href="#extension">주의</a>
+    <a href="#data-design">데이터</a>
   </div>
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">RecordTales &middot; v1.0 &middot; Guild &amp; Character</div>
+  <div class="hero-eyebrow">RecordTales &middot; v1.1 &middot; Guild &amp; Character</div>
   <h1>길드 &amp; 캐릭터<br><span>모집 &middot; 편성 &middot; 시너지</span></h1>
   <p class="hero-sub">
     12명의 길드원 풀에서 가챠로 모집하고, 스쿼드를 편성하여 시너지 보너스를 얻는 게임화 시스템입니다.
@@ -928,10 +933,68 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     </div>
   </div>
 
+
+  <!-- ============================================================
+       08 — 데이터 설계
+       ============================================================ -->
+  <div class="section" id="data-design">
+    <div class="section-label">08 — 데이터 설계</div>
+    <h2>길드 &amp; 캐릭터 데이터 (실측 기준)</h2>
+    <p>이 섹션은 프로토타입 v14(<code>TestFile/RecordTales.html</code>) 코드에서 <strong>실측한 데이터 기준</strong>입니다. 본문의 예시 수치와 다를 경우 이 섹션이 우선하며, 전 시스템 통합 스키마는 프로젝트 허브의 <strong>08 데이터 설계 명세</strong> 문서에 있습니다.</p>
+    <div class="pitfall"><span class="ic">&#9888;&#65039;</span><div class="pitfall-text"><strong>본문 초판의 ATK/DEF/SPD/SPL 스탯 모델은 v14 프로토타입에서 <em>% 보너스 모델</em>로 대체되었습니다.</strong> 캐릭터 스탯은 9종(<code>EMemberStat</code>: 집중 시간 · 골드 획득 · 퀘스트 보상 · 스톱워치 보상 · 명중 보너스 · 경험치 보너스 · 연속 보상 · 모든 보상 · 경험치 부스트) 중 1~2개를 %값으로 갖습니다.</div></div>
+
+    <h3>DT_GuildMembers — 고정 캐릭터 12명 (실측)</h3>
+    <table class="tbl">
+      <tr><th>RowName</th><th>등급</th><th>종족/직업</th><th>스탯 (%)</th><th>Likes</th><th>Dislikes</th></tr>
+      <tr><td><code>Cael</code></td><td>Normal</td><td>Human / Archer</td><td>퀘스트 보상 +4</td><td>Mira, Lyra</td><td>Brom</td></tr>
+      <tr><td><code>Brom</code></td><td>Normal</td><td>Human / Berserker</td><td>집중 시간 +3</td><td>Jora</td><td>Cael, Korin</td></tr>
+      <tr><td><code>Jora</code></td><td>Normal</td><td>Dwarf / Guardian</td><td>골드 획득 +3</td><td>Brom, Aldric</td><td>—</td></tr>
+      <tr><td><code>Aldric</code></td><td>Rare</td><td>Human / Knight</td><td>집중 +8 · 퀘보 +5</td><td>Lyra, Jora</td><td>Vex</td></tr>
+      <tr><td><code>Mira</code></td><td>Rare</td><td>Elf / Ranger</td><td>명중 +8 · 골드 +5</td><td>Cael, Korin</td><td>—</td></tr>
+      <tr><td><code>Vex</code></td><td>Rare</td><td>Human / Trickster</td><td>연속 +8 · 집중 +5</td><td>Saron</td><td>Aldric, Astaroth</td></tr>
+      <tr><td><code>Lyra</code></td><td>Epic</td><td>Human / Sword Saint</td><td>골드 +12 · 스톱워치 +10</td><td>Aldric, Cael</td><td>Drakthus</td></tr>
+      <tr><td><code>Korin</code></td><td>Epic</td><td>Elf / Sage</td><td>집중 +12 · 경험치 보너스 +10</td><td>Mira, Seraphine</td><td>Brom</td></tr>
+      <tr><td><code>Saron</code></td><td>Epic</td><td>Half-Demon / Assassin</td><td>퀘보 +12 · 연속 +10</td><td>Vex, Drakthus</td><td>—</td></tr>
+      <tr><td><code>Astaroth</code></td><td>Legendary</td><td>Demon Lord / Overlord</td><td>모든 보상 +18 · 집중 +15</td><td>Drakthus, Seraphine</td><td>Vex</td></tr>
+      <tr><td><code>Seraphine</code></td><td>Legendary</td><td>Celestial / High Priest</td><td>경험치 부스트 +18 · 골드 +15</td><td>Korin, Astaroth</td><td>—</td></tr>
+      <tr><td><code>Drakthus</code></td><td>Legendary</td><td>Dragon / Dragonkin</td><td>연속 +18 · 스톱워치 +15</td><td>Astaroth, Saron</td><td>Lyra</td></tr>
+    </table>
+
+    <h3>DT_Synergies — 시너지 7종 (실측)</h3>
+    <table class="tbl">
+      <tr><th>RowName</th><th>이름</th><th>멤버 (전원 활성 스쿼드에 있어야 발동)</th><th>보너스</th></tr>
+      <tr><td><code>sword-rivals</code></td><td>검술 라이벌</td><td>Aldric, Lyra</td><td>집중 시간 +5%</td></tr>
+      <tr><td><code>archer-duo</code></td><td>활잡이 듀오</td><td>Cael, Mira</td><td>명중 보너스 +6%</td></tr>
+      <tr><td><code>elf-bond</code></td><td>엘프의 인연</td><td>Mira, Korin</td><td>경험치 보너스 +4%</td></tr>
+      <tr><td><code>shadow-pact</code></td><td>그림자 협정</td><td>Vex, Saron</td><td>연속 보상 +5%</td></tr>
+      <tr><td><code>guardian-bond</code></td><td>수호의 맹세</td><td>Aldric, Jora</td><td>집중 시간 +3%</td></tr>
+      <tr><td><code>demon-court</code></td><td>마계의 군림</td><td>Astaroth, Drakthus, Seraphine</td><td>모든 보상 +10%</td></tr>
+      <tr><td><code>human-honor</code></td><td>인간의 명예</td><td>Aldric, Cael, Lyra</td><td>퀘스트 보상 +7%</td></tr>
+    </table>
+
+    <h3>저장 구조 — 복사가 아니라 참조</h3>
+    <table class="tbl">
+      <tr><th>항목</th><th>구조</th><th>근거</th></tr>
+      <tr><td>보유 길드원</td><td><code>FOwnedGuildMember { InstanceId(FGuid), MemberRow(FName), Level, HiredAt }</code></td><td>프로토타입은 가챠 시점에 스탯을 통째로 복사하지만, 복사 방식은 밸런스 패치가 기보유 캐릭터에 적용되지 않음 → <strong>DT_GuildMembers RowName 참조로 전환</strong></td></tr>
+      <tr><td>스쿼드 프리셋</td><td><code>TArray&lt;FSquadPreset&gt;</code> + <code>ActivePresetIndex</code></td><td>기본 프리셋 1개·슬롯 2개, 해금으로 프리셋 3개·슬롯 4개까지 확장 (05 해금 트리)</td></tr>
+      <tr><td>모집 이력</td><td><code>FHireHistoryEntry { MemberRow, bSelected, At }</code></td><td>선택/패스 모두 기록 (패스 시 최고 등급 후보를 기록)</td></tr>
+    </table>
+
+    <h3>가챠 수치 (실측)</h3>
+    <table class="tbl">
+      <tr><th>항목</th><th>값</th></tr>
+      <tr><td>1회 비용 / 후보 수</td><td>1,000 Gold / 3명 (같은 캐릭터 중복 등장 가능)</td></tr>
+      <tr><td>보유 상한</td><td>8명</td></tr>
+      <tr><td>등급 확률</td><td>길드 레벨 구간에 따라 변동 — Lv1: 80/20/0/0 → Lv20: 0/15/45/40 (N/R/E/L%, 전체 표는 05 경제 문서의 데이터 설계 섹션)</td></tr>
+    </table>
+
+    <div class="pitfall"><span class="ic">&#9888;&#65039;</span><div class="pitfall-text"><strong>중복 보유 정책 미확정.</strong> 프로토타입에는 이미 보유한 캐릭터를 다시 뽑는 것을 막는 코드가 없지만, 시너지·편성이 이름 기반이라 중복 보유는 이득이 없습니다. 권장: 확정 시 중복이면 거부 또는 골드 환급 — 결정을 데이터 규칙으로 명문화하고 <code>UGuildSubsystem</code>에서 강제하세요.</div></div>
+  </div>
+
 </div>
 
 <footer>
-  <span>RecordTales &middot; 길드 &amp; 캐릭터 시스템 v1.0</span>
+  <span>RecordTales &middot; 길드 &amp; 캐릭터 시스템 v1.1</span>
   <span>디자인: Dark &middot; Indigo Minimal &middot; Master v1.2</span>
 </footer>
 

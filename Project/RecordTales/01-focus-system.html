@@ -3,10 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>포커스 시스템 — 타이머 &amp; 스톱워치 — RecordTales v1.0</title>
+<title>포커스 시스템 — 타이머 &amp; 스톱워치 — RecordTales v1.1</title>
 <!-- ============================================================
      CHANGELOG — 01-focus-system.html
-     포커스(타이머+스톱워치) 시스템 설계. 작업 규약: design-guide/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     포커스(타이머+스톱워치) 시스템 설계. 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.1 · 2026-07-02
+       - (추가) 08 — 데이터 설계 섹션: 프로토타입 v14(TestFile/RecordTales.html) 실측 기준 —
+         타이머 설정 저장 필드·휘발 상태 목록·보상 실측값(사이클 +15 XP, 골드 틱 6초 +10) 정리. XP_REWARDS 미배선 명시.
+       - (변경) 문서 버전 표기 v1.0 → v1.1, nav에 "데이터" 링크 추가.
      v1.0 · 2026-07-02
        - 신규 생성. 포커스(타이머+스톱워치) 시스템 설계.
        - 타이머 상태 머신(5상태), 루틴 모드, 스톱워치, XP/Gold 보상 규칙,
@@ -262,11 +266,12 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <a href="#rewards">보상</a>
     <a href="#skeleton">코드</a>
     <a href="#extension">주의</a>
+    <a href="#data-design">데이터</a>
   </div>
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">RecordTales &middot; v1.0 &middot; Focus System</div>
+  <div class="hero-eyebrow">RecordTales &middot; v1.1 &middot; Focus System</div>
   <h1>포커스 시스템<br><span>타이머 &amp; 스톱워치</span></h1>
   <p class="hero-sub">
     포모도로 기반 타이머와 자유 시간 스톱워치를 통합한 집중 관리 시스템입니다. 상태 머신, 루틴 반복, XP/Gold 적립 규칙, 세션 기록 연동까지 설계합니다.
@@ -935,10 +940,50 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     </div>
   </div>
 
+
+  <!-- ============================================================
+       08 — 데이터 설계
+       ============================================================ -->
+  <div class="section" id="data-design">
+    <div class="section-label">08 — 데이터 설계</div>
+    <h2>포커스 시스템의 데이터 (실측 기준)</h2>
+    <p>이 섹션은 프로토타입 v14(<code>TestFile/RecordTales.html</code>) 코드에서 <strong>실측한 데이터 기준</strong>입니다. 본문의 예시 수치와 다를 경우 이 섹션이 우선하며, 전 시스템 통합 스키마는 프로젝트 허브의 <strong>08 데이터 설계 명세</strong> 문서에 있습니다.</p>
+
+    <h3>저장 데이터 — URecordTalesSaveGame의 타이머 설정</h3>
+    <table class="tbl">
+      <tr><th>필드</th><th>기본값</th><th>의미</th></tr>
+      <tr><td><code>FocusMinutes</code></td><td>25</td><td>집중 단계 길이(분)</td></tr>
+      <tr><td><code>RestMinutes</code></td><td>5</td><td>중간 휴식 길이(분)</td></tr>
+      <tr><td><code>LastRestMinutes</code></td><td>15</td><td>마지막 사이클 후 휴식(분)</td></tr>
+      <tr><td><code>SingleRestMinutes</code></td><td>5</td><td>반복 1회일 때의 휴식(분)</td></tr>
+      <tr><td><code>RepeatCount</code></td><td>4</td><td>포모도로 반복 횟수(1~10)</td></tr>
+      <tr><td><code>bIsRoutine</code> / <code>bAutoRestart</code></td><td>false</td><td>루틴 모드 / 자동 재시작</td></tr>
+      <tr><td><code>FocusStreakCount</code></td><td>0</td><td>연속 완주 사이클 수 — 3의 배수마다 보너스 XP</td></tr>
+    </table>
+
+    <h3>휘발 데이터 — UFocusSubsystem 멤버 (저장 금지)</h3>
+    <table class="tbl">
+      <tr><th>상태</th><th>이유</th></tr>
+      <tr><td><code>EFocusState</code>(Idle/Focusing/Resting/LastResting/Paused), 남은 초, 사이클 번호, 누적 집중 초, 골드 틱 카운터</td><td>재시작 후 "돌던 타이머"를 복원하면 실제 흐른 시간과 어긋남. <code>UPROPERTY(Transient)</code>로 명시</td></tr>
+      <tr><td>스톱워치 경과 초, 실행/일시정지 플래그</td><td>동일</td></tr>
+    </table>
+
+    <h3>보상 수치 (실측)</h3>
+    <table class="tbl">
+      <tr><th>이벤트</th><th>보상</th><th>조건</th></tr>
+      <tr><td>포모도로 집중 1사이클 완주</td><td>+15 XP</td><td>집중 시간이 만료될 때까지 완료</td></tr>
+      <tr><td>연속 3사이클</td><td>+20 XP 추가</td><td><code>FocusStreakCount % 3 == 0</code></td></tr>
+      <tr><td>스톱워치 종료</td><td>+15 XP (1회)</td><td>경과 1,500초(25분) 이상일 때만</td></tr>
+      <tr><td>골드 틱</td><td>+10 Gold / 6초</td><td>집중 단계·스톱워치 진행 중에만 (휴식/일시정지 중 없음)</td></tr>
+    </table>
+
+    <div class="pitfall"><span class="ic">&#9888;&#65039;</span><div class="pitfall-text"><strong>프로토타입의 <code>XP_REWARDS</code> 상수(스톱워치 분당 10 · 타이머 20)는 정의만 있고 배선되지 않았습니다.</strong> 실제 지급 코드는 위 표의 값을 사용합니다. 본문 앞부분에 분당 적립으로 서술된 부분이 있다면 이 표가 우선입니다. 해금 보상 배율(티어당 +20%)도 프로토타입에서는 지급식에 곱해지지 않으므로, UE 구현 시 배선 여부를 기획으로 확정해야 합니다.</div></div>
+  </div>
+
 </div>
 
 <footer>
-  <span>RecordTales &middot; Focus System v1.0</span>
+  <span>RecordTales &middot; Focus System v1.1</span>
   <span>Design: Dark &middot; Indigo Minimal &middot; Editorial</span>
 </footer>
 

@@ -3,8 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RecordTales 프로젝트 허브 & 개발 용어집 v1.0</title>
-<!-- v1.0 · 2026-07-02
+<title>RecordTales 프로젝트 허브 & 개발 용어집 v1.2</title>
+<!-- CHANGELOG — recordtales-index.html
+     RecordTales 프로젝트 허브 & 프로젝트 용어집. 작업 규약: doc-process/DOC-TRACKS.md (Track B)
+     v1.2 · 2026-07-02
+       - (추가) 문서 목록에 08 데이터 설계 명세 등록 (설계 문서 8개 → 9개).
+       - (추가) 용어집에 "데이터 설계" 카테고리 신설: 데이터 3계층 · RowName 참조 ·
+         URecordTalesSettings · SaveVersion (상세 링크는 08 문서의 term 앵커).
+       - (참고) 01~07 각 문서에 "08 — 데이터 설계" 섹션 추가됨(각 문서 v1.1).
+     v1.1 · 2026-07-02
+       - (추가) 용어집에 '캘린더 도트' 등록 (중앙 용어집에서 이관 — 용어집 이원화 규칙)
+       - (변경) 트랙 규약 도입: 프로젝트 고유 용어의 홈은 이 용어집 (doc-process/DOC-TRACKS.md §4)
+     v1.0 · 2026-07-02
        - 신규 생성. RecordTales 프로젝트 전용 허브 & 개발 용어집.
        - 문서 목록 8개 등록, 개발 용어집 작성.
 -->
@@ -20,7 +30,7 @@
    - 실제 결과물 HTML은 이 파일 내용을 <style>에 통째로 복사(inline)하여
      단일 파일로 배포한다. (오프라인 무결성 유지)
 
-   변경 이력 (CHANGELOG) — 작업 규약: design-guide/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+   변경 이력 (CHANGELOG) — 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
    v1.2 · 2026-07-01
      - (추가) .compare-box — 좌우 병렬 비교 카드 (Spawning vs Loading 등)
      - (추가) .grid-3 — 3열 그리드
@@ -413,7 +423,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">RecordTales &middot; v1.0 &middot; Project Hub</div>
+  <div class="hero-eyebrow">RecordTales &middot; v1.2 &middot; Project Hub</div>
   <h1>RecordTales<br><span>프로젝트 허브</span></h1>
   <p class="hero-sub">
     포모도로 기반 집중 관리 + 길드 게임화 시스템을 언리얼 엔진으로 구현하는 프로젝트입니다. 이 허브는 프로젝트의 모든 설계 문서를 모으고, 개발에 필요한 용어·데이터 구조·프레임워크 배치를 정리합니다.
@@ -433,7 +443,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   <div class="section" id="docs">
     <div class="section-label">01 — 문서 목록</div>
     <h2>설계 문서</h2>
-    <p>RecordTales를 구성하는 8개의 설계 문서입니다. 각 문서는 CSS inline으로 단독 열람이 가능합니다.</p>
+    <p>RecordTales를 구성하는 9개의 설계 문서입니다. 각 문서는 CSS inline으로 단독 열람이 가능합니다.</p>
 
     <table class="tbl">
       <tr>
@@ -489,6 +499,12 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <td>UI/UX</td>
         <td>패널 매니저, 모달, 토스트, 캘린더, HUD</td>
         <td><a href="./07-ui-framework.html" style="color:var(--accent)">열기 &rarr;</a></td>
+      </tr>
+      <tr>
+        <td>08 데이터 설계</td>
+        <td>데이터</td>
+        <td>전수 인벤토리, 보관처 결정표, DataTable/SaveGame 스키마, 실측 수치표</td>
+        <td><a href="./08-data-design.html" style="color:var(--accent)">열기 &rarr;</a></td>
       </tr>
     </table>
   </div>
@@ -855,6 +871,14 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <td>주간=월~일, 월간=1~말일 범위 계산</td>
         <td><a href="./03-archive-system.html" style="color:var(--accent)">03 아카이브</a></td>
       </tr>
+      <tr id="term-calendar-dot">
+        <td>캘린더 도트</td>
+        <td>날짜별 활동 요약을 표시하는 작은 점</td>
+        <td>도트 3종 (F/S/T)</td>
+        <td>UI 위젯</td>
+        <td>F=Timer(주황), S=Stopwatch(초록), T=Quest(노랑). 동시 표시 가능</td>
+        <td><a href="./03-archive-system.html#term-calendar-dot" style="color:var(--accent)">03 아카이브</a></td>
+      </tr>
 
       <!-- ===== 길드 & 캐릭터 ===== -->
       <tr class="cat-header"><td colspan="6">길드 &amp; 캐릭터</td></tr>
@@ -1026,6 +1050,40 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <td><code>UUserWidget</code></td>
         <td>패널 닫아도 상단에 남은시간/단계 표시</td>
         <td><a href="./07-ui-framework.html" style="color:var(--accent)">07 UI</a></td>
+      </tr>
+      <!-- ===== 데이터 설계 ===== -->
+      <tr class="cat-header"><td colspan="6">데이터 설계</td></tr>
+      <tr id="term-data-tiers-hub">
+        <td>데이터 3계층</td>
+        <td>데이터를 정적(기획)·동적(플레이어)·휘발(세션)로 나누는 보관처 분류 기준</td>
+        <td>DataTable 7종 &middot; <code>URecordTalesSaveGame</code> &middot; Transient 멤버</td>
+        <td><code>UDataTable</code>, <code>USaveGame</code>, <code>UDeveloperSettings</code></td>
+        <td>데이터당 보관처는 한 곳. 파생값(퀘스트 상태 등)은 저장하지 않고 계산</td>
+        <td><a href="./08-data-design.html#term-data-tiers" style="color:var(--accent)">08 데이터</a></td>
+      </tr>
+      <tr id="term-rowname-ref">
+        <td>RowName 참조</td>
+        <td>정적 테이블의 행을 데이터 복사 없이 <code>FName</code>으로 가리키는 방식</td>
+        <td><code>FOwnedGuildMember.MemberRow</code>, <code>UnlockedIds</code></td>
+        <td><code>UDataTable::FindRow</code></td>
+        <td>가챠 획득 시 스탯 복사 금지 — 밸런스 패치가 기보유 캐릭터에 자동 반영</td>
+        <td><a href="./08-data-design.html#term-owned-member" style="color:var(--accent)">08 데이터</a></td>
+      </tr>
+      <tr id="term-rt-settings-hub">
+        <td>URecordTalesSettings</td>
+        <td>낱개 밸런스 상수의 홈 (Project Settings &#9656; Game에 자동 노출)</td>
+        <td>골드 틱(6초 +10) &middot; 가챠 1,000 &middot; 보유 상한 8 &middot; XP 실측값 &middot; 타이머 기본값</td>
+        <td><code>UDeveloperSettings</code> (Config=Game)</td>
+        <td>행 하나짜리 값을 테이블로 만들지 않음. 미배선 상수는 예약만</td>
+        <td><a href="./08-data-design.html#term-rt-settings" style="color:var(--accent)">08 데이터</a></td>
+      </tr>
+      <tr id="term-save-version">
+        <td>SaveVersion</td>
+        <td>세이브 구조 변경에 대비한 버전 필드 (v1부터 시작)</td>
+        <td><code>int32 SaveVersion = 1</code></td>
+        <td><code>URecordTalesSaveGame</code></td>
+        <td>구조 변경 시 +1, 로드 시 버전 분기로 마이그레이션</td>
+        <td><a href="./08-data-design.html#term-savegame-root" style="color:var(--accent)">08 데이터</a></td>
       </tr>
     </table>
   </div>

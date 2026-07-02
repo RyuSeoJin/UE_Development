@@ -3,11 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>디자인 마스터 (비주얼) — UE 문서 디자인 시스템 v1.2</title>
+<title>디자인 마스터 (비주얼) — UE 문서 디자인 시스템 v1.4</title>
 <link rel="stylesheet" href="design-guide-ue-master.css">
 <!-- ============================================================
      CHANGELOG — design-guide-ue-master-visual.html
-     master.css의 시각 레퍼런스. 작업 규약: design-guide/DOC-GENERATION-PLAYBOOK.md (4단계)
+     master.css의 시각 레퍼런스. 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.4 · 2026-07-02
+       - (변경) 문서 허브 이동(ue-wiki/ue-architect/ → ue-wiki/) 반영: nav 허브 링크 갱신
+     v1.3 · 2026-07-02
+       - (변경) 폴더 재구조화: 템플릿(01·02)이 design-template/(루트)로,
+         규약(DOC-GENERATION-PLAYBOOK.md)이 doc-process/(루트)로 이동
+       - (변경) 01·02 템플릿 링크를 ../design-template/ 상대경로로 갱신
      v1.2 · 2026-07-01
        - (추가) 06 섹션: v1.2 신규 컴포넌트 데모 (.grid-3, .stat-row-4, .compare-box, .pill.pink/.red)
        - (변경) 버전 표기 v1.1 → v1.2 (헤더·footer)
@@ -32,14 +38,14 @@
     <a href="#layout">레이아웃</a>
     <a href="#base">기본 컴포넌트</a>
     <a href="#rules">규칙</a>
-    <a href="01-ue-asset-analysis.html">→ 에셋 분석</a>
-    <a href="02-ue-architecture.html">→ 아키텍처</a>
-    <a href="../ue-wiki/ue-architect/design-guide-ue-index.html">→ 문서 허브</a>
+    <a href="../design-template/01-ue-asset-analysis.html">→ 에셋 분석</a>
+    <a href="../design-template/02-ue-architecture.html">→ 아키텍처</a>
+    <a href="../ue-wiki/design-guide-ue-index.html">→ 문서 허브</a>
   </div>
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">Design System · v1.2 · Master Visual</div>
+  <div class="hero-eyebrow">Design System · v1.4 · Master Visual</div>
   <h1>UE 디자인<br><span>마스터</span></h1>
   <p class="hero-sub">
     모든 언리얼 문서(에셋 분석 · 아키텍처 설계)가 공유하는 디자인 마스터입니다. 컬러·타이포·레이아웃·기본 컴포넌트를 한 곳에 고정합니다. 스타일 원본은 <code>design-guide-ue-master.css</code> 한 파일이며, 이 문서는 그 시각 레퍼런스입니다.
@@ -190,7 +196,7 @@
   <div class="section" id="base">
     <div class="section-label">04 — 공통 기본 컴포넌트</div>
     <h2>모든 문서가 공유하는 블록</h2>
-    <p>아래는 에셋·아키텍처 문서 모두에서 쓰이는 범용 컴포넌트입니다. 에셋 전용(트리·에셋 카드)은 <a href="01-ue-asset-analysis.html" style="color:var(--accent)">01 에셋 분석</a>, 아키텍처 전용(관계도·코드 탭·결정표)은 <a href="02-ue-architecture.html" style="color:var(--accent)">02 아키텍처</a>를 보세요.</p>
+    <p>아래는 에셋·아키텍처 문서 모두에서 쓰이는 범용 컴포넌트입니다. 에셋 전용(트리·에셋 카드)은 <a href="../design-template/01-ue-asset-analysis.html" style="color:var(--accent)">01 에셋 분석</a>, 아키텍처 전용(관계도·코드 탭·결정표)은 <a href="../design-template/02-ue-architecture.html" style="color:var(--accent)">02 아키텍처</a>를 보세요.</p>
 
     <h3>섹션 라벨 + 제목</h3>
     <div class="demo"><div class="demo-head">Live</div><div class="demo-body">
@@ -343,7 +349,7 @@
 </div>
 
 <footer>
-  <span>UE 문서 디자인 시스템 · Master v1.2</span>
+  <span>UE 문서 디자인 시스템 · Master v1.4</span>
   <span>기준 디자인: Dark · Indigo Minimal · Editorial</span>
 </footer>
 

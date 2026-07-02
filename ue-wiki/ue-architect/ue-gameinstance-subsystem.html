@@ -1,3 +1,25 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GameInstanceSubsystem — 수명 자동 관리 전역 서비스 · UE 아키텍처</title>
+<!-- ============================================================
+     CHANGELOG — ue-gameinstance-subsystem.html
+     유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿).
+     작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.2 · 2026-07-02
+       - (변경) 마스터 CSS <link> 상대참조 → <style> inline (마스터 v1.3 스냅샷) — 단독 열람 보장, 마스터 개정에 따른 사후 변형 방지 (DOC-TRACKS v1.3 정책)
+     v1.1 · 2026-07-02
+       - (변경) 출력 규칙 트랙별 분리(DOC-TRACKS.md v1.2): inline <style>을 마스터 CSS 상대참조
+         <link href="../../design-guide/design-guide-ue-master.css">로 전환 (Track A 규칙)
+       - (수정) 마스터에 없던 owner-cell 클래스를 마스터 지원 마크업(.tbl + span.owner)으로 교체
+     v1.0 · 2026-07-02
+       - 신규 생성. GameInstanceSubsystem 범용 아키텍처 문서.
+       - RecordTales 프로젝트 문서의 프로젝트 맥락을 제거하고 일반화 (DOC-TRACKS.md §5 범용 개념 승격)
+       - 중앙 용어집 'GameInstanceSubsystem' 링크가 이 문서를 가리킴 (id="term-gameinstance-subsystem")
+     ============================================================ -->
+<style>
 /* ============================================================
    UE Design System — Master Stylesheet
    (design-guide-ue-master.css)
@@ -376,3 +398,266 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   footer { padding: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">UE WIKI · GAMEINSTANCE SUBSYSTEM</div>
+  <div class="nav-links">
+    <a href="#concept">개념</a>
+    <a href="#relation">관계</a>
+    <a href="#responsibility">책임</a>
+    <a href="#flow">흐름</a>
+    <a href="#skeleton">스켈레톤</a>
+    <a href="#extend">확장</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">UE Architecture · Type ① · 02-A</div>
+  <h1>GameInstance<br><span>Subsystem</span></h1>
+  <p class="hero-sub">
+    게임이 켜질 때 자동으로 생성되고 꺼질 때 자동으로 정리되는 <strong>전역 서비스 객체</strong>를 만드는 방법입니다. 점수 관리·사운드 매니저처럼 "레벨이 바뀌어도 살아 있어야 하는 기능"을 싱글턴 없이 안전하게 만드는 언리얼의 표준 패턴을 다룹니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">엔진 자체 기능</span>
+    <span class="badge badge-green">UE 4.22+ / UE5</span>
+    <span class="badge badge-purple">C++ · Blueprint</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- 01 개념 -->
+  <div class="section" id="concept">
+    <div class="section-label">01 — 개념 · 역할</div>
+    <h2>왜 싱글턴을 직접 만들지 않아도 되는가</h2>
+    <p>
+      게임을 만들다 보면 "어디서든 접근할 수 있고, 게임이 실행되는 동안 계속 살아 있는 객체"가 필요해집니다. 점수 집계, 배경음 관리, 저장 요청 큐 같은 것들이죠. C++에서 흔히 쓰는 해법은 싱글턴(Singleton — 프로그램 전체에서 인스턴스를 하나만 두는 패턴)이지만, 직접 만들면 <strong>언제 생성하고 언제 파괴할지</strong>를 전부 수동으로 관리해야 하고, 에디터의 PIE(Play In Editor — 에디터 안에서 게임을 실행하는 기능)처럼 게임이 여러 번 시작/종료되는 환경에서 잔여 상태가 남는 버그가 생기기 쉽습니다.
+    </p>
+    <p>
+      <strong id="term-gameinstance-subsystem">GameInstanceSubsystem</strong>은 이 문제를 엔진이 대신 풀어줍니다. <code>UGameInstanceSubsystem</code>을 상속한 클래스를 만들어 두기만 하면, 엔진이 <strong>GameInstance가 만들어질 때 함께 생성하고, GameInstance가 사라질 때 함께 정리</strong>합니다. 등록 코드도, 파괴 코드도 쓸 필요가 없습니다.
+    </p>
+
+    <div class="callout info"><span class="ic">🔑</span><p><strong>핵심 용어</strong> — <strong>Subsystem</strong>: 엔진이 생성·파괴 시점을 대신 관리해 주는 서비스 객체의 총칭. · <strong>GameInstance</strong>: 게임 프로세스가 시작될 때 1개 만들어져 레벨(맵)이 바뀌어도 유지되고, 게임이 끝날 때 사라지는 최상위 객체. · <strong>수명(Lifetime)</strong>: 객체가 생성되어 파괴될 때까지의 구간. Subsystem의 수명은 자신을 소유한 객체(여기선 GameInstance)의 수명과 같습니다. · <strong>싱글턴(Singleton)</strong>: 인스턴스를 하나만 두는 전통적 패턴 — Subsystem이 대체합니다.</p></div>
+
+    <div class="stat-row">
+      <div class="stat-card"><div class="stat-num">자동</div><div class="stat-label">생성 · 파괴 (등록 코드 불필요)</div></div>
+      <div class="stat-card"><div class="stat-num">1개</div><div class="stat-label">GameInstance당 인스턴스</div></div>
+      <div class="stat-card"><div class="stat-num">유지</div><div class="stat-label">레벨 전환에도 살아 있음</div></div>
+    </div>
+  </div>
+
+  <!-- 02 관계 -->
+  <div class="section" id="relation">
+    <div class="section-label">02 — 클래스 관계</div>
+    <h2>어디에서 상속받고, 누가 소유하는가</h2>
+    <p>전제: C++ 프로젝트여야 합니다(블루프린트만으로는 Subsystem 클래스를 새로 정의할 수 없습니다). 상속 계층은 다음과 같습니다.</p>
+
+    <div class="tree"><span class="note">// 엔진 클래스 → 프로젝트 클래스</span>
+UObject
+└─ USubsystem                       <span class="note">// 모든 Subsystem의 공통 부모</span>
+   └─ <span class="c-subsystem">UGameInstanceSubsystem</span>       <span class="note">// GameInstance 수명을 따르는 변형</span>
+      └─ <span class="c-subsystem">UScoreSubsystem</span>           <span class="note">// ← 우리가 만드는 클래스 (예시)</span></div>
+
+    <div class="rel-map">
+      <div class="rel-row">
+        <div class="rel-node n-instance"><div class="rn-name">UGameInstance</div><div class="rn-role">게임 전체 수명 · 소유자</div></div>
+        <div class="rel-arrow"><span class="ra-label">생성·소유·파괴</span><span class="ra-line">→</span></div>
+        <div class="rel-node n-subsystem"><div class="rn-name">UScoreSubsystem</div><div class="rn-role">전역 서비스 (자동 관리)</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-controller"><div class="rn-name">아무 게임 코드</div><div class="rn-role">위젯 · 액터 · 컨트롤러</div></div>
+        <div class="rel-arrow"><span class="ra-label">GetSubsystem&lt;T&gt;()</span><span class="ra-line">→</span></div>
+        <div class="rel-node n-subsystem"><div class="rn-name">UScoreSubsystem</div><div class="rn-role">어디서든 접근 가능</div></div>
+      </div>
+    </div>
+
+    <h3>Subsystem은 4가지 수명 스코프가 있습니다</h3>
+    <p>부모 클래스를 무엇으로 하느냐에 따라 "언제 만들어지고 언제 사라지는지"가 달라집니다. <strong>필요한 수명에 맞는 부모를 고르는 것</strong>이 Subsystem 설계의 전부라고 해도 과언이 아닙니다.</p>
+    <table class="tbl">
+      <tr><th>부모 클래스</th><th>수명 (생성 ~ 파괴)</th><th>이런 기능에 적합</th></tr>
+      <tr><td><code>UEngineSubsystem</code></td><td>엔진 시작 ~ 엔진 종료</td><td>에디터 포함 전체 프로세스 서비스</td></tr>
+      <tr><td><code>UGameInstanceSubsystem</code></td><td><strong>게임 시작 ~ 게임 종료</strong> (레벨 전환 무관)</td><td><strong>점수·사운드·세이브 큐 등 게임 전역 서비스 — 이 문서의 주제</strong></td></tr>
+      <tr><td><code>UWorldSubsystem</code></td><td>월드(레벨) 로드 ~ 언로드</td><td>레벨에 종속된 스폰 관리·연출</td></tr>
+      <tr><td><code>ULocalPlayerSubsystem</code></td><td>로컬 플레이어 생성 ~ 제거</td><td>분할 화면 등 플레이어별 상태</td></tr>
+    </table>
+  </div>
+
+  <!-- 03 책임 -->
+  <div class="section" id="responsibility">
+    <div class="section-label">03 — 책임 분배</div>
+    <h2>무엇을 여기에 두고, 무엇을 두지 말아야 하나</h2>
+    <p>GameInstanceSubsystem이 편하다고 모든 로직을 몰아넣으면 "신(God) 클래스"가 됩니다. 아래 결정표를 기준으로 판단하세요 — 판단 기준은 <strong>그 데이터/기능이 필요한 수명</strong>입니다.</p>
+
+    <table class="tbl">
+      <tr><th>데이터 / 기능</th><th>배치</th><th>왜</th></tr>
+      <tr><td>세션 전역 상태 (누적 점수, 재화, 설정 캐시)</td><td><span class="owner o-subsystem"><code>UGameInstanceSubsystem</code></span></td><td>레벨이 바뀌어도 유지되어야 하므로 GameInstance 수명이 필요</td></tr>
+      <tr><td>전역 서비스 (사운드 매니저, 알림 큐, 분석 이벤트 수집)</td><td><span class="owner o-subsystem"><code>UGameInstanceSubsystem</code></span></td><td>어디서든 접근해야 하고 상태를 계속 들고 있어야 함</td></tr>
+      <tr><td>레벨(맵)에 종속된 로직 — 스폰 지점 관리, 레벨 연출</td><td><span class="owner o-subsystem"><code>UWorldSubsystem</code></span></td><td>레벨이 내려가면 함께 정리되어야 함. GameInstance 수명이면 이전 레벨의 상태가 남는 버그 발생</td></tr>
+      <tr><td>디스크에 남아야 하는 데이터 (재실행 후에도 유지)</td><td><span class="owner o-savegame"><code>USaveGame</code></span></td><td>Subsystem은 메모리 객체일 뿐 — 게임을 끄면 사라짐. Subsystem이 SaveGame을 읽고 쓰는 <strong>중개자</strong> 역할을 맡기는 것이 정석</td></tr>
+      <tr><td>매치 규칙·승패 판정</td><td><span class="owner o-gamemode"><code>AGameMode</code></span></td><td>매치(레벨) 단위 규칙은 프레임워크 클래스의 몫</td></tr>
+    </table>
+    <div class="callout tip"><span class="ic">💡</span><p>망설여질 때의 질문: <strong>"레벨을 전환해도 이 값이 살아 있어야 하는가?"</strong> — 예라면 GameInstanceSubsystem, 아니오라면 WorldSubsystem이나 액터 쪽이 맞습니다.</p></div>
+  </div>
+
+  <!-- 04 흐름 -->
+  <div class="section" id="flow">
+    <div class="section-label">04 — 생명주기 흐름</div>
+    <h2>엔진이 대신 해주는 일의 순서</h2>
+    <p>우리가 클래스를 정의해 두면, 게임 실행 시 엔진이 아래 순서를 자동으로 진행합니다. 각 단계에서 무엇이 보장되고 무엇이 아직 없는지가 중요합니다.</p>
+
+    <div class="arch">
+      <div class="arch-layer"><div class="arch-tag">1 · 게임 시작</div><div class="arch-title">GameInstance 생성</div><div class="arch-desc">프로세스당 1회. 이 시점에 모든 GameInstanceSubsystem 클래스가 수집됩니다.</div></div>
+      <div class="arch-arrow">&rarr;</div>
+      <div class="arch-layer"><div class="arch-tag">2 · 자동 생성</div><div class="arch-title">Initialize() 호출</div><div class="arch-desc">Subsystem 인스턴스가 만들어지고 초기화 훅이 불립니다. 아직 월드(레벨)는 없을 수 있습니다.</div></div>
+      <div class="arch-arrow">&rarr;</div>
+      <div class="arch-layer"><div class="arch-tag">3 · 플레이 중</div><div class="arch-title">레벨 전환에도 유지</div><div class="arch-desc">OpenLevel로 맵을 몇 번을 바꿔도 같은 인스턴스가 계속 살아 있습니다.</div></div>
+      <div class="arch-arrow">&rarr;</div>
+      <div class="arch-layer"><div class="arch-tag">4 · 게임 종료</div><div class="arch-title">Deinitialize() 호출</div><div class="arch-desc">타이머·델리게이트 해제 등 정리 코드를 두는 곳. 이후 GC가 회수합니다.</div></div>
+    </div>
+
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>Initialize()에서 월드를 만지지 마세요</strong> — Initialize 시점에는 아직 레벨이 로드되기 전일 수 있어 <code>GetWorld()</code>가 <code>nullptr</code>일 수 있습니다. 월드가 필요한 초기화는 첫 접근 시점으로 미루거나 월드 델리게이트(예: <code>FWorldDelegates::OnPostWorldInitialization</code>)에 걸어 두세요.</div></div>
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>다른 Subsystem에 의존한다면</strong> — Subsystem끼리 초기화 순서는 보장되지 않습니다. <code>Initialize(FSubsystemCollectionBase&amp; Collection)</code> 안에서 <code>Collection.InitializeDependency&lt;UOtherSubsystem&gt;()</code>을 먼저 호출하면 의존 대상이 먼저 초기화됨을 보장할 수 있습니다.</div></div>
+  </div>
+
+  <!-- 05 스켈레톤 -->
+  <div class="section" id="skeleton">
+    <div class="section-label">05 — 구현 스켈레톤</div>
+    <h2>최소 동작 코드 — 점수 서비스 예시</h2>
+    <p>전제: C++ 프로젝트, 모듈 이름이 <code>MyGame</code>이라고 가정합니다(<code>MYGAME_API</code> 부분을 자기 모듈 이름으로 바꾸세요). 아래 두 파일을 <code>Source/MyGame/</code> 아래에 만들고 컴파일하면 <strong>그 외 등록 절차는 없습니다</strong> — 엔진이 클래스를 자동 발견해 인스턴스화합니다.</p>
+
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">ScoreSubsystem.h</button>
+        <button class="codeblock-tab tab-cpp" type="button">ScoreSubsystem.cpp</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"ScoreSubsystem.generated.h"</span></span>  <span class="hljs-comment">// 반드시 마지막 #include</span>
+
+<span class="hljs-comment">// 게임 전체에서 점수를 관리하는 전역 서비스.</span>
+<span class="hljs-comment">// UGameInstanceSubsystem 상속 = 게임 시작~종료 동안 자동으로 1개 유지.</span>
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> MYGAME_API <span class="hljs-type">UScoreSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// 생성 직후 1회. 월드는 아직 없을 수 있음(04 섹션 참고).</span>
+    <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection) <span class="hljs-keyword">override</span>;
+
+    <span class="hljs-comment">// 게임 종료 직전 1회. 타이머·델리게이트 정리는 여기서.</span>
+    <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title">Deinitialize</span>() <span class="hljs-keyword">override</span>;
+
+    <span class="hljs-comment">// BP에서도 호출 가능하게 노출.</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = <span class="hljs-string">"Score"</span>)</span>
+    <span class="hljs-type">void</span> <span class="hljs-title">AddScore</span>(<span class="hljs-type">int32</span> Amount);
+
+    <span class="hljs-meta">UFUNCTION(BlueprintPure, Category = <span class="hljs-string">"Score"</span>)</span>
+    <span class="hljs-type">int32</span> <span class="hljs-title">GetScore</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> CurrentScore; }
+
+<span class="hljs-keyword">private</span>:
+    <span class="hljs-meta">UPROPERTY()</span>
+    <span class="hljs-type">int32</span> CurrentScore = <span class="hljs-number">0</span>;   <span class="hljs-comment">// 레벨이 바뀌어도 유지되는 값</span>
+};</pre></div>
+      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"ScoreSubsystem.h"</span></span>
+
+<span class="hljs-type">void</span> <span class="hljs-type">UScoreSubsystem</span>::<span class="hljs-title">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection)
+{
+    <span class="hljs-title">Super</span>::<span class="hljs-title">Initialize</span>(Collection);   <span class="hljs-comment">// 부모 호출을 잊지 마세요</span>
+    CurrentScore = <span class="hljs-number">0</span>;
+    <span class="hljs-meta">UE_LOG(LogTemp, Log, TEXT(<span class="hljs-string">"ScoreSubsystem ready"</span>));</span>
+}
+
+<span class="hljs-type">void</span> <span class="hljs-type">UScoreSubsystem</span>::<span class="hljs-title">Deinitialize</span>()
+{
+    <span class="hljs-comment">// 타이머·델리게이트를 여기서 해제 (예: GetGameInstance()-&gt;GetTimerManager().ClearAllTimersForObject(this))</span>
+    <span class="hljs-title">Super</span>::<span class="hljs-title">Deinitialize</span>();
+}
+
+<span class="hljs-type">void</span> <span class="hljs-type">UScoreSubsystem</span>::<span class="hljs-title">AddScore</span>(<span class="hljs-type">int32</span> Amount)
+{
+    CurrentScore += Amount;
+}</pre></div>
+    </div>
+
+    <h3>어디서든 접근하는 방법</h3>
+    <div class="pipe-step"><div class="pipe-num">C++</div><div class="pipe-body"><div class="pipe-title">GetSubsystem&lt;T&gt;()</div><div class="pipe-desc"><code>UGameInstance* GI = GetGameInstance();</code> (액터라면 <code>GetWorld()-&gt;GetGameInstance()</code>) → <code>UScoreSubsystem* Score = GI-&gt;GetSubsystem&lt;UScoreSubsystem&gt;();</code> — 반환값 null 체크 후 사용.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">BP</div><div class="pipe-body"><div class="pipe-title">자동 노출 노드</div><div class="pipe-desc">블루프린트 그래프에서 우클릭 → <strong>"Score Subsystem"</strong> 검색 → <code>Get ScoreSubsystem</code> 노드가 자동으로 생겨 있습니다. 별도 노출 작업이 필요 없습니다 — 결과: 노드 출력 핀에서 <code>AddScore</code>/<code>GetScore</code> 호출 가능.</div></div></div>
+  </div>
+
+  <!-- 06 확장 -->
+  <div class="section" id="extend">
+    <div class="section-label">06 — 확장 & 주의</div>
+    <h2>응용 아이디어와 흔한 함정</h2>
+
+    <div class="grid-3">
+      <div class="a-card"><div class="ic">🎵</div><div class="a-title">사운드 매니저</div><div class="a-id">UAudioSubsystem</div><div class="a-desc">BGM·환경음 재생 상태를 전역 보관. 레벨 전환에도 음악이 끊기지 않게 유지.</div></div>
+      <div class="a-card"><div class="ic">💾</div><div class="a-title">세이브 중개자</div><div class="a-id">USaveSubsystem</div><div class="a-desc">SaveGame 읽기/쓰기를 한 곳으로 모으고, 저장 요청을 큐로 관리해 중복 저장 방지.</div></div>
+      <div class="a-card"><div class="ic">📊</div><div class="a-title">진행도 트래커</div><div class="a-id">UProgressSubsystem</div><div class="a-desc">세션 동안의 누적 통계(플레이 시간·처치 수)를 모았다가 종료 시 일괄 저장.</div></div>
+    </div>
+
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>영속 저장과 혼동</strong> — Subsystem의 값은 게임을 끄면 사라집니다. "재실행 후에도 남아야 한다"면 반드시 <code>USaveGame</code>과 연동하세요(03 섹션 결정표).</div></div>
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>WorldSubsystem과 혼동</strong> — 레벨 종속 상태를 GameInstanceSubsystem에 두면 이전 레벨의 값이 다음 레벨로 새어 들어갑니다. 수명 기준(02 섹션 표)으로 부모를 고르세요.</div></div>
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>추상 부모로 생성 제외</strong> — 공통 로직만 담은 중간 부모 클래스는 <code>UCLASS(Abstract)</code>로 표시하면 엔진이 인스턴스를 만들지 않습니다. 조건부 생성이 필요하면 <code>ShouldCreateSubsystem()</code>을 오버라이드하세요.</div></div>
+  </div>
+
+</div>
+
+<footer>
+  <span>UE 아키텍처 문서 · GameInstanceSubsystem v1.2</span>
+  <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.3</span>
+</footer>
+
+<script>
+(function () {
+  document.querySelectorAll('.codeblock').forEach(function (block) {
+    var tabs = block.querySelectorAll('.codeblock-tab');
+    var panels = block.querySelectorAll('.codeblock-panel');
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) { t.classList.remove('active'); });
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        if (panels[i]) panels[i].classList.add('active');
+      });
+    });
+    var copyBtn = block.querySelector('.codeblock-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () {
+        var pre = block.querySelector('.codeblock-panel.active pre');
+        if (!pre) return;
+        var text = pre.innerText;
+        var done = function () {
+          copyBtn.textContent = '복사됨 ✓';
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.textContent = '복사';
+            copyBtn.classList.remove('copied');
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+        } else {
+          fallbackCopy(text, done);
+        }
+      });
+    }
+  });
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+})();
+</script>
+</body>
+</html>
