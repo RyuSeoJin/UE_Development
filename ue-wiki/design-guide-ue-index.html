@@ -3,10 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>문서 허브 & 용어집 — UE 문서 디자인 시스템 v2.5</title>
+<title>문서 허브 & 용어집 — UE 문서 디자인 시스템 v2.8</title>
 <!-- ============================================================
      CHANGELOG — design-guide-ue-index.html
      생성 문서 인덱스 + 중앙 용어집(범용 UE 용어 전용). 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md
+     v2.8 · 2026-07-03
+       - (추가) 문서 목록에 'Common UI — 레이어 스택으로 설계하는
+         게임 UI 아키텍처' 등록 (Lyra 4레이어 구조 분석 + 최소 구현)
+       - (추가) 용어집에 4개 신규 용어 추가 (Common UI,
+         Activatable Widget, 입력 라우팅, GameplayTag)
+     v2.7 · 2026-07-03
+       - (추가) 문서 목록에 UMG·Slate 문서 3건 등록 (3문서 분리안 승인분):
+         'UMG 기초 — 위젯 블루프린트로 만드는 게임 UI',
+         'UMG 위젯 카탈로그 — 팔레트 전 위젯 레퍼런스',
+         'Slate 개요 — UMG 아래의 C++ UI 프레임워크'
+       - (추가) 용어집에 8개 신규 용어 추가 (UMG, 위젯 블루프린트,
+         슬롯, 앵커, BindWidget, Visibility, 가상화, Slate)
+     v2.6 · 2026-07-03
+       - (추가) 용어집에 2개 신규 용어 추가 (CoreMinimal.h, 모듈 API 매크로)
+         — ue-datatable.html v1.4 "스켈레톤 해부" 신설 앵커
+         (term-coreminimal · term-module-api)로 연결
      v2.5 · 2026-07-03
        - (추가) 문서 목록에 '게임플레이 프레임워크 — 전체 구조와 클래스별 설계 분석' 등록
        - (추가) 용어집에 5개 신규 용어 추가 (Replication, Authority, RPC, BeginPlay, Tick)
@@ -499,6 +515,10 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>GameInstanceSubsystem — 수명 자동 관리 전역 서비스</code></td><td>아키텍처</td><td>2026-07-02</td><td><a href="./ue-architect/ue-gameinstance-subsystem.html" style="color:var(--accent)">열기 →</a></td></tr>
       <tr><td><code>상태 머신 — 상태·전이·이벤트로 동작 제어</code></td><td>아키텍처</td><td>2026-07-02</td><td><a href="./ue-architect/ue-state-machine.html" style="color:var(--accent)">열기 →</a></td></tr>
       <tr><td><code>DataTable — 코드 밖에서 관리하는 표 데이터</code></td><td>아키텍처</td><td>2026-07-02</td><td><a href="./ue-architect/ue-datatable.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>UMG 기초 — 위젯 블루프린트로 만드는 게임 UI</code></td><td>아키텍처</td><td>2026-07-03</td><td><a href="./ue-architect/ue-umg-basics.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>UMG 위젯 카탈로그 — 팔레트 전 위젯 레퍼런스</code></td><td>아키텍처</td><td>2026-07-03</td><td><a href="./ue-architect/ue-umg-widget-catalog.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>Slate 개요 — UMG 아래의 C++ UI 프레임워크</code></td><td>아키텍처</td><td>2026-07-03</td><td><a href="./ue-architect/ue-slate-overview.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>Common UI — 레이어 스택으로 설계하는 게임 UI 아키텍처</code></td><td>아키텍처</td><td>2026-07-03</td><td><a href="./ue-architect/ue-common-ui-architecture.html" style="color:var(--accent)">열기 →</a></td></tr>
       <tr><td><code>리플렉션 매크로 — 6대 매크로와 UHT 빌드 파이프라인</code></td><td>아키텍처</td><td>2026-07-02</td><td><a href="./ue-architect/ue-reflection-macros.html" style="color:var(--accent)">열기 →</a></td></tr>
       <tr><td><code>게임플레이 프레임워크 — 전체 구조와 클래스별 설계 분석</code></td><td>아키텍처</td><td>2026-07-03</td><td><a href="./ue-architect/ue-gameplay-framework.html" style="color:var(--accent)">열기 →</a></td></tr>
       <tr><td><code>RecordTales 프로젝트 허브</code></td><td>프로젝트 허브</td><td>2026-07-02</td><td><a href="../Project/RecordTales/recordtales-index.html" style="color:var(--accent)">열기 →</a></td></tr>
@@ -566,6 +586,20 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>FTimerHandle</code></td><td>엔진 타이머 <strong>핸들</strong>. SetTimer/ClearTimer로 카운트다운 제어</td><td><a href="../Project/RecordTales/01-focus-system.html#skeleton" style="color:var(--accent)">포커스 시스템 →</a></td></tr>
       <tr><td><code>상태 머신 (State Machine)</code></td><td>현재 상태와 전환 조건을 정의해 <strong>동작을 제어</strong>하는 패턴</td><td><a href="./ue-architect/ue-state-machine.html#term-state-machine" style="color:var(--accent)">상태 머신 →</a></td></tr>
       <tr><td><code>DataTable</code></td><td>언리얼 에디터에서 <strong>표 형태로 편집하는 데이터 시트</strong> (마스터 데이터 관리)</td><td><a href="./ue-architect/ue-datatable.html#term-datatable" style="color:var(--accent)">DataTable →</a></td></tr>
+      <tr><td><code>CoreMinimal.h</code></td><td>언리얼 코드의 <strong>표준 시작 헤더</strong> — FString·TArray·FVector 등 코어 타입 모음 (엔진 클래스는 미포함)</td><td><a href="./ue-architect/ue-datatable.html#term-coreminimal" style="color:var(--accent)">DataTable →</a></td></tr>
+      <tr><td><code>모듈 API 매크로 (…_API)</code></td><td>타입을 <strong>모듈(DLL) 밖에 공개</strong>하는 내보내기 매크로 — 이름은 &lt;모듈 이름 대문자&gt;_API, UBT가 자동 정의</td><td><a href="./ue-architect/ue-datatable.html#term-module-api" style="color:var(--accent)">DataTable →</a></td></tr>
+      <tr><td><code>UMG</code></td><td>게임 화면 UI를 <strong>위젯 블루프린트로 제작</strong>하는 언리얼 UI 저작 시스템</td><td><a href="./ue-architect/ue-umg-basics.html#term-umg" style="color:var(--accent)">UMG 기초 →</a></td></tr>
+      <tr><td><code>위젯 블루프린트 (Widget Blueprint)</code></td><td>위젯들을 조립한 <strong>화면 조각 1개</strong>를 정의하는 BP 에셋 (접두사 WBP_)</td><td><a href="./ue-architect/ue-umg-basics.html#term-widget-blueprint" style="color:var(--accent)">UMG 기초 →</a></td></tr>
+      <tr><td><code>슬롯 (Slot)</code></td><td>부모 패널이 자식의 <strong>배치 속성을 담는 자리</strong> — 배치는 자식이 아니라 부모가 결정</td><td><a href="./ue-architect/ue-umg-basics.html#term-slot" style="color:var(--accent)">UMG 기초 →</a></td></tr>
+      <tr><td><code>앵커 (Anchor)</code></td><td>해상도가 바뀔 때 위젯이 붙어 있을 <strong>기준점</strong> (Canvas Panel 슬롯 전용)</td><td><a href="./ue-architect/ue-umg-basics.html#term-anchor" style="color:var(--accent)">UMG 기초 →</a></td></tr>
+      <tr><td><code>BindWidget</code></td><td>디자이너의 <strong>같은 이름 위젯을 C++ 변수에 자동 연결</strong>하는 UPROPERTY meta</td><td><a href="./ue-architect/ue-umg-basics.html#term-bindwidget" style="color:var(--accent)">UMG 기초 →</a></td></tr>
+      <tr><td><code>Visibility (Collapsed/Hidden)</code></td><td>위젯 표시 상태 5종 — <strong>Collapsed는 자리도 접고, Hidden은 자리 유지</strong></td><td><a href="./ue-architect/ue-umg-widget-catalog.html#term-visibility" style="color:var(--accent)">위젯 카탈로그 →</a></td></tr>
+      <tr><td><code>가상화 (Virtualization)</code></td><td>목록에서 <strong>보이는 항목만 위젯을 생성·재활용</strong>하는 방식 (List View 계열)</td><td><a href="./ue-architect/ue-umg-widget-catalog.html#term-virtualization" style="color:var(--accent)">위젯 카탈로그 →</a></td></tr>
+      <tr><td><code>Slate</code></td><td>엔진·에디터 전체 UI를 그리는 <strong>C++ UI 프레임워크</strong> — UMG의 하부, 비-UObject</td><td><a href="./ue-architect/ue-slate-overview.html#term-slate" style="color:var(--accent)">Slate 개요 →</a></td></tr>
+      <tr><td><code>Common UI</code></td><td>다층 UI의 <strong>겹침·입력 라우팅·플랫폼 대응</strong>을 담당하는 엔진 UI 플러그인</td><td><a href="./ue-architect/ue-common-ui-architecture.html#term-common-ui" style="color:var(--accent)">Common UI →</a></td></tr>
+      <tr><td><code>Activatable Widget</code></td><td>생성과 별개로 <strong>활성(입력 수신)/비활성 상태</strong>를 갖는 Common UI 화면 단위 위젯</td><td><a href="./ue-architect/ue-common-ui-architecture.html#term-activatable" style="color:var(--accent)">Common UI →</a></td></tr>
+      <tr><td><code>입력 라우팅 (Input Routing)</code></td><td>입력을 <strong>활성 위젯에게만 전달</strong>하는 Common UI의 교통정리 시스템</td><td><a href="./ue-architect/ue-common-ui-architecture.html#term-input-routing" style="color:var(--accent)">Common UI →</a></td></tr>
+      <tr><td><code>GameplayTag</code></td><td><code>UI.Layer.Menu</code>처럼 <strong>점으로 구분하는 계층형 이름표</strong> 시스템 (분류·식별용)</td><td><a href="./ue-architect/ue-common-ui-architecture.html#term-gameplaytag" style="color:var(--accent)">Common UI →</a></td></tr>
     </table>
     <div class="callout info"><span class="ic">📚</span><p><strong>용어집 이원화</strong>: 이 중앙 용어집에는 <strong>범용 UE 용어만</strong> 등록합니다. 프로젝트 고유 용어(가챠·스쿼드·마스터 레코드 등)는 각 <strong>프로젝트 허브의 용어집</strong>에서 봅니다 (예: <a href="../Project/RecordTales/recordtales-index.html#glossary" style="color:var(--accent)">RecordTales 용어집 →</a>). 배치 기준: <code>doc-process/DOC-TRACKS.md</code> §4.</p></div>
     <div class="callout tip"><span class="ic">💡</span><p>용어집은 <strong>보조 수단</strong>입니다. 각 문서는 처음 등장 용어를 자체적으로 한 번 풀어 설명하므로, 링크 없이도 문서 하나만으로 이해됩니다. 용어집은 "더 깊이 보고 싶을 때"의 지름길입니다.</p></div>
@@ -585,7 +619,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>UE 문서 디자인 시스템 · Hub &amp; Glossary v2.5</span>
+  <span>UE 문서 디자인 시스템 · Hub &amp; Glossary v2.8</span>
   <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.3</span>
 </footer>
 

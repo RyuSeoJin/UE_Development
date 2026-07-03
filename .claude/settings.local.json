@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:dev.epicgames.com)"
+      "WebFetch(domain:dev.epicgames.com)",
+      "Bash(python3 -c ' *)",
+      "Bash(python3 -)",
+      "WebSearch"
     ]
   }
 }

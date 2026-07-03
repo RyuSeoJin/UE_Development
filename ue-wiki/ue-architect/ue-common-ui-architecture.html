@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Common UI — 레이어 스택으로 설계하는 게임 UI 아키텍처</title>
+<!-- ============================================================
+     CHANGELOG — ue-common-ui-architecture.html
+     Common UI 플러그인 구조 문서 (02-A 아키텍처 패턴).
+     작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.2 · 2026-07-03
+       - (변경) 04 — 적용 절차: 커스텀 포인트 카드 배치 방식 변경 —
+         별도 h3 하위 섹션(do-card 6장 2열 그리드)을 제거하고,
+         각 카드를 해당 파이프라인 단계(02~07) 바 내부(pipe-body)에
+         "🔧 커스텀 포인트" 카드로 이동(사용자 요청). 내용 동일.
+       - (변경) 04 도입부에 카드 안내 문장 추가
+         ("절차 본문 = 규격, 카드 = 자유 영역")
+       - (유지) 고정 규격 2가지 pitfall — 파이프라인 뒤에 그대로 유지
+     v1.1 · 2026-07-03
+       - (추가) 04 — 적용 절차 섹션에 "단계별 커스텀 포인트 —
+         규격과 자유의 경계" h3 신설: 2~7단계별 커스텀 가능 항목을
+         do-card 6장(.dd.do 재사용 — 신규 디자인 없음)으로 정리
+         (Viewport Client 상속 / 입력 액션 행 추가 / 레이어 태그
+         자유 추가 3종 세트 규칙 / 층 구성·Stack vs Queue /
+         화면별 입력·뒤로가기·포커스 / 매니저 API 확장)
+       - (추가) 같은 위치에 고정 규격 2가지(Viewport Client 계열
+         유지 · Activatable은 스택/큐 필수) pitfall 명시
+     v1.0 · 2026-07-03
+       - (추가) 최초 작성. Common UI 플러그인 개념(해결하는 3문제),
+         Activatable Widget·스택·입력 라우팅 구조, Lyra 4레이어
+         아키텍처 분석(UI.Layer.Game/GameMenu/Menu/Modal),
+         레이어 책임 배치, 적용 7단계(직접 최소 구현 경로 — 사용자
+         선택), PrimaryLayout·UIManagerSubsystem·입력 설정 C++
+         스켈레톤, 스타일 에셋·확장·함정 수록.
+       - 관련 문서(허브 경유): UMG 기초(전제 지식), DataTable
+         (입력 액션 데이터), GameInstanceSubsystem(UI 매니저 기반).
+       - 기준 마스터: design-guide-ue-master.css v1.3
+     ============================================================ -->
+<style>
+/* ============================================================
+   UE Design System — Master Stylesheet
+   (design-guide-ue-master.css)
+   언리얼 에셋 분석 · 아키텍처 설계 문서 공통 토대
+   v1.3  (Dark · Indigo Minimal · Editorial)
+
+   사용법
+   - 가이드 문서(master-visual / design-template의 01 / 02)는 <link>로 이 파일을 참조.
+   - 실제 결과물 HTML은 이 파일 내용을 <style>에 통째로 복사(inline)하여
+     단일 파일로 배포한다. (오프라인 무결성 유지)
+
+   변경 이력 (CHANGELOG) — 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+   v1.3 · 2026-07-02
+     - (변경) 폴더 재구조화: 템플릿(01·02) → design-template/(루트),
+       규약(DOC-GENERATION-PLAYBOOK.md) → doc-process/(루트) 이동. 스타일 변경 없음.
+   v1.2 · 2026-07-01
+     - (추가) .compare-box — 좌우 병렬 비교 카드 (Spawning vs Loading 등)
+     - (추가) .grid-3 — 3열 그리드
+     - (추가) .stat-row-4 — 4열 통계 카드
+     - (추가) .pill.pink / .pill.red — 핑크·레드 pill 변형
+     - (변경) 반응형 블록에 .stat-row-4, .grid-3 1열 폴백 추가
+   v1.1 · 2026-07-01
+     - 파일명 ue-design-system.css → design-guide-ue-master.css
+     - 프레임워크 클래스 컬러 맵 추가
+       (--ue-gamemode/gamestate/controller/pawn/instance/savegame/subsystem)
+     - 파일 타입 컬러 맵 추가 (--ue-header/source/macro)
+     - .h/.cpp 코드 탭(.codeblock) + highlight.js(hljs-*) 다크·인디고 테마
+     - 클래스 관계도(.rel-map) / 책임 배치 결정표(.tbl .owner) 스타일 추가
+     - .tree 에 프레임워크 클래스 색(.c-*), .pitfall.tip, .filetag 추가
+   v1.0
+     - 최초 에셋 분석 디자인 가이드 토큰·컴포넌트
+       (원본 design-guide-ue-asset-structure.html에서 파생, 원본 파일은 2026-07-01 삭제)
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Pretendard:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* --- 기본 토큰 --- */
+  --bg: #0D0F1A;
+  --surface: #13162A;
+  --surface-2: #1A1F38;
+  --border: #252B4A;
+  --accent: #5B6EFA;
+  --accent-2: #9B6DFF;
+  --accent-3: #38D9B4;
+  --text: #E4E8FF;
+  --text-muted: #7B82A6;
+  --text-dim: #4A5080;
+  --amber: #F59E0B;
+  --pink: #E040FB;
+  --red: #F87171;
+
+  /* --- 에셋 타입 컬러 맵 (에셋 분석 문서 전용) --- */
+  --ue-folder: #F59E0B;
+  --ue-bp:     #5B6EFA;
+  --ue-enum:   #9B6DFF;
+  --ue-mat:    #FB8C5A;
+  --ue-tex:    #38D9B4;
+  --ue-demo:   #6BD98E;
+
+  /* --- 프레임워크 클래스 컬러 맵 (C++ 아키텍처 문서 전용, v1.1 신규) ---
+     역할이 다른 프레임워크 클래스를 트리·관계도·태그에서 일관되게 구분한다.
+     새 클래스 계열이 필요하면 여기에 1개 추가하고 00-foundation 색상표에 기록. */
+  --ue-gamemode:   #5B6EFA;  /* GameMode / GameModeBase — 규칙·권한(서버 전용)      */
+  --ue-gamestate:  #7B9CFF;  /* GameState / GameStateBase — 공유 상태(전원 복제)     */
+  --ue-controller: #38D9B4;  /* PlayerController — 입력·의도(플레이어별)             */
+  --ue-pawn:       #6BD98E;  /* Pawn / Character — 물리적 표현·조종 대상            */
+  --ue-instance:   #9B6DFF;  /* GameInstance — 세션 전역·영속                       */
+  --ue-savegame:   #F59E0B;  /* SaveGame — 디스크 직렬화                            */
+  --ue-subsystem:  #E040FB;  /* Subsystem / Manager — 수명 범위형 서비스            */
+
+  /* --- 파일 타입 컬러 맵 (코드 탭·파일 태그, v1.1 신규) --- */
+  --ue-header: #38D9B4;      /* .h  헤더(선언)   */
+  --ue-source: #FB8C5A;      /* .cpp 소스(구현)  */
+  --ue-macro:  #FB8C5A;      /* UCLASS / UPROPERTY / UFUNCTION 등 리플렉션 매크로 */
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+  font-size: 15px; line-height: 1.7; -webkit-font-smoothing: antialiased;
+}
+
+/* NAV */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(13,15,26,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px; display: flex; align-items: center; gap: 32px; height: 52px;
+}
+.nav-logo { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em; white-space: nowrap; }
+.nav-links { display: flex; gap: 22px; flex-wrap: wrap; }
+.nav-links a { color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 500; transition: color 0.2s; }
+.nav-links a:hover { color: var(--text); }
+.nav-links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+
+/* HERO */
+.hero { padding: 72px 48px 56px; max-width: 920px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+.hero-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: var(--accent); text-transform: uppercase; margin-bottom: 20px; }
+.hero h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 20px; }
+.hero h1 span { color: var(--accent); }
+.hero-sub { font-size: 16px; color: var(--text-muted); max-width: 660px; line-height: 1.75; }
+.hero-meta { margin-top: 28px; display: flex; gap: 10px; flex-wrap: wrap; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; border: 1px solid; }
+.badge-blue { color: var(--accent); border-color: var(--accent); background: rgba(91,110,250,0.08); }
+.badge-green { color: var(--accent-3); border-color: var(--accent-3); background: rgba(56,217,180,0.08); }
+.badge-purple { color: var(--accent-2); border-color: var(--accent-2); background: rgba(155,109,255,0.08); }
+
+/* CONTENT / SECTION */
+.content { max-width: 920px; margin: 0 auto; padding: 0 48px 80px; }
+.section { padding: 52px 0 0; border-top: 1px solid var(--border); margin-top: 52px; }
+.section:first-child { margin-top: 0; padding-top: 48px; border-top: none; }
+.section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 12px; }
+.section h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 20px; }
+.section h3 { font-size: 15px; font-weight: 700; color: var(--text); margin: 30px 0 10px; letter-spacing: 0.01em; }
+.section p { color: var(--text-muted); margin-bottom: 14px; line-height: 1.8; }
+.section p strong { color: var(--text); font-weight: 600; }
+
+code { font-family: 'IBM Plex Mono', monospace; font-size: 0.86em; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; color: var(--accent-3); }
+
+/* SWATCHES */
+.swatch-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 22px 0; }
+.swatch { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.swatch .chip { height: 56px; }
+.swatch .meta { padding: 10px 12px; }
+.swatch .vn { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text); font-weight: 600; }
+.swatch .hx { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--text-dim); }
+.swatch .role { font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+
+/* TYPE SCALE */
+.type-row { display: flex; align-items: baseline; gap: 18px; padding: 14px 0; border-bottom: 1px solid rgba(37,43,74,0.5); }
+.type-row:last-child { border-bottom: none; }
+.type-spec { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-dim); min-width: 150px; flex-shrink: 0; }
+.ts-h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; }
+.ts-h2 { font-size: 22px; font-weight: 700; }
+.ts-h3 { font-size: 15px; font-weight: 700; }
+.ts-body { font-size: 15px; color: var(--text-muted); }
+.ts-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); }
+.ts-code { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--accent-3); }
+
+/* CALLOUT */
+.callout { display: flex; gap: 12px; align-items: flex-start; border-radius: 8px; padding: 14px 16px; margin: 18px 0; border: 1px solid var(--border); background: var(--surface-2); font-size: 13.5px; line-height: 1.65; }
+.callout .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.callout p { margin: 0; color: var(--text-muted); }
+.callout p strong { color: var(--text); }
+.callout.info { border-left: 3px solid var(--accent); }
+.callout.tip  { border-left: 3px solid var(--accent-3); }
+.callout.warn { border-left: 3px solid var(--amber); }
+
+/* COMPONENT DEMO FRAME */
+.demo { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 16px 0; }
+.demo-head { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 7px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); }
+.demo-body { padding: 22px; }
+
+/* CODE SNIPPET (수동 escape HTML · 의사코드/마크업 예시용) */
+.snip { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 12px 0 22px; }
+.snip-head { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 8px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+.code-dot { width: 8px; height: 8px; border-radius: 50%; }
+.snip pre { padding: 14px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-muted); line-height: 1.75; overflow-x: auto; white-space: pre; }
+.snip pre .tag { color: var(--accent); }
+.snip pre .atr { color: var(--ue-mat); }
+.snip pre .val { color: var(--accent-3); }
+.snip pre .cm  { color: var(--text-dim); }
+
+/* ============================================================
+   CODE BLOCK — 실제 C++/H (탭 전환 + 복사 + 구워넣은 하이라이팅)  [v1.1 신규]
+   - highlight.js 호환 클래스명(hljs-*)을 사용해, 생성 시점에 span을 미리 박아 넣는다.
+   - .h / .cpp 는 탭으로 전환, 각 패널당 <pre class="hljs"> 하나.
+   ============================================================ */
+.codeblock { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 16px 0 24px; }
+.codeblock-bar { display: flex; align-items: stretch; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.codeblock-tab {
+  padding: 9px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600;
+  color: var(--text-dim); background: transparent; border: none; border-right: 1px solid var(--border);
+  cursor: pointer; transition: color 0.15s, background 0.15s; box-shadow: inset 0 -2px 0 transparent;
+}
+.codeblock-tab:hover { color: var(--text-muted); }
+.codeblock-tab.active { color: var(--text); background: var(--surface); }
+.codeblock-tab.tab-h.active   { box-shadow: inset 0 -2px 0 var(--ue-header); }
+.codeblock-tab.tab-cpp.active { box-shadow: inset 0 -2px 0 var(--ue-source); }
+.codeblock-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.codeblock-copy {
+  margin-left: auto; align-self: center; margin-right: 8px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600;
+  color: var(--text-muted); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 5px; padding: 4px 10px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+}
+.codeblock-copy:hover { color: var(--text); border-color: var(--accent); }
+.codeblock-copy.copied { color: var(--accent-3); border-color: var(--accent-3); }
+.codeblock-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.codeblock-panel { display: none; }
+.codeblock-panel.active { display: block; }
+.codeblock pre { padding: 16px 18px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.75; overflow-x: auto; white-space: pre; }
+
+/* highlight.js 테마 — 다크·인디고 팔레트 매핑 */
+.hljs { color: var(--text-muted); background: var(--surface); }
+.hljs-comment, .hljs-quote { color: var(--text-dim); font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-section { color: var(--accent); font-weight: 500; }        /* class, return, virtual, const, if ... */
+.hljs-literal, .hljs-symbol, .hljs-bullet { color: var(--accent-2); }                                /* true / false / nullptr */
+.hljs-number { color: var(--accent-2); }                                                             /* 숫자 */
+.hljs-string, .hljs-attr, .hljs-attribute, .hljs-name { color: var(--ue-demo); }                     /* 문자열 */
+.hljs-type, .hljs-class .hljs-title, .hljs-title.class_, .hljs-built_in { color: var(--accent-3); }  /* FVector, AActor, TArray ... */
+.hljs-title, .hljs-title.function_, .hljs-function .hljs-title { color: var(--text); }               /* 함수 이름 */
+.hljs-params { color: var(--text-muted); }
+.hljs-meta, .hljs-meta .hljs-keyword { color: var(--ue-macro); font-weight: 600; }                   /* #include, UCLASS/UPROPERTY/UFUNCTION */
+.hljs-meta .hljs-string { color: var(--ue-demo); }                                                   /* #include "..." 경로 */
+.hljs-property, .hljs-variable { color: var(--text); }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 700; }
+
+/* 파일 태그 (본문 인라인 · .h / .cpp 표기용) */
+.filetag { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 3px; }
+.filetag.h   { background: rgba(56,217,180,0.14); color: var(--ue-header); }
+.filetag.cpp { background: rgba(251,140,90,0.14);  color: var(--ue-source); }
+
+/* the live mini-components */
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 4px; }
+.stat-label { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+.a-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; border-top: 2px solid var(--ue-bp); }
+.a-card .ic { font-size: 22px; margin-bottom: 10px; }
+.a-card .a-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.a-card .a-id { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--accent); margin-bottom: 8px; }
+.a-card .a-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+.tt { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 3px; }
+.tt-bool { background: rgba(91,110,250,0.14); color: var(--accent); }
+.tt-enum { background: rgba(251,140,90,0.14); color: var(--ue-mat); }
+.tt-del  { background: rgba(224,64,251,0.12); color: var(--pink); }
+
+.pills { display: flex; flex-wrap: wrap; gap: 7px; }
+.pill { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; padding: 3px 12px; border-radius: 20px; border: 1px solid; }
+.pill.blue { color: var(--accent); border-color: rgba(91,110,250,0.4); background: rgba(91,110,250,0.08); }
+.pill.purple { color: var(--accent-2); border-color: rgba(155,109,255,0.4); background: rgba(155,109,255,0.08); }
+.pill.green { color: var(--accent-3); border-color: rgba(56,217,180,0.4); background: rgba(56,217,180,0.08); }
+.pill.pink { color: var(--pink); border-color: rgba(224,64,251,0.4); background: rgba(224,64,251,0.08); }   /* [v1.2 신규] */
+.pill.red { color: var(--red); border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.08); }    /* [v1.2 신규] */
+
+.arch { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: stretch; }
+.arch-layer { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 16px 14px; }
+.arch-arrow { display: flex; align-items: center; justify-content: center; padding: 0 8px; color: var(--text-dim); font-size: 16px; }
+.arch-tag { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 7px; color: var(--accent); }
+.arch-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.arch-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+.tbl { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 13px; }
+.tbl th { background: var(--surface-2); color: var(--text-muted); font-weight: 600; font-size: 12px; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+.tbl td { padding: 10px 14px; color: var(--text-muted); border-bottom: 1px solid rgba(37,43,74,0.5); vertical-align: top; line-height: 1.55; }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl td:first-child { color: var(--text); }
+.tbl td code, .tbl th code { background: transparent; border: none; padding: 0; color: var(--accent); }
+
+.tree { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.9; color: var(--text-dim); white-space: pre; overflow-x: auto; }
+.tree .folder { color: var(--ue-folder); font-weight: 600; }
+.tree .bp { color: var(--ue-bp); } .tree .enum { color: var(--ue-enum); }
+.tree .mat { color: var(--ue-mat); } .tree .tex { color: var(--ue-tex); }
+.tree .note { color: var(--text-muted); }
+/* 클래스 계층 트리에서 쓰는 프레임워크 색 (에셋 트리와 동일 컴포넌트 재사용) */
+.tree .c-gamemode { color: var(--ue-gamemode); font-weight: 600; }
+.tree .c-gamestate { color: var(--ue-gamestate); font-weight: 600; }
+.tree .c-controller { color: var(--ue-controller); font-weight: 600; }
+.tree .c-pawn { color: var(--ue-pawn); font-weight: 600; }
+.tree .c-instance { color: var(--ue-instance); font-weight: 600; }
+.tree .c-savegame { color: var(--ue-savegame); font-weight: 600; }
+.tree .c-subsystem { color: var(--ue-subsystem); font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); }
+.legend .dot { width: 9px; height: 9px; border-radius: 2px; }
+
+/* ============================================================
+   CLASS RELATIONSHIP — 클래스 관계(소유·possess·참조) 행  [v1.1 신규]
+   ============================================================ */
+.rel-map { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
+.rel-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+.rel-node {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 14px; border-left: 3px solid var(--text-dim);
+}
+.rel-node .rn-name { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.rel-node .rn-role { font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.4; }
+.rel-node.n-gamemode   { border-left-color: var(--ue-gamemode); }
+.rel-node.n-gamestate  { border-left-color: var(--ue-gamestate); }
+.rel-node.n-controller { border-left-color: var(--ue-controller); }
+.rel-node.n-pawn       { border-left-color: var(--ue-pawn); }
+.rel-node.n-instance   { border-left-color: var(--ue-instance); }
+.rel-node.n-savegame   { border-left-color: var(--ue-savegame); }
+.rel-node.n-subsystem  { border-left-color: var(--ue-subsystem); }
+.rel-arrow { display: flex; flex-direction: column; align-items: center; color: var(--text-dim); min-width: 84px; }
+.rel-arrow .ra-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--accent); letter-spacing: 0.04em; white-space: nowrap; }
+.rel-arrow .ra-line { font-size: 15px; line-height: 1; }
+
+/* ============================================================
+   DECISION TABLE — 책임 배치 결정표  [v1.1 신규]
+   "이 데이터/기능을 어느 클래스에 둘까"를 근거와 함께.
+   .tbl 을 기반으로 첫 열에 클래스 색 점을 붙인다.
+   ============================================================ */
+.tbl .owner { display: inline-flex; align-items: center; gap: 7px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.tbl .owner::before { content: ''; width: 9px; height: 9px; border-radius: 2px; background: var(--text-dim); flex-shrink: 0; }
+.tbl .owner.o-gamemode::before   { background: var(--ue-gamemode); }
+.tbl .owner.o-gamestate::before  { background: var(--ue-gamestate); }
+.tbl .owner.o-controller::before { background: var(--ue-controller); }
+.tbl .owner.o-pawn::before       { background: var(--ue-pawn); }
+.tbl .owner.o-instance::before   { background: var(--ue-instance); }
+.tbl .owner.o-savegame::before   { background: var(--ue-savegame); }
+.tbl .owner.o-subsystem::before  { background: var(--ue-subsystem); }
+
+.pipe-step { display: grid; grid-template-columns: 36px 1fr; gap: 0 16px; position: relative; }
+.pipe-step::before { content: ''; position: absolute; left: 17px; top: 36px; bottom: -1px; width: 2px; background: var(--border); }
+.pipe-step:last-child::before { display: none; }
+.pipe-num { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--surface-2); }
+.pipe-body { padding: 6px 0 22px; }
+.pipe-title { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+.pipe-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+.pitfall { display: flex; gap: 14px; align-items: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; border-left: 3px solid var(--amber); }
+.pitfall.tip { border-left-color: var(--accent-3); }
+.pitfall .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.pitfall-text { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
+.pitfall-text strong { color: var(--text); }
+
+/* DO / DON'T */
+.dd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 22px 0; }
+.dd { border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; background: var(--surface-2); }
+.dd.do { border-left: 3px solid var(--accent-3); }
+.dd.dont { border-left: 3px solid var(--red); }
+.dd h4 { font-size: 13px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.dd.do h4 { color: var(--accent-3); }
+.dd.dont h4 { color: var(--red); }
+.dd ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.dd li { font-size: 12.5px; color: var(--text-muted); line-height: 1.55; padding-left: 16px; position: relative; }
+.dd li::before { content: ''; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; border-radius: 50%; }
+.dd.do li::before { background: var(--accent-3); }
+.dd.dont li::before { background: var(--red); }
+
+footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920px; margin: 0 auto; font-size: 12px; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+/* ============================================================
+   GRID-3 — 3열 그리드  [v1.2 신규]
+   ============================================================ */
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+/* ============================================================
+   STAT-ROW-4 — 4열 통계 카드  [v1.2 신규]
+   ============================================================ */
+.stat-row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.stat-row-4 .stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+
+/* ============================================================
+   COMPARE-BOX — 좌우 병렬 비교 카드  [v1.2 신규]
+   .grid-2 안에 2개를 넣어 Spawning vs Loading 등 비교에 사용.
+   ============================================================ */
+.compare-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
+.compare-box h4 { font-size: 14px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.compare-box p { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 10px; }
+.compare-box .pills { margin-top: 10px; }
+
+@media (max-width: 720px) {
+  .content { padding: 0 20px 60px; }
+  .hero { padding: 48px 20px 40px; }
+  .swatch-grid { grid-template-columns: 1fr 1fr; }
+  .stat-row, .stat-row-4, .dd-grid, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .arch { grid-template-columns: 1fr; }
+  .arch-arrow { transform: rotate(90deg); padding: 4px 0; }
+  .rel-row { grid-template-columns: 1fr; text-align: left; }
+  .rel-arrow { flex-direction: row; gap: 8px; min-width: 0; padding: 2px 0; }
+  .rel-arrow .ra-line { transform: rotate(90deg); }
+  .type-row { flex-direction: column; gap: 6px; }
+  .type-spec { min-width: 0; }
+  nav { padding: 0 16px; gap: 16px; }
+  .nav-links { display: none; }
+  footer { padding: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">UE WIKI · COMMON UI</div>
+  <div class="nav-links">
+    <a href="#concept">개념</a>
+    <a href="#relation">구조 · Lyra 분석</a>
+    <a href="#responsibility">레이어 책임</a>
+    <a href="#flow">적용 절차</a>
+    <a href="#skeleton">스켈레톤</a>
+    <a href="#extend">확장</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">UE Architecture · Type ① · 02-A</div>
+  <h1>Common<br><span>UI</span></h1>
+  <p class="hero-sub">
+    포트나이트 수준의 <strong>다층 UI(메뉴 위에 팝업, 그 위에 확인창)를 안전하게 쌓고 입력을 자동으로 배분</strong>하는 엔진 플러그인입니다. 이 문서는 Common UI의 핵심 부품(Activatable Widget·스택·입력 라우팅)을 이해하고, 공식 샘플 <strong>Lyra가 이 부품들을 조립한 4레이어 아키텍처를 분석</strong>한 뒤, 같은 구조를 <strong>내 게임에 최소 구현으로 이식</strong>하는 것까지 다룹니다. 전제 지식: UMG 기초 문서(위젯 BP·슬롯·BindWidget).
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">엔진 플러그인</span>
+    <span class="badge badge-green">UE5 (Lyra 검증 구조)</span>
+    <span class="badge badge-purple">C++ · Blueprint</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- 01 개념 -->
+  <div class="section" id="concept">
+    <div class="section-label">01 — 개념 · 역할</div>
+    <h2>Common UI가 해결하는 세 가지 문제</h2>
+    <p>
+      <strong id="term-common-ui">Common UI</strong>는 언리얼에 내장된 UI 프레임워크 플러그인입니다(Edit ▸ Plugins에서 활성화). UMG를 대체하는 것이 아니라 <strong>UMG 위에 얹혀서</strong>, UMG만으로 만들다 보면 반드시 부딪히는 세 가지 문제를 구조적으로 해결합니다. UMG 기초 문서에서 손으로 했던 일들을 떠올리면 왜 필요한지 바로 보입니다.
+    </p>
+
+    <table class="tbl">
+      <tr><th>문제 (UMG만 쓸 때)</th><th>Common UI의 답</th></tr>
+      <tr><td>화면이 겹칠수록 지옥 — 일시정지 위에 설정, 그 위에 "저장할까요?" 팝업… <strong>어느 화면이 입력을 받아야 하나</strong>를 매번 수동 관리</td><td><strong>Activatable Widget + 스택</strong> — 맨 위 화면만 활성·입력 수신, 닫히면 이전 화면이 자동 복귀</td></tr>
+      <tr><td><code>Set Input Mode</code>·<code>Show Mouse Cursor</code>를 화면 열고 닫을 때마다 <strong>수동 호출</strong> (하나만 빠뜨려도 조작 불능)</td><td>위젯이 자기가 원하는 입력 상태를 <strong>선언</strong>하면(<code>GetDesiredInputConfig</code>), 활성/비활성 시 자동 적용·복원</td></tr>
+      <tr><td>게임패드 포커스·플랫폼별 버튼 아이콘(A/×)을 <strong>전부 직접 구현</strong></td><td>입력 라우팅 + 플랫폼별 컨트롤러 데이터·스타일 에셋 내장</td></tr>
+    </table>
+
+    <div class="callout info"><span class="ic">🔑</span><p><strong>핵심 용어</strong> — <strong>Activatable Widget</strong>: "활성(보이고 입력받음)/비활성" 상태를 가진 Common UI의 화면 단위 위젯 — 02 섹션의 주인공. · <strong>스택(Stack)</strong>: Activatable Widget을 쌓는 컨테이너. 맨 위만 활성. · <strong>레이어(Layer)</strong>: 용도별로 분리한 스택(게임 HUD층 / 메뉴층 / 팝업층…). · <strong>입력 라우팅(Input Routing)</strong>: 입력을 활성 위젯에게만 전달하는 교통정리. · <strong>GameplayTag</strong>: <code>UI.Layer.Menu</code>처럼 점으로 구분하는 계층형 이름표 — 레이어를 식별하는 열쇠.</p></div>
+
+    <div class="stat-row">
+      <div class="stat-card"><div class="stat-num">1개</div><div class="stat-label">내장 플러그인 (별도 설치 없음)</div></div>
+      <div class="stat-card"><div class="stat-num">4층</div><div class="stat-label">Lyra의 레이어 (Game·GameMenu·Menu·Modal)</div></div>
+      <div class="stat-card"><div class="stat-num">0회</div><div class="stat-label">수동 Set Input Mode 호출</div></div>
+    </div>
+  </div>
+
+  <!-- 02 구조 -->
+  <div class="section" id="relation">
+    <div class="section-label">02 — 구조 · Lyra 분석</div>
+    <h2>핵심 부품, 그리고 Lyra가 조립한 방법</h2>
+
+    <h3>부품 ① Activatable Widget — "활성"이라는 새 수명</h3>
+    <p id="term-activatable">
+      <strong>Activatable Widget(<code>UCommonActivatableWidget</code>)</strong>은 Common UI 화면 단위의 기본 위젯입니다. 일반 UserWidget과의 차이는 <strong>Construct(생성)와 별개로 Activate(활성)/Deactivate(비활성) 상태</strong>를 가진다는 것 — 위젯이 만들어져 있어도 비활성이면 입력을 받지 않고(설정에 따라 숨겨지고), 활성화되면 입력 라우팅의 대상이 됩니다. "화면을 닫는다"는 <code>Remove from Parent</code>가 아니라 <strong><code>DeactivateWidget</code></strong>이 됩니다.
+    </p>
+
+    <h3>부품 ② 스택 — 맨 위만 산다</h3>
+    <p>
+      <strong><code>UCommonActivatableWidgetStack</code></strong>은 Activatable Widget을 쌓는 컨테이너입니다. 규칙은 단순하고 강력합니다: <strong>맨 위 위젯만 활성이고, 아래 위젯들은 전부 비활성.</strong> 맨 위 위젯이 비활성화되면(뒤로가기·닫기) <strong>자동으로 스택에서 빠지고, 그 아래 위젯이 다시 활성화</strong>됩니다. "설정을 닫으면 일시정지 메뉴가 다시 살아나는" 흐름이 코드 한 줄 없이 스택 규칙만으로 성립합니다. (Queue 컨테이너도 있지만 — 순서대로 하나씩 보여주는 알림용 — 기본은 스택입니다.)
+    </p>
+
+    <h3>부품 ③ 입력 라우팅 — 입력의 교통정리</h3>
+    <p id="term-input-routing">
+      <strong>입력 라우팅</strong>은 마우스·키보드·게임패드 입력을 <strong>활성 위젯에게만 전달</strong>하는 시스템입니다. 관문은 프로젝트 설정의 <code>CommonGameViewportClient</code>(04 섹션 2단계)이며, 이것이 입력을 가로채 활성 스택의 맨 위 위젯으로 보냅니다. 여기에 각 위젯이 선언하는 입력 설정(<code>GetDesiredInputConfig</code> — 게임만/UI만/둘 다)이 합쳐져, UMG 기초 문서의 "Set Input Mode + Show Mouse" 수동 관리가 통째로 사라집니다.
+    </p>
+
+    <p>Common UI는 그 외에도 전용 위젯 라이브러리를 제공합니다 — UMG 위젯의 Common 판이며, <strong>스타일 에셋 연동과 게임패드 대응이 내장</strong>된 것이 차이입니다.</p>
+    <table class="tbl">
+      <tr><th>Common UI 위젯</th><th>역할 (UMG 대응물)</th></tr>
+      <tr><td><code>CommonButtonBase</code></td><td>Button의 강화판 — 스타일 에셋·선택 상태·게임패드 포커스·입력 아이콘 내장</td></tr>
+      <tr><td><code>CommonTextBlock</code></td><td>Text Block + 스타일 에셋(<code>CommonTextStyle</code>) 연동</td></tr>
+      <tr><td><code>CommonActivatableWidgetStack</code></td><td>화면을 쌓는 스택 컨테이너 (부품 ②)</td></tr>
+      <tr><td><code>CommonTabListWidget</code></td><td>탭 목록 — Widget Switcher와 연동해 탭 UI 구성</td></tr>
+      <tr><td><code>CommonBoundActionBar</code></td><td>화면 하단 "Ⓐ 선택 Ⓑ 뒤로" 액션 바 자동 표시</td></tr>
+      <tr><td><code>CommonLazyImage</code></td><td>Image + 비동기 로드(로딩 중 표시 지원)</td></tr>
+    </table>
+
+    <h3>Lyra의 조립 — 4레이어 아키텍처</h3>
+    <p id="term-gameplaytag">
+      공식 샘플 Lyra는 이 부품들로 다음 구조를 조립했습니다. 레이어 식별에는 <strong>GameplayTag</strong>(점으로 구분하는 계층형 이름표 시스템, Project Settings ▸ GameplayTags에 등록)를 사용해, "어느 층에 올릴지"를 문자열이 아닌 안전한 태그로 지정합니다.
+    </p>
+
+    <div class="rel-map">
+      <div class="rel-row">
+        <div class="rel-node n-subsystem"><div class="rn-name">GameUIManagerSubsystem</div><div class="rn-role">UI 전역 관리자 (게임 인스턴스 수명)</div></div>
+        <div class="rel-arrow"><span class="ra-label">정책(어떤 레이아웃을 쓸지) 위임</span><span class="ra-line">→</span></div>
+        <div class="rel-node n-instance"><div class="rn-name">GameUIPolicy</div><div class="rn-role">레이아웃 클래스 결정 (ini/BP 설정)</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-instance"><div class="rn-name">GameUIPolicy</div><div class="rn-role">플레이어 접속 시</div></div>
+        <div class="rel-arrow"><span class="ra-label">로컬 플레이어마다 1개 생성</span><span class="ra-line">→</span></div>
+        <div class="rel-node n-controller"><div class="rn-name">PrimaryGameLayout</div><div class="rn-role">레이어 스택들을 담은 루트 위젯</div></div>
+      </div>
+    </div>
+
+    <div class="tree"><span class="note">// Lyra의 PrimaryGameLayout — 레이어 = 태그가 붙은 스택</span>
+PrimaryGameLayout                      <span class="note">// 화면 전체를 덮는 유일한 루트</span>
+├─ Stack: <span class="c-pawn">UI.Layer.Game</span>              <span class="note">// HUD — 게임 플레이 중 상시 표시</span>
+├─ Stack: <span class="c-instance">UI.Layer.GameMenu</span>          <span class="note">// 게임 중 메뉴 (일시정지 등)</span>
+├─ Stack: <span class="c-controller">UI.Layer.Menu</span>              <span class="note">// 전체 화면 메뉴 (설정·타이틀)</span>
+└─ Stack: <span class="c-savegame">UI.Layer.Modal</span>             <span class="note">// 최상단 팝업 (확인·에러 대화상자)</span></div>
+
+    <div class="callout tip"><span class="ic">💡</span><p><strong>플러그인 구분을 알아두세요</strong> — <code>CommonUI</code>·<code>CommonInput</code>은 <strong>엔진 내장 플러그인</strong>(어느 프로젝트든 활성화만 하면 됨)이고, <code>CommonGame</code>(GameUIManagerSubsystem·PrimaryGameLayout)·<code>CommonUser</code>·<code>UIExtension</code>은 <strong>Lyra에 동봉된 샘플 플러그인</strong>입니다. 즉 위 관계도의 위쪽 절반은 엔진이 주는 것이 아니라 Lyra가 만든 조립 예시 — 그래서 이 문서의 05 섹션은 그 조립부를 내 프로젝트 규모에 맞게 직접 최소 구현합니다(사용자 확인 시 선택한 경로).</p></div>
+  </div>
+
+  <!-- 03 레이어 책임 -->
+  <div class="section" id="responsibility">
+    <div class="section-label">03 — 레이어 책임 배치</div>
+    <h2>어떤 화면을 어느 레이어에 올리나</h2>
+    <p>레이어를 나누는 기준은 "겹쳤을 때 누가 위인가 + 입력을 누가 받아야 하나"입니다. Lyra의 4층은 대부분의 게임에 그대로 통용됩니다.</p>
+
+    <table class="tbl">
+      <tr><th>화면</th><th>레이어</th><th>왜</th></tr>
+      <tr><td>HUD (체력바·미니맵·조준점)</td><td><span class="owner o-pawn"><code>UI.Layer.Game</code></span></td><td>상시 표시 + <strong>입력은 게임이 계속 받아야 함</strong> — 이 층의 위젯은 입력 설정을 Game으로 선언</td></tr>
+      <tr><td>일시정지 메뉴, 인벤토리, 지도 화면</td><td><span class="owner o-instance"><code>UI.Layer.GameMenu</code></span></td><td>게임 도중 잠깐 덮는 화면 — 열리면 게임 입력을 뺏고, 닫히면 HUD 층으로 자동 복귀</td></tr>
+      <tr><td>설정, 타이틀/프론트엔드, 크레딧</td><td><span class="owner o-controller"><code>UI.Layer.Menu</code></span></td><td>게임 플레이와 분리된 전체 화면 흐름 — GameMenu 위에 겹쳐도 순서가 보장됨</td></tr>
+      <tr><td>"정말 삭제할까요?", 에러 알림, 연결 끊김</td><td><span class="owner o-savegame"><code>UI.Layer.Modal</code></span></td><td><strong>무조건 최상단</strong> + 응답 전까지 아래 모든 층의 입력 차단</td></tr>
+    </table>
+
+    <div class="grid-2">
+      <div class="compare-box">
+        <h4>기존 UMG 수동 방식</h4>
+        <div class="pills"><span class="pill red">수동 관리</span><span class="pill blue">소규모엔 충분</span></div>
+        <p>Create Widget → Add to Viewport(ZOrder 직접) → Set Input Mode/커서 수동 전환 → 닫을 때 Remove from Parent + 이전 상태 <strong>수동 복원</strong>. 화면이 3개만 겹쳐도 상태 꼬임이 시작됩니다.</p>
+      </div>
+      <div class="compare-box">
+        <h4>Common UI 레이어 방식</h4>
+        <div class="pills"><span class="pill green">자동 복귀</span><span class="pill purple">다층 UI에 강함</span></div>
+        <p>Push to Layer(태그 지정) → 입력·포커스·커서는 위젯의 <strong>선언대로 자동</strong> → 닫기는 DeactivateWidget 하나 → 이전 화면 자동 활성 + 입력 상태 자동 복원.</p>
+      </div>
+    </div>
+
+    <h3>수명 구분 — Construct와 Activate는 다르다</h3>
+    <table class="tbl">
+      <tr><th>이벤트</th><th>시점</th><th>여기서 할 일</th></tr>
+      <tr><td><code>Construct</code> / <code>NativeOnInitialized</code></td><td>위젯이 <strong>만들어질 때</strong> (1회)</td><td>바인딩·참조 준비 등 한 번만 하는 초기화</td></tr>
+      <tr><td><code>On Activated</code></td><td>스택 맨 위가 되어 <strong>살아날 때</strong> (여러 번 가능)</td><td>데이터 새로고침, 첫 포커스 지정 — "화면이 다시 보일 때마다" 할 일</td></tr>
+      <tr><td><code>On Deactivated</code></td><td>덮이거나 닫혀 <strong>잠들 때</strong></td><td>일시 상태 정리 (파괴 아님!)</td></tr>
+    </table>
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>"뒤로 갔다 돌아왔더니 화면이 옛날 데이터예요"</strong> — 갱신 로직을 Construct에만 두면 생기는 전형적 증상입니다. 스택에서 아래에 깔렸다 다시 올라온 위젯은 Construct가 다시 불리지 않습니다. <strong>화면이 보일 때마다 필요한 갱신은 On Activated에</strong> 두세요.</div></div>
+  </div>
+
+  <!-- 04 적용 절차 -->
+  <div class="section" id="flow">
+    <div class="section-label">04 — 적용 절차</div>
+    <h2>내 게임에 이식하는 7단계 (직접 최소 구현)</h2>
+    <p>전제: C++ 프로젝트(05 스켈레톤 사용), 에디터 사용 가능. 1~3단계는 Common UI 공식 퀵스타트의 필수 설정이고, 4~7단계가 Lyra식 레이어 시스템의 최소 구현입니다. 각 단계에 붙은 <strong>🔧 커스텀 포인트</strong> 카드는 그 단계에서 프로젝트에 맞게 바꿔도 되는 항목입니다 — 절차 본문은 "규격", 카드는 "자유 영역"으로 읽으세요. 예로 든 4개 레이어 태그조차 엔진 규칙이 아니라 Lyra의 관례입니다.</p>
+
+    <div class="pipe-step"><div class="pipe-num">01</div><div class="pipe-body"><div class="pipe-title">플러그인 활성화</div><div class="pipe-desc"><strong>Edit ▸ Plugins</strong>에서 <code>Common UI Plugin</code> 검색 → 체크 → 에디터 재시작. C++ 모듈 의존성은 05 섹션에서. <strong>결과 확인</strong>: 팔레트에 Common 위젯들(CommonButtonBase 등)이 나타남.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">02</div><div class="pipe-body"><div class="pipe-title">Viewport Client 교체 — 입력 라우팅의 관문</div><div class="pipe-desc"><strong>Project Settings ▸ Engine ▸ General Settings ▸ Game Viewport Client Class</strong>를 <code>CommonGameViewportClient</code>로 변경. 이 클래스가 입력을 가로채 활성 위젯으로 보내는 라우팅의 시작점입니다. <strong>결과 확인</strong>: 설정값이 저장됨(이 단계만으로 눈에 보이는 변화는 없음 — 정상).</div>
+      <div class="dd do" style="margin-top:12px">
+        <h4>🔧 커스텀 포인트</h4>
+        <ul>
+          <li><code>CommonGameViewportClient</code>를 <strong>상속한 내 클래스</strong>로 지정 가능 (Lyra도 LyraGameViewportClient 사용)</li>
+          <li>입력이 UI에 닿기 전의 전역 처리 — 로딩 중 전체 입력 차단, 특정 입력 필터링</li>
+          <li>초반엔 기본 클래스 그대로 쓰다가, 필요해질 때 상속으로 전환</li>
+        </ul>
+      </div>
+    </div></div>
+    <div class="pipe-step"><div class="pipe-num">03</div><div class="pipe-body"><div class="pipe-title">기본 입력 데이터 — 클릭·뒤로가기 정의</div><div class="pipe-desc">① DataTable을 만들되 행 구조체로 <code>CommonInputActionDataBase</code> 선택(DataTable 문서의 절차 그대로) → 클릭·뒤로가기 행 추가. ② <code>CommonUIInputData</code>를 부모로 BP 생성 → Click/Back에 방금 만든 행 지정. ③ <strong>Project Settings ▸ Game ▸ Common Input Settings ▸ Input Data</strong>에 그 BP 지정. (게임패드까지 갈 경우: <code>CommonInputBaseControllerData</code> 기반 플랫폼별 데이터를 Platform Input에 추가 — 처음엔 생략 가능) <strong>결과 확인</strong>: 이후 Activatable 위젯에서 뒤로가기 입력이 인식됨.</div>
+      <div class="dd do" style="margin-top:12px">
+        <h4>🔧 커스텀 포인트</h4>
+        <ul>
+          <li>DataTable에 <strong>액션 행 추가 자유</strong> — Click/Back은 최소 요건. "다음/이전 탭(Q/E)", "정렬 변경" 등</li>
+          <li>행마다 키보드·게임패드 키 별도 지정 → 버튼의 <code>Triggering Input Action</code>에 연결하면 <strong>키로 눌리는 버튼</strong>이 됨</li>
+          <li>추가한 액션은 <code>CommonBoundActionBar</code>가 하단 조작 안내에 자동 표시</li>
+          <li>플랫폼별 ControllerData를 늘릴수록 버튼 아이콘(Ⓐ/×) 자동 전환 · Hold(꾹 누르기) 발동도 설정 가능</li>
+        </ul>
+      </div>
+    </div></div>
+    <div class="pipe-step"><div class="pipe-num">04</div><div class="pipe-body"><div class="pipe-title">레이어 태그 등록</div><div class="pipe-desc"><strong>Project Settings ▸ Project ▸ GameplayTags ▸ Manage Gameplay Tags</strong>에서 4개 태그 추가: <code>UI.Layer.Game</code> · <code>UI.Layer.GameMenu</code> · <code>UI.Layer.Menu</code> · <code>UI.Layer.Modal</code>. <strong>결과 확인</strong>: 태그 선택 드롭다운에 UI.Layer 계층이 보임.</div>
+      <div class="dd do" style="margin-top:12px">
+        <h4>🔧 커스텀 포인트</h4>
+        <ul>
+          <li>4개 태그는 <strong>Lyra 관례일 뿐</strong> — <code>UI.Layer.Loading</code>·<code>Notification</code>·<code>Tutorial</code>·<code>Debug</code> 등 필요한 만큼 추가</li>
+          <li>단, 태그는 스스로 동작하지 않음 — <strong>태그 등록 + 스택 배치(5단계) + Layers 맵 1줄(05 스켈레톤)</strong>이 한 세트</li>
+          <li><code>UI.Layer.*</code> 계층을 유지하면 태그 드롭다운 정리·일괄 조회에 유리</li>
+        </ul>
+      </div>
+    </div></div>
+    <div class="pipe-step"><div class="pipe-num">05</div><div class="pipe-body"><div class="pipe-title">PrimaryLayout 위젯 제작 — 유일한 루트</div><div class="pipe-desc">05 섹션의 <code>UMyPrimaryLayout</code>를 컴파일한 뒤, 그것을 부모로 위젯 BP(<code>WBP_PrimaryLayout</code>) 생성. 디자이너에서 루트 <code>Overlay</code> 아래에 <code>CommonActivatableWidgetStack</code> 4개를 배치하고 이름을 정확히 <code>GameStack</code>·<code>GameMenuStack</code>·<code>MenuStack</code>·<code>ModalStack</code>으로(BindWidget 이름 계약 — UMG 기초 참조). 각 스택 슬롯은 화면 전체를 덮게(Overlay 정렬 Fill). <strong>결과 확인</strong>: 위젯 BP 컴파일 성공(이름이 틀리면 바인딩 에러).</div>
+      <div class="dd do" style="margin-top:12px">
+        <h4>🔧 커스텀 포인트</h4>
+        <ul>
+          <li><strong>층의 개수·겹침 순서</strong>가 전부 여기서 결정 — Overlay에서 아래쪽에 배치한 스택일수록 위에 그려짐</li>
+          <li>층마다 컨테이너 선택: <strong>Stack</strong>(쌓고 복귀) vs <strong>Queue</strong>(한 번에 하나씩 — 획득 알림·연속 팝업용)</li>
+          <li>스택이 아닌 상시 요소도 배치 가능 — 공통 배경, 버전 워터마크, 페이드 오버레이</li>
+          <li><code>ClearLayer(태그)</code>·<code>GetTopWidget(태그)</code> 같은 편의 함수 확장</li>
+        </ul>
+      </div>
+    </div></div>
+    <div class="pipe-step"><div class="pipe-num">06</div><div class="pipe-body"><div class="pipe-title">화면들을 Activatable로 제작</div><div class="pipe-desc">각 화면(HUD·일시정지·설정…)을 <code>CommonActivatableWidget</code>(또는 05의 <code>UMenuScreenWidget</code>) 파생 위젯 BP로 제작. 메뉴류는 디테일 패널에서 <strong>Is Back Handler</strong>·<strong>Is Back Action Displayed in Action Bar</strong>를 켜면 뒤로가기(Esc/Ⓑ)로 DeactivateWidget이 자동 호출됩니다. <strong>결과 확인</strong>: 각 위젯 단독 컴파일 성공.</div>
+      <div class="dd do" style="margin-top:12px">
+        <h4>🔧 커스텀 포인트</h4>
+        <ul>
+          <li><code>GetDesiredInputConfig</code>를 <strong>화면마다 다르게</strong> — HUD는 Game, 인벤토리는 All(게임+UI 동시), 메뉴는 Menu</li>
+          <li><code>OnHandleBackAction</code> 오버라이드 — 뒤로가기를 "종료하시겠습니까?" 확인 팝업으로 교체 가능</li>
+          <li><code>GetDesiredFocusTarget</code> — 게임패드 첫 포커스를 화면별 지정 (06 섹션 함정 참조)</li>
+          <li>활성/비활성 시 Visibility 처리 방식, On Activated에서 등장 애니메이션 재생</li>
+        </ul>
+      </div>
+    </div></div>
+    <div class="pipe-step"><div class="pipe-num">07</div><div class="pipe-body"><div class="pipe-title">UI 매니저로 올리고 검증</div><div class="pipe-desc">PlayerController BeginPlay에서 UI 매니저 서브시스템(05 섹션)의 <code>CreateLayout</code> 호출(레이아웃 클래스 = <code>WBP_PrimaryLayout</code>) → 이후 어디서든 <code>Push(UI.Layer.Game, WBP_HUD)</code>처럼 올립니다. <strong>결과 확인(핵심)</strong>: 일시정지를 GameMenu 층에 Push하면 마우스가 자동으로 나타나고, 뒤로가기로 닫으면 게임 입력이 자동 복원되어야 합니다 — 수동 Set Input Mode 없이.</div>
+      <div class="dd do" style="margin-top:12px">
+        <h4>🔧 커스텀 포인트</h4>
+        <ul>
+          <li>API를 <strong>내 게임의 어휘로 확장</strong> — <code>PopTopScreen</code>, 결과 델리게이트를 받는 <code>ShowConfirmDialog</code>(Modal 전용 헬퍼)</li>
+          <li>위젯 클래스를 소프트 참조로 받아 <strong>비동기 로드 후 Push</strong> (Lyra의 PushWidgetToLayerStackAsync에 해당)</li>
+          <li>분할 화면(로컬 멀티)이면 플레이어별 레이아웃 관리로 확장</li>
+          <li>규모가 커지면 Policy 층 재도입 — 플랫폼별로 다른 레이아웃 BP 선택</li>
+        </ul>
+      </div>
+    </div></div>
+
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>Activatable Widget을 스택 밖에서 쓰면 "죽은 화면"이 됩니다.</strong> CommonActivatableWidget을 그냥 Add to Viewport 하면 활성화 관리자(스택)가 없어 활성 상태·입력 라우팅·자동 복귀가 전부 동작하지 않습니다. 이 구조에서 Add to Viewport는 <strong>PrimaryLayout 단 한 번</strong>이고, 나머지 모든 화면은 반드시 레이어 스택에 Push합니다.</div></div>
+
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>반대로, 바꾸면 구조가 무너지는 고정 규격은 두 가지입니다.</strong> ① Viewport Client는 <code>CommonGameViewportClient</code> 계열을 유지해야 합니다 — 이것을 빼면 입력 라우팅 전체가 무효가 됩니다. ② Activatable Widget은 반드시 스택/큐에 올려야 합니다(직접 Add to Viewport 금지 — 위 함정 참조). 그 외에 BindWidget 스택 이름을 바꿀 때는 C++ 변수와 디자이너 이름을 <strong>동시에</strong> 바꿔야 한다는 이름 계약도 기억하세요.</div></div>
+  </div>
+
+  <!-- 05 스켈레톤 -->
+  <div class="section" id="skeleton">
+    <div class="section-label">05 — 구현 스켈레톤</div>
+    <h2>최소 구현 — 레이아웃 · UI 매니저 · 화면 부모</h2>
+    <p>
+      Lyra의 CommonGame 플러그인(GameUIManagerSubsystem·GameUIPolicy·PrimaryGameLayout)을 1인 프로젝트 규모로 축소한 3파일입니다. 정책(Policy) 층은 "레이아웃 클래스를 골라주는" 역할뿐이므로 생략하고, 서브시스템이 직접 레이아웃을 만듭니다. <code>MYGAME_API</code>는 자기 모듈 이름으로. 먼저 <code>&lt;모듈이름&gt;.Build.cs</code>의 의존성에 <code>"CommonUI", "CommonInput", "GameplayTags", "UMG"</code>를 추가하세요.
+    </p>
+
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">MyPrimaryLayout.h</button>
+        <button class="codeblock-tab tab-cpp" type="button">MyPrimaryLayout.cpp</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"CommonUserWidget.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"GameplayTagContainer.h"</span></span>    <span class="hljs-comment">// FGameplayTag</span>
+<span class="hljs-meta">#include <span class="hljs-string">"MyPrimaryLayout.generated.h"</span></span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UCommonActivatableWidget</span>;
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UCommonActivatableWidgetStack</span>;
+
+<span class="hljs-comment">// 화면 전체를 덮는 "UI의 뿌리" — 레이어 스택 4개를 담는다.</span>
+<span class="hljs-comment">// 게임에서 AddToViewport 되는 유일한 위젯 (Lyra PrimaryGameLayout의 축소판)</span>
+<span class="hljs-meta">UCLASS(Abstract)</span>
+<span class="hljs-keyword">class</span> MYGAME_API <span class="hljs-title class_">UMyPrimaryLayout</span> : <span class="hljs-keyword">public</span> <span class="hljs-title class_">UCommonUserWidget</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// 태그가 가리키는 레이어 스택에 위젯을 올린다</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = <span class="hljs-string">"UI"</span>)</span>
+    <span class="hljs-title class_">UCommonActivatableWidget</span>* <span class="hljs-title function_">PushToLayer</span>(<span class="hljs-title class_">FGameplayTag</span> LayerTag,
+        <span class="hljs-title class_">TSubclassOf</span>&lt;<span class="hljs-title class_">UCommonActivatableWidget</span>&gt; WidgetClass);
+
+<span class="hljs-keyword">protected</span>:
+    <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title function_">NativeOnInitialized</span>() <span class="hljs-keyword">override</span>;
+
+    <span class="hljs-comment">// 디자이너의 스택 4개와 "같은 이름"으로 연결 (BindWidget — UMG 기초 참조)</span>
+    <span class="hljs-meta">UPROPERTY(meta = (BindWidget))</span>
+    <span class="hljs-title class_">UCommonActivatableWidgetStack</span>* GameStack;
+
+    <span class="hljs-meta">UPROPERTY(meta = (BindWidget))</span>
+    <span class="hljs-title class_">UCommonActivatableWidgetStack</span>* GameMenuStack;
+
+    <span class="hljs-meta">UPROPERTY(meta = (BindWidget))</span>
+    <span class="hljs-title class_">UCommonActivatableWidgetStack</span>* MenuStack;
+
+    <span class="hljs-meta">UPROPERTY(meta = (BindWidget))</span>
+    <span class="hljs-title class_">UCommonActivatableWidgetStack</span>* ModalStack;
+
+<span class="hljs-keyword">private</span>:
+    <span class="hljs-comment">// 태그 → 스택 조회용 맵 (NativeOnInitialized에서 채움)</span>
+    <span class="hljs-meta">UPROPERTY()</span>
+    <span class="hljs-title class_">TMap</span>&lt;<span class="hljs-title class_">FGameplayTag</span>, <span class="hljs-title class_">TObjectPtr</span>&lt;<span class="hljs-title class_">UCommonActivatableWidgetStack</span>&gt;&gt; Layers;
+};</pre></div>
+      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"MyPrimaryLayout.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Widgets/CommonActivatableWidgetContainer.h"</span></span>  <span class="hljs-comment">// 스택 클래스</span>
+
+<span class="hljs-type">void</span> <span class="hljs-title class_">UMyPrimaryLayout</span>::<span class="hljs-title function_">NativeOnInitialized</span>()
+{
+    <span class="hljs-built_in">Super</span>::<span class="hljs-title function_">NativeOnInitialized</span>();
+
+    <span class="hljs-comment">// 태그는 Project Settings ▸ GameplayTags에 미리 등록 (04 섹션 4단계)</span>
+    Layers.<span class="hljs-title function_">Add</span>(<span class="hljs-title class_">FGameplayTag</span>::<span class="hljs-title function_">RequestGameplayTag</span>(<span class="hljs-string">"UI.Layer.Game"</span>),     GameStack);
+    Layers.<span class="hljs-title function_">Add</span>(<span class="hljs-title class_">FGameplayTag</span>::<span class="hljs-title function_">RequestGameplayTag</span>(<span class="hljs-string">"UI.Layer.GameMenu"</span>), GameMenuStack);
+    Layers.<span class="hljs-title function_">Add</span>(<span class="hljs-title class_">FGameplayTag</span>::<span class="hljs-title function_">RequestGameplayTag</span>(<span class="hljs-string">"UI.Layer.Menu"</span>),     MenuStack);
+    Layers.<span class="hljs-title function_">Add</span>(<span class="hljs-title class_">FGameplayTag</span>::<span class="hljs-title function_">RequestGameplayTag</span>(<span class="hljs-string">"UI.Layer.Modal"</span>),    ModalStack);
+}
+
+<span class="hljs-title class_">UCommonActivatableWidget</span>* <span class="hljs-title class_">UMyPrimaryLayout</span>::<span class="hljs-title function_">PushToLayer</span>(
+    <span class="hljs-title class_">FGameplayTag</span> LayerTag, <span class="hljs-title class_">TSubclassOf</span>&lt;<span class="hljs-title class_">UCommonActivatableWidget</span>&gt; WidgetClass)
+{
+    <span class="hljs-title class_">UCommonActivatableWidgetStack</span>* Stack = Layers.<span class="hljs-title function_">FindRef</span>(LayerTag);
+    <span class="hljs-keyword">if</span> (!Stack || !WidgetClass) { <span class="hljs-keyword">return</span> <span class="hljs-literal">nullptr</span>; }   <span class="hljs-comment">// 미등록 태그 방어</span>
+
+    <span class="hljs-comment">// AddWidget: 생성 + 스택 맨 위에 올려 활성화. 이전 맨 위는 자동 비활성</span>
+    <span class="hljs-keyword">return</span> Stack-&gt;<span class="hljs-title function_">AddWidget</span>(WidgetClass);
+}</pre></div>
+    </div>
+
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">UIManagerSubsystem.h</button>
+        <button class="codeblock-tab tab-cpp" type="button">UIManagerSubsystem.cpp</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"GameplayTagContainer.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"UIManagerSubsystem.generated.h"</span></span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UMyPrimaryLayout</span>;
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UCommonActivatableWidget</span>;
+
+<span class="hljs-comment">// 어디서든 UI를 올릴 수 있는 전역 창구 —</span>
+<span class="hljs-comment">// GameInstanceSubsystem이므로 별도 등록 없이 자동 생성 (해당 문서 참조)</span>
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> MYGAME_API <span class="hljs-title class_">UUIManagerSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-title class_">UGameInstanceSubsystem</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// 게임 시작 시 PlayerController가 1회 호출 — 루트 레이아웃 생성</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = <span class="hljs-string">"UI"</span>)</span>
+    <span class="hljs-type">void</span> <span class="hljs-title function_">CreateLayout</span>(<span class="hljs-title class_">APlayerController</span>* OwningPlayer,
+                      <span class="hljs-title class_">TSubclassOf</span>&lt;<span class="hljs-title class_">UMyPrimaryLayout</span>&gt; LayoutClass);
+
+    <span class="hljs-comment">// 화면 올리기 — 예: Push(UI.Layer.GameMenu, WBP_PauseMenu)</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = <span class="hljs-string">"UI"</span>)</span>
+    <span class="hljs-title class_">UCommonActivatableWidget</span>* <span class="hljs-title function_">Push</span>(<span class="hljs-title class_">FGameplayTag</span> LayerTag,
+        <span class="hljs-title class_">TSubclassOf</span>&lt;<span class="hljs-title class_">UCommonActivatableWidget</span>&gt; WidgetClass);
+
+<span class="hljs-keyword">private</span>:
+    <span class="hljs-meta">UPROPERTY()</span>
+    <span class="hljs-title class_">TObjectPtr</span>&lt;<span class="hljs-title class_">UMyPrimaryLayout</span>&gt; RootLayout;
+};</pre></div>
+      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"UIManagerSubsystem.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"MyPrimaryLayout.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Blueprint/UserWidget.h"</span></span>   <span class="hljs-comment">// CreateWidget</span>
+
+<span class="hljs-type">void</span> <span class="hljs-title class_">UUIManagerSubsystem</span>::<span class="hljs-title function_">CreateLayout</span>(
+    <span class="hljs-title class_">APlayerController</span>* OwningPlayer, <span class="hljs-title class_">TSubclassOf</span>&lt;<span class="hljs-title class_">UMyPrimaryLayout</span>&gt; LayoutClass)
+{
+    <span class="hljs-keyword">if</span> (RootLayout || !OwningPlayer || !LayoutClass) { <span class="hljs-keyword">return</span>; }   <span class="hljs-comment">// 중복 생성 방어</span>
+
+    RootLayout = CreateWidget&lt;<span class="hljs-title class_">UMyPrimaryLayout</span>&gt;(OwningPlayer, LayoutClass);
+    RootLayout-&gt;<span class="hljs-title function_">AddToViewport</span>();   <span class="hljs-comment">// 이 프로젝트의 처음이자 마지막 AddToViewport</span>
+}
+
+<span class="hljs-title class_">UCommonActivatableWidget</span>* <span class="hljs-title class_">UUIManagerSubsystem</span>::<span class="hljs-title function_">Push</span>(
+    <span class="hljs-title class_">FGameplayTag</span> LayerTag, <span class="hljs-title class_">TSubclassOf</span>&lt;<span class="hljs-title class_">UCommonActivatableWidget</span>&gt; WidgetClass)
+{
+    <span class="hljs-keyword">return</span> RootLayout ? RootLayout-&gt;<span class="hljs-title function_">PushToLayer</span>(LayerTag, WidgetClass) : <span class="hljs-literal">nullptr</span>;
+}</pre></div>
+    </div>
+
+    <p>마지막으로 화면 위젯들의 공통 부모입니다 — <strong>입력 상태를 위젯이 "선언"하는 지점</strong>이 Common UI 자동화의 핵심입니다.</p>
+
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">MenuScreenWidget.h (화면 공통 부모)</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"CommonActivatableWidget.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"MenuScreenWidget.generated.h"</span></span>
+
+<span class="hljs-comment">// 메뉴류 화면의 공통 부모 — 활성인 동안 원하는 입력 상태를 "선언"</span>
+<span class="hljs-meta">UCLASS(Abstract)</span>
+<span class="hljs-keyword">class</span> MYGAME_API <span class="hljs-title class_">UMenuScreenWidget</span> : <span class="hljs-keyword">public</span> <span class="hljs-title class_">UCommonActivatableWidget</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// UMG 기초에서 손으로 하던 Set Input Mode + Show Mouse가 자동화되는 지점.</span>
+    <span class="hljs-comment">// 이 위젯이 활성이면 적용되고, 비활성화되면 이전 상태로 자동 복원된다</span>
+    <span class="hljs-keyword">virtual</span> <span class="hljs-title class_">TOptional</span>&lt;<span class="hljs-title class_">FUIInputConfig</span>&gt; <span class="hljs-title function_">GetDesiredInputConfig</span>() <span class="hljs-keyword">const</span> <span class="hljs-keyword">override</span>
+    {
+        <span class="hljs-comment">// Menu: UI만 입력받음 · Game: 게임만 · All: 둘 다</span>
+        <span class="hljs-keyword">return</span> <span class="hljs-title class_">FUIInputConfig</span>(<span class="hljs-title class_">ECommonInputMode</span>::Menu, <span class="hljs-title class_">EMouseCaptureMode</span>::NoCapture);
+    }
+};</pre></div>
+    </div>
+
+    <div class="callout tip"><span class="ic">💡</span><p><strong>닫기는 어디서나 한 줄입니다</strong> — 화면 자신이 <code>DeactivateWidget()</code>(BP: Deactivate Widget 노드)을 호출하면, 스택이 자동으로 pop하고 아래 화면을 활성화하며 입력 상태를 복원합니다. 04 섹션 6단계처럼 <strong>Is Back Handler</strong>를 켜 두면 Esc/게임패드 Ⓑ가 이 호출을 대신해 줍니다. HUD처럼 상시 표시 화면은 입력 설정을 <code>ECommonInputMode::Game</code>으로 선언하면 됩니다.</p></div>
+  </div>
+
+  <!-- 06 확장 -->
+  <div class="section" id="extend">
+    <div class="section-label">06 — 확장 &amp; 주의</div>
+    <h2>더 나아가기와 흔한 함정</h2>
+
+    <div class="grid-3">
+      <div class="a-card"><div class="ic">🎨</div><div class="a-title">스타일 에셋</div><div class="a-id">CommonTextStyle · ButtonStyle</div><div class="a-desc">글꼴·색·버튼 상태를 <strong>에셋으로 분리</strong>해 전 화면이 공유. Common Style 클래스로 BP를 만들어 위젯 Style 필드에 지정하고, Template Styles로 전역 기본값 설정 — 게임 전체의 룩을 에셋 몇 개로 통제.</div></div>
+      <div class="a-card"><div class="ic">🧩</div><div class="a-title">UIExtension</div><div class="a-id">Lyra 동봉 플러그인</div><div class="a-desc">HUD에 "확장 포인트"를 선언하고, 게임 기능(GameFeature)이 그 지점에 위젯을 꽂는 방식 — HUD를 고치지 않고 기능별 UI를 추가. 모듈식 게임을 지향할 때 다음 단계.</div></div>
+      <div class="a-card"><div class="ic">🎮</div><div class="a-title">게임패드 대응</div><div class="a-id">ControllerData · ActionBar</div><div class="a-desc">플랫폼별 <code>CommonInputBaseControllerData</code>를 등록하면 버튼 아이콘(Ⓐ/×)이 자동 교체되고, <code>CommonBoundActionBar</code>가 화면 하단 조작 안내를 자동 표시.</div></div>
+    </div>
+
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>게임패드에서 "포커스가 어디 갔는지 모르는" 문제</strong> — 화면이 활성화될 때 첫 포커스 대상을 정해줘야 게임패드 내비게이션이 시작됩니다. Activatable Widget의 <code>GetDesiredFocusTarget</code>을 오버라이드해(BP: Get Desired Focus Target) 첫 버튼을 반환하세요. 마우스로만 테스트하면 출시 직전까지 못 알아채는 함정입니다.</div></div>
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>Common UI 도입 후에도 수동 Set Input Mode를 섞으면 꼬입니다.</strong> 라우팅 시스템이 관리하는 입력 상태를 밖에서 덮어쓰는 셈이라, 이후 자동 복원이 엉킵니다. 도입했다면 입력 상태는 <strong>전부 위젯의 선언(GetDesiredInputConfig)으로 일원화</strong>하세요 — 반쯤 도입이 가장 나쁜 상태입니다.</div></div>
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>더 큰 규모가 필요해지면 Lyra의 원본을 가져올 수 있습니다</strong> — 이 문서의 최소 구현은 Lyra <code>CommonGame</code> 플러그인의 축소판이므로, 프로젝트가 커져 정책(Policy) 층·플레이어별 레이아웃·비동기 Push가 필요해지면 Lyra에서 해당 플러그인을 복사해 갈아타는 경로가 자연스럽습니다. 구조가 같아서 이 문서의 개념이 그대로 통용됩니다.</div></div>
+  </div>
+
+</div>
+
+<footer>
+  <span>UE 아키텍처 문서 · Common UI Architecture v1.2</span>
+  <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.3</span>
+</footer>
+
+<script>
+
+(function () {
+  document.querySelectorAll('.codeblock').forEach(function (block) {
+    var tabs = block.querySelectorAll('.codeblock-tab');
+    var panels = block.querySelectorAll('.codeblock-panel');
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) { t.classList.remove('active'); });
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        if (panels[i]) panels[i].classList.add('active');
+      });
+    });
+    var copyBtn = block.querySelector('.codeblock-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () {
+        var pre = block.querySelector('.codeblock-panel.active pre');
+        if (!pre) return;
+        var text = pre.innerText;
+        var done = function () {
+          copyBtn.textContent = '복사됨 ✓';
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.textContent = '복사';
+            copyBtn.classList.remove('copied');
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+        } else {
+          fallbackCopy(text, done);
+        }
+      });
+    }
+  });
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+})();
+
+</script>
+</body>
+</html>

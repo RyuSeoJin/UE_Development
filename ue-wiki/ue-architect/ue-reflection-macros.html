@@ -8,6 +8,13 @@
      CHANGELOG — ue-reflection-macros.html
      언리얼 리플렉션 매크로 구조 문서 (02-A 아키텍처 패턴).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.1 · 2026-07-03
+       - (추가) 03 — 책임 섹션: 6대 매크로별 "지정자 사용 예시" 코드블록 추가
+         (각 지정자 표 바로 아래, 표의 지정자가 실제 헤더에서 붙는 모양을
+         지정자별 주석과 함께 수록. 기존 .codeblock 컴포넌트 재사용,
+         신규 디자인 없음)
+       - (추가) 03 — 책임 섹션 도입부: 예시 코드 안내 문단
+         (조각 코드임을 명시, 완전한 파일은 05 — 스켈레톤 참조)
      v1.0 · 2026-07-02
        - (추가) 최초 작성. 6대 리플렉션 매크로(UCLASS·USTRUCT·UENUM·
          UINTERFACE·UPROPERTY·UFUNCTION) 구조, UHT 빌드 파이프라인,
@@ -547,6 +554,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
     <p><strong>지정자(Specifier)</strong>(앞서 핵심 용어 블록에서 설명)는 매크로 괄호 안에 쓰는 키워드입니다. 지정자를 통해 "이 변수를 에디터에서 편집 가능하게 할지", "이 함수를 블루프린트에서 호출 가능하게 할지" 등을 세밀하게 제어합니다. 형식은 <code>UPROPERTY(지정자1, 지정자2)</code>입니다.</p>
 
+    <p>각 매크로의 표 아래에는 <strong>표의 지정자들이 실제 헤더 파일에서 쓰이는 모습</strong>을 예시 코드로 붙였습니다. 예시는 지정자가 붙는 위치와 모양에 집중한 조각 코드라서 공통 준비물(<code>#pragma once</code>, <code>#include</code>, <code>.generated.h</code>)은 생략했습니다 — 빌드까지 되는 완전한 <span class="filetag h">.h</span>/<span class="filetag cpp">.cpp</span> 파일 형태는 아래 <strong>05 — 스켈레톤</strong> 섹션에 있습니다.</p>
+
     <h3>UCLASS() — 클래스를 엔진에 등록</h3>
     <p><code>UCLASS()</code>는 C++ 클래스를 언리얼 리플렉션 시스템에 등록합니다. 등록된 클래스는 GC(가비지 컬렉션) 대상이 되고, CDO(Class Default Object)가 자동 생성되며, 블루프린트에서 사용할 수 있게 됩니다.</p>
     <table class="tbl">
@@ -557,6 +566,48 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>NotBlueprintable</code></td><td>BP에서 <strong>상속 금지</strong></td><td>C++ 전용 내부 클래스</td></tr>
       <tr><td><code>config=Game</code></td><td>ini 파일에서 <strong>설정값 로드</strong></td><td>게임 설정을 외부 파일로 관리할 때</td></tr>
     </table>
+
+    <div class="codeblock" id="cb-spec-uclass">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active">UCLASS 지정자 사용 예시</button>
+        <button class="codeblock-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <div class="codeblock-panel active" data-lang="h"><pre class="hljs"><span class="hljs-comment">// ── Blueprintable + BlueprintType ─────────────────────────</span>
+<span class="hljs-comment">// BP에서 상속(자식 BP 생성)도 되고, BP 변수 타입으로도 쓸 수 있다</span>
+<span class="hljs-meta">UCLASS(Blueprintable, BlueprintType)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">AWeaponBase</span> : <span class="hljs-keyword">public</span> <span class="hljs-title class_">AActor</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+};
+
+<span class="hljs-comment">// ── Abstract ──────────────────────────────────────────────</span>
+<span class="hljs-comment">// 이 클래스 자체는 레벨 배치·스폰 불가 — 자식 클래스 전용 부모</span>
+<span class="hljs-meta">UCLASS(Abstract, Blueprintable)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">AEnemyBase</span> : <span class="hljs-keyword">public</span> <span class="hljs-title class_">ACharacter</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+};
+
+<span class="hljs-comment">// ── NotBlueprintable ──────────────────────────────────────</span>
+<span class="hljs-comment">// BP 상속 금지 — C++ 내부 전용 클래스</span>
+<span class="hljs-meta">UCLASS(NotBlueprintable)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UScoreManager</span> : <span class="hljs-keyword">public</span> <span class="hljs-title class_">UObject</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+};
+
+<span class="hljs-comment">// ── config=Game ───────────────────────────────────────────</span>
+<span class="hljs-comment">// Config/DefaultGame.ini 에서 값을 읽어온다</span>
+<span class="hljs-comment">// (읽어올 변수 쪽에도 Config 지정자를 함께 붙여야 로드됨)</span>
+<span class="hljs-meta">UCLASS(config=Game)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UMySettings</span> : <span class="hljs-keyword">public</span> <span class="hljs-title class_">UObject</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+    <span class="hljs-meta">UPROPERTY(Config)</span>
+    <span class="hljs-type">float</span> MasterVolume;
+};</pre></div>
+    </div>
 
     <h3>UPROPERTY() — 멤버 변수를 엔진에 등록</h3>
     <p><code>UPROPERTY()</code>는 멤버 변수를 리플렉션에 등록합니다. 등록하면 에디터 디테일 패널에 표시되거나, 블루프린트에서 읽고 쓸 수 있거나, 네트워크 복제 대상이 됩니다. <strong>가장 자주 쓰는 매크로입니다.</strong></p>
@@ -570,6 +621,44 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>Replicated</code></td><td>서버 → 클라이언트 <strong>네트워크 복제</strong></td><td>멀티플레이에서 모든 클라이언트에 값 동기화</td></tr>
       <tr><td><code>Transient</code></td><td><strong>저장(직렬화)에서 제외</strong></td><td>런타임에만 쓰는 임시 데이터</td></tr>
     </table>
+
+    <div class="codeblock" id="cb-spec-uprop">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active">UPROPERTY 지정자 사용 예시</button>
+        <button class="codeblock-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <div class="codeblock-panel active" data-lang="h"><pre class="hljs"><span class="hljs-comment">// (UCLASS가 붙은 클래스 본문 안이라고 가정)</span>
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// EditAnywhere — 레벨에 배치된 인스턴스마다 다른 값 입력 가능</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, Category = <span class="hljs-string">"Stats"</span>)</span>
+    <span class="hljs-type">float</span> MaxHealth = <span class="hljs-number">100.0f</span>;
+
+    <span class="hljs-comment">// EditDefaultsOnly — BP 에디터(기본값)에서만 편집,</span>
+    <span class="hljs-comment">// 레벨에 배치된 인스턴스에서는 잠김</span>
+    <span class="hljs-meta">UPROPERTY(EditDefaultsOnly, Category = <span class="hljs-string">"Stats"</span>)</span>
+    <span class="hljs-type">float</span> BaseDamage = <span class="hljs-number">10.0f</span>;
+
+    <span class="hljs-comment">// VisibleAnywhere — 디테일 패널에 보이지만 편집 불가</span>
+    <span class="hljs-comment">// (컴포넌트 포인터를 확인용으로 노출할 때 단골)</span>
+    <span class="hljs-meta">UPROPERTY(VisibleAnywhere, Category = <span class="hljs-string">"Components"</span>)</span>
+    <span class="hljs-title class_">UStaticMeshComponent</span>* MeshComp;
+
+    <span class="hljs-comment">// BlueprintReadOnly — BP 그래프에서 Get 노드만 생성됨</span>
+    <span class="hljs-meta">UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = <span class="hljs-string">"Stats"</span>)</span>
+    <span class="hljs-type">float</span> CurrentHealth;
+
+    <span class="hljs-comment">// BlueprintReadWrite — BP 그래프에서 Get + Set 노드 모두 생성됨</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = <span class="hljs-string">"Stats"</span>)</span>
+    <span class="hljs-type">float</span> MoveSpeed = <span class="hljs-number">600.0f</span>;
+
+    <span class="hljs-comment">// Replicated — 서버에서 바뀐 값이 클라이언트로 자동 동기화</span>
+    <span class="hljs-meta">UPROPERTY(Replicated)</span>
+    <span class="hljs-type">int32</span> Score;
+
+    <span class="hljs-comment">// Transient — 저장(직렬화) 대상에서 제외되는 런타임 임시값</span>
+    <span class="hljs-meta">UPROPERTY(Transient)</span>
+    <span class="hljs-type">float</span> TimeSinceSpawn;</pre></div>
+    </div>
 
     <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>EditAnywhere와 BlueprintReadWrite는 별개입니다.</strong> <code>EditAnywhere</code>는 "에디터 디테일 패널에서 편집", <code>BlueprintReadWrite</code>는 "BP 노드에서 읽기+쓰기"입니다. 둘 다 필요하면 <code>UPROPERTY(EditAnywhere, BlueprintReadWrite)</code>처럼 같이 씁니다.</div></div>
 
@@ -585,6 +674,42 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>Client</code></td><td><strong>소유 클라이언트에서만 실행</strong>되는 RPC</td><td>서버가 특정 클라이언트에 결과를 보낼 때</td></tr>
     </table>
 
+    <div class="codeblock" id="cb-spec-ufunc">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active">UFUNCTION 지정자 사용 예시</button>
+        <button class="codeblock-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <div class="codeblock-panel active" data-lang="h"><pre class="hljs"><span class="hljs-comment">// (UCLASS가 붙은 클래스 본문 안이라고 가정)</span>
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// BlueprintCallable — BP에서 실행 핀이 있는 노드로 호출</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = <span class="hljs-string">"Combat"</span>)</span>
+    <span class="hljs-type">void</span> <span class="hljs-title function_">Attack</span>(<span class="hljs-title class_">AActor</span>* Target);
+
+    <span class="hljs-comment">// BlueprintPure — 실행 핀 없이 값만 반환 (Getter·계산 함수)</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintPure, Category = <span class="hljs-string">"Stats"</span>)</span>
+    <span class="hljs-type">bool</span> <span class="hljs-title function_">IsAlive</span>() <span class="hljs-keyword">const</span>;
+
+    <span class="hljs-comment">// BlueprintImplementableEvent — 선언만 C++, 본문은 BP에서 작성</span>
+    <span class="hljs-comment">// .cpp에 구현을 쓰지 않는다 (쓰면 중복 정의 에러)</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintImplementableEvent, Category = <span class="hljs-string">"FX"</span>)</span>
+    <span class="hljs-type">void</span> <span class="hljs-title function_">OnHitEffect</span>();
+
+    <span class="hljs-comment">// BlueprintNativeEvent — C++ 기본 구현 + BP 오버라이드 허용</span>
+    <span class="hljs-comment">// C++ 구현부는 함수명 뒤에 _Implementation 을 붙여 작성한다</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintNativeEvent, Category = <span class="hljs-string">"Combat"</span>)</span>
+    <span class="hljs-type">void</span> <span class="hljs-title function_">OnDeath</span>();
+    <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title function_">OnDeath_Implementation</span>();  <span class="hljs-comment">// ← .cpp에 구현할 실제 함수</span>
+
+    <span class="hljs-comment">// Server — 클라이언트가 호출하면 서버에서 실행되는 RPC</span>
+    <span class="hljs-comment">// Reliable = 전달 보장. 구현부 이름은 ServerFire_Implementation</span>
+    <span class="hljs-meta">UFUNCTION(Server, Reliable)</span>
+    <span class="hljs-type">void</span> <span class="hljs-title function_">ServerFire</span>();
+
+    <span class="hljs-comment">// Client — 서버가 호출하면 소유 클라이언트에서 실행되는 RPC</span>
+    <span class="hljs-meta">UFUNCTION(Client, Reliable)</span>
+    <span class="hljs-type">void</span> <span class="hljs-title function_">ClientShowHitMarker</span>();</pre></div>
+    </div>
+
     <h3>USTRUCT() — 구조체를 엔진에 등록</h3>
     <p><code>USTRUCT()</code>는 구조체(struct)를 리플렉션에 등록합니다. <code>UCLASS</code>와 달리 GC 대상이 아니고, 값 타입(복사·이동)으로 동작합니다. 데이터 묶음(HP·레벨·경험치를 한 덩어리로)을 만들 때 주로 씁니다.</p>
     <table class="tbl">
@@ -592,6 +717,40 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>BlueprintType</code></td><td>BP에서 이 구조체를 <strong>변수 타입</strong>으로 사용 가능</td></tr>
       <tr><td><code>Atomic</code></td><td>직렬화 시 <strong>멤버 단위가 아닌 구조체 전체</strong>를 한 번에 처리</td></tr>
     </table>
+
+    <div class="codeblock" id="cb-spec-ustruct">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active">USTRUCT 지정자 사용 예시</button>
+        <button class="codeblock-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <div class="codeblock-panel active" data-lang="h"><pre class="hljs"><span class="hljs-comment">// BlueprintType — BP 변수 타입으로 사용 가능,</span>
+<span class="hljs-comment">// BP 그래프에 Make/Break 노드가 자동 생성된다</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title class_">FItemData</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+    <span class="hljs-comment">// 구조체 멤버도 UPROPERTY를 붙여야 BP·에디터에 노출된다</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
+    <span class="hljs-title class_">FName</span> ItemID;
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
+    <span class="hljs-type">int32</span> Count = <span class="hljs-number">1</span>;
+};
+
+<span class="hljs-comment">// Atomic — 직렬화할 때 멤버 하나씩이 아니라 구조체 전체를 한 덩어리로 처리</span>
+<span class="hljs-meta">USTRUCT(Atomic, BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title class_">FDamageInfo</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere)</span>
+    <span class="hljs-type">float</span> Amount = <span class="hljs-number">0.0f</span>;
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere)</span>
+    <span class="hljs-type">bool</span> bIsCritical = <span class="hljs-literal">false</span>;
+};</pre></div>
+    </div>
 
     <div class="callout tip"><span class="ic">💡</span><p><strong>USTRUCT의 접두사는 <code>F</code>입니다.</strong> 예: <code>FCharacterStats</code>, <code>FTimerHandle</code>. UCLASS의 접두사(A/U)와 다르니 주의하세요.</p></div>
 
@@ -602,6 +761,25 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>BlueprintType</code></td><td>BP에서 이 열거형을 <strong>변수 타입·스위치 노드</strong>로 사용 가능</td></tr>
     </table>
 
+    <div class="codeblock" id="cb-spec-uenum">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active">UENUM 지정자 사용 예시</button>
+        <button class="codeblock-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <div class="codeblock-panel active" data-lang="h"><pre class="hljs"><span class="hljs-comment">// BlueprintType — BP에서 드롭다운 변수·Switch 노드로 사용 가능</span>
+<span class="hljs-meta">UENUM(BlueprintType)</span>
+<span class="hljs-keyword">enum class</span> <span class="hljs-title class_">EWeaponType</span> : <span class="hljs-type">uint8</span>   <span class="hljs-comment">// enum class + uint8 이 표준 조합</span>
+{
+    Sword,
+    Bow,
+    Staff
+};
+
+<span class="hljs-comment">// 사용 예 — UPROPERTY 변수 타입으로 쓰면 에디터에 드롭다운으로 표시된다</span>
+<span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = <span class="hljs-string">"Weapon"</span>)</span>
+<span class="hljs-title class_">EWeaponType</span> WeaponType = <span class="hljs-title class_">EWeaponType</span>::Sword;</pre></div>
+    </div>
+
     <div class="callout tip"><span class="ic">💡</span><p><strong>UENUM은 <code>enum class</code>(범위 지정 열거형)과 함께 쓰는 것이 표준입니다.</strong> 기본 타입은 <code>uint8</code>로 지정합니다(<code>enum class EState : uint8</code>). 이렇게 하면 BP에서 깔끔하게 사용할 수 있습니다.</p></div>
 
     <h3>UINTERFACE() — 인터페이스를 엔진에 등록</h3>
@@ -611,6 +789,31 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>BlueprintType</code></td><td>BP에서 이 인터페이스 <strong>타입 변수</strong>를 사용 가능</td></tr>
       <tr><td><code>MinimalAPI</code></td><td>모듈 외부에서 <strong>타입만 참조</strong> 가능 (함수 호출은 불가)</td></tr>
     </table>
+
+    <div class="codeblock" id="cb-spec-uinterface">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active">UINTERFACE 지정자 사용 예시</button>
+        <button class="codeblock-copy" onclick="copyCode(this)">Copy</button>
+      </div>
+      <div class="codeblock-panel active" data-lang="h"><pre class="hljs"><span class="hljs-comment">// BlueprintType — BP 변수 타입 허용 / MinimalAPI — 외부 모듈은 타입 참조만</span>
+<span class="hljs-comment">// 지정자는 U 접두사 껍데기 클래스 쪽에 붙인다</span>
+<span class="hljs-meta">UINTERFACE(MinimalAPI, BlueprintType)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UInteractable</span> : <span class="hljs-keyword">public</span> <span class="hljs-title class_">UInterface</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+};
+
+<span class="hljs-comment">// I 접두사 본체 — 실제 함수는 여기에 선언한다</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">IInteractable</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// BlueprintNativeEvent와 조합하면 BP로 만든 클래스도 이 함수를 구현 가능</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = <span class="hljs-string">"Interact"</span>)</span>
+    <span class="hljs-type">void</span> <span class="hljs-title function_">Interact</span>(<span class="hljs-title class_">AActor</span>* Caller);
+};</pre></div>
+    </div>
   </div>
 
   <!-- ============================================================
@@ -916,7 +1119,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>언리얼 리플렉션 매크로 · v1.0</span>
+  <span>언리얼 리플렉션 매크로 · v1.1</span>
   <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.3</span>
 </footer>
 
