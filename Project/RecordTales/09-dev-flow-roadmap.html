@@ -1,0 +1,1449 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RecordTales · 09 개발 플로우 로드맵</title>
+<style>
+/* ============================================================
+   UE Design System — Master Stylesheet
+   (design-guide-ue-master.css)
+   언리얼 에셋 분석 · 아키텍처 설계 문서 공통 토대
+   v1.3  (Dark · Indigo Minimal · Editorial)
+   — inline snapshot for offline single-file delivery
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Pretendard:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg: #0D0F1A;
+  --surface: #13162A;
+  --surface-2: #1A1F38;
+  --border: #252B4A;
+  --accent: #5B6EFA;
+  --accent-2: #9B6DFF;
+  --accent-3: #38D9B4;
+  --text: #E4E8FF;
+  --text-muted: #7B82A6;
+  --text-dim: #4A5080;
+  --amber: #F59E0B;
+  --pink: #E040FB;
+  --red: #F87171;
+
+  --ue-folder: #F59E0B;
+  --ue-bp:     #5B6EFA;
+  --ue-enum:   #9B6DFF;
+  --ue-mat:    #FB8C5A;
+  --ue-tex:    #38D9B4;
+  --ue-demo:   #6BD98E;
+
+  --ue-gamemode:   #5B6EFA;
+  --ue-gamestate:  #7B9CFF;
+  --ue-controller: #38D9B4;
+  --ue-pawn:       #6BD98E;
+  --ue-instance:   #9B6DFF;
+  --ue-savegame:   #F59E0B;
+  --ue-subsystem:  #E040FB;
+
+  --ue-header: #38D9B4;
+  --ue-source: #FB8C5A;
+  --ue-macro:  #FB8C5A;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+  font-size: 15px; line-height: 1.7; -webkit-font-smoothing: antialiased;
+}
+
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(13,15,26,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px; display: flex; align-items: center; gap: 32px; height: 52px;
+}
+.nav-logo { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em; white-space: nowrap; }
+.nav-links { display: flex; gap: 22px; flex-wrap: wrap; }
+.nav-links a { color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 500; transition: color 0.2s; }
+.nav-links a:hover { color: var(--text); }
+.nav-links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+
+.hero { padding: 72px 48px 56px; max-width: 920px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+.hero-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: var(--accent); text-transform: uppercase; margin-bottom: 20px; }
+.hero h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 20px; }
+.hero h1 span { color: var(--accent); }
+.hero-sub { font-size: 16px; color: var(--text-muted); max-width: 660px; line-height: 1.75; }
+.hero-meta { margin-top: 28px; display: flex; gap: 10px; flex-wrap: wrap; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; border: 1px solid; }
+.badge-blue { color: var(--accent); border-color: var(--accent); background: rgba(91,110,250,0.08); }
+.badge-green { color: var(--accent-3); border-color: var(--accent-3); background: rgba(56,217,180,0.08); }
+.badge-purple { color: var(--accent-2); border-color: var(--accent-2); background: rgba(155,109,255,0.08); }
+
+.content { max-width: 920px; margin: 0 auto; padding: 0 48px 80px; }
+.section { padding: 52px 0 0; border-top: 1px solid var(--border); margin-top: 52px; }
+.section:first-child { margin-top: 0; padding-top: 48px; border-top: none; }
+.section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 12px; }
+.section h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 20px; }
+.section h3 { font-size: 15px; font-weight: 700; color: var(--text); margin: 30px 0 10px; letter-spacing: 0.01em; }
+.section p { color: var(--text-muted); margin-bottom: 14px; line-height: 1.8; }
+.section p strong { color: var(--text); font-weight: 600; }
+
+code { font-family: 'IBM Plex Mono', monospace; font-size: 0.86em; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; color: var(--accent-3); }
+
+.swatch-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 22px 0; }
+.swatch { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.swatch .chip { height: 56px; }
+.swatch .meta { padding: 10px 12px; }
+.swatch .vn { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text); font-weight: 600; }
+.swatch .hx { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--text-dim); }
+.swatch .role { font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+
+.type-row { display: flex; align-items: baseline; gap: 18px; padding: 14px 0; border-bottom: 1px solid rgba(37,43,74,0.5); }
+.type-row:last-child { border-bottom: none; }
+.type-spec { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-dim); min-width: 150px; flex-shrink: 0; }
+.ts-h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; }
+.ts-h2 { font-size: 22px; font-weight: 700; }
+.ts-h3 { font-size: 15px; font-weight: 700; }
+.ts-body { font-size: 15px; color: var(--text-muted); }
+.ts-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); }
+.ts-code { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--accent-3); }
+
+.callout { display: flex; gap: 12px; align-items: flex-start; border-radius: 8px; padding: 14px 16px; margin: 18px 0; border: 1px solid var(--border); background: var(--surface-2); font-size: 13.5px; line-height: 1.65; }
+.callout .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.callout p { margin: 0; color: var(--text-muted); }
+.callout p strong { color: var(--text); }
+.callout.info { border-left: 3px solid var(--accent); }
+.callout.tip  { border-left: 3px solid var(--accent-3); }
+.callout.warn { border-left: 3px solid var(--amber); }
+
+.demo { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 16px 0; }
+.demo-head { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 7px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); }
+.demo-body { padding: 22px; }
+
+.snip { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 12px 0 22px; }
+.snip-head { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 8px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+.code-dot { width: 8px; height: 8px; border-radius: 50%; }
+.snip pre { padding: 14px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-muted); line-height: 1.75; overflow-x: auto; white-space: pre; }
+.snip pre .tag { color: var(--accent); }
+.snip pre .atr { color: var(--ue-mat); }
+.snip pre .val { color: var(--accent-3); }
+.snip pre .cm  { color: var(--text-dim); }
+
+.codeblock { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 16px 0 24px; }
+.codeblock-bar { display: flex; align-items: stretch; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.codeblock-tab {
+  padding: 9px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600;
+  color: var(--text-dim); background: transparent; border: none; border-right: 1px solid var(--border);
+  cursor: pointer; transition: color 0.15s, background 0.15s; box-shadow: inset 0 -2px 0 transparent;
+}
+.codeblock-tab:hover { color: var(--text-muted); }
+.codeblock-tab.active { color: var(--text); background: var(--surface); }
+.codeblock-tab.tab-h.active   { box-shadow: inset 0 -2px 0 var(--ue-header); }
+.codeblock-tab.tab-cpp.active { box-shadow: inset 0 -2px 0 var(--ue-source); }
+.codeblock-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.codeblock-copy {
+  margin-left: auto; align-self: center; margin-right: 8px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600;
+  color: var(--text-muted); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 5px; padding: 4px 10px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+}
+.codeblock-copy:hover { color: var(--text); border-color: var(--accent); }
+.codeblock-copy.copied { color: var(--accent-3); border-color: var(--accent-3); }
+.codeblock-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.codeblock-panel { display: none; }
+.codeblock-panel.active { display: block; }
+.codeblock pre { padding: 16px 18px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.75; overflow-x: auto; white-space: pre; }
+
+.hljs { color: var(--text-muted); background: var(--surface); }
+.hljs-comment, .hljs-quote { color: var(--text-dim); font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-section { color: var(--accent); font-weight: 500; }
+.hljs-literal, .hljs-symbol, .hljs-bullet { color: var(--accent-2); }
+.hljs-number { color: var(--accent-2); }
+.hljs-string, .hljs-attr, .hljs-attribute, .hljs-name { color: var(--ue-demo); }
+.hljs-type, .hljs-class .hljs-title, .hljs-title.class_, .hljs-built_in { color: var(--accent-3); }
+.hljs-title, .hljs-title.function_, .hljs-function .hljs-title { color: var(--text); }
+.hljs-params { color: var(--text-muted); }
+.hljs-meta, .hljs-meta .hljs-keyword { color: var(--ue-macro); font-weight: 600; }
+.hljs-meta .hljs-string { color: var(--ue-demo); }
+.hljs-property, .hljs-variable { color: var(--text); }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 700; }
+
+.filetag { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 3px; }
+.filetag.h   { background: rgba(56,217,180,0.14); color: var(--ue-header); }
+.filetag.cpp { background: rgba(251,140,90,0.14);  color: var(--ue-source); }
+
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 4px; }
+.stat-label { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+.a-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; border-top: 2px solid var(--ue-bp); }
+.a-card .ic { font-size: 22px; margin-bottom: 10px; }
+.a-card .a-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.a-card .a-id { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--accent); margin-bottom: 8px; }
+.a-card .a-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+.tt { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 3px; }
+.tt-bool { background: rgba(91,110,250,0.14); color: var(--accent); }
+.tt-enum { background: rgba(251,140,90,0.14); color: var(--ue-mat); }
+.tt-del  { background: rgba(224,64,251,0.12); color: var(--pink); }
+
+.pills { display: flex; flex-wrap: wrap; gap: 7px; }
+.pill { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; padding: 3px 12px; border-radius: 20px; border: 1px solid; }
+.pill.blue { color: var(--accent); border-color: rgba(91,110,250,0.4); background: rgba(91,110,250,0.08); }
+.pill.purple { color: var(--accent-2); border-color: rgba(155,109,255,0.4); background: rgba(155,109,255,0.08); }
+.pill.green { color: var(--accent-3); border-color: rgba(56,217,180,0.4); background: rgba(56,217,180,0.08); }
+.pill.pink { color: var(--pink); border-color: rgba(224,64,251,0.4); background: rgba(224,64,251,0.08); }
+.pill.red { color: var(--red); border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.08); }
+
+.arch { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: stretch; }
+.arch-layer { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 16px 14px; }
+.arch-arrow { display: flex; align-items: center; justify-content: center; padding: 0 8px; color: var(--text-dim); font-size: 16px; }
+.arch-tag { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 7px; color: var(--accent); }
+.arch-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.arch-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+.tbl { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 13px; }
+.tbl th { background: var(--surface-2); color: var(--text-muted); font-weight: 600; font-size: 12px; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+.tbl td { padding: 10px 14px; color: var(--text-muted); border-bottom: 1px solid rgba(37,43,74,0.5); vertical-align: top; line-height: 1.55; }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl td:first-child { color: var(--text); }
+.tbl td code, .tbl th code { background: transparent; border: none; padding: 0; color: var(--accent); }
+.tbl .cat-header td { background: var(--surface-2); color: var(--accent); font-weight: 600; font-size: 12px; letter-spacing: 0.04em; border-bottom: 1px solid var(--border); }
+
+.tree { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.9; color: var(--text-dim); white-space: pre; overflow-x: auto; }
+.tree .folder { color: var(--ue-folder); font-weight: 600; }
+.tree .bp { color: var(--ue-bp); } .tree .enum { color: var(--ue-enum); }
+.tree .mat { color: var(--ue-mat); } .tree .tex { color: var(--ue-tex); }
+.tree .note { color: var(--text-muted); }
+.tree .c-gamemode { color: var(--ue-gamemode); font-weight: 600; }
+.tree .c-gamestate { color: var(--ue-gamestate); font-weight: 600; }
+.tree .c-controller { color: var(--ue-controller); font-weight: 600; }
+.tree .c-pawn { color: var(--ue-pawn); font-weight: 600; }
+.tree .c-instance { color: var(--ue-instance); font-weight: 600; }
+.tree .c-savegame { color: var(--ue-savegame); font-weight: 600; }
+.tree .c-subsystem { color: var(--ue-subsystem); font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); }
+.legend .dot { width: 9px; height: 9px; border-radius: 2px; }
+
+.rel-map { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
+.rel-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+.rel-node {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 14px; border-left: 3px solid var(--text-dim);
+}
+.rel-node .rn-name { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.rel-node .rn-role { font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.4; }
+.rel-node.n-gamemode   { border-left-color: var(--ue-gamemode); }
+.rel-node.n-gamestate  { border-left-color: var(--ue-gamestate); }
+.rel-node.n-controller { border-left-color: var(--ue-controller); }
+.rel-node.n-pawn       { border-left-color: var(--ue-pawn); }
+.rel-node.n-instance   { border-left-color: var(--ue-instance); }
+.rel-node.n-savegame   { border-left-color: var(--ue-savegame); }
+.rel-node.n-subsystem  { border-left-color: var(--ue-subsystem); }
+.rel-arrow { display: flex; flex-direction: column; align-items: center; color: var(--text-dim); min-width: 84px; }
+.rel-arrow .ra-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--accent); letter-spacing: 0.04em; white-space: nowrap; }
+.rel-arrow .ra-line { font-size: 15px; line-height: 1; }
+
+.tbl .owner { display: inline-flex; align-items: center; gap: 7px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.tbl .owner::before { content: ''; width: 9px; height: 9px; border-radius: 2px; background: var(--text-dim); flex-shrink: 0; }
+.tbl .owner.o-gamemode::before   { background: var(--ue-gamemode); }
+.tbl .owner.o-gamestate::before  { background: var(--ue-gamestate); }
+.tbl .owner.o-controller::before { background: var(--ue-controller); }
+.tbl .owner.o-pawn::before       { background: var(--ue-pawn); }
+.tbl .owner.o-instance::before   { background: var(--ue-instance); }
+.tbl .owner.o-savegame::before   { background: var(--ue-savegame); }
+.tbl .owner.o-subsystem::before  { background: var(--ue-subsystem); }
+
+.pipe-step { display: grid; grid-template-columns: 36px 1fr; gap: 0 16px; position: relative; }
+.pipe-step::before { content: ''; position: absolute; left: 17px; top: 36px; bottom: -1px; width: 2px; background: var(--border); }
+.pipe-step:last-child::before { display: none; }
+.pipe-num { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--surface-2); }
+.pipe-body { padding: 6px 0 22px; }
+.pipe-title { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+.pipe-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+.pitfall { display: flex; gap: 14px; align-items: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; border-left: 3px solid var(--amber); margin: 12px 0; }
+.pitfall.tip { border-left-color: var(--accent-3); }
+.pitfall .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.pitfall-text { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
+.pitfall-text strong { color: var(--text); }
+
+.dd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 22px 0; }
+.dd { border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; background: var(--surface-2); }
+.dd.do { border-left: 3px solid var(--accent-3); }
+.dd.dont { border-left: 3px solid var(--red); }
+.dd h4 { font-size: 13px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.dd.do h4 { color: var(--accent-3); }
+.dd.dont h4 { color: var(--red); }
+.dd ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.dd li { font-size: 12.5px; color: var(--text-muted); line-height: 1.55; padding-left: 16px; position: relative; }
+.dd li::before { content: ''; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; border-radius: 50%; }
+.dd.do li::before { background: var(--accent-3); }
+.dd.dont li::before { background: var(--red); }
+
+footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920px; margin: 0 auto; font-size: 12px; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+.stat-row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.stat-row-4 .stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+
+.compare-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
+.compare-box h4 { font-size: 14px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.compare-box p { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 10px; }
+.compare-box .pills { margin-top: 10px; }
+
+@media (max-width: 720px) {
+  .content { padding: 0 20px 60px; }
+  .hero { padding: 48px 20px 40px; }
+  .swatch-grid { grid-template-columns: 1fr 1fr; }
+  .stat-row, .stat-row-4, .dd-grid, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .arch { grid-template-columns: 1fr; }
+  .arch-arrow { transform: rotate(90deg); padding: 4px 0; }
+  .rel-row { grid-template-columns: 1fr; text-align: left; }
+  .rel-arrow { flex-direction: row; gap: 8px; min-width: 0; padding: 2px 0; }
+  .rel-arrow .ra-line { transform: rotate(90deg); }
+  .type-row { flex-direction: column; gap: 6px; }
+  .type-spec { min-width: 0; }
+  nav { padding: 0 16px; gap: 16px; }
+  .nav-links { display: none; }
+  footer { padding: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+<!-- ============================================================
+     CHANGELOG — 09-dev-flow-roadmap.html
+     RecordTales 개발 플로우 로드맵. 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.0 · 2026-07-05
+       - 신규 생성. 03 개발 플로우 로드맵 템플릿 기반.
+       - 4블록 17섹션: 기반 지식(1~6) → 설계 이해(7~8) → 구현 Phase 1~6(9~14) → 마무리(15~17)
+       - 마스터 CSS v1.3 inline 스냅샷
+     ============================================================ -->
+</head>
+<body>
+
+<!-- ====== NAV ====== -->
+<nav>
+  <div class="nav-logo">RECORDTALES &middot; DEV FLOW ROADMAP</div>
+  <div class="nav-links">
+    <a href="#prereq">전제조건</a>
+    <a href="#convention">컨벤션</a>
+    <a href="#depmap">의존성</a>
+    <a href="#roadmap">로드맵</a>
+    <a href="#phase1">P1</a><a href="#phase2">P2</a><a href="#phase3">P3</a>
+    <a href="#phase4">P4</a><a href="#phase5">P5</a><a href="#phase6">P6</a>
+    <a href="#milestone">마일스톤</a>
+  </div>
+</nav>
+
+<!-- ====== HERO ====== -->
+<div class="hero">
+  <div class="hero-eyebrow">RecordTales &middot; v1.0 &middot; Development Flow Roadmap</div>
+  <h1>RecordTales<br><span>개발 플로우 로드맵</span></h1>
+  <p class="hero-sub">
+    포모도로 기반 집중 관리 + 길드 게임화 시스템을 언리얼 엔진으로 구현하는 전체 개발 과정. 어떤 시스템을 먼저 만들고, 각 단계에서 무엇을 구현&middot;검증하는지를 한 문서에 정리합니다. 9개 설계 문서(00~08)의 구현 순서 내비게이션입니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">6 Phases</span>
+    <span class="badge badge-green">7 Subsystems</span>
+    <span class="badge badge-purple">17 Sections</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- ================================================================
+       BLOCK 1: 기반 지식 (Sections 1-6)
+       ================================================================ -->
+
+  <!-- ====== Section 1: 개발 전제 조건 ====== -->
+  <div class="section" id="prereq">
+    <div class="section-label">01 &mdash; 개발 전제 조건</div>
+    <h2>UE 프로젝트 생성부터 첫 빌드까지</h2>
+    <p>RecordTales 개발을 시작하기 위한 <strong>환경 구축 절차</strong>입니다. 아래 단계를 순서대로 진행하면 빈 C++ 프로젝트가 컴파일되고, 이후 Phase 1부터 코드를 작성할 수 있습니다.</p>
+
+    <div class="callout info"><span class="ic">&#x1F9ED;</span><p><strong>전제</strong> &mdash; 이 문서는 설계 문서 00~08이 이미 완성된 상태를 전제합니다. 각 설계 문서가 정의한 데이터 구조&middot;서브시스템 책임&middot;UI 레이아웃을 그대로 구현합니다.</p></div>
+
+    <h3>프로젝트 생성 절차</h3>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">Epic Games Launcher 실행</div><div class="pipe-desc">Unreal Engine 탭에서 사용할 엔진 버전(5.4 이상 권장)의 <strong>Launch</strong> 버튼을 클릭합니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">템플릿 선택: Blank &mdash; C++</div><div class="pipe-desc"><strong>Games</strong> 카테고리 &rarr; <strong>Blank</strong> 템플릿 &rarr; 하단의 <strong>C++</strong> 라디오 버튼을 선택합니다. Blueprint가 아닌 C++을 선택해야 Visual Studio 솔루션이 자동 생성됩니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">프로젝트 설정</div><div class="pipe-desc"><strong>Project Name</strong>: <code>RecordTales</code><br><strong>Location</strong>: 원하는 작업 경로 (예: <code>D:/Projects/</code>)<br><strong>Target Platform</strong>: Desktop (Windows)<br><strong>Quality Preset</strong>: Maximum (개발 중 최적화는 Phase 6에서)</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">IDE 설정 확인</div><div class="pipe-desc"><strong>Edit &rarr; Editor Preferences &rarr; Source Code &rarr; Source Code Editor</strong>에서 <strong>Visual Studio 2022</strong> 또는 <strong>Rider</strong>를 선택합니다. IDE가 정상 연동되면 <code>File &rarr; Open Visual Studio</code>로 솔루션이 열립니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">5</div><div class="pipe-body"><div class="pipe-title">필수 플러그인 확인</div><div class="pipe-desc">RecordTales는 <strong>순수 C++ + UMG</strong>로 구현합니다. 추가 플러그인은 필요 없습니다. <strong>Edit &rarr; Plugins</strong>에서 불필요한 플러그인(VR, AR, Niagara Extras 등)을 비활성화하면 컴파일 시간이 줄어듭니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">6</div><div class="pipe-body"><div class="pipe-title">.uproject 파일 확인</div><div class="pipe-desc"><code>RecordTales.uproject</code>를 텍스트 에디터로 열어 <code>"Modules"</code> 배열에 <code>"RecordTales"</code> 모듈이 등록되어 있는지 확인합니다. <code>"Type": "Runtime"</code>, <code>"LoadingPhase": "Default"</code>가 기본값입니다.</div></div></div>
+
+    <div class="pitfall"><span class="ic">&#x26A0;&#xFE0F;</span><div class="pitfall-text"><strong>Hot Reload vs Live Coding</strong> &mdash; UE5의 <strong>Live Coding</strong>(Ctrl+Alt+F11)은 편리하지만, 헤더 변경이나 UPROPERTY 추가 시 에디터가 불안정해질 수 있습니다. <strong>권장 워크플로우</strong>: 에디터를 닫고 &rarr; IDE에서 빌드(Ctrl+B) &rarr; 에디터 재실행. 특히 UCLASS/USTRUCT 구조를 변경할 때는 반드시 이 방식을 사용하세요.</div></div>
+  </div>
+
+  <!-- ====== Section 2: 개발 컨벤션 & 폴더 구조 ====== -->
+  <div class="section" id="convention">
+    <div class="section-label">02 &mdash; 개발 컨벤션 &amp; 폴더 구조</div>
+    <h2>코드와 에셋의 정리 규칙</h2>
+    <p>프로젝트 전체에서 일관된 네이밍과 폴더 구조를 유지하면, 파일을 찾는 시간이 줄고 팀원 간 혼선이 없어집니다. <strong>Phase 1에서 이 구조를 먼저 만든 뒤</strong> 코드를 작성합니다.</p>
+
+    <h3>C++ Source 폴더 구조</h3>
+    <div class="tree"><span class="folder">Source/RecordTales/</span>
+&#x251C;&#x2500;&#x2500; <span class="folder">Core/</span>               <span class="note">&larr; GameInstance, SaveGame, Settings</span>
+&#x251C;&#x2500;&#x2500; <span class="folder">Focus/</span>              <span class="note">&larr; UFocusSubsystem, FocusTypes.h</span>
+&#x251C;&#x2500;&#x2500; <span class="folder">Quests/</span>             <span class="note">&larr; UQuestSubsystem, QuestTypes.h</span>
+&#x251C;&#x2500;&#x2500; <span class="folder">Archive/</span>            <span class="note">&larr; URecordSubsystem</span>
+&#x251C;&#x2500;&#x2500; <span class="folder">Guild/</span>              <span class="note">&larr; UGuildSubsystem, GuildTypes.h</span>
+&#x251C;&#x2500;&#x2500; <span class="folder">Economy/</span>            <span class="note">&larr; UEconomySubsystem, EconomyTypes.h</span>
+&#x251C;&#x2500;&#x2500; <span class="folder">Audio/</span>              <span class="note">&larr; UAudioSubsystem</span>
+&#x251C;&#x2500;&#x2500; <span class="folder">UI/</span>                 <span class="note">&larr; UUIManagerSubsystem, Widget classes</span>
+&#x2514;&#x2500;&#x2500; <span class="folder">Data/</span>               <span class="note">&larr; RecordTalesDataTypes.h (shared USTRUCT/UENUM)</span></div>
+
+    <h3>Content 폴더 구조</h3>
+    <div class="tree"><span class="folder">Content/RecordTales/</span>
+&#x251C;&#x2500;&#x2500; <span class="folder">DataTables/</span>         <span class="note">&larr; DT_GuildLevels, DT_MusicTracks, DT_Backgrounds, etc.</span>
+&#x251C;&#x2500;&#x2500; <span class="folder">Audio/</span>
+&#x2502;   &#x251C;&#x2500;&#x2500; <span class="folder">Ambient/</span>        <span class="note">&larr; Rain, Wind, Fire, Forest, Ocean .wav</span>
+&#x2502;   &#x2514;&#x2500;&#x2500; <span class="folder">Music/</span>          <span class="note">&larr; 6 BGM tracks .wav</span>
+&#x251C;&#x2500;&#x2500; <span class="folder">Textures/</span>
+&#x2502;   &#x251C;&#x2500;&#x2500; <span class="folder">Backgrounds/</span>    <span class="note">&larr; 9 background images</span>
+&#x2502;   &#x251C;&#x2500;&#x2500; <span class="folder">Characters/</span>     <span class="note">&larr; 12 character illustrations</span>
+&#x2502;   &#x2514;&#x2500;&#x2500; <span class="folder">Icons/</span>          <span class="note">&larr; UI icons (~20)</span>
+&#x251C;&#x2500;&#x2500; <span class="folder">UI/</span>
+&#x2502;   &#x251C;&#x2500;&#x2500; <span class="folder">Panels/</span>         <span class="note">&larr; WBP_FocusPanel, WBP_QuestPanel, etc.</span>
+&#x2502;   &#x251C;&#x2500;&#x2500; <span class="folder">Modals/</span>         <span class="note">&larr; WBP_GuildModal, WBP_GachaModal</span>
+&#x2502;   &#x2514;&#x2500;&#x2500; <span class="folder">Components/</span>     <span class="note">&larr; WBP_Calendar, WBP_Toast</span>
+&#x2514;&#x2500;&#x2500; <span class="folder">Blueprints/</span>         <span class="note">&larr; (optional) BP amplifications</span></div>
+
+    <h3>네이밍 규칙</h3>
+    <table class="tbl">
+      <tr><th>대상</th><th>접두사/규칙</th><th>예시</th></tr>
+      <tr><td>C++ 클래스</td><td><code>U</code> (UObject) / <code>A</code> (AActor)</td><td><code>URecordTalesGameInstance</code></td></tr>
+      <tr><td>USTRUCT</td><td><code>F</code> 접두사</td><td><code>FFocusRecord</code>, <code>FQuestData</code></td></tr>
+      <tr><td>UENUM</td><td><code>E</code> 접두사</td><td><code>EFocusState</code>, <code>EQuestState</code></td></tr>
+      <tr><td>DataTable</td><td><code>DT_</code> 접두사</td><td><code>DT_GuildLevels</code></td></tr>
+      <tr><td>Widget BP</td><td><code>WBP_</code> 접두사</td><td><code>WBP_FocusPanel</code></td></tr>
+      <tr><td>에셋 파일</td><td>유형별 접두사 (<code>T_</code>, <code>M_</code>, <code>S_</code>)</td><td><code>T_bg_default</code>, <code>S_rain_loop</code></td></tr>
+    </table>
+  </div>
+
+  <!-- ====== Section 3: UE 빌드 시스템 기초 ====== -->
+  <div class="section" id="build">
+    <div class="section-label">03 &mdash; UE 빌드 시스템 기초</div>
+    <h2>Build.cs &mdash; 모듈 의존성의 핵심</h2>
+    <p>언리얼 빌드 시스템(UBT)은 <code>.Build.cs</code> 파일로 모듈 간 의존성을 관리합니다. RecordTales가 사용하는 모듈을 여기에 등록해야 <code>#include</code>가 정상 작동합니다.</p>
+
+    <h3>RecordTales.Build.cs</h3>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" data-panel="build-cs">Build.cs</button>
+        <button class="codeblock-copy">Copy</button>
+      </div>
+      <div class="codeblock-panel active" id="build-cs">
+<pre class="hljs"><span class="hljs-comment">// RecordTales.Build.cs</span>
+<span class="hljs-keyword">using</span> UnrealBuildTool;
+
+<span class="hljs-keyword">public class</span> <span class="hljs-type">RecordTales</span> : <span class="hljs-type">ModuleRules</span>
+{
+    <span class="hljs-keyword">public</span> <span class="hljs-title">RecordTales</span>(<span class="hljs-type">ReadOnlyTargetRules</span> Target) : <span class="hljs-keyword">base</span>(Target)
+    {
+        PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+
+        PublicDependencyModuleNames.AddRange(<span class="hljs-keyword">new</span> <span class="hljs-keyword">string</span>[]
+        {
+            <span class="hljs-string">"Core"</span>,
+            <span class="hljs-string">"CoreUObject"</span>,
+            <span class="hljs-string">"Engine"</span>,
+            <span class="hljs-string">"UMG"</span>,
+            <span class="hljs-string">"Slate"</span>,
+            <span class="hljs-string">"SlateCore"</span>,
+            <span class="hljs-string">"InputCore"</span>
+        });
+
+        PrivateDependencyModuleNames.AddRange(<span class="hljs-keyword">new</span> <span class="hljs-keyword">string</span>[] { });
+
+        PublicIncludePaths.AddRange(<span class="hljs-keyword">new</span> <span class="hljs-keyword">string</span>[]
+        {
+            <span class="hljs-string">"RecordTales/Core"</span>,
+            <span class="hljs-string">"RecordTales/Data"</span>,
+            <span class="hljs-string">"RecordTales/Focus"</span>,
+            <span class="hljs-string">"RecordTales/Quests"</span>,
+            <span class="hljs-string">"RecordTales/Archive"</span>,
+            <span class="hljs-string">"RecordTales/Guild"</span>,
+            <span class="hljs-string">"RecordTales/Economy"</span>,
+            <span class="hljs-string">"RecordTales/Audio"</span>,
+            <span class="hljs-string">"RecordTales/UI"</span>
+        });
+    }
+}</pre>
+      </div>
+    </div>
+
+    <div class="pitfall"><span class="ic">&#x26A0;&#xFE0F;</span><div class="pitfall-text"><strong>모듈 의존성 빠뜨리면 include해도 링커 에러</strong> &mdash; 예를 들어 <code>UMG</code> 모듈을 Build.cs에 추가하지 않고 <code>#include "Blueprint/UserWidget.h"</code>를 쓰면 <code>LNK2019: unresolved external symbol</code> 에러가 발생합니다. 컴파일 에러가 아닌 <strong>링커 에러</strong>라서 원인을 찾기 어렵습니다.</div></div>
+    <div class="pitfall"><span class="ic">&#x26A0;&#xFE0F;</span><div class="pitfall-text"><strong>GENERATED_BODY() 매크로 빠뜨리면 컴파일 실패</strong> &mdash; <code>UCLASS()</code>, <code>USTRUCT()</code>, <code>UENUM()</code>을 선언한 클래스/구조체 본문의 첫 줄에 반드시 <code>GENERATED_BODY()</code>를 넣어야 합니다. 누락 시 UHT(Unreal Header Tool)가 에러를 발생시킵니다.</div></div>
+    <div class="callout info"><span class="ic">&#x1F9ED;</span><p><strong>Build.cs에 모듈 추가 후 프로젝트를 Regenerate해야 IntelliSense가 갱신됩니다.</strong> Visual Studio: <code>RecordTales.uproject</code> 우클릭 &rarr; <strong>Generate Visual Studio project files</strong>. Rider: 자동 갱신되지만, 안 되면 <strong>File &rarr; Invalidate Caches</strong>.</p></div>
+  </div>
+
+  <!-- ====== Section 4: Git 워크플로우 ====== -->
+  <div class="section" id="git">
+    <div class="section-label">04 &mdash; Git 워크플로우</div>
+    <h2>버전 관리 전략</h2>
+    <p>UE 프로젝트를 Git으로 관리할 때는 <strong>바이너리 에셋 처리</strong>와 <strong>무시 목록</strong>이 핵심입니다. 아래 규칙을 프로젝트 시작 시 설정합니다.</p>
+
+    <h3>.gitignore 필수 항목</h3>
+    <div class="snip">
+      <div class="snip-head"><div class="code-dot" style="background:var(--accent-3)"></div> .gitignore</div>
+<pre>Binaries/
+Intermediate/
+Saved/
+DerivedDataCache/
+.vs/
+*.sln
+*.suo
+*.xcworkspace
+*.xcodeproj</pre>
+    </div>
+
+    <h3>브랜치 전략</h3>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">main</div><div class="pipe-desc"><strong>안정 빌드</strong>만 머지합니다. 각 Phase 마일스톤 통과 후 develop &rarr; main으로 머지합니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">develop</div><div class="pipe-desc"><strong>통합 개발 브랜치</strong>. 모든 feature 브랜치가 이곳으로 머지됩니다. 빌드가 깨지지 않는 상태를 유지합니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">feature/&lt;phase&gt;-&lt;system&gt;</div><div class="pipe-desc">페이즈별 피처 브랜치. 예: <code>feature/p1-core</code>, <code>feature/p2-focus</code>, <code>feature/p3-guild</code>. 완료 후 develop으로 머지합니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">hotfix/&lt;issue&gt;</div><div class="pipe-desc">긴급 수정 브랜치. main에서 분기하여 수정 후 main과 develop 양쪽에 머지합니다.</div></div></div>
+
+    <div class="callout warn"><span class="ic">&#x26A0;&#xFE0F;</span><p><strong>UE 바이너리 에셋(.uasset, .umap)은 머지가 어려움</strong> &mdash; 텍스트 기반 파일과 달리, 바이너리 에셋은 3-way 머지가 불가능합니다. 같은 에셋을 동시 수정하지 않도록 주의하세요. <strong>Git LFS</strong>(Large File Storage)를 활성화하여 바이너리 파일을 효율적으로 관리하는 것을 권장합니다.</p></div>
+  </div>
+
+  <!-- ====== Section 5: 디버깅 & 로깅 전략 ====== -->
+  <div class="section" id="debug">
+    <div class="section-label">05 &mdash; 디버깅 &amp; 로깅 전략</div>
+    <h2>문제를 빠르게 찾는 방법</h2>
+    <p>개발 중 버그를 추적하는 핵심 도구는 <strong>UE_LOG</strong>와 <strong>IDE 브레이크포인트</strong>입니다. 서브시스템별로 로그 카테고리를 분리하면 Output Log에서 필터링이 쉬워집니다.</p>
+
+    <h3>UE_LOG 설정</h3>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" data-panel="log-h">RecordTalesLog.h</button>
+        <button class="codeblock-tab tab-cpp" data-panel="log-cpp">RecordTalesLog.cpp</button>
+        <button class="codeblock-copy">Copy</button>
+      </div>
+      <div class="codeblock-panel active" id="log-h">
+<pre class="hljs"><span class="hljs-comment">// RecordTalesLog.h</span>
+<span class="hljs-meta">#pragma once</span>
+
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+
+<span class="hljs-comment">// 전역 로그 카테고리</span>
+<span class="hljs-meta">DECLARE_LOG_CATEGORY_EXTERN</span>(LogRecordTales, Log, All);
+
+<span class="hljs-comment">// 서브시스템별 로그 카테고리 (선택사항, 필터링 편의)</span>
+<span class="hljs-meta">DECLARE_LOG_CATEGORY_EXTERN</span>(LogFocus,  Log, All);
+<span class="hljs-meta">DECLARE_LOG_CATEGORY_EXTERN</span>(LogQuest,  Log, All);
+<span class="hljs-meta">DECLARE_LOG_CATEGORY_EXTERN</span>(LogEconomy, Log, All);
+<span class="hljs-meta">DECLARE_LOG_CATEGORY_EXTERN</span>(LogGuild,  Log, All);
+<span class="hljs-meta">DECLARE_LOG_CATEGORY_EXTERN</span>(LogAudioRT, Log, All);</pre>
+      </div>
+      <div class="codeblock-panel" id="log-cpp">
+<pre class="hljs"><span class="hljs-comment">// RecordTalesLog.cpp</span>
+<span class="hljs-meta">#include <span class="hljs-string">"RecordTalesLog.h"</span></span>
+
+<span class="hljs-meta">DEFINE_LOG_CATEGORY</span>(LogRecordTales);
+<span class="hljs-meta">DEFINE_LOG_CATEGORY</span>(LogFocus);
+<span class="hljs-meta">DEFINE_LOG_CATEGORY</span>(LogQuest);
+<span class="hljs-meta">DEFINE_LOG_CATEGORY</span>(LogEconomy);
+<span class="hljs-meta">DEFINE_LOG_CATEGORY</span>(LogGuild);
+<span class="hljs-meta">DEFINE_LOG_CATEGORY</span>(LogAudioRT);
+
+<span class="hljs-comment">// 사용 예시:</span>
+<span class="hljs-comment">// UE_LOG(LogRecordTales, Display, TEXT("Focus session started: Duration=%f"), Duration);</span>
+<span class="hljs-comment">// UE_LOG(LogQuest, Warning, TEXT("Quest rollover failed: %s"), *ErrorMsg);</span>
+<span class="hljs-comment">// UE_LOG(LogEconomy, Error, TEXT("SaveGame slot not found: %s"), *SlotName);</span></pre>
+      </div>
+    </div>
+
+    <h3>로그 레벨</h3>
+    <table class="tbl">
+      <tr><th>레벨</th><th>매크로 사용</th><th>용도</th><th>Shipping 빌드</th></tr>
+      <tr><td><code>Verbose</code></td><td><code>UE_LOG(..., Verbose, ...)</code></td><td>아주 상세한 디버그 정보 (프레임마다 찍는 값 등)</td><td>출력 안 됨</td></tr>
+      <tr><td><code>Log</code></td><td><code>UE_LOG(..., Log, ...)</code></td><td>일반적인 정보성 로그</td><td>출력 안 됨</td></tr>
+      <tr><td><code>Display</code></td><td><code>UE_LOG(..., Display, ...)</code></td><td>PIE 화면에도 표시되는 중요 정보</td><td>출력 안 됨</td></tr>
+      <tr><td><code>Warning</code></td><td><code>UE_LOG(..., Warning, ...)</code></td><td>잠재적 문제 (노란색 표시)</td><td>출력됨</td></tr>
+      <tr><td><code>Error</code></td><td><code>UE_LOG(..., Error, ...)</code></td><td>명확한 오류 (빨간색 표시)</td><td>출력됨</td></tr>
+    </table>
+
+    <h3>브레이크포인트 사용법 (Visual Studio)</h3>
+    <p><strong>F9</strong>로 코드 줄에 중단점을 설정합니다. <strong>F5</strong>로 디버그 모드 실행(에디터가 디버거에 연결된 상태로 뜹니다). 중단점에 걸리면 변수 위에 마우스를 올려 현재 값을 확인하고, <strong>F10</strong>(Step Over)이나 <strong>F11</strong>(Step Into)으로 한 줄씩 실행합니다.</p>
+
+    <h3>PIE vs Standalone 차이</h3>
+    <p><strong>PIE(Play In Editor)</strong>는 에디터 프로세스 안에서 게임을 실행합니다. 에디터의 GC(가비지 컬렉션)와 공유하기 때문에, 간혹 에디터 전용 오브젝트가 섞여 들어올 수 있습니다. <strong>Standalone</strong>(독립 프로세스)은 별도 창에서 게임을 실행하므로, 최종 빌드와 더 가까운 환경에서 테스트할 수 있습니다. 저장/불러오기, 초기화 순서 등을 검증할 때는 Standalone을 사용하세요.</p>
+
+    <p><strong>Output Log 열기</strong>: <code>Window &rarr; Developer Tools &rarr; Output Log</code>. 필터에 카테고리명(예: <code>LogFocus</code>)을 입력하면 해당 로그만 표시됩니다.</p>
+
+    <div class="callout tip"><span class="ic">&#x1F4A1;</span><p><strong>서브시스템별로 로그 카테고리를 나누면 필터링이 쉽습니다.</strong> <code>LogFocus</code>, <code>LogQuest</code>, <code>LogEconomy</code> 등으로 분리하면 Output Log에서 원하는 서브시스템의 로그만 골라 볼 수 있습니다.</p></div>
+  </div>
+
+  <!-- ====== Section 6: 자주 발생하는 실수 & 트러블슈팅 ====== -->
+  <div class="section" id="trouble">
+    <div class="section-label">06 &mdash; 자주 발생하는 실수 &amp; 트러블슈팅</div>
+    <h2>개발 중 반드시 만나는 문제들</h2>
+    <p>아래는 UE C++ 개발에서 <strong>거의 모든 개발자가 한 번은 겪는</strong> 실수들입니다. 미리 알아두면 디버깅 시간을 크게 절약할 수 있습니다.</p>
+
+    <div class="pitfall"><span class="ic">&#x26A0;&#xFE0F;</span><div class="pitfall-text"><strong>GENERATED_BODY() 누락</strong> &mdash; <code>UCLASS()</code>, <code>USTRUCT()</code>를 선언한 클래스/구조체의 본문 첫 줄에 반드시 <code>GENERATED_BODY()</code>를 넣어야 합니다. 빠뜨리면 UHT가 <em>"Expected GENERATED_BODY()"</em> 에러를 발생시킵니다.</div></div>
+
+    <div class="pitfall"><span class="ic">&#x26A0;&#xFE0F;</span><div class="pitfall-text"><strong>순환 include</strong> &mdash; A.h가 B.h를 include하고, B.h가 다시 A.h를 include하면 컴파일이 무한 루프에 빠집니다. <strong>해결</strong>: 헤더에서는 <strong>전방 선언</strong>(<code>class UFocusSubsystem;</code>)만 쓰고, 실제 <code>#include</code>는 <strong>.cpp 파일에서</strong> 합니다.</div></div>
+
+    <div class="pitfall"><span class="ic">&#x26A0;&#xFE0F;</span><div class="pitfall-text"><strong>Hot Reload 꼬임</strong> &mdash; Live Coding 후 에디터가 이상하게 동작할 때(프로퍼티가 안 보이거나, 크래시). <strong>해결</strong>: 에디터를 닫고 &rarr; IDE에서 빌드(Ctrl+B) &rarr; 에디터 재실행이 가장 안전합니다.</div></div>
+
+    <div class="pitfall"><span class="ic">&#x26A0;&#xFE0F;</span><div class="pitfall-text"><strong>리플렉션 매크로 오타</strong> &mdash; <code>UPROPERTY(EditAnywehre)</code>처럼 지정자에 오타가 있으면 <strong>컴파일은 되지만</strong> 에디터에서 해당 프로퍼티가 안 보입니다. 에러 메시지가 없어서 원인을 찾기 어렵습니다.</div></div>
+
+    <div class="pitfall"><span class="ic">&#x26A0;&#xFE0F;</span><div class="pitfall-text"><strong>Build.cs 모듈 미등록</strong> &mdash; 다른 모듈의 클래스를 <code>#include</code>했는데 <code>LNK2019</code>(unresolved external symbol) 에러가 나면, Build.cs의 <code>PublicDependencyModuleNames</code>에 해당 모듈을 추가했는지 확인하세요.</div></div>
+
+    <div class="pitfall"><span class="ic">&#x26A0;&#xFE0F;</span><div class="pitfall-text"><strong>SaveGame 직렬화 실패</strong> &mdash; <code>UPROPERTY()</code> 매크로가 없는 필드는 <code>SaveGameToSlot</code>/<code>LoadGameFromSlot</code>에서 <strong>저장되지 않습니다</strong>. 영속 데이터는 반드시 <code>UPROPERTY()</code>를 붙여야 합니다.</div></div>
+
+    <div class="pitfall"><span class="ic">&#x26A0;&#xFE0F;</span><div class="pitfall-text"><strong>에디터에서 클래스 안 보임</strong> &mdash; 새로 만든 C++ 클래스가 에디터의 클래스 목록이나 콘텐츠 브라우저에 나타나지 않을 때. <strong>해결</strong>: 에디터 재시작, 또는 <code>Ctrl+Shift+B</code>로 전체 리빌드.</div></div>
+
+    <h3>트러블슈팅 요약표</h3>
+    <table class="tbl">
+      <tr><th>증상</th><th>원인</th><th>해결</th></tr>
+      <tr><td><em>"Expected GENERATED_BODY()"</em></td><td>UCLASS/USTRUCT 본문에 매크로 누락</td><td>본문 첫 줄에 <code>GENERATED_BODY()</code> 추가</td></tr>
+      <tr><td>헤더 include 무한 루프</td><td>A.h &#x2194; B.h 순환 참조</td><td>헤더에서 전방 선언, .cpp에서 #include</td></tr>
+      <tr><td>에디터 크래시/프로퍼티 소실</td><td>Hot Reload 불안정</td><td>에디터 닫고 IDE 빌드 후 재실행</td></tr>
+      <tr><td>프로퍼티가 에디터에 안 보임</td><td>UPROPERTY 지정자 오타</td><td>오타 확인 (EditAnywhere 등 철자)</td></tr>
+      <tr><td>LNK2019 unresolved external</td><td>Build.cs에 모듈 미등록</td><td>PublicDependencyModuleNames에 모듈 추가</td></tr>
+      <tr><td>SaveGame 로드 시 값이 0/빈값</td><td>UPROPERTY() 매크로 누락</td><td>저장할 필드에 UPROPERTY() 추가</td></tr>
+      <tr><td>새 클래스가 에디터에 안 보임</td><td>에디터 캐시 미갱신</td><td>에디터 재시작 또는 전체 리빌드</td></tr>
+    </table>
+  </div>
+
+  <!-- ================================================================
+       BLOCK 2: 설계 이해 (Sections 7-8)
+       ================================================================ -->
+
+  <!-- ====== Section 7: 시스템 의존성 맵 ====== -->
+  <div class="section" id="depmap">
+    <div class="section-label">07 &mdash; 시스템 의존성 맵</div>
+    <h2>누가 누구를 필요로 하는가</h2>
+    <p>이 맵이 <strong>개발 순서의 근거</strong>입니다. 화살표 방향 = 의존 방향. 의존 대상이 없는 시스템(잎 노드)부터 구현하면 병목이 없습니다.</p>
+
+    <h3>의존성 관계도</h3>
+    <div class="rel-map">
+      <div class="rel-row">
+        <div class="rel-node n-instance"><div class="rn-name">URecordTalesGameInstance</div><div class="rn-role">모든 서브시스템의 토대 (세션 전역 상태)</div></div>
+        <div class="rel-arrow"><div class="ra-label">owns</div><div class="ra-line">&rarr;</div></div>
+        <div class="rel-node n-savegame"><div class="rn-name">URecordTalesSaveGame</div><div class="rn-role">직렬화 브릿지 (디스크 저장/복원)</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-subsystem"><div class="rn-name">UFocusSubsystem</div><div class="rn-role">타이머/스톱워치 상태 머신</div></div>
+        <div class="rel-arrow"><div class="ra-label">calls</div><div class="ra-line">&rarr;</div></div>
+        <div class="rel-node n-subsystem"><div class="rn-name">UEconomySubsystem</div><div class="rn-role">XP/Gold 지급</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-subsystem"><div class="rn-name">UFocusSubsystem</div><div class="rn-role">세션 완료 시 기록</div></div>
+        <div class="rel-arrow"><div class="ra-label">calls</div><div class="ra-line">&rarr;</div></div>
+        <div class="rel-node n-subsystem"><div class="rn-name">URecordSubsystem</div><div class="rn-role">세션 기록 저장</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-subsystem"><div class="rn-name">UQuestSubsystem</div><div class="rn-role">퀘스트 보상 지급</div></div>
+        <div class="rel-arrow"><div class="ra-label">calls</div><div class="ra-line">&rarr;</div></div>
+        <div class="rel-node n-subsystem"><div class="rn-name">UEconomySubsystem</div><div class="rn-role">Gold 지급</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-subsystem"><div class="rn-name">UQuestSubsystem</div><div class="rn-role">퀘스트 상태 기록</div></div>
+        <div class="rel-arrow"><div class="ra-label">calls</div><div class="ra-line">&rarr;</div></div>
+        <div class="rel-node n-subsystem"><div class="rn-name">URecordSubsystem</div><div class="rn-role">상태 기록</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-subsystem"><div class="rn-name">UEconomySubsystem</div><div class="rn-role">레벨 기반 가챠 확률 조회</div></div>
+        <div class="rel-arrow"><div class="ra-label">reads</div><div class="ra-line">&rarr;</div></div>
+        <div class="rel-node n-subsystem"><div class="rn-name">UGuildSubsystem</div><div class="rn-role">레벨&rarr;가챠 확률 변동</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-subsystem"><div class="rn-name">UAudioSubsystem</div><div class="rn-role">해금 여부 확인</div></div>
+        <div class="rel-arrow"><div class="ra-label">reads</div><div class="ra-line">&rarr;</div></div>
+        <div class="rel-node n-subsystem"><div class="rn-name">UEconomySubsystem</div><div class="rn-role">해금 상태 조회</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-subsystem"><div class="rn-name">UUIManagerSubsystem</div><div class="rn-role">모든 서브시스템의 데이터를 읽어 UI 표시</div></div>
+        <div class="rel-arrow"><div class="ra-label">reads all</div><div class="ra-line">&rarr;</div></div>
+        <div class="rel-node n-subsystem"><div class="rn-name">All Subsystems</div><div class="rn-role">읽기 전용 참조 (마지막에 구현)</div></div>
+      </div>
+    </div>
+
+    <div class="callout info"><span class="ic">&#x1F9ED;</span><p><strong>순환 의존 없음</strong>: 모든 화살표가 한 방향입니다. 서브시스템 간 통신은 <strong>이벤트/델리게이트</strong>로 느슨한 결합을 유지합니다. A가 B를 호출할 때, B는 A를 모릅니다.</p></div>
+
+    <h3>구현 순서 도출</h3>
+    <table class="tbl">
+      <tr><th>순서</th><th>시스템</th><th>의존 대상</th></tr>
+      <tr><td>1</td><td><code>GameInstance</code> + <code>SaveGame</code> + <code>DataTables</code></td><td>없음 (토대)</td></tr>
+      <tr><td>2</td><td><code>EconomySubsystem</code></td><td>GameInstance</td></tr>
+      <tr><td>3</td><td><code>RecordSubsystem</code></td><td>GameInstance</td></tr>
+      <tr><td>4</td><td><code>FocusSubsystem</code></td><td>Economy, Record</td></tr>
+      <tr><td>5</td><td><code>QuestSubsystem</code></td><td>Economy, Record</td></tr>
+      <tr><td>6</td><td><code>GuildSubsystem</code></td><td>Economy</td></tr>
+      <tr><td>7</td><td><code>AudioSubsystem</code></td><td>Economy</td></tr>
+      <tr><td>8</td><td><code>UIManagerSubsystem</code></td><td>모든 서브시스템 (마지막)</td></tr>
+    </table>
+  </div>
+
+  <!-- ====== Section 8: 개발 페이즈 총괄 로드맵 ====== -->
+  <div class="section" id="roadmap">
+    <div class="section-label">08 &mdash; 개발 페이즈 총괄 로드맵</div>
+    <h2>6단계로 완성하는 RecordTales</h2>
+    <p>의존성 맵에서 도출한 구현 순서를 <strong>6개 Phase</strong>로 묶었습니다. 각 Phase는 <em>선행 조건 &rarr; 구현 &rarr; 중간 검증</em> 패턴을 따릅니다.</p>
+
+    <div class="pipe-step"><div class="pipe-num">P1</div><div class="pipe-body"><div class="pipe-title">Phase 1: 프로젝트 기반 &amp; 데이터 계층</div><div class="pipe-desc">GameInstance, SaveGame, Settings, 6개 DataTable 생성. 저장/불러오기 동작 확인. <span class="badge badge-blue" style="font-size:11px">선행 없음</span></div></div></div>
+    <div class="pipe-step"><div class="pipe-num">P2</div><div class="pipe-body"><div class="pipe-title">Phase 2: 핵심 로직 서브시스템</div><div class="pipe-desc">EconomySubsystem &rarr; RecordSubsystem &rarr; FocusSubsystem &rarr; QuestSubsystem. 핵심 비즈니스 로직 완성. <span class="badge badge-blue" style="font-size:11px">P1 완료 후</span></div></div></div>
+    <div class="pipe-step"><div class="pipe-num">P3</div><div class="pipe-body"><div class="pipe-title">Phase 3: 게임화 서브시스템</div><div class="pipe-desc">GuildSubsystem (캐릭터 풀, 가챠, 스쿼드, 시너지). 게임화 레이어 완성. <span class="badge badge-blue" style="font-size:11px">P2 완료 후</span></div></div></div>
+    <div class="pipe-step"><div class="pipe-num">P4</div><div class="pipe-body"><div class="pipe-title">Phase 4: 비주얼 에셋 제작 &amp; 임포트</div><div class="pipe-desc">오디오(5 앰비언트 + 6 BGM), 배경 이미지(9개), UI 텍스처. AudioSubsystem 구현. <span class="badge badge-green" style="font-size:11px">P3 완료 후</span></div></div></div>
+    <div class="pipe-step"><div class="pipe-num">P5</div><div class="pipe-body"><div class="pipe-title">Phase 5: UI 프레임워크 &amp; 위젯</div><div class="pipe-desc">UIManagerSubsystem, 3 패널, 2 모달, HUD 레이아웃, 캘린더 위젯. <span class="badge badge-purple" style="font-size:11px">P1~P4 완료 후</span></div></div></div>
+    <div class="pipe-step"><div class="pipe-num">P6</div><div class="pipe-body"><div class="pipe-title">Phase 6: 통합 &middot; 빌드 &middot; 패키징</div><div class="pipe-desc">시스템 간 이벤트 연결, SaveGame 통합 테스트, 패키징, 최종 검증. <span class="badge badge-purple" style="font-size:11px">P1~P5 완료 후</span></div></div></div>
+
+    <h3>Phase 요약표</h3>
+    <table class="tbl">
+      <tr><th>Phase</th><th>목표</th><th>산출물</th><th>선행 조건</th></tr>
+      <tr><td>P1</td><td>프로젝트 기반 &amp; 데이터 계층</td><td>GameInstance, SaveGame, Settings, DataTable 6개</td><td>없음</td></tr>
+      <tr><td>P2</td><td>핵심 로직 서브시스템</td><td>Economy, Record, Focus, Quest 서브시스템</td><td>P1</td></tr>
+      <tr><td>P3</td><td>게임화 서브시스템</td><td>Guild 서브시스템 (가챠, 스쿼드, 시너지)</td><td>P2</td></tr>
+      <tr><td>P4</td><td>비주얼 에셋 &amp; 오디오</td><td>앰비언트 5, BGM 6, 배경 9, 캐릭터 12, Audio 서브시스템</td><td>P3</td></tr>
+      <tr><td>P5</td><td>UI 프레임워크</td><td>UIManager, 3 패널, 2 모달, HUD, 캘린더</td><td>P1~P4</td></tr>
+      <tr><td>P6</td><td>통합 &middot; 패키징</td><td>전체 이벤트 연결, Shipping 빌드, .exe</td><td>P1~P5</td></tr>
+    </table>
+  </div>
+
+  <!-- ================================================================
+       BLOCK 3: 구현 (Sections 9-14)
+       ================================================================ -->
+
+  <!-- ====== Section 9: Phase 1 ====== -->
+  <div class="section" id="phase1">
+    <div class="section-label">09 &mdash; PHASE 1: 프로젝트 기반 &amp; 데이터 계층</div>
+    <h2>토대를 세우고 저장을 검증한다</h2>
+
+    <div class="callout warn"><span class="ic">&#x26A0;&#xFE0F;</span><p><strong>선행 조건</strong> &mdash; 기반 지식 블록(섹션 1~6)을 모두 읽었을 것. 프로젝트가 생성되고 빈 컴파일이 성공할 것.</p></div>
+
+    <h3>구현 순서</h3>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">공유 타입 정의 &mdash; Data/RecordTalesDataTypes.h</div><div class="pipe-desc">모든 <code>USTRUCT</code>(<code>FFocusRecord</code>, <code>FQuestData</code>, <code>FGuildMember</code> 등)와 <code>UENUM</code>(<code>EFocusState</code>, <code>EQuestState</code>, <code>EAmbientType</code> 등)을 <strong>이 파일 하나에</strong> 선언합니다. 이렇게 하면 서브시스템 간 순환 include를 원천적으로 방지할 수 있습니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">URecordTalesGameInstance &mdash; Core/</div><div class="pipe-desc"><code>UGameInstance</code>를 상속. Gold, XP, GuildLevel을 <code>UPROPERTY</code>로 보유. <code>Init()</code>에서 SaveGame 로드, <code>Shutdown()</code>에서 저장.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">URecordTalesSaveGame &mdash; Core/</div><div class="pipe-desc"><code>USaveGame</code>을 상속. 모든 영속 데이터를 <code>UPROPERTY</code>로 선언: FocusSettings, ActiveQuests, AllRecords, OwnedMembers, CurrentSquad, GuildLevel, XP, Gold, UnlockedIds, CurrentBgId.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">URecordTalesSettings &mdash; Core/</div><div class="pipe-desc"><code>UDeveloperSettings</code>을 상속 (<code>Config=Game</code>). 밸런스 상수를 에디터에서 조정 가능하게 노출: TimerDuration(25분), RestDuration(5분), GoldTickInterval(6초), XPPerCycle(15), GachaCost(1000) 등.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">5</div><div class="pipe-body"><div class="pipe-title">DataTable 생성 (6개)</div><div class="pipe-desc"><code>Content/RecordTales/DataTables/</code> 에 생성:<br>&bull; <strong>DT_GuildLevels</strong> (20행: Lv, XPThreshold, UnlocksPerLevel)<br>&bull; <strong>DT_MusicTracks</strong> (6행: Id, Title, Genre, Duration, SoundWave soft ref, bFree)<br>&bull; <strong>DT_Backgrounds</strong> (9행: Id, DisplayName, Texture soft ref, Cost)<br>&bull; <strong>DT_GuildCharacters</strong> (12행: Id, Name, Rarity, BaseStats)<br>&bull; <strong>DT_UnlockTree</strong> (17행: UnlockId, Type, Cost, RequiredLevel)<br>&bull; <strong>DT_QuestMasterData</strong> (퀘스트 템플릿: Id, Title, Type, RepeatRule, BaseReward)</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">6</div><div class="pipe-body"><div class="pipe-title">저장/불러오기 테스트</div><div class="pipe-desc"><code>GameInstance.Init()</code>에서 <code>UGameplayStatics::LoadGameFromSlot()</code> 호출. 슬롯이 없으면 <code>CreateSaveGameObject()</code>로 새로 생성 후 <code>SaveGameToSlot()</code>. Output Log에서 로그 확인.</div></div></div>
+
+    <h3>GameInstance 코드 예시</h3>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" data-panel="gi-h">RecordTalesGameInstance.h</button>
+        <button class="codeblock-tab tab-cpp" data-panel="gi-cpp">RecordTalesGameInstance.cpp</button>
+        <button class="codeblock-copy">Copy</button>
+      </div>
+      <div class="codeblock-panel active" id="gi-h">
+<pre class="hljs"><span class="hljs-meta">#pragma once</span>
+
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Engine/GameInstance.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"RecordTalesGameInstance.generated.h"</span></span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-type">URecordTalesSaveGame</span>;
+
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> <span class="hljs-type">RECORDTALES_API</span> <span class="hljs-type">URecordTalesGameInstance</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstance</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Init</span>() <span class="hljs-keyword">override</span>;
+    <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Shutdown</span>() <span class="hljs-keyword">override</span>;
+
+    <span class="hljs-comment">/** SaveGame 인스턴스 (런타임 영속 데이터) */</span>
+    <span class="hljs-meta">UPROPERTY()</span>
+    <span class="hljs-type">URecordTalesSaveGame</span>* SaveGameRef;
+
+    <span class="hljs-comment">/** 현재 Gold */</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly, Category = <span class="hljs-string">"Economy"</span>)</span>
+    <span class="hljs-keyword">int32</span> Gold;
+
+    <span class="hljs-comment">/** 현재 XP */</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly, Category = <span class="hljs-string">"Economy"</span>)</span>
+    <span class="hljs-keyword">int32</span> XP;
+
+    <span class="hljs-comment">/** 현재 길드 레벨 */</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly, Category = <span class="hljs-string">"Guild"</span>)</span>
+    <span class="hljs-keyword">int32</span> GuildLevel;
+
+    <span class="hljs-comment">/** 저장 슬롯 이름 */</span>
+    <span class="hljs-keyword">static</span> <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span> SaveSlotName;
+
+<span class="hljs-keyword">private</span>:
+    <span class="hljs-keyword">void</span> <span class="hljs-title">LoadSaveGame</span>();
+    <span class="hljs-keyword">void</span> <span class="hljs-title">WriteSaveGame</span>();
+};</pre>
+      </div>
+      <div class="codeblock-panel" id="gi-cpp">
+<pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"RecordTalesGameInstance.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"RecordTalesSaveGame.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"RecordTalesLog.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Kismet/GameplayStatics.h"</span></span>
+
+<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span> <span class="hljs-type">URecordTalesGameInstance</span>::SaveSlotName = <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"RecordTalesSlot"</span>);
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">URecordTalesGameInstance</span>::<span class="hljs-title">Init</span>()
+{
+    <span class="hljs-type">Super</span>::Init();
+    LoadSaveGame();
+    <span class="hljs-built_in">UE_LOG</span>(LogRecordTales, Display,
+        <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"GameInstance Init: Gold=%d XP=%d GuildLevel=%d"</span>),
+        Gold, XP, GuildLevel);
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">URecordTalesGameInstance</span>::<span class="hljs-title">Shutdown</span>()
+{
+    WriteSaveGame();
+    <span class="hljs-built_in">UE_LOG</span>(LogRecordTales, Display, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"GameInstance Shutdown: SaveGame written."</span>));
+    <span class="hljs-type">Super</span>::Shutdown();
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">URecordTalesGameInstance</span>::<span class="hljs-title">LoadSaveGame</span>()
+{
+    <span class="hljs-type">USaveGame</span>* Loaded = <span class="hljs-type">UGameplayStatics</span>::LoadGameFromSlot(SaveSlotName, <span class="hljs-number">0</span>);
+    <span class="hljs-keyword">if</span> (Loaded)
+    {
+        SaveGameRef = <span class="hljs-built_in">Cast</span>&lt;<span class="hljs-type">URecordTalesSaveGame</span>&gt;(Loaded);
+        Gold       = SaveGameRef-&gt;Gold;
+        XP         = SaveGameRef-&gt;XP;
+        GuildLevel = SaveGameRef-&gt;GuildLevel;
+        <span class="hljs-built_in">UE_LOG</span>(LogRecordTales, Display, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"SaveGame loaded successfully."</span>));
+    }
+    <span class="hljs-keyword">else</span>
+    {
+        SaveGameRef = <span class="hljs-built_in">Cast</span>&lt;<span class="hljs-type">URecordTalesSaveGame</span>&gt;(
+            <span class="hljs-type">UGameplayStatics</span>::CreateSaveGameObject(
+                <span class="hljs-type">URecordTalesSaveGame</span>::StaticClass()));
+        Gold = <span class="hljs-number">0</span>; XP = <span class="hljs-number">0</span>; GuildLevel = <span class="hljs-number">1</span>;
+        <span class="hljs-built_in">UE_LOG</span>(LogRecordTales, Warning, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"No SaveGame found. Created new."</span>));
+    }
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">URecordTalesGameInstance</span>::<span class="hljs-title">WriteSaveGame</span>()
+{
+    <span class="hljs-keyword">if</span> (!SaveGameRef) <span class="hljs-keyword">return</span>;
+    SaveGameRef-&gt;Gold       = Gold;
+    SaveGameRef-&gt;XP         = XP;
+    SaveGameRef-&gt;GuildLevel = GuildLevel;
+    <span class="hljs-type">UGameplayStatics</span>::SaveGameToSlot(SaveGameRef, SaveSlotName, <span class="hljs-number">0</span>);
+}</pre>
+      </div>
+    </div>
+
+    <h3>SaveGame 코드 예시</h3>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" data-panel="sg-h">RecordTalesSaveGame.h</button>
+        <button class="codeblock-copy">Copy</button>
+      </div>
+      <div class="codeblock-panel active" id="sg-h">
+<pre class="hljs"><span class="hljs-meta">#pragma once</span>
+
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"GameFramework/SaveGame.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"RecordTalesDataTypes.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"RecordTalesSaveGame.generated.h"</span></span>
+
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> <span class="hljs-type">RECORDTALES_API</span> <span class="hljs-type">URecordTalesSaveGame</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">USaveGame</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">/** 버전: 구조 변경 시 마이그레이션용 */</span>
+    <span class="hljs-meta">UPROPERTY()</span>
+    <span class="hljs-keyword">int32</span> SaveVersion = <span class="hljs-number">1</span>;
+
+    <span class="hljs-comment">// ── Economy ──</span>
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">int32</span> Gold = <span class="hljs-number">0</span>;
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">int32</span> XP = <span class="hljs-number">0</span>;
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">int32</span> GuildLevel = <span class="hljs-number">1</span>;
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FString</span>&gt; UnlockedIds;
+
+    <span class="hljs-comment">// ── Focus ──</span>
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">FFocusSettings</span> FocusSettings;
+
+    <span class="hljs-comment">// ── Quests ──</span>
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FQuestData</span>&gt; ActiveQuests;
+
+    <span class="hljs-comment">// ── Archive ──</span>
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FFocusRecord</span>&gt; AllRecords;
+
+    <span class="hljs-comment">// ── Guild ──</span>
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FGuildMember</span>&gt; OwnedMembers;
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FGuildMember</span>&gt; CurrentSquad;
+
+    <span class="hljs-comment">// ── Audio/Visual ──</span>
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">FString</span> CurrentBgId;
+};</pre>
+      </div>
+    </div>
+
+    <h3>Settings 코드 예시</h3>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" data-panel="set-h">RecordTalesSettings.h</button>
+        <button class="codeblock-copy">Copy</button>
+      </div>
+      <div class="codeblock-panel active" id="set-h">
+<pre class="hljs"><span class="hljs-meta">#pragma once</span>
+
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Engine/DeveloperSettings.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"RecordTalesSettings.generated.h"</span></span>
+
+<span class="hljs-meta">UCLASS(Config=Game, defaultconfig, meta=(DisplayName=<span class="hljs-string">"RecordTales Settings"</span>))</span>
+<span class="hljs-keyword">class</span> <span class="hljs-type">RECORDTALES_API</span> <span class="hljs-type">URecordTalesSettings</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UDeveloperSettings</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">/** 포모도로 집중 시간 (초). 기본 25분 = 1500초 */</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, Config, Category = <span class="hljs-string">"Focus"</span>)</span>
+    <span class="hljs-keyword">float</span> TimerDuration = <span class="hljs-number">1500.0f</span>;
+
+    <span class="hljs-comment">/** 휴식 시간 (초). 기본 5분 = 300초 */</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, Config, Category = <span class="hljs-string">"Focus"</span>)</span>
+    <span class="hljs-keyword">float</span> RestDuration = <span class="hljs-number">300.0f</span>;
+
+    <span class="hljs-comment">/** Gold 틱 간격 (초). 기본 6초 */</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, Config, Category = <span class="hljs-string">"Economy"</span>)</span>
+    <span class="hljs-keyword">float</span> GoldTickInterval = <span class="hljs-number">6.0f</span>;
+
+    <span class="hljs-comment">/** 틱당 Gold 지급량 */</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, Config, Category = <span class="hljs-string">"Economy"</span>)</span>
+    <span class="hljs-keyword">int32</span> GoldPerTick = <span class="hljs-number">10</span>;
+
+    <span class="hljs-comment">/** 사이클 완료 시 XP */</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, Config, Category = <span class="hljs-string">"Economy"</span>)</span>
+    <span class="hljs-keyword">int32</span> XPPerCycle = <span class="hljs-number">15</span>;
+
+    <span class="hljs-comment">/** 가챠 1회 비용 (Gold) */</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, Config, Category = <span class="hljs-string">"Guild"</span>)</span>
+    <span class="hljs-keyword">int32</span> GachaCost = <span class="hljs-number">1000</span>;
+};</pre>
+      </div>
+    </div>
+
+    <h3>중간 검증</h3>
+    <div class="callout tip"><span class="ic">&#x1F4A1;</span><p><strong>검증 1</strong> &mdash; PIE 실행 &rarr; Output Log에 <code>LogRecordTales: SaveGame loaded successfully</code> 또는 <code>No SaveGame found. Created new.</code> 로그가 보이는지 확인합니다.</p></div>
+    <div class="callout tip"><span class="ic">&#x1F4A1;</span><p><strong>검증 2</strong> &mdash; <code>Project Settings &rarr; Game &rarr; RecordTales Settings</code>에서 밸런스 상수(TimerDuration, GoldTickInterval 등)가 편집 가능한 상태로 보이는지 확인합니다.</p></div>
+    <div class="callout tip"><span class="ic">&#x1F4A1;</span><p><strong>검증 3</strong> &mdash; Content Browser에서 <code>Content/RecordTales/DataTables/</code> 경로로 이동해 6개 DataTable이 모두 열리고, 각 테이블에 행 데이터가 표시되는지 확인합니다.</p></div>
+  </div>
+
+  <!-- ====== Section 10: Phase 2 ====== -->
+  <div class="section" id="phase2">
+    <div class="section-label">10 &mdash; PHASE 2: 핵심 로직 서브시스템</div>
+    <h2>비즈니스 로직의 심장을 만든다</h2>
+
+    <div class="callout warn"><span class="ic">&#x26A0;&#xFE0F;</span><p><strong>선행 조건</strong> &mdash; Phase 1의 중간 검증을 모두 통과. GameInstance/SaveGame/DataTable이 동작할 것.</p></div>
+
+    <h3>구현 순서</h3>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">UEconomySubsystem &mdash; Economy/</div><div class="pipe-desc">Gold/XP 관리의 중심. 다른 서브시스템들이 가장 많이 참조하므로 가장 먼저 만듭니다.<br><strong>핵심 함수</strong>: <code>AddXP(int32)</code>, <code>AddGold(int32)</code>, <code>SpendGold(int32):bool</code>, <code>GetGuildLevel():int32</code>, <code>PurchaseUnlock(FString):bool</code>, <code>IsUnlocked(FString):bool</code><br><strong>델리게이트</strong>: <code>OnGoldChanged</code>, <code>OnXPChanged</code>, <code>OnLevelUp</code>, <code>OnUnlockChanged</code><br>DT_GuildLevels를 참조하여 XP 누적 &rarr; 레벨업 판정.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">URecordSubsystem &mdash; Archive/</div><div class="pipe-desc">집중 기록 저장/조회 전담.<br><strong>핵심 함수</strong>: <code>LogFocusRecord(FFocusRecord)</code>, <code>QueryByDate(FDateTime, FDateTime):TArray&lt;FFocusRecord&gt;</code>, <code>GetCalendarData(FDateTime):TArray&lt;FFocusRecord&gt;</code><br>SaveGame의 <code>AllRecords</code> 배열에 push하고, 날짜 범위 쿼리를 지원합니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">UFocusSubsystem &mdash; Focus/</div><div class="pipe-desc">타이머/스톱워치 상태 머신. RecordTales의 핵심 기능입니다.<br><strong>상태</strong>: <code>EFocusState</code> &mdash; <code>Idle &rarr; Focusing &rarr; Resting &rarr; Complete</code><br><strong>핵심 함수</strong>: <code>StartFocus()</code>, <code>StopFocus()</code>, <code>PauseTimer()</code>, <code>ResumeTimer()</code>, <code>CompleteSession()</code><br><strong>FTimerHandle</strong>로 카운트다운을 구현합니다.<br><strong>Gold 틱</strong>: 6초마다 <code>EconomySubsystem.AddGold(10)</code> 호출.<br><strong>세션 완료 시</strong>: <code>EconomySubsystem.AddXP(15)</code> + <code>RecordSubsystem.LogFocusRecord()</code>.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">UQuestSubsystem &mdash; Quests/</div><div class="pipe-desc">퀘스트 CRUD + 반복 규칙 + 자정 롤오버.<br><strong>핵심 함수</strong>: <code>CreateQuest()</code>, <code>UpdateQuestState()</code>, <code>CompleteQuest()</code>, <code>RolloverDaily()</code><br><strong>마스터-인스턴스 패턴</strong>: DT_QuestMasterData에서 퀘스트 템플릿을 로드하고, 인스턴스(FQuestData)를 생성하여 ActiveQuests에 추가합니다.<br><strong>자정 체크</strong>: FTimerHandle로 1분마다 현재 시각을 확인, 자정을 넘기면 <code>RolloverDaily()</code>를 호출하여 반복 퀘스트 인스턴스를 갱신합니다.<br>퀘스트 완료 시 <code>EconomySubsystem.AddGold()</code> 호출.</div></div></div>
+
+    <h3>EconomySubsystem 코드 예시</h3>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" data-panel="eco-h">EconomySubsystem.h</button>
+        <button class="codeblock-tab tab-cpp" data-panel="eco-cpp">EconomySubsystem.cpp</button>
+        <button class="codeblock-copy">Copy</button>
+      </div>
+      <div class="codeblock-panel active" id="eco-h">
+<pre class="hljs"><span class="hljs-meta">#pragma once</span>
+
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"EconomySubsystem.generated.h"</span></span>
+
+<span class="hljs-meta">DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam</span>(<span class="hljs-type">FOnGoldChanged</span>, <span class="hljs-keyword">int32</span>, NewGold);
+<span class="hljs-meta">DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam</span>(<span class="hljs-type">FOnXPChanged</span>, <span class="hljs-keyword">int32</span>, NewXP);
+<span class="hljs-meta">DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam</span>(<span class="hljs-type">FOnLevelUp</span>, <span class="hljs-keyword">int32</span>, NewLevel);
+<span class="hljs-meta">DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams</span>(<span class="hljs-type">FOnUnlockChanged</span>, <span class="hljs-type">FString</span>, UnlockId, <span class="hljs-keyword">bool</span>, bUnlocked);
+
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> <span class="hljs-type">RECORDTALES_API</span> <span class="hljs-type">UEconomySubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection) <span class="hljs-keyword">override</span>;
+    <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Deinitialize</span>() <span class="hljs-keyword">override</span>;
+
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = <span class="hljs-string">"Economy"</span>)</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title">AddXP</span>(<span class="hljs-keyword">int32</span> Amount);
+
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = <span class="hljs-string">"Economy"</span>)</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title">AddGold</span>(<span class="hljs-keyword">int32</span> Amount);
+
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = <span class="hljs-string">"Economy"</span>)</span>
+    <span class="hljs-keyword">bool</span> <span class="hljs-title">SpendGold</span>(<span class="hljs-keyword">int32</span> Amount);
+
+    <span class="hljs-meta">UFUNCTION(BlueprintPure, Category = <span class="hljs-string">"Economy"</span>)</span>
+    <span class="hljs-keyword">int32</span> <span class="hljs-title">GetGuildLevel</span>() <span class="hljs-keyword">const</span>;
+
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = <span class="hljs-string">"Economy"</span>)</span>
+    <span class="hljs-keyword">bool</span> <span class="hljs-title">PurchaseUnlock</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; UnlockId);
+
+    <span class="hljs-meta">UFUNCTION(BlueprintPure, Category = <span class="hljs-string">"Economy"</span>)</span>
+    <span class="hljs-keyword">bool</span> <span class="hljs-title">IsUnlocked</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; UnlockId) <span class="hljs-keyword">const</span>;
+
+    <span class="hljs-comment">// 델리게이트</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintAssignable)</span> <span class="hljs-type">FOnGoldChanged</span> OnGoldChanged;
+    <span class="hljs-meta">UPROPERTY(BlueprintAssignable)</span> <span class="hljs-type">FOnXPChanged</span> OnXPChanged;
+    <span class="hljs-meta">UPROPERTY(BlueprintAssignable)</span> <span class="hljs-type">FOnLevelUp</span> OnLevelUp;
+    <span class="hljs-meta">UPROPERTY(BlueprintAssignable)</span> <span class="hljs-type">FOnUnlockChanged</span> OnUnlockChanged;
+
+<span class="hljs-keyword">private</span>:
+    <span class="hljs-keyword">void</span> <span class="hljs-title">CheckLevelUp</span>();
+};</pre>
+      </div>
+      <div class="codeblock-panel" id="eco-cpp">
+<pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"EconomySubsystem.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"RecordTalesGameInstance.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"RecordTalesLog.h"</span></span>
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UEconomySubsystem</span>::<span class="hljs-title">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection)
+{
+    <span class="hljs-type">Super</span>::Initialize(Collection);
+    <span class="hljs-built_in">UE_LOG</span>(LogEconomy, Display, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"EconomySubsystem initialized."</span>));
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UEconomySubsystem</span>::<span class="hljs-title">Deinitialize</span>()
+{
+    <span class="hljs-type">Super</span>::Deinitialize();
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UEconomySubsystem</span>::<span class="hljs-title">AddXP</span>(<span class="hljs-keyword">int32</span> Amount)
+{
+    <span class="hljs-keyword">auto</span>* GI = <span class="hljs-built_in">Cast</span>&lt;<span class="hljs-type">URecordTalesGameInstance</span>&gt;(GetGameInstance());
+    <span class="hljs-keyword">if</span> (!GI) <span class="hljs-keyword">return</span>;
+
+    GI-&gt;XP += Amount;
+    <span class="hljs-built_in">UE_LOG</span>(LogEconomy, Display, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"AddXP: +%d, Total=%d"</span>), Amount, GI-&gt;XP);
+    OnXPChanged.Broadcast(GI-&gt;XP);
+    CheckLevelUp();
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UEconomySubsystem</span>::<span class="hljs-title">AddGold</span>(<span class="hljs-keyword">int32</span> Amount)
+{
+    <span class="hljs-keyword">auto</span>* GI = <span class="hljs-built_in">Cast</span>&lt;<span class="hljs-type">URecordTalesGameInstance</span>&gt;(GetGameInstance());
+    <span class="hljs-keyword">if</span> (!GI) <span class="hljs-keyword">return</span>;
+
+    GI-&gt;Gold += Amount;
+    <span class="hljs-built_in">UE_LOG</span>(LogEconomy, Display, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"AddGold: +%d, Total=%d"</span>), Amount, GI-&gt;Gold);
+    OnGoldChanged.Broadcast(GI-&gt;Gold);
+}
+
+<span class="hljs-keyword">bool</span> <span class="hljs-type">UEconomySubsystem</span>::<span class="hljs-title">SpendGold</span>(<span class="hljs-keyword">int32</span> Amount)
+{
+    <span class="hljs-keyword">auto</span>* GI = <span class="hljs-built_in">Cast</span>&lt;<span class="hljs-type">URecordTalesGameInstance</span>&gt;(GetGameInstance());
+    <span class="hljs-keyword">if</span> (!GI || GI-&gt;Gold &lt; Amount)
+    {
+        <span class="hljs-built_in">UE_LOG</span>(LogEconomy, Warning, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"SpendGold failed: need %d, have %d"</span>), Amount, GI ? GI-&gt;Gold : <span class="hljs-number">0</span>);
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+    }
+    GI-&gt;Gold -= Amount;
+    OnGoldChanged.Broadcast(GI-&gt;Gold);
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+}
+
+<span class="hljs-keyword">int32</span> <span class="hljs-type">UEconomySubsystem</span>::<span class="hljs-title">GetGuildLevel</span>() <span class="hljs-keyword">const</span>
+{
+    <span class="hljs-keyword">auto</span>* GI = <span class="hljs-built_in">Cast</span>&lt;<span class="hljs-type">URecordTalesGameInstance</span>&gt;(GetGameInstance());
+    <span class="hljs-keyword">return</span> GI ? GI-&gt;GuildLevel : <span class="hljs-number">1</span>;
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UEconomySubsystem</span>::<span class="hljs-title">CheckLevelUp</span>()
+{
+    <span class="hljs-comment">// DT_GuildLevels에서 현재 레벨의 XPThreshold를 조회하여</span>
+    <span class="hljs-comment">// XP가 임계치를 초과하면 GuildLevel++, OnLevelUp 브로드캐스트</span>
+    <span class="hljs-comment">// 구현은 DataTable 로드 후 Phase 2에서 완성</span>
+}</pre>
+      </div>
+    </div>
+
+    <h3>FocusSubsystem 코드 예시</h3>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" data-panel="focus-h">FocusSubsystem.h</button>
+        <button class="codeblock-tab tab-cpp" data-panel="focus-cpp">FocusSubsystem.cpp (핵심 부분)</button>
+        <button class="codeblock-copy">Copy</button>
+      </div>
+      <div class="codeblock-panel active" id="focus-h">
+<pre class="hljs"><span class="hljs-meta">#pragma once</span>
+
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"RecordTalesDataTypes.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"FocusSubsystem.generated.h"</span></span>
+
+<span class="hljs-meta">DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam</span>(<span class="hljs-type">FOnFocusStateChanged</span>, <span class="hljs-type">EFocusState</span>, NewState);
+<span class="hljs-meta">DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam</span>(<span class="hljs-type">FOnTimerTick</span>, <span class="hljs-keyword">float</span>, RemainingSeconds);
+
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> <span class="hljs-type">RECORDTALES_API</span> <span class="hljs-type">UFocusSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection) <span class="hljs-keyword">override</span>;
+    <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Deinitialize</span>() <span class="hljs-keyword">override</span>;
+
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">StartFocus</span>();
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">StopFocus</span>();
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">PauseTimer</span>();
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">ResumeTimer</span>();
+
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span>
+    <span class="hljs-type">EFocusState</span> CurrentState = <span class="hljs-type">EFocusState</span>::Idle;
+
+    <span class="hljs-meta">UPROPERTY(BlueprintAssignable)</span> <span class="hljs-type">FOnFocusStateChanged</span> OnFocusStateChanged;
+    <span class="hljs-meta">UPROPERTY(BlueprintAssignable)</span> <span class="hljs-type">FOnTimerTick</span> OnTimerTick;
+
+<span class="hljs-keyword">private</span>:
+    <span class="hljs-type">FTimerHandle</span> CountdownHandle;
+    <span class="hljs-type">FTimerHandle</span> GoldTickHandle;
+    <span class="hljs-keyword">float</span> RemainingTime;
+
+    <span class="hljs-keyword">void</span> <span class="hljs-title">OnCountdownTick</span>();
+    <span class="hljs-keyword">void</span> <span class="hljs-title">OnGoldTick</span>();
+    <span class="hljs-keyword">void</span> <span class="hljs-title">CompleteSession</span>();
+};</pre>
+      </div>
+      <div class="codeblock-panel" id="focus-cpp">
+<pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"FocusSubsystem.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"EconomySubsystem.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"RecordSubsystem.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"RecordTalesSettings.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"RecordTalesLog.h"</span></span>
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UFocusSubsystem</span>::<span class="hljs-title">StartFocus</span>()
+{
+    <span class="hljs-keyword">const</span> <span class="hljs-keyword">auto</span>* Settings = GetDefault&lt;<span class="hljs-type">URecordTalesSettings</span>&gt;();
+    RemainingTime = Settings-&gt;TimerDuration;
+    CurrentState = <span class="hljs-type">EFocusState</span>::Focusing;
+    OnFocusStateChanged.Broadcast(CurrentState);
+
+    <span class="hljs-comment">// 1초마다 카운트다운 틱</span>
+    GetGameInstance()-&gt;GetTimerManager().SetTimer(
+        CountdownHandle, <span class="hljs-keyword">this</span>, &amp;<span class="hljs-type">UFocusSubsystem</span>::OnCountdownTick,
+        <span class="hljs-number">1.0f</span>, <span class="hljs-literal">true</span>);
+
+    <span class="hljs-comment">// Gold 틱 (기본 6초 간격)</span>
+    GetGameInstance()-&gt;GetTimerManager().SetTimer(
+        GoldTickHandle, <span class="hljs-keyword">this</span>, &amp;<span class="hljs-type">UFocusSubsystem</span>::OnGoldTick,
+        Settings-&gt;GoldTickInterval, <span class="hljs-literal">true</span>);
+
+    <span class="hljs-built_in">UE_LOG</span>(LogFocus, Display, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"Focus started: %.0f seconds"</span>), RemainingTime);
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UFocusSubsystem</span>::<span class="hljs-title">OnCountdownTick</span>()
+{
+    RemainingTime -= <span class="hljs-number">1.0f</span>;
+    OnTimerTick.Broadcast(RemainingTime);
+
+    <span class="hljs-keyword">if</span> (RemainingTime &lt;= <span class="hljs-number">0.0f</span>)
+    {
+        CompleteSession();
+    }
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UFocusSubsystem</span>::<span class="hljs-title">OnGoldTick</span>()
+{
+    <span class="hljs-keyword">auto</span>* EcoSub = GetGameInstance()-&gt;GetSubsystem&lt;<span class="hljs-type">UEconomySubsystem</span>&gt;();
+    <span class="hljs-keyword">if</span> (EcoSub)
+    {
+        <span class="hljs-keyword">const</span> <span class="hljs-keyword">auto</span>* Settings = GetDefault&lt;<span class="hljs-type">URecordTalesSettings</span>&gt;();
+        EcoSub-&gt;AddGold(Settings-&gt;GoldPerTick);
+    }
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UFocusSubsystem</span>::<span class="hljs-title">CompleteSession</span>()
+{
+    GetGameInstance()-&gt;GetTimerManager().ClearTimer(CountdownHandle);
+    GetGameInstance()-&gt;GetTimerManager().ClearTimer(GoldTickHandle);
+
+    <span class="hljs-comment">// XP 지급</span>
+    <span class="hljs-keyword">auto</span>* EcoSub = GetGameInstance()-&gt;GetSubsystem&lt;<span class="hljs-type">UEconomySubsystem</span>&gt;();
+    <span class="hljs-keyword">if</span> (EcoSub)
+    {
+        <span class="hljs-keyword">const</span> <span class="hljs-keyword">auto</span>* Settings = GetDefault&lt;<span class="hljs-type">URecordTalesSettings</span>&gt;();
+        EcoSub-&gt;AddXP(Settings-&gt;XPPerCycle);
+    }
+
+    <span class="hljs-comment">// 기록 저장</span>
+    <span class="hljs-keyword">auto</span>* RecSub = GetGameInstance()-&gt;GetSubsystem&lt;<span class="hljs-type">URecordSubsystem</span>&gt;();
+    <span class="hljs-keyword">if</span> (RecSub)
+    {
+        <span class="hljs-type">FFocusRecord</span> Record;
+        Record.Timestamp = <span class="hljs-type">FDateTime</span>::Now();
+        Record.DurationSeconds = GetDefault&lt;<span class="hljs-type">URecordTalesSettings</span>&gt;()-&gt;TimerDuration;
+        Record.bCompleted = <span class="hljs-literal">true</span>;
+        RecSub-&gt;LogFocusRecord(Record);
+    }
+
+    CurrentState = <span class="hljs-type">EFocusState</span>::Resting;
+    OnFocusStateChanged.Broadcast(CurrentState);
+    <span class="hljs-built_in">UE_LOG</span>(LogFocus, Display, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"Focus session completed. Entering rest phase."</span>));
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UFocusSubsystem</span>::<span class="hljs-title">Deinitialize</span>()
+{
+    <span class="hljs-comment">// 반드시 타이머 정리</span>
+    <span class="hljs-keyword">if</span> (<span class="hljs-type">UGameInstance</span>* GI = GetGameInstance())
+    {
+        GI-&gt;GetTimerManager().ClearTimer(CountdownHandle);
+        GI-&gt;GetTimerManager().ClearTimer(GoldTickHandle);
+    }
+    <span class="hljs-type">Super</span>::Deinitialize();
+}</pre>
+      </div>
+    </div>
+
+    <div class="pitfall"><span class="ic">&#x26A0;&#xFE0F;</span><div class="pitfall-text"><strong>서브시스템 간 직접 #include 대신 GetSubsystem으로 접근</strong> &mdash; <code>GetGameInstance()-&gt;GetSubsystem&lt;UEconomySubsystem&gt;()</code>를 사용합니다. 헤더에서는 전방 선언만 하고, .cpp에서 include합니다.</div></div>
+    <div class="pitfall"><span class="ic">&#x26A0;&#xFE0F;</span><div class="pitfall-text"><strong>FTimerHandle은 서브시스템 Deinitialize()에서 반드시 ClearTimer</strong> &mdash; 정리하지 않으면 이미 파괴된 오브젝트를 참조하여 크래시가 발생할 수 있습니다.</div></div>
+
+    <h3>중간 검증</h3>
+    <div class="callout tip"><span class="ic">&#x1F4A1;</span><p><strong>검증 1</strong> &mdash; PIE 실행 &rarr; 콘솔 또는 테스트 코드로 <code>FocusSubsystem.StartFocus()</code> 호출 &rarr; Output Log에 <code>LogFocus: Focus started: 1500 seconds</code> 로그 확인.</p></div>
+    <div class="callout tip"><span class="ic">&#x1F4A1;</span><p><strong>검증 2</strong> &mdash; 타이머 완료(테스트 시 TimerDuration을 10초로 설정) &rarr; <code>LogEconomy: AddXP: +15</code>, <code>LogEconomy: AddGold</code> 로그가 반복적으로 찍히는지 확인.</p></div>
+    <div class="callout tip"><span class="ic">&#x1F4A1;</span><p><strong>검증 3</strong> &mdash; 퀘스트 생성 &rarr; 완료 &rarr; Gold 적립 로그 확인.</p></div>
+    <div class="callout tip"><span class="ic">&#x1F4A1;</span><p><strong>검증 4</strong> &mdash; 앱 종료 &rarr; 재실행 &rarr; SaveGame에서 Gold/XP가 복원되는지 확인.</p></div>
+  </div>
+
+  <!-- ====== Section 11: Phase 3 ====== -->
+  <div class="section" id="phase3">
+    <div class="section-label">11 &mdash; PHASE 3: 게임화 서브시스템</div>
+    <h2>길드와 가챠로 동기를 부여한다</h2>
+
+    <div class="callout warn"><span class="ic">&#x26A0;&#xFE0F;</span><p><strong>선행 조건</strong> &mdash; Phase 2 완료. EconomySubsystem의 Gold/XP/Level/Unlock이 동작할 것.</p></div>
+
+    <h3>구현 순서</h3>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">UGuildSubsystem &mdash; 캐릭터 풀 관리</div><div class="pipe-desc"><code>DT_GuildCharacters</code>에서 12명의 캐릭터 데이터를 로드합니다.<br><strong>RequestGacha()</strong>: Gold 1000 차감(<code>EconomySubsystem.SpendGold(1000)</code>) &rarr; 희귀도 가중치로 3장 뽑기 &rarr; 플레이어가 1장 선택 &rarr; <code>OwnedMembers</code>에 추가.<br>가챠 확률은 <code>GuildLevel</code>에 따라 변동합니다(높은 레벨일수록 높은 등급 캐릭터 확률 증가).</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">스쿼드 편성</div><div class="pipe-desc"><strong>ComposeSquad(TArray&lt;FGuildMember&gt;)</strong>: 2~4슬롯으로 스쿼드 구성.<br><strong>프리셋</strong>: 최대 3개까지 스쿼드 프리셋을 저장하고 불러올 수 있습니다. <code>SaveSquadPreset(int32 Index)</code>, <code>LoadSquadPreset(int32 Index)</code>.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">시너지 계산</div><div class="pipe-desc"><strong>CalculateSynergy()</strong>: 현재 스쿼드 구성원의 조합으로 시너지 보너스를 계산합니다. 특정 캐릭터 조합이 활성화되면 Gold 획득량 보너스, XP 보너스 등의 효과를 부여합니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">SaveGame 연동</div><div class="pipe-desc"><code>OwnedMembers</code>, <code>CurrentSquad</code>, <code>SquadPresets</code>를 SaveGame에 저장/복원합니다. Phase 1에서 만든 SaveGame 구조체에 이미 필드가 준비되어 있습니다.</div></div></div>
+
+    <div class="pitfall"><span class="ic">&#x26A0;&#xFE0F;</span><div class="pitfall-text"><strong>가챠에서 동일 캐릭터 중복 소유 허용</strong> &mdash; <code>OwnedMembers</code>에 같은 Id의 캐릭터가 여러 번 들어갈 수 있습니다. 이는 의도된 설계입니다. UI에서 중복 캐릭터를 표시할 때 개수를 집계하는 로직이 필요합니다.</div></div>
+
+    <h3>중간 검증</h3>
+    <div class="callout tip"><span class="ic">&#x1F4A1;</span><p><strong>검증 1</strong> &mdash; Gold 1000 이상인 상태에서 가챠 호출 &rarr; 3장의 캐릭터 결과가 로그에 출력되는지 확인.</p></div>
+    <div class="callout tip"><span class="ic">&#x1F4A1;</span><p><strong>검증 2</strong> &mdash; 스쿼드 편성(2~4명 선택) &rarr; <code>CalculateSynergy()</code> 호출 &rarr; 시너지 보너스 계산 결과 로그 확인.</p></div>
+    <div class="callout tip"><span class="ic">&#x1F4A1;</span><p><strong>검증 3</strong> &mdash; SaveGame 저장 후 앱 종료 &rarr; 재실행 &rarr; 보유 캐릭터 목록과 스쿼드가 복원되는지 확인.</p></div>
+  </div>
+
+  <!-- ====== Section 12: Phase 4 ====== -->
+  <div class="section" id="phase4">
+    <div class="section-label">12 &mdash; PHASE 4: 비주얼 에셋 제작 &amp; 임포트</div>
+    <h2>눈과 귀를 채운다</h2>
+
+    <div class="callout warn"><span class="ic">&#x26A0;&#xFE0F;</span><p><strong>선행 조건</strong> &mdash; Phase 3까지 모든 로직이 동작. 이제 눈에 보이는 콘텐츠를 채울 차례입니다.</p></div>
+
+    <h3>에셋 목록</h3>
+    <table class="tbl">
+      <tr><th>에셋 유형</th><th>수량</th><th>포맷</th><th>저장 경로</th><th>비고</th></tr>
+      <tr><td>앰비언트 사운드</td><td>5</td><td>.wav (루프)</td><td><code>Content/RT/Audio/Ambient/</code></td><td>Rain, Wind, Fire, Forest, Ocean</td></tr>
+      <tr><td>BGM 트랙</td><td>6</td><td>.wav</td><td><code>Content/RT/Audio/Music/</code></td><td>DT_MusicTracks 행과 1:1 대응</td></tr>
+      <tr><td>배경 이미지</td><td>9</td><td>.png (2048&times;1152 권장)</td><td><code>Content/RT/Textures/Backgrounds/</code></td><td>DT_Backgrounds 행과 1:1 대응</td></tr>
+      <tr><td>캐릭터 일러스트</td><td>12</td><td>.png (512&times;512)</td><td><code>Content/RT/Textures/Characters/</code></td><td>DT_GuildCharacters 행과 1:1 대응</td></tr>
+      <tr><td>UI 아이콘</td><td>~20</td><td>.png (64&times;64~128&times;128)</td><td><code>Content/RT/Textures/Icons/</code></td><td>퀘스트/길드/설정 등</td></tr>
+    </table>
+
+    <h3>UAudioSubsystem 구현</h3>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">앰비언트 사운드</div><div class="pipe-desc"><code>EAmbientType</code> enum (Rain, Wind, Fire, Forest, Ocean)으로 앰비언트 유형을 구분합니다. <code>TMap&lt;EAmbientType, UAudioComponent*&gt;</code>로 각 앰비언트를 관리합니다. <code>SetAmbientVolume(EAmbientType, float)</code>로 개별 볼륨 조절.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">뮤직 플레이어</div><div class="pipe-desc"><code>PlayTrack(FString TrackId)</code>, <code>NextTrack()</code>, <code>PrevTrack()</code>. BGM은 <code>TSoftObjectPtr&lt;USoundWave&gt;</code>로 비동기 로드합니다. <code>DT_MusicTracks</code>에서 트랙 목록을 가져옵니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">배경 테마</div><div class="pipe-desc"><code>ApplyBackground(FString BgId)</code>: DT_Backgrounds에서 텍스처를 찾아 UMG Image 위젯의 브러시를 교체합니다. <code>TSoftObjectPtr&lt;UTexture2D&gt;</code>로 비동기 로드.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">해금 확인</div><div class="pipe-desc">트랙/배경 재생&middot;적용 전에 <code>EconomySubsystem.IsUnlocked(Id)</code>를 체크합니다. 해금되지 않은 항목은 잠금 아이콘을 표시하고 재생을 거부합니다.</div></div></div>
+
+    <h3>임포트 절차</h3>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">에셋 임포트</div><div class="pipe-desc">Content Browser에서 <code>Import</code> 버튼 또는 탐색기에서 드래그&amp;드롭.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">오디오 설정</div><div class="pipe-desc">BGM: <strong>Compression = Streaming</strong> (메모리 절약, 길이가 긴 파일에 적합).<br>앰비언트: <strong>Compression = Loaded</strong> (루프 재생, 짧은 파일은 메모리에 전체 로드).</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">텍스처 설정</div><div class="pipe-desc"><strong>Compression Settings = UserInterface2D (RGBA)</strong>. UI용 텍스처는 이 설정이어야 선명하게 표시됩니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">DataTable 연결</div><div class="pipe-desc">DT_MusicTracks, DT_Backgrounds 등의 <code>TSoftObjectPtr</code> 필드에 임포트한 에셋의 경로를 입력합니다.</div></div></div>
+
+    <div class="pitfall"><span class="ic">&#x26A0;&#xFE0F;</span><div class="pitfall-text"><strong>TSoftObjectPtr은 에셋 경로가 바뀌면 nullptr 반환</strong> &mdash; Content 폴더 구조를 Phase 1에서 확정한 뒤 DataTable에 등록하세요. 등록 후 에셋을 이동하면 경로가 깨져 nullptr이 반환됩니다. 이동이 필요하면 <strong>Content Browser 내에서 이동</strong>(우클릭 &rarr; Move)해야 리디렉터가 생성됩니다.</div></div>
+
+    <h3>중간 검증</h3>
+    <div class="callout tip"><span class="ic">&#x1F4A1;</span><p><strong>검증 1</strong> &mdash; PIE에서 앰비언트 5종 각각 On/Off + 볼륨 조절 &rarr; Output Log에 로그 확인.</p></div>
+    <div class="callout tip"><span class="ic">&#x1F4A1;</span><p><strong>검증 2</strong> &mdash; 뮤직 6트랙 재생&middot;스킵&middot;이전 동작 확인.</p></div>
+    <div class="callout tip"><span class="ic">&#x1F4A1;</span><p><strong>검증 3</strong> &mdash; 해금 안 된 트랙 재생 시도 &rarr; 거부 로그 확인.</p></div>
+  </div>
+
+  <!-- ====== Section 13: Phase 5 ====== -->
+  <div class="section" id="phase5">
+    <div class="section-label">13 &mdash; PHASE 5: UI 프레임워크 &amp; 위젯</div>
+    <h2>사용자가 보고 만지는 모든 것</h2>
+
+    <div class="callout warn"><span class="ic">&#x26A0;&#xFE0F;</span><p><strong>선행 조건</strong> &mdash; Phase 1~4 완료. 모든 서브시스템 로직 + 에셋이 준비된 상태.</p></div>
+
+    <h3>UUIManagerSubsystem 구현</h3>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">패널 매니저</div><div class="pipe-desc"><code>EPanelType</code> (Focus, Quest, Archive) 열거형으로 패널 유형을 정의합니다. <code>ShowPanel(EPanelType)</code>, <code>HidePanel()</code> &mdash; 한 번에 하나의 패널만 활성화됩니다. 이전 패널은 자동으로 숨겨집니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">모달 스택</div><div class="pipe-desc"><code>EModalType</code> (Guild, Gacha, Settings) 열거형. <code>ShowModal(EModalType)</code> &mdash; FIFO 큐로 관리합니다. 모달이 열릴 때 반투명 백드롭을 깔고, 백드롭 클릭 시 최상위 모달을 닫습니다. 모달 위에 또 다른 모달을 열 수 있습니다(스택 구조).</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">토스트 알림</div><div class="pipe-desc"><code>ShowToast(FString Message, float Duration)</code> &mdash; 화면 하단 우측에 토스트 메시지를 표시하고, Duration 초 후 자동 소멸합니다. 여러 토스트가 동시에 큐에 쌓이면 순서대로 표시합니다.</div></div></div>
+
+    <h3>위젯 제작 순서</h3>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">HUD 레이아웃</div><div class="pipe-desc"><code>AHUD</code> 서브클래스 또는 <code>APlayerController</code>에서 <code>CreateWidget</code>으로 최상위 HUD 위젯을 생성합니다.<br>&bull; <strong>TopLeft</strong>: 길드 레벨 표시 + XP 프로그레스 바<br>&bull; <strong>TopRight</strong>: Gold 표시 + 설정 아이콘 버튼<br>&bull; <strong>BottomLeft</strong>: 앰비언트/뮤직 플레이어 미니 컨트롤<br>&bull; <strong>BottomRight</strong>: 토스트 알림 영역<br>&bull; <strong>Center</strong>: 메인 패널 영역 (Focus/Quest/Archive 패널이 교체 표시)</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">포커스 패널 (WBP_FocusPanel)</div><div class="pipe-desc">큰 원형 타이머 표시, 남은 시간 텍스트. 시작/일시정지/종료 버튼. <code>UFocusSubsystem.OnTimerTick</code> 델리게이트에 바인딩하여 매초 UI 갱신.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">퀘스트 패널 (WBP_QuestPanel)</div><div class="pipe-desc">퀘스트 목록 (ScrollBox), CRUD 버튼(추가/편집/삭제/완료), 상태 필터(전체/진행중/완료). <code>UQuestSubsystem</code>에서 데이터를 읽어 목록을 구성합니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">아카이브 패널 (WBP_ArchivePanel)</div><div class="pipe-desc">캘린더 위젯(<code>WBP_Calendar</code>) + 기록 리스트. 날짜를 클릭하면 해당 날의 집중 기록을 표시합니다. <code>URecordSubsystem.GetCalendarData()</code>에서 데이터를 가져옵니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">5</div><div class="pipe-body"><div class="pipe-title">길드 모달 (WBP_GuildModal)</div><div class="pipe-desc">보유 캐릭터 목록(그리드), 스쿼드 편성 영역(2~4슬롯 드래그&amp;드롭 또는 클릭), 시너지 보너스 표시. <code>UGuildSubsystem</code> 데이터 참조.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">6</div><div class="pipe-body"><div class="pipe-title">가챠 모달 (WBP_GachaModal)</div><div class="pipe-desc">뽑기 버튼 클릭 &rarr; 3장 카드가 뒤집히는 연출 &rarr; 플레이어가 1장 선택. <code>UGuildSubsystem.RequestGacha()</code> 결과를 받아 표시합니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">7</div><div class="pipe-body"><div class="pipe-title">설정 모달</div><div class="pipe-desc">볼륨 슬라이더(마스터/앰비언트/뮤직), 배경 테마 선택 그리드(해금/잠금 표시). <code>UAudioSubsystem</code> + <code>UEconomySubsystem</code> 참조.</div></div></div>
+
+    <div class="pitfall"><span class="ic">&#x26A0;&#xFE0F;</span><div class="pitfall-text"><strong>UMG 위젯에서 서브시스템 접근</strong> &mdash; <code>GetGameInstance()-&gt;GetSubsystem&lt;&gt;()</code>를 <code>NativeConstruct()</code>에서 호출하여 멤버 변수에 캐싱하세요. 매 Tick마다 <code>GetSubsystem</code>을 호출하면 불필요한 오버헤드가 발생합니다.</div></div>
+    <div class="callout info"><span class="ic">&#x1F9ED;</span><p><strong>위젯 BP와 C++ 연동</strong> &mdash; C++ 기반 클래스를 먼저 작성하고(<code>UCLASS(Blueprintable)</code>), 에디터에서 이 클래스를 부모로 하는 Widget Blueprint를 생성하면 디자이너에서 레이아웃을 시각적으로 편집할 수 있습니다. 로직은 C++에, 레이아웃은 BP 디자이너에 두는 것이 가장 효율적입니다.</p></div>
+
+    <h3>중간 검증</h3>
+    <div class="callout tip"><span class="ic">&#x1F4A1;</span><p><strong>검증 1</strong> &mdash; PIE에서 패널 전환(Focus &rarr; Quest &rarr; Archive) 동작 확인. 동시에 두 패널이 보이지 않아야 합니다.</p></div>
+    <div class="callout tip"><span class="ic">&#x1F4A1;</span><p><strong>검증 2</strong> &mdash; 모달 열기/닫기 + 모달 스택(모달 위에 모달) 동작 확인.</p></div>
+    <div class="callout tip"><span class="ic">&#x1F4A1;</span><p><strong>검증 3</strong> &mdash; 토스트 알림 표시 후 자동 소멸 확인. 여러 토스트를 연속 호출하면 순서대로 표시.</p></div>
+    <div class="callout tip"><span class="ic">&#x1F4A1;</span><p><strong>검증 4</strong> &mdash; HUD 4코너 레이아웃이 정상 표시되는지 확인 (해상도 변경 시에도).</p></div>
+    <div class="callout tip"><span class="ic">&#x1F4A1;</span><p><strong>검증 5</strong> &mdash; 포커스 패널에서 타이머 시작 &rarr; Gold/XP 실시간 업데이트 &rarr; HUD의 Gold/XP 표시에 즉시 반영.</p></div>
+  </div>
+
+  <!-- ====== Section 14: Phase 6 ====== -->
+  <div class="section" id="phase6">
+    <div class="section-label">14 &mdash; PHASE 6: 통합 &middot; 빌드 &middot; 패키징 &middot; 배포</div>
+    <h2>모든 것을 연결하고 최종 검증한다</h2>
+
+    <div class="callout warn"><span class="ic">&#x26A0;&#xFE0F;</span><p><strong>선행 조건</strong> &mdash; Phase 1~5 완료. 개별 시스템이 모두 동작하는 상태.</p></div>
+
+    <h3>통합 작업</h3>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">델리게이트 전체 연결</div><div class="pipe-desc">&bull; <code>OnFocusSessionComplete</code> &rarr; <code>Economy.AddXP()</code> + <code>Record.LogFocusRecord()</code><br>&bull; <code>OnQuestComplete</code> &rarr; <code>Economy.AddGold()</code><br>&bull; <code>OnLevelUp</code> &rarr; Guild 가챠 확률 갱신<br>&bull; <code>OnUnlockChanged</code> &rarr; Audio/UI 해금 상태 갱신<br>&bull; <code>OnGoldChanged</code>, <code>OnXPChanged</code> &rarr; HUD 실시간 반영</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">SaveGame 통합 테스트</div><div class="pipe-desc">모든 서브시스템의 데이터가 저장/복원되는지 전체 시나리오 테스트:<br>&bull; 집중 세션 3회 완료 &rarr; Gold/XP 확인 &rarr; 저장 &rarr; 재실행 &rarr; 복원 확인<br>&bull; 퀘스트 5개 생성, 3개 완료 &rarr; 저장 &rarr; 재실행 &rarr; 상태 복원 확인<br>&bull; 가챠 3회 &rarr; 캐릭터 보유 목록 확인 &rarr; 저장 &rarr; 재실행 &rarr; 복원 확인</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">자정 롤오버 테스트</div><div class="pipe-desc">시스템 시간을 23:59로 변경하고 자정을 넘기면, 퀘스트 인스턴스가 갱신되는지 확인합니다. 반복 퀘스트의 새 인스턴스가 생성되고, 비반복 퀘스트의 상태는 유지되어야 합니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">엣지 케이스 테스트</div><div class="pipe-desc">&bull; Gold 부족 시 가챠 거부 &rarr; 적절한 토스트 알림 표시<br>&bull; 빈 스쿼드(0명)에서 시너지 계산 &rarr; 크래시 없이 기본값 반환<br>&bull; 모든 트랙/배경 해금 후 상점 상태 &rarr; "모두 해금됨" 표시<br>&bull; SaveGame 파일이 없을 때 &rarr; 초기 상태로 정상 시작</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">5</div><div class="pipe-body"><div class="pipe-title">성능 프로파일링</div><div class="pipe-desc">콘솔 명령 <code>stat unit</code>, <code>stat fps</code>로 프레임 확인. DataTable 로드 시간 체크. 목표: 60fps 이상 안정 유지.</div></div></div>
+
+    <h3>빌드 &amp; 패키징</h3>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">빌드 설정</div><div class="pipe-desc"><code>Project Settings &rarr; Packaging &rarr; Build Configuration</code> = <strong>Shipping</strong>. Debug 심볼이 제거되고 최적화가 적용됩니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">맵 &amp; 모드 설정</div><div class="pipe-desc"><code>Project Settings &rarr; Maps &amp; Modes</code>에서 <strong>Default GameMode</strong>와 <strong>Default Map</strong>을 RecordTales의 메인 맵으로 설정합니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">패키징 실행</div><div class="pipe-desc"><code>File &rarr; Package Project &rarr; Windows (64-bit)</code>. 출력 폴더를 지정하고 패키징을 시작합니다. 수 분~수십 분 소요.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">최종 실행 테스트</div><div class="pipe-desc">패키징된 <code>.exe</code> 파일을 실행하여 전체 플로우를 테스트합니다.</div></div></div>
+
+    <h3>배포 체크리스트</h3>
+    <table class="tbl">
+      <tr><th>항목</th><th>확인</th></tr>
+      <tr><td>패키지 실행 시 크래시 없음</td><td>&#x2610;</td></tr>
+      <tr><td>SaveGame 저장/불러오기 정상</td><td>&#x2610;</td></tr>
+      <tr><td>모든 오디오 재생 (앰비언트 5 + BGM 6)</td><td>&#x2610;</td></tr>
+      <tr><td>모든 배경 이미지 표시 (9개)</td><td>&#x2610;</td></tr>
+      <tr><td>가챠 동작 (뽑기 &rarr; 선택 &rarr; 보유 목록 추가)</td><td>&#x2610;</td></tr>
+      <tr><td>자정 롤오버 (반복 퀘스트 갱신)</td><td>&#x2610;</td></tr>
+      <tr><td>전체 플로우 (타이머 &rarr; Gold &rarr; 가챠 &rarr; 스쿼드)</td><td>&#x2610;</td></tr>
+      <tr><td>앱 종료 후 재실행 시 모든 데이터 복원</td><td>&#x2610;</td></tr>
+    </table>
+
+    <div class="pitfall"><span class="ic">&#x26A0;&#xFE0F;</span><div class="pitfall-text"><strong>Shipping 빌드에서는 UE_LOG의 Display/Verbose가 출력되지 않음</strong> &mdash; 최종 배포 시 남길 로그는 <code>Warning</code> 이상 레벨만 사용하세요. <code>Display</code>나 <code>Log</code> 레벨은 개발 중에만 유효합니다.</div></div>
+
+    <h3>중간 검증</h3>
+    <div class="callout tip"><span class="ic">&#x1F4A1;</span><p><strong>검증 1</strong> &mdash; 패키지된 .exe 실행 &rarr; 전체 플로우(타이머 시작 &rarr; Gold 적립 &rarr; 가챠 &rarr; 스쿼드 편성) 정상 동작.</p></div>
+    <div class="callout tip"><span class="ic">&#x1F4A1;</span><p><strong>검증 2</strong> &mdash; .exe 종료 후 재실행 &rarr; 모든 데이터(Gold, XP, 캐릭터, 퀘스트, 기록)가 복원 확인.</p></div>
+  </div>
+
+  <!-- ================================================================
+       BLOCK 4: 마무리 (Sections 15-17)
+       ================================================================ -->
+
+  <!-- ====== Section 15: 리스크 & 기술 부채 ====== -->
+  <div class="section" id="risk">
+    <div class="section-label">15 &mdash; 리스크 &amp; 기술 부채</div>
+    <h2>미리 알면 덜 아프다</h2>
+    <p>개발 과정에서 발생할 수 있는 리스크와 대응 전략입니다. 각 리스크의 영향 Phase를 표기하여 해당 Phase 진입 시 미리 대비합니다.</p>
+
+    <table class="tbl">
+      <tr><th>리스크</th><th>Phase</th><th>영향도</th><th>대응 전략</th></tr>
+      <tr><td>SaveGame 구조 변경 시 기존 저장 파일 호환</td><td>P1, P6</td><td style="color:var(--red)">높음</td><td><code>SaveVersion</code> 필드 + 마이그레이션 함수. 버전별 분기로 구 데이터를 새 구조로 변환</td></tr>
+      <tr><td>자정 롤오버 타임존 이슈</td><td>P2</td><td style="color:var(--amber)">중간</td><td><code>FDateTime::UtcNow()</code> 기준 통일, 로컬 변환은 UI 표시 시에만</td></tr>
+      <tr><td>DataTable 경로 변경 시 TSoftObjectPtr 깨짐</td><td>P4</td><td style="color:var(--red)">높음</td><td>Content 폴더 구조를 P1에서 확정, 이후 이동 금지</td></tr>
+      <tr><td>UMG 위젯 리빌드 시 레이아웃 깨짐</td><td>P5</td><td style="color:var(--amber)">중간</td><td>C++ 기반 클래스 + BP 상속 구조로 레이아웃 분리</td></tr>
+      <tr><td>Hot Reload로 에디터 불안정</td><td>전체</td><td>낮음</td><td>Live Coding 끄고 IDE 빌드 사용</td></tr>
+      <tr><td>가챠 확률 밸런스</td><td>P3</td><td style="color:var(--amber)">중간</td><td>DT_GuildCharacters의 Rarity Weight를 DataTable로 분리, 런타임 조정 가능</td></tr>
+      <tr><td>메모리: 배경 9장 동시 로드</td><td>P4</td><td>낮음</td><td><code>TSoftObjectPtr</code> + 현재 배경만 로드, 교체 시 이전 텍스처 언로드</td></tr>
+    </table>
+
+    <div class="pitfall"><span class="ic">&#x26A0;&#xFE0F;</span><div class="pitfall-text"><strong>SaveVersion 마이그레이션 패턴</strong> &mdash; <code>LoadGameFromSlot()</code> 후 <code>SaveGameRef-&gt;SaveVersion</code>을 확인합니다. 현재 버전과 다르면 마이그레이션 함수를 호출하여 구 데이터를 새 구조로 변환합니다. 예: <code>if (SaveGameRef-&gt;SaveVersion &lt; 2) { MigrateV1ToV2(SaveGameRef); }</code>. 마이그레이션 후 <code>SaveVersion</code>을 갱신하고 즉시 저장합니다.</div></div>
+  </div>
+
+  <!-- ====== Section 16: 마일스톤 체크리스트 ====== -->
+  <div class="section" id="milestone">
+    <div class="section-label">16 &mdash; 마일스톤 체크리스트</div>
+    <h2>Phase별 완료 기준</h2>
+    <p>각 Phase의 마일스톤 통과 기준입니다. 모든 항목을 충족해야 다음 Phase로 넘어갑니다.</p>
+
+    <table class="tbl">
+      <tr><th>Phase</th><th>마일스톤</th><th>완료 기준</th><th>상태</th></tr>
+      <tr><td>P1</td><td>프로젝트 기반</td><td>빈 컴파일 성공, SaveGame 저장/복원, DataTable 6개 로드, Settings 에디터 노출</td><td>&#x2610;</td></tr>
+      <tr><td>P2</td><td>핵심 로직</td><td>포모도로 25분 사이클 완료 &rarr; XP/Gold 적립, 퀘스트 생성 &rarr; 완료 &rarr; 보상, 기록 저장 &rarr; 조회, 자정 롤오버</td><td>&#x2610;</td></tr>
+      <tr><td>P3</td><td>게임화</td><td>가챠 뽑기 &rarr; 캐릭터 획득 &rarr; 중복 허용, 스쿼드 편성 &rarr; 시너지 계산, 프리셋 저장/복원</td><td>&#x2610;</td></tr>
+      <tr><td>P4</td><td>에셋</td><td>앰비언트 5종 On/Off, BGM 6트랙 재생/스킵, 배경 9개 전환, 해금 체크 동작</td><td>&#x2610;</td></tr>
+      <tr><td>P5</td><td>UI</td><td>3 패널 전환, 2 모달 스택, 토스트 자동 소멸, HUD 4코너, 실시간 데이터 반영</td><td>&#x2610;</td></tr>
+      <tr><td>P6</td><td>통합</td><td>전체 플로우 정상, SaveGame 전체 복원, Shipping 패키지 실행 정상</td><td>&#x2610;</td></tr>
+    </table>
+  </div>
+
+  <!-- ====== Section 17: 보완 작업 목록 ====== -->
+  <div class="section" id="supplement">
+    <div class="section-label">17 &mdash; 보완 작업 목록</div>
+    <h2>추가로 필요한 데이터와 문서</h2>
+    <p>현재 설계 문서(00~08) 대비, 실제 개발 시 추가로 필요한 데이터와 문서를 식별합니다. 각 Phase 시작 전에 해당 Phase의 보완 항목을 먼저 준비하세요.</p>
+
+    <table class="tbl">
+      <tr><th>보완 항목</th><th>유형</th><th>현재 상태</th><th>필요 시점</th><th>설명</th></tr>
+      <tr><td>DataTable CSV/JSON 초기 데이터</td><td>데이터</td><td>미생성</td><td>Phase 1</td><td>DT_GuildLevels(20행), DT_GuildCharacters(12행), DT_MusicTracks(6행), DT_Backgrounds(9행), DT_UnlockTree(17행), DT_QuestMasterData의 실제 행 데이터</td></tr>
+      <tr><td>밸런스 상수 정의서</td><td>문서</td><td>설계 문서에 분산</td><td>Phase 1</td><td>URecordTalesSettings의 모든 필드 + 기본값을 한 곳에 정리 (TimerDuration=25min, GoldTickInterval=6s, XPPerCycle=15 등)</td></tr>
+      <tr><td>가챠 확률 테이블</td><td>데이터</td><td>미정의</td><td>Phase 3</td><td>길드 레벨별(Lv1~20) 희귀도 가중치 (Normal/Rare/Epic/Legendary)</td></tr>
+      <tr><td>UI 와이어프레임</td><td>문서</td><td>07에 텍스트 설명만</td><td>Phase 5</td><td>각 패널/모달의 위젯 배치&middot;크기&middot;간격 시각 레이아웃</td></tr>
+      <tr><td>시너지 조합 테이블</td><td>데이터</td><td>04에 개념만</td><td>Phase 3</td><td>어떤 캐릭터 조합이 어떤 시너지를 발동하는지 전체 매트릭스</td></tr>
+      <tr><td>사운드 에셋 목록</td><td>데이터</td><td>06에 유형만</td><td>Phase 4</td><td>실제 파일명&middot;길이&middot;포맷&middot;라이선스 정보</td></tr>
+      <tr><td>에러 코드 &amp; 메시지 정의서</td><td>문서</td><td>미정의</td><td>Phase 2</td><td>서브시스템별 에러 코드(Gold 부족, 슬롯 초과 등)와 사용자 메시지</td></tr>
+      <tr><td>퀘스트 마스터 데이터</td><td>데이터</td><td>02에 구조만</td><td>Phase 2</td><td>기본 제공 퀘스트 템플릿(일간/주간/월간) 실제 내용</td></tr>
+    </table>
+
+    <div class="callout info"><span class="ic">&#x1F9ED;</span><p>이 보완 항목들은 개발 진행에 따라 별도 문서 또는 데이터 파일로 생성합니다. <strong>각 Phase 시작 전에 해당 Phase의 보완 항목을 먼저 준비하세요.</strong> 준비 없이 Phase에 진입하면 중간에 작업이 막힙니다.</p></div>
+  </div>
+
+</div>
+
+<!-- ====== FOOTER ====== -->
+<footer>
+  <span>RecordTales &middot; 09 Dev Flow Roadmap v1.0</span>
+  <span>Master v1.3 &middot; Template 03 v1.0</span>
+</footer>
+
+<!-- ====== INLINE SCRIPT ====== -->
+<script>
+document.querySelectorAll('.codeblock').forEach(block => {
+  const tabs = block.querySelectorAll('.codeblock-tab');
+  const panels = block.querySelectorAll('.codeblock-panel');
+  const copyBtn = block.querySelector('.codeblock-copy');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      panels.forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      const target = block.querySelector('#' + tab.dataset.panel);
+      if (target) target.classList.add('active');
+    });
+  });
+  if (copyBtn) {
+    copyBtn.addEventListener('click', () => {
+      const active = block.querySelector('.codeblock-panel.active pre');
+      if (active) {
+        navigator.clipboard.writeText(active.innerText).then(() => {
+          copyBtn.textContent = 'Copied!';
+          copyBtn.classList.add('copied');
+          setTimeout(() => { copyBtn.textContent = 'Copy'; copyBtn.classList.remove('copied'); }, 1500);
+        });
+      }
+    });
+  }
+});
+</script>
+
+</body>
+</html>

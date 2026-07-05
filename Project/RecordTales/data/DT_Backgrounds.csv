@@ -1,0 +1,10 @@
+---,Id,DisplayName,bFree,UnlockCostGold,SoftPath
+1,"bg_default","고요한 서재",true,0,"/Game/RecordTales/Textures/Backgrounds/T_BgDefault"
+2,"bg_forest","숲속 오두막",false,2000,"/Game/RecordTales/Textures/Backgrounds/T_BgForest"
+3,"bg_ocean","바다 위 등대",false,3000,"/Game/RecordTales/Textures/Backgrounds/T_BgOcean"
+4,"bg_mountain","설산 정상",false,5000,"/Game/RecordTales/Textures/Backgrounds/T_BgMountain"
+5,"bg_castle","성채 발코니",false,7000,"/Game/RecordTales/Textures/Backgrounds/T_BgCastle"
+6,"bg_garden","마법의 정원",false,10000,"/Game/RecordTales/Textures/Backgrounds/T_BgGarden"
+7,"bg_night","별빛 도서관",false,14000,"/Game/RecordTales/Textures/Backgrounds/T_BgNight"
+8,"bg_aurora","오로라 호수",false,20000,"/Game/RecordTales/Textures/Backgrounds/T_BgAurora"
+9,"bg_cosmos","우주 관측소",false,30000,"/Game/RecordTales/Textures/Backgrounds/T_BgCosmos"

@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RecordTales · 10 UMG + C++ 구현 가이드</title>
+<!-- ============================================================
+     CHANGELOG — 10-umg-cpp-integration.html
+     RecordTales UMG + C++ 구현 가이드. 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.0 · 2026-07-05
+       - 신규 생성. 02-B 기능 구현 명세 템플릿 기반.
+       - UIManagerSubsystem + 7개 위젯 실제 구현 절차
+       - NativeConstruct/BindWidget/델리게이트 바인딩 RecordTales 적용
+       - 마스터 CSS v1.3 inline 스냅샷
+     ============================================================ -->
+<style>
+/* ============================================================
+   UE Design System — Master Stylesheet (INLINE SNAPSHOT)
+   v1.3 · 2026-07-02
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Pretendard:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg: #0D0F1A;
+  --surface: #13162A;
+  --surface-2: #1A1F38;
+  --border: #252B4A;
+  --accent: #5B6EFA;
+  --accent-2: #9B6DFF;
+  --accent-3: #38D9B4;
+  --text: #E4E8FF;
+  --text-muted: #7B82A6;
+  --text-dim: #4A5080;
+  --amber: #F59E0B;
+  --pink: #E040FB;
+  --red: #F87171;
+
+  --ue-folder: #F59E0B;
+  --ue-bp:     #5B6EFA;
+  --ue-enum:   #9B6DFF;
+  --ue-mat:    #FB8C5A;
+  --ue-tex:    #38D9B4;
+  --ue-demo:   #6BD98E;
+
+  --ue-gamemode:   #5B6EFA;
+  --ue-gamestate:  #7B9CFF;
+  --ue-controller: #38D9B4;
+  --ue-pawn:       #6BD98E;
+  --ue-instance:   #9B6DFF;
+  --ue-savegame:   #F59E0B;
+  --ue-subsystem:  #E040FB;
+
+  --ue-header: #38D9B4;
+  --ue-source: #FB8C5A;
+  --ue-macro:  #FB8C5A;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+  font-size: 15px; line-height: 1.7; -webkit-font-smoothing: antialiased;
+}
+
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(13,15,26,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px; display: flex; align-items: center; gap: 32px; height: 52px;
+}
+.nav-logo { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em; white-space: nowrap; }
+.nav-links { display: flex; gap: 22px; flex-wrap: wrap; }
+.nav-links a { color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 500; transition: color 0.2s; }
+.nav-links a:hover { color: var(--text); }
+.nav-links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+
+.hero { padding: 72px 48px 56px; max-width: 920px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+.hero-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: var(--accent); text-transform: uppercase; margin-bottom: 20px; }
+.hero h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 20px; }
+.hero h1 span { color: var(--accent); }
+.hero-sub { font-size: 16px; color: var(--text-muted); max-width: 660px; line-height: 1.75; }
+.hero-meta { margin-top: 28px; display: flex; gap: 10px; flex-wrap: wrap; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; border: 1px solid; }
+.badge-blue { color: var(--accent); border-color: var(--accent); background: rgba(91,110,250,0.08); }
+.badge-green { color: var(--accent-3); border-color: var(--accent-3); background: rgba(56,217,180,0.08); }
+.badge-purple { color: var(--accent-2); border-color: var(--accent-2); background: rgba(155,109,255,0.08); }
+
+.content { max-width: 920px; margin: 0 auto; padding: 0 48px 80px; }
+.section { padding: 52px 0 0; border-top: 1px solid var(--border); margin-top: 52px; }
+.section:first-child { margin-top: 0; padding-top: 48px; border-top: none; }
+.section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 12px; }
+.section h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 20px; }
+.section h3 { font-size: 15px; font-weight: 700; color: var(--text); margin: 30px 0 10px; letter-spacing: 0.01em; }
+.section p { color: var(--text-muted); margin-bottom: 14px; line-height: 1.8; }
+.section p strong { color: var(--text); font-weight: 600; }
+
+code { font-family: 'IBM Plex Mono', monospace; font-size: 0.86em; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; color: var(--accent-3); }
+
+.swatch-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 22px 0; }
+.swatch { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.swatch .chip { height: 56px; }
+.swatch .meta { padding: 10px 12px; }
+.swatch .vn { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text); font-weight: 600; }
+.swatch .hx { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--text-dim); }
+.swatch .role { font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+
+.type-row { display: flex; align-items: baseline; gap: 18px; padding: 14px 0; border-bottom: 1px solid rgba(37,43,74,0.5); }
+.type-row:last-child { border-bottom: none; }
+.type-spec { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-dim); min-width: 150px; flex-shrink: 0; }
+.ts-h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; }
+.ts-h2 { font-size: 22px; font-weight: 700; }
+.ts-h3 { font-size: 15px; font-weight: 700; }
+.ts-body { font-size: 15px; color: var(--text-muted); }
+.ts-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); }
+.ts-code { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--accent-3); }
+
+.callout { display: flex; gap: 12px; align-items: flex-start; border-radius: 8px; padding: 14px 16px; margin: 18px 0; border: 1px solid var(--border); background: var(--surface-2); font-size: 13.5px; line-height: 1.65; }
+.callout .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.callout p { margin: 0; color: var(--text-muted); }
+.callout p strong { color: var(--text); }
+.callout.info { border-left: 3px solid var(--accent); }
+.callout.tip  { border-left: 3px solid var(--accent-3); }
+.callout.warn { border-left: 3px solid var(--amber); }
+
+.demo { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 16px 0; }
+.demo-head { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 7px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); }
+.demo-body { padding: 22px; }
+
+.snip { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 12px 0 22px; }
+.snip-head { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 8px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+.code-dot { width: 8px; height: 8px; border-radius: 50%; }
+.snip pre { padding: 14px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-muted); line-height: 1.75; overflow-x: auto; white-space: pre; }
+.snip pre .tag { color: var(--accent); }
+.snip pre .atr { color: var(--ue-mat); }
+.snip pre .val { color: var(--accent-3); }
+.snip pre .cm  { color: var(--text-dim); }
+
+.codeblock { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 16px 0 24px; }
+.codeblock-bar { display: flex; align-items: stretch; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.codeblock-tab {
+  padding: 9px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600;
+  color: var(--text-dim); background: transparent; border: none; border-right: 1px solid var(--border);
+  cursor: pointer; transition: color 0.15s, background 0.15s; box-shadow: inset 0 -2px 0 transparent;
+}
+.codeblock-tab:hover { color: var(--text-muted); }
+.codeblock-tab.active { color: var(--text); background: var(--surface); }
+.codeblock-tab.tab-h.active   { box-shadow: inset 0 -2px 0 var(--ue-header); }
+.codeblock-tab.tab-cpp.active { box-shadow: inset 0 -2px 0 var(--ue-source); }
+.codeblock-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.codeblock-copy {
+  margin-left: auto; align-self: center; margin-right: 8px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600;
+  color: var(--text-muted); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 5px; padding: 4px 10px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+}
+.codeblock-copy:hover { color: var(--text); border-color: var(--accent); }
+.codeblock-copy.copied { color: var(--accent-3); border-color: var(--accent-3); }
+.codeblock-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.codeblock-panel { display: none; }
+.codeblock-panel.active { display: block; }
+.codeblock pre { padding: 16px 18px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.75; overflow-x: auto; white-space: pre; }
+
+.hljs { color: var(--text-muted); background: var(--surface); }
+.hljs-comment, .hljs-quote { color: var(--text-dim); font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-section { color: var(--accent); font-weight: 500; }
+.hljs-literal, .hljs-symbol, .hljs-bullet { color: var(--accent-2); }
+.hljs-number { color: var(--accent-2); }
+.hljs-string, .hljs-attr, .hljs-attribute, .hljs-name { color: var(--ue-demo); }
+.hljs-type, .hljs-class .hljs-title, .hljs-title.class_, .hljs-built_in { color: var(--accent-3); }
+.hljs-title, .hljs-title.function_, .hljs-function .hljs-title { color: var(--text); }
+.hljs-params { color: var(--text-muted); }
+.hljs-meta, .hljs-meta .hljs-keyword { color: var(--ue-macro); font-weight: 600; }
+.hljs-meta .hljs-string { color: var(--ue-demo); }
+.hljs-property, .hljs-variable { color: var(--text); }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 700; }
+
+.filetag { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 3px; }
+.filetag.h   { background: rgba(56,217,180,0.14); color: var(--ue-header); }
+.filetag.cpp { background: rgba(251,140,90,0.14);  color: var(--ue-source); }
+
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 4px; }
+.stat-label { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+.a-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; border-top: 2px solid var(--ue-bp); }
+.a-card .ic { font-size: 22px; margin-bottom: 10px; }
+.a-card .a-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.a-card .a-id { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--accent); margin-bottom: 8px; }
+.a-card .a-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+.tt { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 3px; }
+.tt-bool { background: rgba(91,110,250,0.14); color: var(--accent); }
+.tt-enum { background: rgba(251,140,90,0.14); color: var(--ue-mat); }
+.tt-del  { background: rgba(224,64,251,0.12); color: var(--pink); }
+
+.pills { display: flex; flex-wrap: wrap; gap: 7px; }
+.pill { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; padding: 3px 12px; border-radius: 20px; border: 1px solid; }
+.pill.blue { color: var(--accent); border-color: rgba(91,110,250,0.4); background: rgba(91,110,250,0.08); }
+.pill.purple { color: var(--accent-2); border-color: rgba(155,109,255,0.4); background: rgba(155,109,255,0.08); }
+.pill.green { color: var(--accent-3); border-color: rgba(56,217,180,0.4); background: rgba(56,217,180,0.08); }
+.pill.pink { color: var(--pink); border-color: rgba(224,64,251,0.4); background: rgba(224,64,251,0.08); }
+.pill.red { color: var(--red); border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.08); }
+
+.arch { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: stretch; }
+.arch-layer { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 16px 14px; }
+.arch-arrow { display: flex; align-items: center; justify-content: center; padding: 0 8px; color: var(--text-dim); font-size: 16px; }
+.arch-tag { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 7px; color: var(--accent); }
+.arch-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.arch-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+.tbl { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 13px; }
+.tbl th { background: var(--surface-2); color: var(--text-muted); font-weight: 600; font-size: 12px; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+.tbl td { padding: 10px 14px; color: var(--text-muted); border-bottom: 1px solid rgba(37,43,74,0.5); vertical-align: top; line-height: 1.55; }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl td:first-child { color: var(--text); }
+.tbl td code, .tbl th code { background: transparent; border: none; padding: 0; color: var(--accent); }
+
+.tbl .owner { display: inline-flex; align-items: center; gap: 7px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.tbl .owner::before { content: ''; width: 9px; height: 9px; border-radius: 2px; background: var(--text-dim); flex-shrink: 0; }
+.tbl .owner.o-gamemode::before   { background: var(--ue-gamemode); }
+.tbl .owner.o-gamestate::before  { background: var(--ue-gamestate); }
+.tbl .owner.o-controller::before { background: var(--ue-controller); }
+.tbl .owner.o-pawn::before       { background: var(--ue-pawn); }
+.tbl .owner.o-instance::before   { background: var(--ue-instance); }
+.tbl .owner.o-savegame::before   { background: var(--ue-savegame); }
+.tbl .owner.o-subsystem::before  { background: var(--ue-subsystem); }
+
+.tree { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.9; color: var(--text-dim); white-space: pre; overflow-x: auto; }
+.tree .folder { color: var(--ue-folder); font-weight: 600; }
+.tree .bp { color: var(--ue-bp); } .tree .enum { color: var(--ue-enum); }
+.tree .mat { color: var(--ue-mat); } .tree .tex { color: var(--ue-tex); }
+.tree .note { color: var(--text-muted); }
+.tree .c-gamemode { color: var(--ue-gamemode); font-weight: 600; }
+.tree .c-gamestate { color: var(--ue-gamestate); font-weight: 600; }
+.tree .c-controller { color: var(--ue-controller); font-weight: 600; }
+.tree .c-pawn { color: var(--ue-pawn); font-weight: 600; }
+.tree .c-instance { color: var(--ue-instance); font-weight: 600; }
+.tree .c-savegame { color: var(--ue-savegame); font-weight: 600; }
+.tree .c-subsystem { color: var(--ue-subsystem); font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); }
+.legend .dot { width: 9px; height: 9px; border-radius: 2px; }
+
+.rel-map { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
+.rel-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+.rel-node {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 14px; border-left: 3px solid var(--text-dim);
+}
+.rel-node .rn-name { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.rel-node .rn-role { font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.4; }
+.rel-node.n-gamemode   { border-left-color: var(--ue-gamemode); }
+.rel-node.n-gamestate  { border-left-color: var(--ue-gamestate); }
+.rel-node.n-controller { border-left-color: var(--ue-controller); }
+.rel-node.n-pawn       { border-left-color: var(--ue-pawn); }
+.rel-node.n-instance   { border-left-color: var(--ue-instance); }
+.rel-node.n-savegame   { border-left-color: var(--ue-savegame); }
+.rel-node.n-subsystem  { border-left-color: var(--ue-subsystem); }
+.rel-arrow { display: flex; flex-direction: column; align-items: center; color: var(--text-dim); min-width: 84px; }
+.rel-arrow .ra-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--accent); letter-spacing: 0.04em; white-space: nowrap; }
+.rel-arrow .ra-line { font-size: 15px; line-height: 1; }
+
+.pipe-step { display: grid; grid-template-columns: 36px 1fr; gap: 0 16px; position: relative; }
+.pipe-step::before { content: ''; position: absolute; left: 17px; top: 36px; bottom: -1px; width: 2px; background: var(--border); }
+.pipe-step:last-child::before { display: none; }
+.pipe-num { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--surface-2); }
+.pipe-body { padding: 6px 0 22px; }
+.pipe-title { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+.pipe-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+.pitfall { display: flex; gap: 14px; align-items: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; border-left: 3px solid var(--amber); margin: 16px 0; }
+.pitfall.tip { border-left-color: var(--accent-3); }
+.pitfall .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.pitfall-text { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
+.pitfall-text strong { color: var(--text); }
+
+.dd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 22px 0; }
+.dd { border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; background: var(--surface-2); }
+.dd.do { border-left: 3px solid var(--accent-3); }
+.dd.dont { border-left: 3px solid var(--red); }
+.dd h4 { font-size: 13px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.dd.do h4 { color: var(--accent-3); }
+.dd.dont h4 { color: var(--red); }
+.dd ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.dd li { font-size: 12.5px; color: var(--text-muted); line-height: 1.55; padding-left: 16px; position: relative; }
+.dd li::before { content: ''; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; border-radius: 50%; }
+.dd.do li::before { background: var(--accent-3); }
+.dd.dont li::before { background: var(--red); }
+
+footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920px; margin: 0 auto; font-size: 12px; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+.stat-row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.stat-row-4 .stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+
+.compare-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
+.compare-box h4 { font-size: 14px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.compare-box p { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 10px; }
+.compare-box .pills { margin-top: 10px; }
+
+@media (max-width: 720px) {
+  .content { padding: 0 20px 60px; }
+  .hero { padding: 48px 20px 40px; }
+  .swatch-grid { grid-template-columns: 1fr 1fr; }
+  .stat-row, .stat-row-4, .dd-grid, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .arch { grid-template-columns: 1fr; }
+  .arch-arrow { transform: rotate(90deg); padding: 4px 0; }
+  .rel-row { grid-template-columns: 1fr; text-align: left; }
+  .rel-arrow { flex-direction: row; gap: 8px; min-width: 0; padding: 2px 0; }
+  .rel-arrow .ra-line { transform: rotate(90deg); }
+  .type-row { flex-direction: column; gap: 6px; }
+  .type-spec { min-width: 0; }
+  nav { padding: 0 16px; gap: 16px; }
+  .nav-links { display: none; }
+  footer { padding: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">RECORDTALES · 10 UMG + C++ 구현</div>
+  <div class="nav-links">
+    <a href="#requirements">요구사항</a>
+    <a href="#decision">설계결정</a>
+    <a href="#classes">클래스구성</a>
+    <a href="#code-focus">포커스패널</a>
+    <a href="#code-quest">퀘스트패널</a>
+    <a href="#code-hud">HUD</a>
+    <a href="#register">등록</a>
+    <a href="#verify">검증</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-eyebrow">RecordTales · v1.0 · UMG + C++ Implementation Guide</div>
+  <h1>RecordTales<br><span>UMG + C++ 구현 가이드</span></h1>
+  <p class="hero-sub">RecordTales의 7개 서브시스템을 UMG 위젯으로 연결하는 실제 구현 절차입니다. UIManagerSubsystem의 패널/모달 관리 로직부터 개별 위젯의 C++ 클래스·Designer 레이아웃·델리게이트 바인딩까지, 따라 하면 UI가 완성됩니다. UMG 기초 지식은 「UMG + C++ 연동 프레임워크」 문서를 전제합니다.</p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">7 Widgets</span>
+    <span class="badge badge-purple">UIManagerSubsystem</span>
+    <span class="badge badge-green">BindWidget Pattern</span>
+  </div>
+</section>
+
+<div class="content">
+
+<!-- ============================================================
+     SECTION 1: 요구사항
+     ============================================================ -->
+<div class="section" id="requirements">
+  <div class="section-label">01 — 요구사항</div>
+  <h2>요구사항</h2>
+
+  <div class="callout warn">
+    <span class="ic">&#9888;</span>
+    <p><strong>전제 조건</strong><br>
+    1. 09 개발 플로우 로드맵의 Phase 1~4 완료 (모든 서브시스템 로직 동작 중)<br>
+    2. 「UMG + C++ 연동 프레임워크」 문서(ue-wiki/ue-architect/umg-cpp-framework.html)를 읽었을 것<br>
+    3. <code>Build.cs</code>에 <code>"UMG"</code>, <code>"Slate"</code>, <code>"SlateCore"</code> 모듈이 추가되어 있을 것</p>
+  </div>
+
+  <h3>만들어야 할 위젯 목록</h3>
+  <table class="tbl">
+    <tr><th>위젯</th><th>유형</th><th>C++ 클래스</th><th>WBP 이름</th><th>핵심 기능</th></tr>
+    <tr><td>포커스 패널</td><td>Panel</td><td><code>UFocusPanelWidget</code></td><td><code>WBP_FocusPanel</code></td><td>타이머 표시, 시작/일시정지/종료 버튼, Gold 틱 실시간 표시</td></tr>
+    <tr><td>퀘스트 패널</td><td>Panel</td><td><code>UQuestPanelWidget</code></td><td><code>WBP_QuestPanel</code></td><td>퀘스트 목록(ScrollBox), 추가/완료 버튼, 상태 필터</td></tr>
+    <tr><td>아카이브 패널</td><td>Panel</td><td><code>UArchivePanelWidget</code></td><td><code>WBP_ArchivePanel</code></td><td>캘린더 위젯, 기록 리스트(ScrollBox), 기간 필터</td></tr>
+    <tr><td>길드 모달</td><td>Modal</td><td><code>UGuildModalWidget</code></td><td><code>WBP_GuildModal</code></td><td>보유 캐릭터 그리드, 스쿼드 편성 슬롯, 시너지 표시</td></tr>
+    <tr><td>가챠 모달</td><td>Modal</td><td><code>UGachaModalWidget</code></td><td><code>WBP_GachaModal</code></td><td>3장 카드 표시, 선택 버튼, 결과 연출</td></tr>
+    <tr><td>설정 모달</td><td>Modal</td><td><code>USettingsModalWidget</code></td><td><code>WBP_SettingsModal</code></td><td>볼륨 슬라이더, 배경 선택 그리드</td></tr>
+    <tr><td>HUD 레이아웃</td><td>HUD</td><td><code>URecordTalesHUD</code></td><td><code>WBP_HUD</code></td><td>4코너 배치(길드정보/Gold/앰비언트/토스트) + 중앙 패널 영역</td></tr>
+  </table>
+</div>
+
+<!-- ============================================================
+     SECTION 2: 설계 결정
+     ============================================================ -->
+<div class="section" id="decision">
+  <div class="section-label">02 — 설계 결정</div>
+  <h2>설계 결정</h2>
+
+  <h3>책임 배치 결정표</h3>
+  <p>각 기능을 어느 클래스에 둘 것인지, 그 근거를 명시합니다.</p>
+  <table class="tbl">
+    <tr><th>이 기능</th><th>둘 곳</th><th>근거</th></tr>
+    <tr>
+      <td>패널 전환 로직 (한 번에 하나)</td>
+      <td><span class="owner o-subsystem">UUIManagerSubsystem</span></td>
+      <td>레벨 전환에도 유지, 모든 위젯 라이프사이클 일괄 관리</td>
+    </tr>
+    <tr>
+      <td>모달 스택 (Push/Pop)</td>
+      <td><span class="owner o-subsystem">UUIManagerSubsystem</span></td>
+      <td>여러 모달의 순서 관리는 위젯 자신이 할 수 없음</td>
+    </tr>
+    <tr>
+      <td>토스트 큐</td>
+      <td><span class="owner o-subsystem">UUIManagerSubsystem</span></td>
+      <td>복수 토스트 순차 표시 정책</td>
+    </tr>
+    <tr>
+      <td>타이머 표시 갱신</td>
+      <td><span class="owner o-pawn">UFocusPanelWidget</span></td>
+      <td>표시 로직은 해당 위젯에, 데이터는 FocusSubsystem에서 받음</td>
+    </tr>
+    <tr>
+      <td>퀘스트 목록 렌더링</td>
+      <td><span class="owner o-pawn">UQuestPanelWidget</span></td>
+      <td>ScrollBox 관리는 위젯 담당</td>
+    </tr>
+    <tr>
+      <td>가챠 연출</td>
+      <td><span class="owner o-pawn">UGachaModalWidget</span></td>
+      <td>시각 연출은 위젯 BP의 UWidgetAnimation 활용</td>
+    </tr>
+    <tr>
+      <td>위젯 인스턴스 소유</td>
+      <td><span class="owner o-subsystem">UUIManagerSubsystem</span></td>
+      <td>UPROPERTY()로 참조 보유 &rarr; GC 방지</td>
+    </tr>
+  </table>
+
+  <h3>UIManagerSubsystem 위젯 관리 패턴</h3>
+  <p>서브시스템이 모든 위젯 인스턴스를 <code>UPROPERTY() TMap&lt;FName, UUserWidget*&gt;</code>으로 소유합니다. 핵심 흐름:</p>
+  <ul style="list-style:none; margin: 12px 0; display:flex; flex-direction:column; gap:8px;">
+    <li style="color:var(--text-muted); font-size:13px;"><strong style="color:var(--text);">ShowPanel()</strong> &rarr; 기존 패널 <code>RemoveFromParent()</code> &rarr; 새 패널 <code>AddToViewport(5)</code></li>
+    <li style="color:var(--text-muted); font-size:13px;"><strong style="color:var(--text);">ShowModal()</strong> &rarr; 모달 Push (스택) &rarr; <code>AddToViewport(10 + 스택깊이)</code></li>
+    <li style="color:var(--text-muted); font-size:13px;"><strong style="color:var(--text);">HideModal()</strong> &rarr; Pop &rarr; <code>RemoveFromParent()</code></li>
+  </ul>
+
+  <h3>Widget Blueprint 클래스 할당 방식</h3>
+  <div class="callout info">
+    <span class="ic">&#8505;</span>
+    <p><strong>DataAsset 방식 권장</strong><br>
+    UIManagerSubsystem에 <code>UPROPERTY(EditDefaultsOnly) TSubclassOf&lt;UFocusPanelWidget&gt; FocusPanelClass;</code> 를 직접 두는 방식도 가능하지만,
+    <strong>URecordTalesUIConfig</strong>(DataAsset)으로 분리하여 7개 WBP 경로를 한 곳에서 관리하는 것을 권장합니다.
+    에디터에서 DA_UIConfig 에셋 하나만 열면 모든 위젯 클래스 할당을 한 눈에 확인/편집할 수 있습니다.</p>
+  </div>
+</div>
+
+<!-- ============================================================
+     SECTION 3: 클래스 구성
+     ============================================================ -->
+<div class="section" id="classes">
+  <div class="section-label">03 — 클래스 구성</div>
+  <h2>클래스 구성</h2>
+
+  <h3>파일 목록</h3>
+  <div class="tree"><span class="folder">Source/RecordTales/UI/</span>
+├── <span class="tex">RecordTalesUIConfig.h</span>           <span class="note">&larr; DataAsset: WBP 클래스 참조 7개</span>
+├── <span class="c-subsystem">UIManagerSubsystem.h / .cpp</span>     <span class="note">&larr; 패널/모달/토스트 관리 (기존 07에서 보강)</span>
+├── <span class="folder">Widgets/</span>
+│   ├── <span class="tex">RecordTalesWidgetBase.h/.cpp</span>   <span class="note">&larr; 공통 베이스 (서브시스템 캐싱 헬퍼)</span>
+│   ├── <span class="bp">FocusPanelWidget.h / .cpp</span>      <span class="note">&larr; 타이머 + Gold 표시</span>
+│   ├── <span class="bp">QuestPanelWidget.h / .cpp</span>      <span class="note">&larr; 퀘스트 리스트</span>
+│   ├── <span class="bp">ArchivePanelWidget.h / .cpp</span>    <span class="note">&larr; 캘린더 + 기록</span>
+│   ├── <span class="enum">GuildModalWidget.h / .cpp</span>      <span class="note">&larr; 캐릭터 그리드 + 스쿼드</span>
+│   ├── <span class="enum">GachaModalWidget.h / .cpp</span>      <span class="note">&larr; 3장 카드 연출</span>
+│   ├── <span class="enum">SettingsModalWidget.h / .cpp</span>   <span class="note">&larr; 볼륨 + 배경</span>
+│   └── <span class="mat">RecordTalesHUD.h / .cpp</span>        <span class="note">&larr; HUD 4코너 레이아웃</span>
+└── <span class="folder">Components/</span>
+    ├── <span class="tex">CalendarWidget.h / .cpp</span>        <span class="note">&larr; 재사용 캘린더 컴포넌트</span>
+    ├── <span class="tex">QuestEntryWidget.h / .cpp</span>      <span class="note">&larr; 퀘스트 1줄 아이템</span>
+    ├── <span class="tex">CharacterCardWidget.h / .cpp</span>   <span class="note">&larr; 캐릭터 카드 1장</span>
+    └── <span class="tex">ToastWidget.h / .cpp</span>           <span class="note">&larr; 토스트 1개</span></div>
+  <div class="legend">
+    <span><span class="dot" style="background:var(--ue-bp);"></span>Panel 위젯</span>
+    <span><span class="dot" style="background:var(--ue-enum);"></span>Modal 위젯</span>
+    <span><span class="dot" style="background:var(--ue-mat);"></span>HUD 위젯</span>
+    <span><span class="dot" style="background:var(--ue-tex);"></span>공통/컴포넌트</span>
+    <span><span class="dot" style="background:var(--ue-subsystem);"></span>서브시스템</span>
+  </div>
+</div>
+
+<!-- ============================================================
+     SECTION 4: 포커스 패널 구현
+     ============================================================ -->
+<div class="section" id="code-focus">
+  <div class="section-label">04 — 파일별 코드: 포커스 패널</div>
+  <h2>포커스 패널 구현</h2>
+  <p>한 위젯을 처음부터 끝까지 완전히 만드는 예제입니다. 이 패턴을 숙지하면 나머지 위젯도 동일한 방식으로 만들 수 있습니다.</p>
+
+  <!-- RecordTalesWidgetBase.h / .cpp -->
+  <h3>공통 베이스 클래스 <span class="filetag h">.h</span> <span class="filetag cpp">.cpp</span></h3>
+  <p>모든 RecordTales 위젯이 상속하는 베이스 클래스입니다. <code>NativeConstruct()</code>에서 7개 서브시스템을 캐싱해 자식 위젯에서 바로 사용합니다.</p>
+
+  <div class="codeblock" data-id="widgetbase">
+    <div class="codeblock-bar">
+      <button class="codeblock-tab tab-h active" data-panel="widgetbase-h">RecordTalesWidgetBase.h</button>
+      <button class="codeblock-tab tab-cpp" data-panel="widgetbase-cpp">RecordTalesWidgetBase.cpp</button>
+      <button class="codeblock-copy">Copy</button>
+    </div>
+    <div class="codeblock-panel active" id="widgetbase-h">
+      <pre class="hljs"><span class="hljs-meta">#pragma once</span>
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Blueprint/UserWidget.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"RecordTalesWidgetBase.generated.h"</span></span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UFocusSubsystem</span>;
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UQuestSubsystem</span>;
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">URecordSubsystem</span>;
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UEconomySubsystem</span>;
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UGuildSubsystem</span>;
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UAudioSubsystem</span>;
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UUIManagerSubsystem</span>;
+
+<span class="hljs-meta">UCLASS(<span class="hljs-keyword">Abstract, Blueprintable</span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">RECORDTALES_API</span> URecordTalesWidgetBase : <span class="hljs-keyword">public</span> <span class="hljs-title class_">UUserWidget</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+<span class="hljs-keyword">protected</span>:
+    <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title">NativeConstruct</span>() <span class="hljs-keyword">override</span>;
+
+    <span class="hljs-comment">// 서브시스템 캐시 — 모든 위젯에서 사용 가능</span>
+    <span class="hljs-meta">UPROPERTY()</span>
+    <span class="hljs-type">UFocusSubsystem</span>* FocusSub;
+    <span class="hljs-meta">UPROPERTY()</span>
+    <span class="hljs-type">UEconomySubsystem</span>* EconomySub;
+    <span class="hljs-meta">UPROPERTY()</span>
+    <span class="hljs-type">UQuestSubsystem</span>* QuestSub;
+    <span class="hljs-meta">UPROPERTY()</span>
+    <span class="hljs-type">URecordSubsystem</span>* RecordSub;
+    <span class="hljs-meta">UPROPERTY()</span>
+    <span class="hljs-type">UGuildSubsystem</span>* GuildSub;
+    <span class="hljs-meta">UPROPERTY()</span>
+    <span class="hljs-type">UAudioSubsystem</span>* AudioSub;
+    <span class="hljs-meta">UPROPERTY()</span>
+    <span class="hljs-type">UUIManagerSubsystem</span>* UIMgrSub;
+};</pre>
+    </div>
+    <div class="codeblock-panel" id="widgetbase-cpp">
+      <pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"Widgets/RecordTalesWidgetBase.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Focus/FocusSubsystem.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Economy/EconomySubsystem.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Quest/QuestSubsystem.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Record/RecordSubsystem.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Guild/GuildSubsystem.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Audio/AudioSubsystem.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"UI/UIManagerSubsystem.h"</span></span>
+
+<span class="hljs-type">void</span> <span class="hljs-title class_">URecordTalesWidgetBase</span>::<span class="hljs-title">NativeConstruct</span>()
+{
+    <span class="hljs-title class_">Super</span>::<span class="hljs-title">NativeConstruct</span>();
+
+    <span class="hljs-type">UGameInstance</span>* GI = <span class="hljs-title">GetGameInstance</span>();
+    FocusSub   = GI-&gt;<span class="hljs-title">GetSubsystem</span>&lt;<span class="hljs-type">UFocusSubsystem</span>&gt;();
+    EconomySub = GI-&gt;<span class="hljs-title">GetSubsystem</span>&lt;<span class="hljs-type">UEconomySubsystem</span>&gt;();
+    QuestSub   = GI-&gt;<span class="hljs-title">GetSubsystem</span>&lt;<span class="hljs-type">UQuestSubsystem</span>&gt;();
+    RecordSub  = GI-&gt;<span class="hljs-title">GetSubsystem</span>&lt;<span class="hljs-type">URecordSubsystem</span>&gt;();
+    GuildSub   = GI-&gt;<span class="hljs-title">GetSubsystem</span>&lt;<span class="hljs-type">UGuildSubsystem</span>&gt;();
+    AudioSub   = GI-&gt;<span class="hljs-title">GetSubsystem</span>&lt;<span class="hljs-type">UAudioSubsystem</span>&gt;();
+    UIMgrSub   = GI-&gt;<span class="hljs-title">GetSubsystem</span>&lt;<span class="hljs-type">UUIManagerSubsystem</span>&gt;();
+}</pre>
+    </div>
+  </div>
+
+  <!-- FocusPanelWidget.h / .cpp -->
+  <h3>FocusPanelWidget <span class="filetag h">.h</span> <span class="filetag cpp">.cpp</span></h3>
+  <p>포커스 시스템의 타이머·상태·Gold 수익을 실시간으로 표시하는 핵심 패널입니다. <code>BindWidget</code> 매크로로 Designer와 연결하고, <code>NativeConstruct</code>에서 버튼·델리게이트를 바인딩합니다.</p>
+
+  <div class="codeblock" data-id="focuspanel">
+    <div class="codeblock-bar">
+      <button class="codeblock-tab tab-h active" data-panel="focuspanel-h">FocusPanelWidget.h</button>
+      <button class="codeblock-tab tab-cpp" data-panel="focuspanel-cpp">FocusPanelWidget.cpp</button>
+      <button class="codeblock-copy">Copy</button>
+    </div>
+    <div class="codeblock-panel active" id="focuspanel-h">
+      <pre class="hljs"><span class="hljs-meta">#pragma once</span>
+<span class="hljs-meta">#include <span class="hljs-string">"Widgets/RecordTalesWidgetBase.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"FocusPanelWidget.generated.h"</span></span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UTextBlock</span>;
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UButton</span>;
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UProgressBar</span>;
+
+<span class="hljs-meta">UCLASS(<span class="hljs-keyword">Blueprintable</span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">RECORDTALES_API</span> UFocusPanelWidget : <span class="hljs-keyword">public</span> <span class="hljs-title class_">URecordTalesWidgetBase</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// BindWidget — Designer에서 이 이름으로 위젯 배치 필수</span>
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta=(BindWidget)</span>)</span>
+    <span class="hljs-type">UTextBlock</span>* TXT_TimerDisplay;        <span class="hljs-comment">// "24:59" 형태 표시</span>
+
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta=(BindWidget)</span>)</span>
+    <span class="hljs-type">UTextBlock</span>* TXT_Mode;                <span class="hljs-comment">// "집중 중" / "휴식 중" / "대기"</span>
+
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta=(BindWidget)</span>)</span>
+    <span class="hljs-type">UTextBlock</span>* TXT_CycleCount;          <span class="hljs-comment">// "2 / 4 사이클"</span>
+
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta=(BindWidget)</span>)</span>
+    <span class="hljs-type">UTextBlock</span>* TXT_GoldEarned;          <span class="hljs-comment">// "+1,234 Gold"</span>
+
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta=(BindWidget)</span>)</span>
+    <span class="hljs-type">UButton</span>* BTN_Start;
+
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta=(BindWidget)</span>)</span>
+    <span class="hljs-type">UButton</span>* BTN_Pause;
+
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta=(BindWidget)</span>)</span>
+    <span class="hljs-type">UButton</span>* BTN_Stop;
+
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta=(BindWidget)</span>)</span>
+    <span class="hljs-type">UProgressBar</span>* PB_Timer;              <span class="hljs-comment">// 남은 시간 비율</span>
+
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta=(BindWidgetOptional)</span>)</span>
+    <span class="hljs-type">UTextBlock</span>* TXT_XPEarned;            <span class="hljs-comment">// 선택: XP 표시</span>
+
+<span class="hljs-keyword">protected</span>:
+    <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title">NativeConstruct</span>() <span class="hljs-keyword">override</span>;
+    <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title">NativeDestruct</span>() <span class="hljs-keyword">override</span>;
+    <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title">NativeTick</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FGeometry</span>&amp; MyGeometry, <span class="hljs-type">float</span> InDeltaTime) <span class="hljs-keyword">override</span>;
+
+<span class="hljs-keyword">private</span>:
+    <span class="hljs-meta">UFUNCTION()</span>
+    <span class="hljs-type">void</span> <span class="hljs-title">OnStartClicked</span>();
+    <span class="hljs-meta">UFUNCTION()</span>
+    <span class="hljs-type">void</span> <span class="hljs-title">OnPauseClicked</span>();
+    <span class="hljs-meta">UFUNCTION()</span>
+    <span class="hljs-type">void</span> <span class="hljs-title">OnStopClicked</span>();
+
+    <span class="hljs-type">void</span> <span class="hljs-title">HandleStateChanged</span>(<span class="hljs-type">EFocusState</span> NewState);
+    <span class="hljs-type">void</span> <span class="hljs-title">HandleGoldTick</span>(<span class="hljs-type">int32</span> TotalGold);
+    <span class="hljs-type">void</span> <span class="hljs-title">UpdateTimerDisplay</span>();
+
+    <span class="hljs-type">int32</span> SessionGold = <span class="hljs-number">0</span>;
+};</pre>
+    </div>
+    <div class="codeblock-panel" id="focuspanel-cpp">
+      <pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"Widgets/FocusPanelWidget.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Components/TextBlock.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Components/Button.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Components/ProgressBar.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Focus/FocusSubsystem.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Economy/EconomySubsystem.h"</span></span>
+
+<span class="hljs-type">void</span> <span class="hljs-title class_">UFocusPanelWidget</span>::<span class="hljs-title">NativeConstruct</span>()
+{
+    <span class="hljs-title class_">Super</span>::<span class="hljs-title">NativeConstruct</span>();  <span class="hljs-comment">// 서브시스템 캐싱 완료</span>
+
+    <span class="hljs-comment">// 버튼 바인딩</span>
+    BTN_Start-&gt;OnClicked.<span class="hljs-title">AddDynamic</span>(<span class="hljs-keyword">this</span>, &amp;UFocusPanelWidget::OnStartClicked);
+    BTN_Pause-&gt;OnClicked.<span class="hljs-title">AddDynamic</span>(<span class="hljs-keyword">this</span>, &amp;UFocusPanelWidget::OnPauseClicked);
+    BTN_Stop-&gt;OnClicked.<span class="hljs-title">AddDynamic</span>(<span class="hljs-keyword">this</span>, &amp;UFocusPanelWidget::OnStopClicked);
+
+    <span class="hljs-comment">// 델리게이트 바인딩</span>
+    FocusSub-&gt;OnStateChanged.<span class="hljs-title">AddUObject</span>(<span class="hljs-keyword">this</span>, &amp;UFocusPanelWidget::HandleStateChanged);
+    EconomySub-&gt;OnGoldChanged.<span class="hljs-title">AddUObject</span>(<span class="hljs-keyword">this</span>, &amp;UFocusPanelWidget::HandleGoldTick);
+
+    <span class="hljs-comment">// 초기 상태 반영</span>
+    <span class="hljs-title">HandleStateChanged</span>(FocusSub-&gt;<span class="hljs-title">GetCurrentState</span>());
+    SessionGold = <span class="hljs-number">0</span>;
+}
+
+<span class="hljs-type">void</span> <span class="hljs-title class_">UFocusPanelWidget</span>::<span class="hljs-title">NativeDestruct</span>()
+{
+    <span class="hljs-keyword">if</span> (FocusSub) FocusSub-&gt;OnStateChanged.<span class="hljs-title">RemoveAll</span>(<span class="hljs-keyword">this</span>);
+    <span class="hljs-keyword">if</span> (EconomySub) EconomySub-&gt;OnGoldChanged.<span class="hljs-title">RemoveAll</span>(<span class="hljs-keyword">this</span>);
+    BTN_Start-&gt;OnClicked.<span class="hljs-title">RemoveAll</span>(<span class="hljs-keyword">this</span>);
+    BTN_Pause-&gt;OnClicked.<span class="hljs-title">RemoveAll</span>(<span class="hljs-keyword">this</span>);
+    BTN_Stop-&gt;OnClicked.<span class="hljs-title">RemoveAll</span>(<span class="hljs-keyword">this</span>);
+    <span class="hljs-title class_">Super</span>::<span class="hljs-title">NativeDestruct</span>();
+}
+
+<span class="hljs-type">void</span> <span class="hljs-title class_">UFocusPanelWidget</span>::<span class="hljs-title">NativeTick</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FGeometry</span>&amp; MyGeometry, <span class="hljs-type">float</span> InDeltaTime)
+{
+    <span class="hljs-title class_">Super</span>::<span class="hljs-title">NativeTick</span>(MyGeometry, InDeltaTime);
+    <span class="hljs-keyword">if</span> (FocusSub-&gt;<span class="hljs-title">GetCurrentState</span>() == EFocusState::Focusing ||
+        FocusSub-&gt;<span class="hljs-title">GetCurrentState</span>() == EFocusState::Resting)
+    {
+        <span class="hljs-title">UpdateTimerDisplay</span>();
+    }
+}
+
+<span class="hljs-type">void</span> <span class="hljs-title class_">UFocusPanelWidget</span>::<span class="hljs-title">OnStartClicked</span>()
+{
+    FocusSub-&gt;<span class="hljs-title">StartFocus</span>();
+    SessionGold = <span class="hljs-number">0</span>;
+}
+
+<span class="hljs-type">void</span> <span class="hljs-title class_">UFocusPanelWidget</span>::<span class="hljs-title">OnPauseClicked</span>()
+{
+    FocusSub-&gt;<span class="hljs-title">PauseTimer</span>();
+}
+
+<span class="hljs-type">void</span> <span class="hljs-title class_">UFocusPanelWidget</span>::<span class="hljs-title">OnStopClicked</span>()
+{
+    FocusSub-&gt;<span class="hljs-title">StopFocus</span>();
+}
+
+<span class="hljs-type">void</span> <span class="hljs-title class_">UFocusPanelWidget</span>::<span class="hljs-title">HandleStateChanged</span>(<span class="hljs-type">EFocusState</span> NewState)
+{
+    <span class="hljs-keyword">switch</span> (NewState)
+    {
+    <span class="hljs-keyword">case</span> EFocusState::Idle:
+        TXT_Mode-&gt;<span class="hljs-title">SetText</span>(<span class="hljs-type">FText</span>::<span class="hljs-title">FromString</span>(<span class="hljs-title">TEXT</span>(<span class="hljs-string">"대기"</span>)));
+        BTN_Start-&gt;<span class="hljs-title">SetVisibility</span>(ESlateVisibility::Visible);
+        BTN_Pause-&gt;<span class="hljs-title">SetVisibility</span>(ESlateVisibility::Collapsed);
+        BTN_Stop-&gt;<span class="hljs-title">SetVisibility</span>(ESlateVisibility::Collapsed);
+        <span class="hljs-keyword">break</span>;
+    <span class="hljs-keyword">case</span> EFocusState::Focusing:
+        TXT_Mode-&gt;<span class="hljs-title">SetText</span>(<span class="hljs-type">FText</span>::<span class="hljs-title">FromString</span>(<span class="hljs-title">TEXT</span>(<span class="hljs-string">"집중 중"</span>)));
+        BTN_Start-&gt;<span class="hljs-title">SetVisibility</span>(ESlateVisibility::Collapsed);
+        BTN_Pause-&gt;<span class="hljs-title">SetVisibility</span>(ESlateVisibility::Visible);
+        BTN_Stop-&gt;<span class="hljs-title">SetVisibility</span>(ESlateVisibility::Visible);
+        <span class="hljs-keyword">break</span>;
+    <span class="hljs-keyword">case</span> EFocusState::Resting:
+        TXT_Mode-&gt;<span class="hljs-title">SetText</span>(<span class="hljs-type">FText</span>::<span class="hljs-title">FromString</span>(<span class="hljs-title">TEXT</span>(<span class="hljs-string">"휴식 중"</span>)));
+        <span class="hljs-keyword">break</span>;
+    <span class="hljs-keyword">case</span> EFocusState::Complete:
+        TXT_Mode-&gt;<span class="hljs-title">SetText</span>(<span class="hljs-type">FText</span>::<span class="hljs-title">FromString</span>(<span class="hljs-title">TEXT</span>(<span class="hljs-string">"완료!"</span>)));
+        BTN_Start-&gt;<span class="hljs-title">SetVisibility</span>(ESlateVisibility::Visible);
+        BTN_Pause-&gt;<span class="hljs-title">SetVisibility</span>(ESlateVisibility::Collapsed);
+        BTN_Stop-&gt;<span class="hljs-title">SetVisibility</span>(ESlateVisibility::Collapsed);
+        <span class="hljs-keyword">break</span>;
+    }
+}
+
+<span class="hljs-type">void</span> <span class="hljs-title class_">UFocusPanelWidget</span>::<span class="hljs-title">HandleGoldTick</span>(<span class="hljs-type">int32</span> TotalGold)
+{
+    SessionGold++;
+    TXT_GoldEarned-&gt;<span class="hljs-title">SetText</span>(<span class="hljs-type">FText</span>::<span class="hljs-title">Format</span>(
+        <span class="hljs-title">NSLOCTEXT</span>(<span class="hljs-string">"Focus"</span>, <span class="hljs-string">"GoldFmt"</span>, <span class="hljs-string">"+{0} Gold"</span>),
+        <span class="hljs-type">FText</span>::<span class="hljs-title">AsNumber</span>(SessionGold)));
+}
+
+<span class="hljs-type">void</span> <span class="hljs-title class_">UFocusPanelWidget</span>::<span class="hljs-title">UpdateTimerDisplay</span>()
+{
+    <span class="hljs-type">float</span> Remaining = FocusSub-&gt;<span class="hljs-title">GetRemainingTime</span>();
+    <span class="hljs-type">int32</span> Minutes = <span class="hljs-type">FMath</span>::<span class="hljs-title">FloorToInt</span>(Remaining / <span class="hljs-number">60.f</span>);
+    <span class="hljs-type">int32</span> Seconds = <span class="hljs-type">FMath</span>::<span class="hljs-title">FloorToInt</span>(<span class="hljs-type">FMath</span>::<span class="hljs-title">Fmod</span>(Remaining, <span class="hljs-number">60.f</span>));
+    TXT_TimerDisplay-&gt;<span class="hljs-title">SetText</span>(<span class="hljs-type">FText</span>::<span class="hljs-title">FromString</span>(
+        <span class="hljs-type">FString</span>::<span class="hljs-title">Printf</span>(<span class="hljs-title">TEXT</span>(<span class="hljs-string">"%02d:%02d"</span>), Minutes, Seconds)));
+
+    <span class="hljs-type">float</span> Total = FocusSub-&gt;<span class="hljs-title">GetTotalDuration</span>();
+    <span class="hljs-keyword">if</span> (Total &gt; <span class="hljs-number">0</span>) PB_Timer-&gt;<span class="hljs-title">SetPercent</span>(Remaining / Total);
+}</pre>
+    </div>
+  </div>
+
+  <!-- Designer 레이아웃 구성 절차 -->
+  <h3>Designer 레이아웃 구성 절차</h3>
+  <div class="pipe-step">
+    <div class="pipe-num">1</div>
+    <div class="pipe-body">
+      <div class="pipe-title">Widget Blueprint 생성</div>
+      <div class="pipe-desc">Content Browser &rsaquo; 우클릭 &rsaquo; User Interface &rsaquo; Widget Blueprint &rsaquo; 이름: <code>WBP_FocusPanel</code></div>
+    </div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-num">2</div>
+    <div class="pipe-body">
+      <div class="pipe-title">부모 클래스 설정</div>
+      <div class="pipe-desc">WBP 열기 &rsaquo; File &rsaquo; Reparent Blueprint &rsaquo; <code>UFocusPanelWidget</code> 선택</div>
+    </div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-num">3</div>
+    <div class="pipe-body">
+      <div class="pipe-title">Canvas Panel 루트 설정</div>
+      <div class="pipe-desc">Designer에서 Canvas Panel이 루트 &mdash; Anchors: (0,0)~(1,1) 스트레치</div>
+    </div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-num">4</div>
+    <div class="pipe-body">
+      <div class="pipe-title">위젯 배치 (이름은 반드시 C++ 변수명과 동일)</div>
+      <div class="pipe-desc">
+        &bull; <code>TXT_TimerDisplay</code> (TextBlock) &mdash; 중앙 상단, 폰트 크기 48<br>
+        &bull; <code>TXT_Mode</code> (TextBlock) &mdash; 타이머 아래, 폰트 크기 16<br>
+        &bull; <code>TXT_CycleCount</code> (TextBlock) &mdash; 모드 아래<br>
+        &bull; <code>TXT_GoldEarned</code> (TextBlock) &mdash; 우측 상단<br>
+        &bull; <code>BTN_Start</code> (Button) &mdash; 하단 중앙<br>
+        &bull; <code>BTN_Pause</code> (Button) &mdash; 하단 중앙 (Start와 같은 위치, 상태에 따라 전환)<br>
+        &bull; <code>BTN_Stop</code> (Button) &mdash; Pause 옆<br>
+        &bull; <code>PB_Timer</code> (ProgressBar) &mdash; 타이머 아래 전체 너비<br>
+        &bull; <code>TXT_XPEarned</code> (TextBlock, optional) &mdash; 좌측 상단
+      </div>
+    </div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-num">5</div>
+    <div class="pipe-body">
+      <div class="pipe-title">컴파일 &amp; 저장</div>
+      <div class="pipe-desc">Compile &rsaquo; Save</div>
+    </div>
+  </div>
+
+  <div class="pitfall">
+    <span class="ic">&#9888;</span>
+    <div class="pitfall-text"><strong>위젯 이름에 공백이나 한글 사용 금지!</strong> C++ 변수명과 정확히 일치해야 합니다. 대소문자까지 동일해야 BindWidget이 매칭합니다.</div>
+  </div>
+  <div class="pitfall">
+    <span class="ic">&#9888;</span>
+    <div class="pitfall-text"><strong>Button 안에 TextBlock을 넣으려면</strong> Button의 Content 슬롯에 배치합니다. Button 위에 겹쳐 놓는 것이 아니라, 계층 구조에서 Button의 자식으로 TextBlock을 드래그합니다.</div>
+  </div>
+</div>
+
+<!-- ============================================================
+     SECTION 5: 퀘스트 패널 구현
+     ============================================================ -->
+<div class="section" id="code-quest">
+  <div class="section-label">05 — 파일별 코드: 퀘스트 패널</div>
+  <h2>퀘스트 패널 구현</h2>
+  <p>ScrollBox에 동적으로 자식 위젯을 추가하는 <strong>동적 리스트 패턴</strong>의 대표 예제입니다. 이 패턴은 아카이브, 길드 캐릭터 그리드 등 모든 목록 UI에 재사용됩니다.</p>
+
+  <h3>QuestPanelWidget.h (핵심 부분)</h3>
+  <div class="codeblock" data-id="questpanel">
+    <div class="codeblock-bar">
+      <button class="codeblock-tab tab-h active" data-panel="questpanel-h">QuestPanelWidget.h</button>
+      <button class="codeblock-tab tab-cpp" data-panel="questpanel-cpp">QuestPanelWidget.cpp (RefreshQuestList)</button>
+      <button class="codeblock-copy">Copy</button>
+    </div>
+    <div class="codeblock-panel active" id="questpanel-h">
+      <pre class="hljs"><span class="hljs-meta">#pragma once</span>
+<span class="hljs-meta">#include <span class="hljs-string">"Widgets/RecordTalesWidgetBase.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"QuestPanelWidget.generated.h"</span></span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UScrollBox</span>;
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UButton</span>;
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UComboBoxString</span>;
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UQuestEntryWidget</span>;
+
+<span class="hljs-meta">UCLASS(<span class="hljs-keyword">Blueprintable</span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">RECORDTALES_API</span> UQuestPanelWidget : <span class="hljs-keyword">public</span> <span class="hljs-title class_">URecordTalesWidgetBase</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta=(BindWidget)</span>)</span>
+    <span class="hljs-type">UScrollBox</span>* SB_QuestList;
+
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta=(BindWidget)</span>)</span>
+    <span class="hljs-type">UButton</span>* BTN_AddQuest;
+
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta=(BindWidget)</span>)</span>
+    <span class="hljs-type">UComboBoxString</span>* CB_Filter;  <span class="hljs-comment">// 상태 필터 (전체/진행중/완료)</span>
+
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">EditDefaultsOnly</span>)</span>
+    <span class="hljs-type">TSubclassOf</span>&lt;<span class="hljs-type">UQuestEntryWidget</span>&gt; QuestEntryClass;
+
+<span class="hljs-keyword">protected</span>:
+    <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title">NativeConstruct</span>() <span class="hljs-keyword">override</span>;
+
+<span class="hljs-keyword">private</span>:
+    <span class="hljs-type">void</span> <span class="hljs-title">RefreshQuestList</span>();
+    <span class="hljs-meta">UFUNCTION()</span>
+    <span class="hljs-type">void</span> <span class="hljs-title">OnAddQuestClicked</span>();
+    <span class="hljs-meta">UFUNCTION()</span>
+    <span class="hljs-type">void</span> <span class="hljs-title">OnFilterChanged</span>(<span class="hljs-type">FString</span> SelectedItem, <span class="hljs-type">ESelectInfo</span>::Type SelectionType);
+};</pre>
+    </div>
+    <div class="codeblock-panel" id="questpanel-cpp">
+      <pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"Widgets/QuestPanelWidget.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Components/ScrollBox.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Components/Button.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Components/ComboBoxString.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Components/QuestEntryWidget.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Quest/QuestSubsystem.h"</span></span>
+
+<span class="hljs-type">void</span> <span class="hljs-title class_">UQuestPanelWidget</span>::<span class="hljs-title">NativeConstruct</span>()
+{
+    <span class="hljs-title class_">Super</span>::<span class="hljs-title">NativeConstruct</span>();
+
+    BTN_AddQuest-&gt;OnClicked.<span class="hljs-title">AddDynamic</span>(<span class="hljs-keyword">this</span>, &amp;UQuestPanelWidget::OnAddQuestClicked);
+    CB_Filter-&gt;OnSelectionChanged.<span class="hljs-title">AddDynamic</span>(<span class="hljs-keyword">this</span>, &amp;UQuestPanelWidget::OnFilterChanged);
+
+    <span class="hljs-comment">// 퀘스트 변경 시 자동 갱신</span>
+    QuestSub-&gt;OnQuestListChanged.<span class="hljs-title">AddUObject</span>(<span class="hljs-keyword">this</span>, &amp;UQuestPanelWidget::RefreshQuestList);
+
+    <span class="hljs-title">RefreshQuestList</span>();
+}
+
+<span class="hljs-type">void</span> <span class="hljs-title class_">UQuestPanelWidget</span>::<span class="hljs-title">RefreshQuestList</span>()
+{
+    <span class="hljs-comment">// 1. 기존 자식 위젯 모두 제거</span>
+    SB_QuestList-&gt;<span class="hljs-title">ClearChildren</span>();
+
+    <span class="hljs-comment">// 2. 서브시스템에서 퀘스트 목록 조회</span>
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FQuestMasterData</span>&gt; Quests = QuestSub-&gt;<span class="hljs-title">GetAllQuests</span>();
+
+    <span class="hljs-comment">// 3. 각 퀘스트에 대해 엔트리 위젯 생성 후 ScrollBox에 추가</span>
+    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">const</span> <span class="hljs-type">FQuestMasterData</span>&amp; Quest : Quests)
+    {
+        <span class="hljs-type">UQuestEntryWidget</span>* Entry = <span class="hljs-title">CreateWidget</span>&lt;<span class="hljs-type">UQuestEntryWidget</span>&gt;(<span class="hljs-keyword">this</span>, QuestEntryClass);
+        Entry-&gt;<span class="hljs-title">SetQuestData</span>(Quest);
+        SB_QuestList-&gt;<span class="hljs-title">AddChild</span>(Entry);
+    }
+}
+
+<span class="hljs-type">void</span> <span class="hljs-title class_">UQuestPanelWidget</span>::<span class="hljs-title">OnAddQuestClicked</span>()
+{
+    <span class="hljs-comment">// 퀘스트 추가 UI 로직 (입력 모달 등)</span>
+    QuestSub-&gt;<span class="hljs-title">AddNewQuest</span>(<span class="hljs-title">TEXT</span>(<span class="hljs-string">"새 퀘스트"</span>));
+}
+
+<span class="hljs-type">void</span> <span class="hljs-title class_">UQuestPanelWidget</span>::<span class="hljs-title">OnFilterChanged</span>(<span class="hljs-type">FString</span> SelectedItem, <span class="hljs-type">ESelectInfo</span>::Type SelectionType)
+{
+    <span class="hljs-comment">// 필터에 따라 목록 갱신</span>
+    <span class="hljs-title">RefreshQuestList</span>();
+}</pre>
+    </div>
+  </div>
+
+  <h3>QuestEntryWidget (개별 퀘스트 아이템)</h3>
+  <div class="codeblock" data-id="questentry">
+    <div class="codeblock-bar">
+      <button class="codeblock-tab tab-h active" data-panel="questentry-h">QuestEntryWidget.h</button>
+      <button class="codeblock-copy">Copy</button>
+    </div>
+    <div class="codeblock-panel active" id="questentry-h">
+      <pre class="hljs"><span class="hljs-meta">#pragma once</span>
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Blueprint/UserWidget.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"QuestEntryWidget.generated.h"</span></span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UTextBlock</span>;
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UButton</span>;
+<span class="hljs-keyword">struct</span> <span class="hljs-title class_">FQuestMasterData</span>;
+
+<span class="hljs-meta">UCLASS(<span class="hljs-keyword">Blueprintable</span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">RECORDTALES_API</span> UQuestEntryWidget : <span class="hljs-keyword">public</span> <span class="hljs-title class_">UUserWidget</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta=(BindWidget)</span>)</span>
+    <span class="hljs-type">UTextBlock</span>* TXT_QuestTitle;
+
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta=(BindWidget)</span>)</span>
+    <span class="hljs-type">UButton</span>* BTN_Complete;
+
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta=(BindWidget)</span>)</span>
+    <span class="hljs-type">UTextBlock</span>* TXT_Status;
+
+    <span class="hljs-comment">// 외부에서 데이터 주입</span>
+    <span class="hljs-type">void</span> <span class="hljs-title">SetQuestData</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FQuestMasterData</span>&amp; Data);
+
+<span class="hljs-keyword">private</span>:
+    <span class="hljs-type">FName</span> QuestId;  <span class="hljs-comment">// 이 엔트리가 표시하는 퀘스트 ID</span>
+};</pre>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <span class="ic">&#8505;</span>
+    <p><strong>ScrollBox 동적 리스트 패턴 요약:</strong> <code>ClearChildren()</code> &rarr; 데이터 루프 &rarr; <code>CreateWidget&lt;T&gt;(this, Class)</code> &rarr; <code>SetData()</code> &rarr; <code>AddChild()</code>. 이 패턴은 캐릭터 그리드, 기록 리스트 등 모든 목록 UI에 그대로 재사용됩니다.</p>
+  </div>
+
+  <div class="pitfall">
+    <span class="ic">&#9888;</span>
+    <div class="pitfall-text"><strong>ClearChildren() 후 새로 CreateWidget하면 이전 위젯은 GC 수거됩니다.</strong> 수백 개 아이템이 있는 리스트라면 오브젝트 풀링(Pool)을 고려하세요. RecordTales의 퀘스트 수는 보통 20개 미만이므로 여기서는 불필요합니다.</div>
+  </div>
+</div>
+
+<!-- ============================================================
+     SECTION 6: HUD 레이아웃 구현
+     ============================================================ -->
+<div class="section" id="code-hud">
+  <div class="section-label">06 — 파일별 코드: HUD 레이아웃</div>
+  <h2>HUD 레이아웃 구현</h2>
+  <p>화면 4코너에 상시 정보(길드 레벨, Gold, 앰비언트, 토스트)를 배치하고, 중앙 영역에 패널 위젯을 교체하는 구조입니다.</p>
+
+  <h3>RecordTalesHUD.h</h3>
+  <div class="codeblock" data-id="hud">
+    <div class="codeblock-bar">
+      <button class="codeblock-tab tab-h active" data-panel="hud-h">RecordTalesHUD.h</button>
+      <button class="codeblock-copy">Copy</button>
+    </div>
+    <div class="codeblock-panel active" id="hud-h">
+      <pre class="hljs"><span class="hljs-meta">#pragma once</span>
+<span class="hljs-meta">#include <span class="hljs-string">"Widgets/RecordTalesWidgetBase.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"RecordTalesHUD.generated.h"</span></span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UCanvasPanel</span>;
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UVerticalBox</span>;
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UHorizontalBox</span>;
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UNamedSlot</span>;
+
+<span class="hljs-meta">UCLASS(<span class="hljs-keyword">Blueprintable</span>)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">RECORDTALES_API</span> URecordTalesHUD : <span class="hljs-keyword">public</span> <span class="hljs-title class_">URecordTalesWidgetBase</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta=(BindWidget)</span>)</span>
+    <span class="hljs-type">UCanvasPanel</span>* Canvas_Root;
+
+    <span class="hljs-comment">// 4코너</span>
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta=(BindWidget)</span>)</span>
+    <span class="hljs-type">UVerticalBox</span>* VB_TopLeft;       <span class="hljs-comment">// 길드 레벨 + XP 바</span>
+
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta=(BindWidget)</span>)</span>
+    <span class="hljs-type">UHorizontalBox</span>* HB_TopRight;    <span class="hljs-comment">// Gold + 설정 아이콘</span>
+
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta=(BindWidget)</span>)</span>
+    <span class="hljs-type">UVerticalBox</span>* VB_BottomLeft;    <span class="hljs-comment">// 앰비언트/뮤직 미니플레이어</span>
+
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta=(BindWidget)</span>)</span>
+    <span class="hljs-type">UVerticalBox</span>* VB_BottomRight;   <span class="hljs-comment">// 토스트 영역</span>
+
+    <span class="hljs-comment">// 중앙 패널 영역</span>
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta=(BindWidget)</span>)</span>
+    <span class="hljs-type">UNamedSlot</span>* NS_CenterPanel;     <span class="hljs-comment">// 패널 위젯이 교체되는 슬롯</span>
+};</pre>
+    </div>
+  </div>
+
+  <h3>NamedSlot 패턴</h3>
+  <p><strong>NamedSlot</strong>은 Designer에서 "다른 위젯을 끼워 넣을 수 있는 빈 칸"입니다. UIManagerSubsystem이 패널 전환 시 이 슬롯의 Content를 교체합니다. 또는 단순히 <code>AddToViewport</code>로 패널을 올리고 HUD는 항상 위에 있는 방식(ZOrder 활용)도 가능합니다.</p>
+
+  <h3>Designer 앵커 설정</h3>
+  <table class="tbl">
+    <tr><th>위젯</th><th>앵커</th><th>위치</th></tr>
+    <tr><td><code>VB_TopLeft</code></td><td>좌상 (0,0)</td><td>Offset: (20, 20)</td></tr>
+    <tr><td><code>HB_TopRight</code></td><td>우상 (1,0)</td><td>Alignment: (1,0), Offset: (-20, 20)</td></tr>
+    <tr><td><code>VB_BottomLeft</code></td><td>좌하 (0,1)</td><td>Alignment: (0,1), Offset: (20, -20)</td></tr>
+    <tr><td><code>VB_BottomRight</code></td><td>우하 (1,1)</td><td>Alignment: (1,1), Offset: (-20, -20)</td></tr>
+    <tr><td><code>NS_CenterPanel</code></td><td>중앙 스트레치</td><td>Anchors: (0.15, 0.1)~(0.85, 0.9)</td></tr>
+  </table>
+
+  <div class="callout tip">
+    <span class="ic">&#10003;</span>
+    <p><strong>앵커 설정 핵심 원리:</strong> 앵커는 "부모의 어디를 기준으로 이 위젯의 위치를 잡을까"를 정합니다. 좌상(0,0)에 앵커를 두면 부모의 왼쪽 위 꼭짓점으로부터 Offset 만큼 떨어진 곳에 배치됩니다. 창 크기가 바뀌어도 4코너의 앵커가 유지되므로 레이아웃이 깨지지 않습니다.</p>
+  </div>
+</div>
+
+<!-- ============================================================
+     SECTION 7: 등록
+     ============================================================ -->
+<div class="section" id="register">
+  <div class="section-label">07 — 엔진 등록</div>
+  <h2>엔진 등록</h2>
+
+  <h3>UIManagerSubsystem에서 HUD 생성</h3>
+  <div class="pipe-step">
+    <div class="pipe-num">1</div>
+    <div class="pipe-body">
+      <div class="pipe-title">UIManagerSubsystem::Initialize()에서 HUD 위젯 생성</div>
+      <div class="pipe-desc"><code>CreateWidget&lt;URecordTalesHUD&gt;(GetWorld(), HUDWidgetClass)</code> 호출. 단, Initialize() 시점에 World가 없을 수 있으므로 첫 Tick 또는 <code>UGameInstanceSubsystem::Initialize()</code> 후 World 로드 이벤트에서 처리합니다.</div>
+    </div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-num">2</div>
+    <div class="pipe-body">
+      <div class="pipe-title">AddToViewport(0)</div>
+      <div class="pipe-desc">HUD는 ZOrder 0 (가장 아래). 패널은 ZOrder 5, 모달은 ZOrder 10+.</div>
+    </div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-num">3</div>
+    <div class="pipe-body">
+      <div class="pipe-title">패널/모달은 ShowPanel()/ShowModal()에서 동적 생성</div>
+      <div class="pipe-desc">이미 인스턴스가 있으면 재사용, 없으면 <code>CreateWidget</code> &rarr; <code>AddToViewport(ZOrder)</code>.</div>
+    </div>
+  </div>
+
+  <h3>DataAsset 설정</h3>
+  <div class="pipe-step">
+    <div class="pipe-num">1</div>
+    <div class="pipe-body">
+      <div class="pipe-title">DataAsset 생성</div>
+      <div class="pipe-desc">Content Browser &rsaquo; 우클릭 &rsaquo; Miscellaneous &rsaquo; Data Asset &rsaquo; <code>URecordTalesUIConfig</code> 선택 &rsaquo; 이름: <code>DA_UIConfig</code></div>
+    </div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-num">2</div>
+    <div class="pipe-body">
+      <div class="pipe-title">WBP 할당</div>
+      <div class="pipe-desc"><code>DA_UIConfig</code> 열기 &rsaquo; 각 위젯 클래스 슬롯에 해당 WBP 할당 (WBP_FocusPanel, WBP_QuestPanel 등 7개)</div>
+    </div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-num">3</div>
+    <div class="pipe-body">
+      <div class="pipe-title">서브시스템에서 참조</div>
+      <div class="pipe-desc"><code>UUIManagerSubsystem</code>의 <code>Initialize()</code>에서 <code>DA_UIConfig</code>를 로드하여 각 <code>TSubclassOf</code>를 가져옵니다. TSoftObjectPtr로 경로 지정 또는 GameInstance 세팅에서 직접 참조합니다.</div>
+    </div>
+  </div>
+
+  <h3>Project Settings 확인</h3>
+  <table class="tbl">
+    <tr><th>항목</th><th>위치</th><th>설정값</th></tr>
+    <tr><td>Default GameMode</td><td>Maps &amp; Modes</td><td>기본 GameMode (UI 전용이므로 커스텀 불필요)</td></tr>
+    <tr><td>Default Touch Interface</td><td>Input</td><td>None (마우스 UI 전용이면)</td></tr>
+    <tr><td>Game Instance Class</td><td>Maps &amp; Modes</td><td><code>URecordTalesGameInstance</code></td></tr>
+  </table>
+
+  <div class="pitfall">
+    <span class="ic">&#9888;</span>
+    <div class="pitfall-text"><strong>UIManagerSubsystem::Initialize()는 GameInstance 생성 직후 호출됩니다.</strong> 이 시점에 World가 아직 없을 수 있으므로, 위젯 생성은 <code>PostInitialize()</code>, 첫 <code>Tick()</code>, 또는 World 로드 완료 델리게이트(<code>FWorldDelegates::OnPostWorldInitialization</code>)에서 처리하세요.</div>
+  </div>
+</div>
+
+<!-- ============================================================
+     SECTION 8: 검증
+     ============================================================ -->
+<div class="section" id="verify">
+  <div class="section-label">08 — 검증</div>
+  <h2>검증</h2>
+
+  <h3>검증 체크리스트</h3>
+  <table class="tbl">
+    <tr><th>#</th><th>검증 항목</th><th>방법</th><th>기대 결과</th></tr>
+    <tr><td>1</td><td>포커스 패널 표시</td><td>PIE &rarr; 포커스 패널 열기</td><td>타이머 "25:00" 표시, 시작 버튼 보임</td></tr>
+    <tr><td>2</td><td>타이머 동작</td><td>시작 클릭 &rarr; 대기</td><td>카운트다운, "집중 중" 표시, Gold 실시간 증가</td></tr>
+    <tr><td>3</td><td>버튼 전환</td><td>시작 클릭 후</td><td>Start 숨김, Pause/Stop 표시</td></tr>
+    <tr><td>4</td><td>퀘스트 리스트</td><td>퀘스트 패널 열기</td><td>ScrollBox에 퀘스트 목록 표시</td></tr>
+    <tr><td>5</td><td>퀘스트 추가</td><td>추가 버튼 클릭</td><td>새 퀘스트 항목이 리스트에 추가됨</td></tr>
+    <tr><td>6</td><td>모달 스택</td><td>길드 모달 열기 &rarr; 가챠 모달 열기</td><td>두 모달이 겹쳐 표시, 뒤 모달 입력 차단</td></tr>
+    <tr><td>7</td><td>모달 닫기</td><td>가챠 닫기 &rarr; 길드가 다시 보임</td><td>스택 Pop 정상</td></tr>
+    <tr><td>8</td><td>HUD 레이아웃</td><td>PIE 시작 직후</td><td>4코너에 정보 표시, 중앙에 패널 영역</td></tr>
+    <tr><td>9</td><td>해상도 대응</td><td>창 크기 변경</td><td>앵커 설정으로 레이아웃 유지</td></tr>
+    <tr><td>10</td><td>델리게이트 해제</td><td>패널 닫기 &rarr; 다른 패널 열기 &rarr; 원래 데이터 변경</td><td>크래시 없음 (NativeDestruct에서 해제 확인)</td></tr>
+  </table>
+
+  <h3>디버깅 도구</h3>
+  <div class="callout tip">
+    <span class="ic">&#10003;</span>
+    <p><strong>Widget Reflector:</strong> Window &rsaquo; Developer Tools &rsaquo; Widget Reflector &mdash; 실행 중인 위젯 계층 구조를 실시간으로 확인합니다.<br>
+    <strong>Output Log:</strong> "LogSlate" 필터로 위젯 관련 에러를 확인합니다.<br>
+    <strong>콘솔 명령:</strong> <code>Slate.ShowFocusedWidget 1</code> &mdash; 현재 포커스된 위젯을 화면에 표시합니다.<br>
+    <strong>F8 키:</strong> PIE에서 마우스 커서 해방 (게임 입력 &harr; UI 입력 전환). 위젯 클릭 테스트 시 필수입니다.</p>
+  </div>
+</div>
+
+</div><!-- .content -->
+
+<!-- FOOTER -->
+<footer>
+  <span>RecordTales · 10 UMG + C++ 구현 가이드 v1.0</span>
+  <span>Master v1.3 · Template 02-B</span>
+</footer>
+
+<!-- TAB + COPY SCRIPT -->
+<script>
+(function(){
+  // Tab switching
+  document.querySelectorAll('.codeblock-tab').forEach(function(tab){
+    if(tab.classList.contains('codeblock-copy')) return;
+    tab.addEventListener('click', function(){
+      var block = this.closest('.codeblock');
+      block.querySelectorAll('.codeblock-tab').forEach(function(t){ t.classList.remove('active'); });
+      block.querySelectorAll('.codeblock-panel').forEach(function(p){ p.classList.remove('active'); });
+      this.classList.add('active');
+      var panelId = this.getAttribute('data-panel');
+      var panel = document.getElementById(panelId);
+      if(panel) panel.classList.add('active');
+    });
+  });
+  // Copy button
+  document.querySelectorAll('.codeblock-copy').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var block = this.closest('.codeblock');
+      var activePanel = block.querySelector('.codeblock-panel.active pre');
+      if(!activePanel) return;
+      var text = activePanel.textContent;
+      navigator.clipboard.writeText(text).then(function(){
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(function(){ btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

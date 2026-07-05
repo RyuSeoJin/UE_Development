@@ -1,0 +1,8 @@
+---,SynergyId,DisplayName,RequiredTag1,RequiredTag2,MinMembers,BonusType,BonusValue,Description
+1,"syn_arcane_power","마법의 힘","Arcane","Might",2,"ATK",15,"마법과 힘의 조합으로 공격력 +15%"
+2,"syn_holy_shield","신성한 방패","Holy","Shield",2,"DEF",20,"신성과 방패의 조합으로 방어력 +20%"
+3,"syn_shadow_strike","그림자 일격","Shadow","Precision",2,"SPD",15,"그림자와 정밀의 조합으로 속도 +15%"
+4,"syn_nature_heal","자연의 축복","Nature","Wisdom",2,"DEF",10,"자연과 지혜의 조합으로 방어력 +10%"
+5,"syn_valor_might","용맹의 서약","Valor","Might",2,"ATK",20,"용기와 힘의 조합으로 공격력 +20%"
+6,"syn_wisdom_arcane","현자의 길","Wisdom","Arcane",2,"ATK",10,"지혜와 마법의 조합으로 공격력 +10%"
+7,"syn_full_nature","자연의 대군","Nature","Nature",3,"ALL",8,"자연 태그 3명 이상으로 전 스탯 +8%"

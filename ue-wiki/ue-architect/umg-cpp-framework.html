@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UMG + C++ 연동 프레임워크 — UE 아키텍처 문서</title>
+<!-- ============================================================
+     CHANGELOG — umg-cpp-framework.html
+     UMG + C++ 연동 프레임워크 아키텍처 문서. 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.0 · 2026-07-05
+       - 신규 생성. 02-A 아키텍처 패턴 템플릿 기반.
+       - UMG Designer 기초, UUserWidget C++ 패턴, BindWidget, 라이프사이클,
+         델리게이트 바인딩, CreateWidget→AddToViewport 흐름, HUD 소유 패턴
+       - 마스터 CSS v1.3 inline 스냅샷
+     ============================================================ -->
+<style>
+/* ============================================================
+   UE Design System — Master Stylesheet (INLINE SNAPSHOT)
+   v1.3 · 2026-07-02
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Pretendard:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg: #0D0F1A;
+  --surface: #13162A;
+  --surface-2: #1A1F38;
+  --border: #252B4A;
+  --accent: #5B6EFA;
+  --accent-2: #9B6DFF;
+  --accent-3: #38D9B4;
+  --text: #E4E8FF;
+  --text-muted: #7B82A6;
+  --text-dim: #4A5080;
+  --amber: #F59E0B;
+  --pink: #E040FB;
+  --red: #F87171;
+
+  --ue-folder: #F59E0B;
+  --ue-bp:     #5B6EFA;
+  --ue-enum:   #9B6DFF;
+  --ue-mat:    #FB8C5A;
+  --ue-tex:    #38D9B4;
+  --ue-demo:   #6BD98E;
+
+  --ue-gamemode:   #5B6EFA;
+  --ue-gamestate:  #7B9CFF;
+  --ue-controller: #38D9B4;
+  --ue-pawn:       #6BD98E;
+  --ue-instance:   #9B6DFF;
+  --ue-savegame:   #F59E0B;
+  --ue-subsystem:  #E040FB;
+
+  --ue-header: #38D9B4;
+  --ue-source: #FB8C5A;
+  --ue-macro:  #FB8C5A;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+  font-size: 15px; line-height: 1.7; -webkit-font-smoothing: antialiased;
+}
+
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(13,15,26,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px; display: flex; align-items: center; gap: 32px; height: 52px;
+}
+.nav-logo { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em; white-space: nowrap; }
+.nav-links { display: flex; gap: 22px; flex-wrap: wrap; }
+.nav-links a { color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 500; transition: color 0.2s; }
+.nav-links a:hover { color: var(--text); }
+.nav-links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+
+.hero { padding: 72px 48px 56px; max-width: 920px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+.hero-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: var(--accent); text-transform: uppercase; margin-bottom: 20px; }
+.hero h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 20px; }
+.hero h1 span { color: var(--accent); }
+.hero-sub { font-size: 16px; color: var(--text-muted); max-width: 660px; line-height: 1.75; }
+.hero-meta { margin-top: 28px; display: flex; gap: 10px; flex-wrap: wrap; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; border: 1px solid; }
+.badge-blue { color: var(--accent); border-color: var(--accent); background: rgba(91,110,250,0.08); }
+.badge-green { color: var(--accent-3); border-color: var(--accent-3); background: rgba(56,217,180,0.08); }
+.badge-purple { color: var(--accent-2); border-color: var(--accent-2); background: rgba(155,109,255,0.08); }
+
+.content { max-width: 920px; margin: 0 auto; padding: 0 48px 80px; }
+.section { padding: 52px 0 0; border-top: 1px solid var(--border); margin-top: 52px; }
+.section:first-child { margin-top: 0; padding-top: 48px; border-top: none; }
+.section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 12px; }
+.section h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 20px; }
+.section h3 { font-size: 15px; font-weight: 700; color: var(--text); margin: 30px 0 10px; letter-spacing: 0.01em; }
+.section p { color: var(--text-muted); margin-bottom: 14px; line-height: 1.8; }
+.section p strong { color: var(--text); font-weight: 600; }
+
+code { font-family: 'IBM Plex Mono', monospace; font-size: 0.86em; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; color: var(--accent-3); }
+
+.swatch-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 22px 0; }
+.swatch { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.swatch .chip { height: 56px; }
+.swatch .meta { padding: 10px 12px; }
+.swatch .vn { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text); font-weight: 600; }
+.swatch .hx { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--text-dim); }
+.swatch .role { font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+
+.type-row { display: flex; align-items: baseline; gap: 18px; padding: 14px 0; border-bottom: 1px solid rgba(37,43,74,0.5); }
+.type-row:last-child { border-bottom: none; }
+.type-spec { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-dim); min-width: 150px; flex-shrink: 0; }
+.ts-h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; }
+.ts-h2 { font-size: 22px; font-weight: 700; }
+.ts-h3 { font-size: 15px; font-weight: 700; }
+.ts-body { font-size: 15px; color: var(--text-muted); }
+.ts-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); }
+.ts-code { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--accent-3); }
+
+.callout { display: flex; gap: 12px; align-items: flex-start; border-radius: 8px; padding: 14px 16px; margin: 18px 0; border: 1px solid var(--border); background: var(--surface-2); font-size: 13.5px; line-height: 1.65; }
+.callout .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.callout p { margin: 0; color: var(--text-muted); }
+.callout p strong { color: var(--text); }
+.callout.info { border-left: 3px solid var(--accent); }
+.callout.tip  { border-left: 3px solid var(--accent-3); }
+.callout.warn { border-left: 3px solid var(--amber); }
+
+.demo { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 16px 0; }
+.demo-head { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 7px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); }
+.demo-body { padding: 22px; }
+
+.snip { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 12px 0 22px; }
+.snip-head { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 8px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+.code-dot { width: 8px; height: 8px; border-radius: 50%; }
+.snip pre { padding: 14px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-muted); line-height: 1.75; overflow-x: auto; white-space: pre; }
+.snip pre .tag { color: var(--accent); }
+.snip pre .atr { color: var(--ue-mat); }
+.snip pre .val { color: var(--accent-3); }
+.snip pre .cm  { color: var(--text-dim); }
+
+.codeblock { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 16px 0 24px; }
+.codeblock-bar { display: flex; align-items: stretch; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.codeblock-tab {
+  padding: 9px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600;
+  color: var(--text-dim); background: transparent; border: none; border-right: 1px solid var(--border);
+  cursor: pointer; transition: color 0.15s, background 0.15s; box-shadow: inset 0 -2px 0 transparent;
+}
+.codeblock-tab:hover { color: var(--text-muted); }
+.codeblock-tab.active { color: var(--text); background: var(--surface); }
+.codeblock-tab.tab-h.active   { box-shadow: inset 0 -2px 0 var(--ue-header); }
+.codeblock-tab.tab-cpp.active { box-shadow: inset 0 -2px 0 var(--ue-source); }
+.codeblock-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.codeblock-copy {
+  margin-left: auto; align-self: center; margin-right: 8px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600;
+  color: var(--text-muted); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 5px; padding: 4px 10px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+}
+.codeblock-copy:hover { color: var(--text); border-color: var(--accent); }
+.codeblock-copy.copied { color: var(--accent-3); border-color: var(--accent-3); }
+.codeblock-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.codeblock-panel { display: none; }
+.codeblock-panel.active { display: block; }
+.codeblock pre { padding: 16px 18px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.75; overflow-x: auto; white-space: pre; }
+
+.hljs { color: var(--text-muted); background: var(--surface); }
+.hljs-comment, .hljs-quote { color: var(--text-dim); font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-section { color: var(--accent); font-weight: 500; }
+.hljs-literal, .hljs-symbol, .hljs-bullet { color: var(--accent-2); }
+.hljs-number { color: var(--accent-2); }
+.hljs-string, .hljs-attr, .hljs-attribute, .hljs-name { color: var(--ue-demo); }
+.hljs-type, .hljs-class .hljs-title, .hljs-title.class_, .hljs-built_in { color: var(--accent-3); }
+.hljs-title, .hljs-title.function_, .hljs-function .hljs-title { color: var(--text); }
+.hljs-params { color: var(--text-muted); }
+.hljs-meta, .hljs-meta .hljs-keyword { color: var(--ue-macro); font-weight: 600; }
+.hljs-meta .hljs-string { color: var(--ue-demo); }
+.hljs-property, .hljs-variable { color: var(--text); }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 700; }
+
+.filetag { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 3px; }
+.filetag.h   { background: rgba(56,217,180,0.14); color: var(--ue-header); }
+.filetag.cpp { background: rgba(251,140,90,0.14);  color: var(--ue-source); }
+
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 4px; }
+.stat-label { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+.a-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; border-top: 2px solid var(--ue-bp); }
+.a-card .ic { font-size: 22px; margin-bottom: 10px; }
+.a-card .a-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.a-card .a-id { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--accent); margin-bottom: 8px; }
+.a-card .a-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+.tt { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 3px; }
+.tt-bool { background: rgba(91,110,250,0.14); color: var(--accent); }
+.tt-enum { background: rgba(251,140,90,0.14); color: var(--ue-mat); }
+.tt-del  { background: rgba(224,64,251,0.12); color: var(--pink); }
+
+.pills { display: flex; flex-wrap: wrap; gap: 7px; }
+.pill { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; padding: 3px 12px; border-radius: 20px; border: 1px solid; }
+.pill.blue { color: var(--accent); border-color: rgba(91,110,250,0.4); background: rgba(91,110,250,0.08); }
+.pill.purple { color: var(--accent-2); border-color: rgba(155,109,255,0.4); background: rgba(155,109,255,0.08); }
+.pill.green { color: var(--accent-3); border-color: rgba(56,217,180,0.4); background: rgba(56,217,180,0.08); }
+.pill.pink { color: var(--pink); border-color: rgba(224,64,251,0.4); background: rgba(224,64,251,0.08); }
+.pill.red { color: var(--red); border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.08); }
+
+.arch { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: stretch; }
+.arch-layer { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 16px 14px; }
+.arch-arrow { display: flex; align-items: center; justify-content: center; padding: 0 8px; color: var(--text-dim); font-size: 16px; }
+.arch-tag { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 7px; color: var(--accent); }
+.arch-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.arch-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+.tbl { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 13px; }
+.tbl th { background: var(--surface-2); color: var(--text-muted); font-weight: 600; font-size: 12px; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+.tbl td { padding: 10px 14px; color: var(--text-muted); border-bottom: 1px solid rgba(37,43,74,0.5); vertical-align: top; line-height: 1.55; }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl td:first-child { color: var(--text); }
+.tbl td code, .tbl th code { background: transparent; border: none; padding: 0; color: var(--accent); }
+
+.tbl .owner { display: inline-flex; align-items: center; gap: 7px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.tbl .owner::before { content: ''; width: 9px; height: 9px; border-radius: 2px; background: var(--text-dim); flex-shrink: 0; }
+.tbl .owner.o-gamemode::before   { background: var(--ue-gamemode); }
+.tbl .owner.o-gamestate::before  { background: var(--ue-gamestate); }
+.tbl .owner.o-controller::before { background: var(--ue-controller); }
+.tbl .owner.o-pawn::before       { background: var(--ue-pawn); }
+.tbl .owner.o-instance::before   { background: var(--ue-instance); }
+.tbl .owner.o-savegame::before   { background: var(--ue-savegame); }
+.tbl .owner.o-subsystem::before  { background: var(--ue-subsystem); }
+
+.tree { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.9; color: var(--text-dim); white-space: pre; overflow-x: auto; }
+.tree .folder { color: var(--ue-folder); font-weight: 600; }
+.tree .bp { color: var(--ue-bp); } .tree .enum { color: var(--ue-enum); }
+.tree .mat { color: var(--ue-mat); } .tree .tex { color: var(--ue-tex); }
+.tree .note { color: var(--text-muted); }
+.tree .c-gamemode { color: var(--ue-gamemode); font-weight: 600; }
+.tree .c-gamestate { color: var(--ue-gamestate); font-weight: 600; }
+.tree .c-controller { color: var(--ue-controller); font-weight: 600; }
+.tree .c-pawn { color: var(--ue-pawn); font-weight: 600; }
+.tree .c-instance { color: var(--ue-instance); font-weight: 600; }
+.tree .c-savegame { color: var(--ue-savegame); font-weight: 600; }
+.tree .c-subsystem { color: var(--ue-subsystem); font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); }
+.legend .dot { width: 9px; height: 9px; border-radius: 2px; }
+
+.rel-map { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
+.rel-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+.rel-node {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 14px; border-left: 3px solid var(--text-dim);
+}
+.rel-node .rn-name { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.rel-node .rn-role { font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.4; }
+.rel-node.n-gamemode   { border-left-color: var(--ue-gamemode); }
+.rel-node.n-gamestate  { border-left-color: var(--ue-gamestate); }
+.rel-node.n-controller { border-left-color: var(--ue-controller); }
+.rel-node.n-pawn       { border-left-color: var(--ue-pawn); }
+.rel-node.n-instance   { border-left-color: var(--ue-instance); }
+.rel-node.n-savegame   { border-left-color: var(--ue-savegame); }
+.rel-node.n-subsystem  { border-left-color: var(--ue-subsystem); }
+.rel-arrow { display: flex; flex-direction: column; align-items: center; color: var(--text-dim); min-width: 84px; }
+.rel-arrow .ra-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--accent); letter-spacing: 0.04em; white-space: nowrap; }
+.rel-arrow .ra-line { font-size: 15px; line-height: 1; }
+
+.pipe-step { display: grid; grid-template-columns: 36px 1fr; gap: 0 16px; position: relative; }
+.pipe-step::before { content: ''; position: absolute; left: 17px; top: 36px; bottom: -1px; width: 2px; background: var(--border); }
+.pipe-step:last-child::before { display: none; }
+.pipe-num { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--surface-2); }
+.pipe-body { padding: 6px 0 22px; }
+.pipe-title { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+.pipe-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+.pitfall { display: flex; gap: 14px; align-items: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; border-left: 3px solid var(--amber); margin: 14px 0; }
+.pitfall.tip { border-left-color: var(--accent-3); }
+.pitfall .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.pitfall-text { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
+.pitfall-text strong { color: var(--text); }
+
+.dd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 22px 0; }
+.dd { border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; background: var(--surface-2); }
+.dd.do { border-left: 3px solid var(--accent-3); }
+.dd.dont { border-left: 3px solid var(--red); }
+.dd h4 { font-size: 13px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.dd.do h4 { color: var(--accent-3); }
+.dd.dont h4 { color: var(--red); }
+.dd ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.dd li { font-size: 12.5px; color: var(--text-muted); line-height: 1.55; padding-left: 16px; position: relative; }
+.dd li::before { content: ''; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; border-radius: 50%; }
+.dd.do li::before { background: var(--accent-3); }
+.dd.dont li::before { background: var(--red); }
+
+footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920px; margin: 0 auto; font-size: 12px; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+.stat-row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.stat-row-4 .stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+
+.compare-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
+.compare-box h4 { font-size: 14px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.compare-box p { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 10px; }
+.compare-box .pills { margin-top: 10px; }
+
+@media (max-width: 720px) {
+  .content { padding: 0 20px 60px; }
+  .hero { padding: 48px 20px 40px; }
+  .swatch-grid { grid-template-columns: 1fr 1fr; }
+  .stat-row, .stat-row-4, .dd-grid, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .arch { grid-template-columns: 1fr; }
+  .arch-arrow { transform: rotate(90deg); padding: 4px 0; }
+  .rel-row { grid-template-columns: 1fr; text-align: left; }
+  .rel-arrow { flex-direction: row; gap: 8px; min-width: 0; padding: 2px 0; }
+  .rel-arrow .ra-line { transform: rotate(90deg); }
+  .type-row { flex-direction: column; gap: 6px; }
+  .type-spec { min-width: 0; }
+  nav { padding: 0 16px; gap: 16px; }
+  .nav-links { display: none; }
+  footer { padding: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">UE ARCHITECT · UMG + C++</div>
+  <div class="nav-links">
+    <a href="#concept">개념</a>
+    <a href="#relation">관계</a>
+    <a href="#responsibility">책임</a>
+    <a href="#flow">흐름</a>
+    <a href="#skeleton">스켈레톤</a>
+    <a href="#extend">확장</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-eyebrow">UE Architect · v1.0 · UMG + C++ Framework</div>
+  <h1>UMG + C++<br><span>연동 프레임워크</span></h1>
+  <p class="hero-sub">언리얼 엔진의 UMG(Unreal Motion Graphics)를 C++로 제어하는 아키텍처입니다. Widget Blueprint를 C++ 기반 클래스에 연결해 로직은 코드로, 레이아웃은 Designer로 분리하는 표준 패턴을 다룹니다. UMG Designer 기초부터 BindWidget, 라이프사이클, 델리게이트 바인딩까지 초보자도 따라 할 수 있는 완전한 절차를 제공합니다.</p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">UUserWidget</span>
+    <span class="badge badge-green">BindWidget</span>
+    <span class="badge badge-purple">Designer + C++</span>
+  </div>
+</section>
+
+<!-- CONTENT -->
+<div class="content">
+
+<!-- ===== SECTION 1: 개념 ===== -->
+<section class="section" id="concept">
+  <div class="section-label">01 — 개념</div>
+  <h2>UMG란 무엇인가?</h2>
+
+  <p><strong>UMG(Unreal Motion Graphics)</strong>는 언리얼 엔진의 공식 UI 시스템입니다. 내부적으로는 <strong>Slate</strong>라는 저수준 UI 프레임워크 위에 구축된 고수준 위젯 프레임워크로, 게임 내 HUD, 메뉴, 인벤토리, 상점 등 모든 2D 인터페이스를 제작하는 데 사용합니다.</p>
+
+  <p>UMG는 <strong>Widget Blueprint(WBP)</strong>라는 시각적 에디터를 제공합니다. 마치 포토샵처럼 드래그 앤 드롭으로 버튼, 텍스트, 이미지를 배치하고, 실시간으로 미리보기할 수 있습니다. 그러나 UI 로직이 복잡해지면 Blueprint 노드가 스파게티처럼 엉키게 됩니다. 이 문제를 해결하는 것이 바로 <strong>C++ + UMG 연동 패턴</strong>입니다.</p>
+
+  <h3>왜 C++ + UMG인가?</h3>
+
+  <p><strong>Blueprint만으로 UI를 만들 수 있지만</strong>, 로직이 복잡해질수록 한계가 드러납니다:</p>
+
+  <table class="tbl">
+    <tr><th>기준</th><th>Blueprint Only</th><th>C++ + Blueprint (권장)</th></tr>
+    <tr><td>로직 복잡도</td><td>노드 수 증가 → 스파게티, 유지보수 곤란</td><td>C++ 코드로 정리 → 가독성, 리팩토링 용이</td></tr>
+    <tr><td>성능</td><td>BP VM 해석 실행 (느림)</td><td>네이티브 C++ (10~20배 빠름, Tick/대량 데이터 처리)</td></tr>
+    <tr><td>분업</td><td>프로그래머와 디자이너 작업 영역 충돌</td><td>로직(C++) vs 레이아웃(Designer) 완전 분리</td></tr>
+    <tr><td>버전 관리</td><td>바이너리(.uasset) 머지 불가</td><td>C++ 텍스트 파일 → Git 머지 가능</td></tr>
+    <tr><td>디버깅</td><td>브레이크포인트 제한적</td><td>IDE 디버거 전체 기능 사용 가능</td></tr>
+  </table>
+
+  <p><strong>핵심 원칙:</strong> C++ 기반 클래스를 만들고, Widget Blueprint가 이를 <strong>상속(Reparent)</strong>합니다. 그러면 <strong>로직은 C++</strong>로, <strong>레이아웃은 Designer</strong>로 깔끔하게 분리됩니다.</p>
+
+  <h3>핵심 용어</h3>
+
+  <div class="callout info">
+    <div class="ic">i</div>
+    <div>
+      <p><strong>Widget Blueprint (WBP)</strong> — UMG Designer에서 시각적으로 편집하는 UI 에셋. .uasset 파일로 저장되며, Content Browser에서 더블클릭하면 Designer가 열립니다.</p>
+      <p style="margin-top:8px"><strong>UUserWidget</strong> — 모든 UMG 위젯의 C++ 베이스 클래스. Widget Blueprint는 내부적으로 이 클래스(또는 이를 상속한 클래스)의 인스턴스입니다.</p>
+      <p style="margin-top:8px"><strong>BindWidget</strong> — C++ 멤버 변수를 Designer에 배치한 위젯에 자동 연결하는 메타 지정자. <code>UPROPERTY(meta=(BindWidget))</code>로 선언합니다.</p>
+      <p style="margin-top:8px"><strong>NativeConstruct()</strong> — 위젯이 뷰포트에 추가될 때 호출되는 C++ 초기화 함수. Blueprint의 Event Construct와 동일 시점입니다.</p>
+      <p style="margin-top:8px"><strong>Slate</strong> — UE의 저수준 UI 프레임워크. UMG는 Slate 위에 구축된 래퍼(wrapper)입니다. 직접 사용할 일은 드뭅니다.</p>
+      <p style="margin-top:8px"><strong>Canvas Panel</strong> — 자유 배치 컨테이너. 자식 위젯을 절대 좌표 + 앵커로 배치합니다.</p>
+      <p style="margin-top:8px"><strong>Vertical/Horizontal Box</strong> — 자동 정렬 컨테이너. 자식을 세로/가로로 순서대로 나열합니다.</p>
+      <p style="margin-top:8px"><strong>앵커(Anchor)</strong> — 부모 위젯 내에서 자식의 위치 기준점. 해상도가 바뀌어도 일관된 배치를 유지하는 반응형의 핵심입니다.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SECTION 2: 관계 ===== -->
+<section class="section" id="relation">
+  <div class="section-label">02 — 관계</div>
+  <h2>클래스 계층과 소유 관계</h2>
+
+  <h3>클래스 계층 트리</h3>
+  <p>UMG 위젯의 상속 계층입니다. 우리가 작업하는 레이어는 <strong>UUserWidget을 상속하는 커스텀 클래스</strong>입니다:</p>
+
+  <div class="tree"><span class="note">UObject</span>
+└── <span class="note">UVisual</span>
+    └── <span class="note">UWidget</span>                         <span class="note">← 모든 UMG 위젯의 최상위 (추상)</span>
+        ├── <span class="bp">UUserWidget</span>                  <span class="note">← 우리가 상속하는 베이스 클래스</span>
+        │   └── <span class="c-controller">UMyWidgetBase</span>            <span class="note">← 프로젝트 공통 베이스 (선택사항)</span>
+        │       ├── <span class="c-pawn">UFocusPanelWidget</span>    <span class="note">← 개별 위젯 (포커스 패널)</span>
+        │       ├── <span class="c-pawn">UQuestPanelWidget</span>    <span class="note">← 개별 위젯 (퀘스트 패널)</span>
+        │       └── <span class="c-pawn">UGuildModalWidget</span>    <span class="note">← 개별 위젯 (길드 모달)</span>
+        ├── <span class="mat">UTextBlock</span>                   <span class="note">← 텍스트 표시</span>
+        ├── <span class="mat">UButton</span>                      <span class="note">← 버튼 (OnClicked 델리게이트)</span>
+        ├── <span class="mat">UImage</span>                       <span class="note">← 이미지 표시</span>
+        ├── <span class="mat">UProgressBar</span>                 <span class="note">← 진행률 바</span>
+        └── <span class="mat">UCanvasPanel</span>                 <span class="note">← 레이아웃 컨테이너</span></div>
+
+  <h3>소유 관계도</h3>
+  <p>위젯 인스턴스가 누구에 의해 생성되고, 어떤 데이터 소스와 연결되는지를 보여줍니다:</p>
+
+  <div class="rel-map">
+    <div class="rel-row">
+      <div class="rel-node n-controller">
+        <div class="rn-name">APlayerController</div>
+        <div class="rn-role">위젯의 소유자. CreateWidget() 호출</div>
+      </div>
+      <div class="rel-arrow">
+        <span class="ra-label">CreateWidget&lt;&gt;()</span>
+        <span class="ra-line">----&gt;</span>
+      </div>
+      <div class="rel-node n-pawn">
+        <div class="rn-name">UUserWidget 인스턴스</div>
+        <div class="rn-role">UI 위젯. BindWidget으로 자식 위젯 참조</div>
+      </div>
+    </div>
+    <div class="rel-row">
+      <div class="rel-node n-pawn">
+        <div class="rn-name">UUserWidget</div>
+        <div class="rn-role">BindWidget으로 자식 참조</div>
+      </div>
+      <div class="rel-arrow">
+        <span class="ra-label">BindWidget</span>
+        <span class="ra-line">----&gt;</span>
+      </div>
+      <div class="rel-node">
+        <div class="rn-name">UButton / UTextBlock / UImage</div>
+        <div class="rn-role">Designer에 배치된 자식 위젯</div>
+      </div>
+    </div>
+    <div class="rel-row">
+      <div class="rel-node n-pawn">
+        <div class="rn-name">UUserWidget</div>
+        <div class="rn-role">GetGameInstance()-&gt;GetSubsystem&lt;&gt;()</div>
+      </div>
+      <div class="rel-arrow">
+        <span class="ra-label">데이터 조회</span>
+        <span class="ra-line">----&gt;</span>
+      </div>
+      <div class="rel-node n-subsystem">
+        <div class="rn-name">UGameInstanceSubsystem</div>
+        <div class="rn-role">비즈니스 데이터 보유 (골드, XP 등)</div>
+      </div>
+    </div>
+    <div class="rel-row">
+      <div class="rel-node n-subsystem">
+        <div class="rn-name">UGameInstanceSubsystem</div>
+        <div class="rn-role">데이터 변경 시 델리게이트 브로드캐스트</div>
+      </div>
+      <div class="rel-arrow">
+        <span class="ra-label">Delegate 통지</span>
+        <span class="ra-line">----&gt;</span>
+      </div>
+      <div class="rel-node n-pawn">
+        <div class="rn-name">UUserWidget</div>
+        <div class="rn-role">핸들러에서 UI 갱신</div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Widget Blueprint 내부 구조</h3>
+  <p>하나의 WBP 에셋이 어떻게 구성되는지 보여줍니다:</p>
+
+  <div class="tree"><span class="folder">WBP_FocusPanel.uasset</span>
+├── <span class="bp">Parent Class: UFocusPanelWidget (C++)</span>     <span class="note">← Reparent 설정으로 연결</span>
+├── <span class="folder">Designer (시각 레이아웃)</span>
+│   ├── <span class="mat">Canvas Panel [Root]</span>
+│   │   ├── <span class="tex">TXT_Timer</span> (UTextBlock)            <span class="note">← BindWidget 대상</span>
+│   │   ├── <span class="tex">BTN_Start</span> (UButton)               <span class="note">← BindWidget 대상</span>
+│   │   └── <span class="tex">IMG_Background</span> (UImage)
+│   └── ...
+└── <span class="enum">Event Graph (BP 로직, 최소화 권장)</span></div>
+</section>
+
+<!-- ===== SECTION 3: 책임 ===== -->
+<section class="section" id="responsibility">
+  <div class="section-label">03 — 책임</div>
+  <h2>C++ / Designer / Blueprint 책임 분담</h2>
+
+  <p>UMG + C++ 패턴에서 각 레이어가 담당하는 역할을 명확히 구분합니다. 이 분담을 지키면 코드 충돌 없이 분업이 가능합니다:</p>
+
+  <table class="tbl">
+    <tr><th>담당</th><th>역할</th><th>예시</th></tr>
+    <tr>
+      <td><strong>C++ (.h/.cpp)</strong></td>
+      <td>비즈니스 로직, 데이터 바인딩, 이벤트 핸들링, 서브시스템 연동</td>
+      <td>타이머 갱신, 골드 표시 업데이트, 버튼 클릭 핸들러, 서브시스템 델리게이트 바인딩</td>
+    </tr>
+    <tr>
+      <td><strong>Designer (WBP)</strong></td>
+      <td>시각 레이아웃, 위젯 배치, 앵커링, 색상/폰트, 애니메이션</td>
+      <td>버튼 위치/크기, 텍스트 스타일, 이미지 소스, 앵커 설정</td>
+    </tr>
+    <tr>
+      <td><strong>Blueprint (최소)</strong></td>
+      <td>Designer에서만 가능한 것 (애니메이션 타임라인, 간단한 시각 피드백)</td>
+      <td>Play Animation, Set Visibility (C++로 해도 되지만 디자이너 편의)</td>
+    </tr>
+  </table>
+
+  <h3>BindWidget 규칙</h3>
+
+  <div class="callout warn">
+    <div class="ic">!</div>
+    <div>
+      <p><strong>BindWidget 필수 규칙:</strong> C++에서 <code>UPROPERTY(meta=(BindWidget))</code>로 선언한 변수는 Designer에 <strong>같은 이름, 같은 타입</strong>의 위젯이 반드시 존재해야 합니다.</p>
+      <p style="margin-top:8px"><strong>이름 불일치 시:</strong> C++ 컴파일은 성공하지만, Widget Blueprint를 에디터에서 열 때 <strong>크래시</strong>가 발생합니다.</p>
+      <p style="margin-top:8px"><strong>Optional 변형:</strong> <code>UPROPERTY(meta=(BindWidgetOptional))</code>로 선언하면 Designer에 해당 위젯이 없어도 nullptr로 유지됩니다 (크래시 안 남).</p>
+    </div>
+  </div>
+
+  <h3>이름 규칙 권장사항</h3>
+
+  <table class="tbl">
+    <tr><th>위젯 타입</th><th>접두어</th><th>예시</th></tr>
+    <tr><td>UTextBlock</td><td><code>TXT_</code></td><td>TXT_Gold, TXT_Timer, TXT_PlayerName</td></tr>
+    <tr><td>UButton</td><td><code>BTN_</code></td><td>BTN_Start, BTN_Close, BTN_Confirm</td></tr>
+    <tr><td>UImage</td><td><code>IMG_</code></td><td>IMG_Background, IMG_Icon, IMG_Portrait</td></tr>
+    <tr><td>UProgressBar</td><td><code>PB_</code></td><td>PB_Health, PB_XP, PB_Loading</td></tr>
+    <tr><td>UVerticalBox</td><td><code>VB_</code></td><td>VB_ItemList, VB_Settings</td></tr>
+    <tr><td>UHorizontalBox</td><td><code>HB_</code></td><td>HB_Buttons, HB_Stats</td></tr>
+    <tr><td>UScrollBox</td><td><code>SB_</code></td><td>SB_ChatLog, SB_Inventory</td></tr>
+  </table>
+
+  <div class="callout tip">
+    <div class="ic">*</div>
+    <div>
+      <p><strong>팁:</strong> 접두어를 사용하면 C++ 코드에서 변수만 보고도 타입을 즉시 파악할 수 있고, Designer에서 검색도 쉬워집니다. 팀 내 규칙으로 통일하세요.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SECTION 4: 흐름 ===== -->
+<section class="section" id="flow">
+  <div class="section-label">04 — 흐름</div>
+  <h2>Widget Blueprint 생성부터 화면 표시까지</h2>
+
+  <h3>4-1. Widget Blueprint 생성 절차</h3>
+  <p>C++ 기반 클래스와 Widget Blueprint를 연결하는 전체 과정입니다:</p>
+
+  <div class="pipe-step">
+    <div class="pipe-num">1</div>
+    <div class="pipe-body">
+      <div class="pipe-title">C++ 기반 클래스 생성</div>
+      <div class="pipe-desc">에디터 상단 메뉴: <strong>Tools &gt; New C++ Class...</strong><br>
+        또는 Content Browser 빈 영역 우클릭 &gt; <strong>New C++ Class...</strong><br>
+        팝업에서: Parent Class = <strong>User Widget</strong> 검색 후 선택 &gt; Name: <code>UFocusPanelWidget</code> &gt; <strong>Create Class</strong> 클릭<br>
+        (Visual Studio/Rider가 자동으로 열리며 .h와 .cpp 파일이 생성됨)</div>
+    </div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-num">2</div>
+    <div class="pipe-body">
+      <div class="pipe-title">C++ 코드 작성</div>
+      <div class="pipe-desc">.h 파일에 BindWidget 변수 선언, NativeConstruct() override, 이벤트 핸들러 함수를 작성합니다. (상세 코드는 섹션 5 스켈레톤 참조)</div>
+    </div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-num">3</div>
+    <div class="pipe-body">
+      <div class="pipe-title">컴파일</div>
+      <div class="pipe-desc">IDE에서 <strong>Ctrl+B</strong>(Visual Studio) 또는 <strong>Ctrl+Shift+B</strong>(Rider)로 빌드.<br>
+        또는 에디터 우측 하단 <strong>Compile</strong> 버튼 클릭. 성공하면 초록색 체크 표시가 나타납니다.</div>
+    </div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-num">4</div>
+    <div class="pipe-body">
+      <div class="pipe-title">Widget Blueprint 생성</div>
+      <div class="pipe-desc"><strong>Content Browser</strong> &gt; 원하는 폴더에서 <strong>우클릭</strong> &gt; <strong>User Interface</strong> &gt; <strong>Widget Blueprint</strong> &gt; 이름: <code>WBP_FocusPanel</code> &gt; Enter<br>
+        (이 시점에서는 기본 UUserWidget을 상속한 상태)</div>
+    </div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-num">5</div>
+    <div class="pipe-body">
+      <div class="pipe-title">Parent Class 변경 (Reparent)</div>
+      <div class="pipe-desc">WBP_FocusPanel을 <strong>더블클릭</strong>하여 Widget Blueprint 에디터를 엽니다.<br>
+        상단 메뉴: <strong>File</strong> &gt; <strong>Reparent Blueprint</strong> &gt; 검색창에 <code>FocusPanelWidget</code> 입력 &gt; 선택 &gt; <strong>Reparent</strong> 클릭<br>
+        상단에 "Parent Class: FocusPanelWidget"으로 표시되면 성공입니다.</div>
+    </div>
+  </div>
+
+  <div class="pitfall">
+    <div class="ic">!</div>
+    <div class="pitfall-text"><strong>주의:</strong> Reparent를 하지 않으면 C++ 코드와 전혀 연결되지 않습니다. Widget Blueprint를 만든 뒤 <strong>반드시</strong> Reparent를 수행하세요. 가장 흔한 실수입니다!</div>
+  </div>
+
+  <div class="pipe-step">
+    <div class="pipe-num">6</div>
+    <div class="pipe-body">
+      <div class="pipe-title">Designer에서 레이아웃 구성</div>
+      <div class="pipe-desc">Designer 탭에서 위젯을 배치합니다. <strong>중요:</strong> BindWidget으로 선언한 C++ 변수와 <strong>정확히 같은 이름</strong>으로 위젯을 만들어야 합니다.<br>
+        예: C++에서 <code>UTextBlock* TXT_Timer</code>를 선언했다면, Designer에서 TextBlock을 추가하고 이름을 <code>TXT_Timer</code>로 변경합니다.</div>
+    </div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-num">7</div>
+    <div class="pipe-body">
+      <div class="pipe-title">컴파일 &amp; 저장</div>
+      <div class="pipe-desc">Widget Blueprint 에디터 상단의 <strong>Compile</strong> 버튼 클릭 &gt; <strong>Save</strong> 버튼 클릭.<br>
+        BindWidget 이름이 일치하면 정상 컴파일됩니다. 불일치 시 에러 메시지가 나타납니다.</div>
+    </div>
+  </div>
+
+  <h3>4-2. UMG Designer 기초 조작</h3>
+
+  <p>Widget Blueprint를 더블클릭하면 열리는 <strong>Designer 에디터</strong>의 패널 구성을 이해해야 합니다:</p>
+
+  <table class="tbl">
+    <tr><th>패널 이름</th><th>위치</th><th>역할</th></tr>
+    <tr><td><strong>Palette (팔레트)</strong></td><td>좌측 상단</td><td>사용 가능한 위젯 목록. Text, Button, Image, Canvas Panel, Vertical Box 등을 여기서 드래그합니다.</td></tr>
+    <tr><td><strong>Hierarchy (계층구조)</strong></td><td>좌측 하단</td><td>현재 위젯 트리. 부모-자식 관계를 시각적으로 보여줍니다. 드래그로 재배치 가능.</td></tr>
+    <tr><td><strong>Designer Canvas (캔버스)</strong></td><td>중앙</td><td>시각적 편집 영역. 위젯을 직접 드래그하여 위치를 조정합니다.</td></tr>
+    <tr><td><strong>Details (디테일)</strong></td><td>우측</td><td>선택한 위젯의 속성 편집. 앵커, 크기, 색상, 폰트, Visibility 등 모든 설정.</td></tr>
+    <tr><td><strong>Animations (애니메이션)</strong></td><td>하단</td><td>UMG 애니메이션 타임라인. Fade In/Out, 슬라이드 등 시각 효과 제작.</td></tr>
+  </table>
+
+  <h3>레이아웃 패널 종류</h3>
+  <p>위젯을 배치할 때 어떤 컨테이너를 사용할지 결정해야 합니다:</p>
+
+  <table class="tbl">
+    <tr><th>패널</th><th>자식 배치 방식</th><th>언제 사용</th></tr>
+    <tr><td><strong>Canvas Panel</strong></td><td>앵커 + 절대 오프셋 (자유 배치)</td><td>HUD 최상위 루트, 고정 위치 요소, 자유로운 배치가 필요할 때</td></tr>
+    <tr><td><strong>Vertical Box</strong></td><td>위에서 아래로 순서대로</td><td>리스트, 폼, 설정 항목, 세로로 쌓이는 요소</td></tr>
+    <tr><td><strong>Horizontal Box</strong></td><td>왼쪽에서 오른쪽으로 순서대로</td><td>버튼 그룹, 상태바, 가로로 나열하는 요소</td></tr>
+    <tr><td><strong>Overlay</strong></td><td>모든 자식을 같은 위치에 겹침</td><td>배경 위에 콘텐츠 올리기, 레이어 구조</td></tr>
+    <tr><td><strong>Size Box</strong></td><td>자식 하나, 최소/최대 크기 강제</td><td>고정 크기를 보장하고 싶은 요소 감싸기</td></tr>
+    <tr><td><strong>Scale Box</strong></td><td>자식 하나, 종횡비 유지 스케일</td><td>이미지/아이콘의 비율을 유지하면서 확대축소</td></tr>
+    <tr><td><strong>Grid Panel</strong></td><td>행 x 열 격자</td><td>인벤토리, 캐릭터 선택 그리드</td></tr>
+    <tr><td><strong>Wrap Box</strong></td><td>가로 채우다 자동 줄바꿈</td><td>태그 목록, 아이템 목록 (가변 개수)</td></tr>
+  </table>
+
+  <h3>앵커(Anchor) 시스템</h3>
+  <p><strong>앵커</strong>는 부모 위젯 내에서 "기준점"을 어디에 둘지 결정합니다. 화면 해상도가 바뀌어도 위젯이 올바른 위치를 유지하려면 앵커 설정이 필수입니다.</p>
+
+  <p><strong>프리셋 9종 그리드:</strong></p>
+  <table class="tbl">
+    <tr><th></th><th>Left (0.0)</th><th>Center (0.5)</th><th>Right (1.0)</th></tr>
+    <tr><td><strong>Top (0.0)</strong></td><td>좌상</td><td>중상</td><td>우상</td></tr>
+    <tr><td><strong>Middle (0.5)</strong></td><td>좌중</td><td>정중앙</td><td>우중</td></tr>
+    <tr><td><strong>Bottom (1.0)</strong></td><td>좌하</td><td>중하</td><td>우하</td></tr>
+  </table>
+
+  <p><strong>스트레치 앵커:</strong> 앵커 Min과 Max를 다르게 설정하면 부모 크기에 맞춰 위젯이 늘어납니다. 반응형 UI의 핵심입니다.</p>
+
+  <p><strong>설정 방법:</strong> 위젯 선택 &gt; <strong>Details</strong> 패널 &gt; <strong>Slot (Canvas Panel Slot)</strong> 섹션 &gt; <strong>Anchors</strong> &gt; 프리셋 아이콘 클릭 또는 Min/Max 값을 수동 입력</p>
+
+  <div class="pitfall">
+    <div class="ic">!</div>
+    <div class="pitfall-text"><strong>주의:</strong> 앵커를 설정하지 않으면 해상도가 바뀔 때 위젯이 화면 밖으로 벗어납니다. 모든 위젯에 앵커를 설정하세요.</div>
+  </div>
+
+  <div class="pitfall tip">
+    <div class="ic">*</div>
+    <div class="pitfall-text"><strong>팁:</strong> 전체 화면을 채우는 루트 위젯(예: 배경 패널)은 Anchors를 (0,0)~(1,1) 스트레치로 설정하면 어떤 해상도에서든 화면을 꽉 채웁니다.</div>
+  </div>
+
+  <p><strong>위젯 추가 절차:</strong></p>
+  <p>1. <strong>Palette</strong>에서 원하는 위젯(예: Text)을 찾아 드래그<br>
+     2. <strong>Hierarchy</strong>에서 원하는 부모 위젯 위에 드롭<br>
+     3. <strong>Hierarchy</strong>에서 추가된 위젯의 이름을 클릭 후 <strong>F2</strong>를 눌러 이름 변경<br>
+     4. 이름을 C++ BindWidget 변수명과 <strong>정확히 일치</strong>시킴 (예: <code>TXT_Timer</code>)</p>
+
+  <h3>4-3. 위젯 라이프사이클</h3>
+  <p>위젯이 생성되어 화면에 표시되고, 제거되기까지의 생명주기입니다:</p>
+
+  <div class="pipe-step">
+    <div class="pipe-num">1</div>
+    <div class="pipe-body">
+      <div class="pipe-title">CreateWidget&lt;UMyWidget&gt;(OwningPlayer)</div>
+      <div class="pipe-desc">위젯 인스턴스를 메모리에 생성합니다. 아직 화면에는 표시되지 않습니다. BindWidget 변수가 이 시점에 바인딩됩니다.</div>
+    </div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-num">2</div>
+    <div class="pipe-body">
+      <div class="pipe-title">AddToViewport(ZOrder)</div>
+      <div class="pipe-desc">뷰포트(화면)에 위젯을 추가합니다. 이 시점에 <strong>NativeConstruct()</strong>가 호출됩니다. 여기서 초기화 로직(델리게이트 바인딩, 초기값 표시)을 수행합니다.</div>
+    </div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-num">3</div>
+    <div class="pipe-body">
+      <div class="pipe-title">NativeTick(FGeometry, float DeltaTime)</div>
+      <div class="pipe-desc">(선택) 매 프레임 호출. Tick이 필요한 위젯만 override합니다. 대부분의 UI는 이벤트 기반으로 갱신하므로 Tick 불필요.</div>
+    </div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-num">4</div>
+    <div class="pipe-body">
+      <div class="pipe-title">RemoveFromParent()</div>
+      <div class="pipe-desc">뷰포트에서 위젯을 제거합니다. 이 시점에 <strong>NativeDestruct()</strong>가 호출됩니다. 여기서 델리게이트를 해제해야 합니다.</div>
+    </div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-num">5</div>
+    <div class="pipe-body">
+      <div class="pipe-title">GC(가비지 컬렉션)에 의해 수거</div>
+      <div class="pipe-desc">더 이상 참조하는 곳이 없으면 엔진의 GC가 메모리에서 해제합니다.</div>
+    </div>
+  </div>
+
+  <div class="pitfall">
+    <div class="ic">!</div>
+    <div class="pitfall-text"><strong>주의:</strong> <code>NativeConstruct()</code>에서 BindWidget 변수에 접근하는 것은 안전합니다. 하지만 <strong>생성자(Constructor)</strong>에서는 아직 바인딩이 완료되지 않았으므로 접근하면 nullptr 크래시가 발생합니다!</div>
+  </div>
+
+  <div class="callout info">
+    <div class="ic">i</div>
+    <div>
+      <p><strong>ZOrder 가이드:</strong> <code>AddToViewport(ZOrder)</code>의 ZOrder 값이 높을수록 앞(위)에 표시됩니다. 권장 계층: HUD = 0, 일반 패널 = 5, 모달(팝업) = 10, 시스템 알림 = 20</p>
+    </div>
+  </div>
+
+  <h3>4-4. 데이터 바인딩 &amp; 갱신 흐름</h3>
+  <p>서브시스템의 데이터가 변경될 때 UI가 자동으로 갱신되는 흐름입니다:</p>
+
+  <div class="pipe-step">
+    <div class="pipe-num">1</div>
+    <div class="pipe-body">
+      <div class="pipe-title">NativeConstruct()에서 서브시스템 캐싱</div>
+      <div class="pipe-desc"><code>GetGameInstance()-&gt;GetSubsystem&lt;UEconomySubsystem&gt;()</code>으로 서브시스템 포인터를 멤버 변수에 저장합니다. 매번 조회하지 않아도 됩니다.</div>
+    </div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-num">2</div>
+    <div class="pipe-body">
+      <div class="pipe-title">델리게이트 바인딩</div>
+      <div class="pipe-desc"><code>EconomySub-&gt;OnGoldChanged.AddUObject(this, &amp;UMyWidget::HandleGoldChanged)</code>로 "골드가 변경되면 이 함수를 호출해줘"라고 등록합니다.</div>
+    </div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-num">3</div>
+    <div class="pipe-body">
+      <div class="pipe-title">핸들러에서 UI 갱신</div>
+      <div class="pipe-desc">데이터가 변경되면 등록한 핸들러가 자동 호출됩니다. 핸들러에서 <code>TXT_Gold-&gt;SetText(...)</code>로 UI를 갱신합니다.</div>
+    </div>
+  </div>
+  <div class="pipe-step">
+    <div class="pipe-num">4</div>
+    <div class="pipe-body">
+      <div class="pipe-title">NativeDestruct()에서 바인딩 해제</div>
+      <div class="pipe-desc"><code>EconomySub-&gt;OnGoldChanged.RemoveAll(this)</code>로 등록을 해제합니다. 위젯이 파괴된 후에도 콜백이 호출되면 크래시가 발생하기 때문입니다.</div>
+    </div>
+  </div>
+
+  <div class="pitfall">
+    <div class="ic">!</div>
+    <div class="pitfall-text"><strong>치명적 실수:</strong> <code>NativeDestruct()</code>에서 델리게이트를 해제하지 않으면, 위젯이 제거된 후 서브시스템이 브로드캐스트할 때 <strong>dangling pointer 크래시</strong>가 발생합니다. 반드시 해제하세요!</div>
+  </div>
+</section>
+
+<!-- ===== SECTION 5: 스켈레톤 ===== -->
+<section class="section" id="skeleton">
+  <div class="section-label">05 — 스켈레톤</div>
+  <h2>완전한 코드 예제</h2>
+
+  <h3>5-1. C++ 위젯 기반 클래스</h3>
+  <p>아래는 서브시스템에서 골드와 XP를 받아 UI에 표시하는 완전한 예제입니다. 이 패턴을 기반으로 모든 UI 위젯을 작성합니다:</p>
+
+  <!-- MyPanelWidget.h / .cpp -->
+  <div class="codeblock" data-id="main-widget">
+    <div class="codeblock-bar">
+      <button class="codeblock-tab tab-h active" data-panel="h">MyPanelWidget.h</button>
+      <button class="codeblock-tab tab-cpp" data-panel="cpp">MyPanelWidget.cpp</button>
+      <button class="codeblock-copy">Copy</button>
+    </div>
+    <div class="codeblock-panel active" data-name="h">
+      <pre class="hljs"><span class="hljs-meta">#pragma once</span>
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Blueprint/UserWidget.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"MyPanelWidget.generated.h"</span></span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-built_in">UTextBlock</span>;
+<span class="hljs-keyword">class</span> <span class="hljs-built_in">UButton</span>;
+<span class="hljs-keyword">class</span> <span class="hljs-built_in">UProgressBar</span>;
+<span class="hljs-keyword">class</span> <span class="hljs-built_in">UEconomySubsystem</span>;
+
+<span class="hljs-comment">/**
+ * UMyPanelWidget — 골드/XP 표시 + 액션 버튼 패널.
+ * Widget Blueprint가 이 클래스를 상속(Reparent)합니다.
+ */</span>
+<span class="hljs-meta">UCLASS(<span class="hljs-keyword">Abstract</span>, <span class="hljs-keyword">Blueprintable</span>)</span>
+<span class="hljs-keyword">class</span> MYPROJECT_API <span class="hljs-built_in">UMyPanelWidget</span> : <span class="hljs-keyword">public</span> <span class="hljs-built_in">UUserWidget</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// --- BindWidget: Designer에서 같은 이름의 위젯을 배치해야 함 ---</span>
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta</span>=(<span class="hljs-keyword">BindWidget</span>))</span>
+    <span class="hljs-built_in">UTextBlock</span>* TXT_Title;
+
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta</span>=(<span class="hljs-keyword">BindWidget</span>))</span>
+    <span class="hljs-built_in">UTextBlock</span>* TXT_Gold;
+
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta</span>=(<span class="hljs-keyword">BindWidget</span>))</span>
+    <span class="hljs-built_in">UButton</span>* BTN_Action;
+
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta</span>=(<span class="hljs-keyword">BindWidget</span>))</span>
+    <span class="hljs-built_in">UProgressBar</span>* PB_XP;
+
+    <span class="hljs-comment">// --- BindWidgetOptional: 없어도 크래시 안 남 ---</span>
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta</span>=(<span class="hljs-keyword">BindWidgetOptional</span>))</span>
+    <span class="hljs-built_in">UTextBlock</span>* TXT_Optional;
+
+<span class="hljs-keyword">protected</span>:
+    <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">NativeConstruct</span>() <span class="hljs-keyword">override</span>;
+    <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">NativeDestruct</span>() <span class="hljs-keyword">override</span>;
+
+<span class="hljs-keyword">private</span>:
+    <span class="hljs-comment">// 서브시스템 캐시 (매번 조회하지 않기 위해)</span>
+    <span class="hljs-meta">UPROPERTY()</span>
+    <span class="hljs-built_in">UEconomySubsystem</span>* EconomySub;
+
+    <span class="hljs-comment">// 버튼 클릭 핸들러 (Dynamic Delegate이므로 UFUNCTION 필요)</span>
+    <span class="hljs-meta">UFUNCTION()</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title">HandleActionClicked</span>();
+
+    <span class="hljs-comment">// 데이터 변경 핸들러 (일반 Multicast이므로 UFUNCTION 불필요)</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title">HandleGoldChanged</span>(<span class="hljs-built_in">int32</span> NewGold);
+    <span class="hljs-keyword">void</span> <span class="hljs-title">HandleXPChanged</span>(<span class="hljs-built_in">int32</span> NewXP, <span class="hljs-built_in">int32</span> MaxXP);
+};</pre>
+    </div>
+    <div class="codeblock-panel" data-name="cpp">
+      <pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"MyPanelWidget.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Components/TextBlock.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Components/Button.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Components/ProgressBar.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Subsystems/EconomySubsystem.h"</span></span>
+
+<span class="hljs-keyword">void</span> <span class="hljs-built_in">UMyPanelWidget</span>::<span class="hljs-title">NativeConstruct</span>()
+{
+    <span class="hljs-built_in">Super</span>::NativeConstruct();
+
+    <span class="hljs-comment">// 1) 서브시스템 캐싱</span>
+    EconomySub = <span class="hljs-title">GetGameInstance</span>()-&gt;GetSubsystem&lt;<span class="hljs-built_in">UEconomySubsystem</span>&gt;();
+
+    <span class="hljs-comment">// 2) 버튼 클릭 바인딩 (Dynamic Multicast → AddDynamic)</span>
+    <span class="hljs-keyword">if</span> (BTN_Action)
+    {
+        BTN_Action-&gt;OnClicked.<span class="hljs-title">AddDynamic</span>(<span class="hljs-keyword">this</span>, &amp;<span class="hljs-built_in">UMyPanelWidget</span>::HandleActionClicked);
+    }
+
+    <span class="hljs-comment">// 3) 서브시스템 델리게이트 바인딩 (일반 Multicast → AddUObject)</span>
+    <span class="hljs-keyword">if</span> (EconomySub)
+    {
+        EconomySub-&gt;OnGoldChanged.<span class="hljs-title">AddUObject</span>(<span class="hljs-keyword">this</span>, &amp;<span class="hljs-built_in">UMyPanelWidget</span>::HandleGoldChanged);
+        EconomySub-&gt;OnXPChanged.<span class="hljs-title">AddUObject</span>(<span class="hljs-keyword">this</span>, &amp;<span class="hljs-built_in">UMyPanelWidget</span>::HandleXPChanged);
+
+        <span class="hljs-comment">// 초기값 표시 (위젯이 열릴 때 현재 값을 바로 보여줌)</span>
+        <span class="hljs-title">HandleGoldChanged</span>(EconomySub-&gt;<span class="hljs-title">GetGold</span>());
+        <span class="hljs-title">HandleXPChanged</span>(EconomySub-&gt;<span class="hljs-title">GetXP</span>(), EconomySub-&gt;<span class="hljs-title">GetXPToNextLevel</span>());
+    }
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-built_in">UMyPanelWidget</span>::<span class="hljs-title">NativeDestruct</span>()
+{
+    <span class="hljs-comment">// 델리게이트 해제 — 크래시 방지 (반드시!)</span>
+    <span class="hljs-keyword">if</span> (EconomySub)
+    {
+        EconomySub-&gt;OnGoldChanged.<span class="hljs-title">RemoveAll</span>(<span class="hljs-keyword">this</span>);
+        EconomySub-&gt;OnXPChanged.<span class="hljs-title">RemoveAll</span>(<span class="hljs-keyword">this</span>);
+    }
+
+    <span class="hljs-keyword">if</span> (BTN_Action)
+    {
+        BTN_Action-&gt;OnClicked.<span class="hljs-title">RemoveAll</span>(<span class="hljs-keyword">this</span>);
+    }
+
+    <span class="hljs-built_in">Super</span>::NativeDestruct();
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-built_in">UMyPanelWidget</span>::<span class="hljs-title">HandleActionClicked</span>()
+{
+    <span class="hljs-comment">// 버튼 클릭 시 수행할 로직</span>
+    <span class="hljs-title">UE_LOG</span>(LogTemp, Display, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"Action button clicked!"</span>));
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-built_in">UMyPanelWidget</span>::<span class="hljs-title">HandleGoldChanged</span>(<span class="hljs-built_in">int32</span> NewGold)
+{
+    <span class="hljs-keyword">if</span> (TXT_Gold)
+    {
+        TXT_Gold-&gt;<span class="hljs-title">SetText</span>(<span class="hljs-built_in">FText</span>::<span class="hljs-title">Format</span>(
+            <span class="hljs-title">NSLOCTEXT</span>(<span class="hljs-string">"UI"</span>, <span class="hljs-string">"GoldFmt"</span>, <span class="hljs-string">"{0} Gold"</span>),
+            <span class="hljs-built_in">FText</span>::<span class="hljs-title">AsNumber</span>(NewGold)));
+    }
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-built_in">UMyPanelWidget</span>::<span class="hljs-title">HandleXPChanged</span>(<span class="hljs-built_in">int32</span> NewXP, <span class="hljs-built_in">int32</span> MaxXP)
+{
+    <span class="hljs-keyword">if</span> (PB_XP &amp;&amp; MaxXP &gt; <span class="hljs-number">0</span>)
+    {
+        PB_XP-&gt;<span class="hljs-title">SetPercent</span>(<span class="hljs-keyword">static_cast</span>&lt;<span class="hljs-keyword">float</span>&gt;(NewXP) / <span class="hljs-keyword">static_cast</span>&lt;<span class="hljs-keyword">float</span>&gt;(MaxXP));
+    }
+}</pre>
+    </div>
+  </div>
+
+  <h3>5-2. 델리게이트 선언 (서브시스템 측)</h3>
+  <p>위의 위젯이 바인딩하는 델리게이트를 서브시스템에서 어떻게 선언하는지 보여줍니다:</p>
+
+  <div class="codeblock" data-id="subsystem">
+    <div class="codeblock-bar">
+      <button class="codeblock-tab tab-h active" data-panel="h">EconomySubsystem.h</button>
+      <button class="codeblock-copy">Copy</button>
+    </div>
+    <div class="codeblock-panel active" data-name="h">
+      <pre class="hljs"><span class="hljs-meta">#pragma once</span>
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"EconomySubsystem.generated.h"</span></span>
+
+<span class="hljs-comment">// 델리게이트 선언 — 매크로로 시그니처 정의</span>
+<span class="hljs-meta">DECLARE_MULTICAST_DELEGATE_OneParam(<span class="hljs-keyword">FOnGoldChanged</span>, <span class="hljs-built_in">int32</span> <span class="hljs-comment">/*NewGold*/</span>);</span>
+<span class="hljs-meta">DECLARE_MULTICAST_DELEGATE_TwoParams(<span class="hljs-keyword">FOnXPChanged</span>, <span class="hljs-built_in">int32</span> <span class="hljs-comment">/*NewXP*/</span>, <span class="hljs-built_in">int32</span> <span class="hljs-comment">/*MaxXP*/</span>);</span>
+
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> MYPROJECT_API <span class="hljs-built_in">UEconomySubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-built_in">UGameInstanceSubsystem</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// 외부에서 바인딩할 수 있도록 public 멤버</span>
+    FOnGoldChanged OnGoldChanged;
+    FOnXPChanged OnXPChanged;
+
+    <span class="hljs-built_in">int32</span> <span class="hljs-title">GetGold</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> Gold; }
+    <span class="hljs-built_in">int32</span> <span class="hljs-title">GetXP</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> XP; }
+    <span class="hljs-built_in">int32</span> <span class="hljs-title">GetXPToNextLevel</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> XPToNextLevel; }
+
+    <span class="hljs-comment">// 골드 추가 — 브로드캐스트로 UI가 자동 갱신됨</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title">AddGold</span>(<span class="hljs-built_in">int32</span> Amount)
+    {
+        Gold += Amount;
+        OnGoldChanged.<span class="hljs-title">Broadcast</span>(Gold);  <span class="hljs-comment">// 바인딩된 모든 위젯에 통지</span>
+    }
+
+    <span class="hljs-comment">// XP 추가</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title">AddXP</span>(<span class="hljs-built_in">int32</span> Amount)
+    {
+        XP += Amount;
+        OnXPChanged.<span class="hljs-title">Broadcast</span>(XP, XPToNextLevel);
+    }
+
+<span class="hljs-keyword">private</span>:
+    <span class="hljs-built_in">int32</span> Gold = <span class="hljs-number">0</span>;
+    <span class="hljs-built_in">int32</span> XP = <span class="hljs-number">0</span>;
+    <span class="hljs-built_in">int32</span> XPToNextLevel = <span class="hljs-number">1000</span>;
+};</pre>
+    </div>
+  </div>
+
+  <h3>5-3. CreateWidget + AddToViewport (소유자 측)</h3>
+  <p>PlayerController에서 위젯을 생성하고 화면에 표시하는 코드입니다:</p>
+
+  <div class="codeblock" data-id="controller">
+    <div class="codeblock-bar">
+      <button class="codeblock-tab tab-h active" data-panel="h">MyPlayerController.h</button>
+      <button class="codeblock-tab tab-cpp" data-panel="cpp">MyPlayerController.cpp</button>
+      <button class="codeblock-copy">Copy</button>
+    </div>
+    <div class="codeblock-panel active" data-name="h">
+      <pre class="hljs"><span class="hljs-meta">#pragma once</span>
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"GameFramework/PlayerController.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"MyPlayerController.generated.h"</span></span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-built_in">UMyPanelWidget</span>;
+
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> MYPROJECT_API <span class="hljs-built_in">AMyPlayerController</span> : <span class="hljs-keyword">public</span> <span class="hljs-built_in">APlayerController</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">protected</span>:
+    <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">BeginPlay</span>() <span class="hljs-keyword">override</span>;
+
+<span class="hljs-keyword">private</span>:
+    <span class="hljs-comment">// BP에서 WBP_FocusPanel을 할당 (EditDefaultsOnly)</span>
+    <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">EditDefaultsOnly</span>, <span class="hljs-keyword">Category</span> = <span class="hljs-string">"UI"</span>)</span>
+    TSubclassOf&lt;<span class="hljs-built_in">UMyPanelWidget</span>&gt; FocusPanelClass;
+
+    <span class="hljs-comment">// 생성된 위젯 인스턴스 참조 (GC 방지)</span>
+    <span class="hljs-meta">UPROPERTY()</span>
+    <span class="hljs-built_in">UMyPanelWidget</span>* FocusPanel;
+};</pre>
+    </div>
+    <div class="codeblock-panel" data-name="cpp">
+      <pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"MyPlayerController.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"MyPanelWidget.h"</span></span>
+
+<span class="hljs-keyword">void</span> <span class="hljs-built_in">AMyPlayerController</span>::<span class="hljs-title">BeginPlay</span>()
+{
+    <span class="hljs-built_in">Super</span>::BeginPlay();
+
+    <span class="hljs-comment">// 로컬 플레이어만 UI 생성 (서버에서는 생성하지 않음)</span>
+    <span class="hljs-keyword">if</span> (<span class="hljs-title">IsLocalController</span>() &amp;&amp; FocusPanelClass)
+    {
+        <span class="hljs-comment">// CreateWidget: this(PlayerController)가 소유자</span>
+        FocusPanel = <span class="hljs-title">CreateWidget</span>&lt;<span class="hljs-built_in">UMyPanelWidget</span>&gt;(<span class="hljs-keyword">this</span>, FocusPanelClass);
+
+        <span class="hljs-comment">// AddToViewport: ZOrder 5로 화면에 추가</span>
+        FocusPanel-&gt;<span class="hljs-title">AddToViewport</span>(<span class="hljs-number">5</span>);
+    }
+}</pre>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <div class="ic">i</div>
+    <div>
+      <p><strong>FocusPanelClass 할당 방법:</strong> <code>TSubclassOf&lt;UMyPanelWidget&gt; FocusPanelClass</code>를 <code>EditDefaultsOnly</code>로 선언하면, PlayerController의 Blueprint(BP_MyPlayerController)를 열어 Details 패널에서 <strong>Focus Panel Class</strong> 드롭다운을 클릭 &gt; <code>WBP_FocusPanel</code>을 선택하면 됩니다.</p>
+    </div>
+  </div>
+
+  <h3>5-4. AHUD vs PlayerController 비교</h3>
+  <p>위젯을 누가 소유/생성할지 결정하는 3가지 패턴입니다:</p>
+
+  <table class="tbl">
+    <tr><th>방식</th><th>장점</th><th>단점</th><th>언제 사용</th></tr>
+    <tr>
+      <td><strong>PlayerController에서 CreateWidget</strong></td>
+      <td>간단, 초보자 친화, 코드 최소</td>
+      <td>HUD 전용 로직과 게임 로직이 한 클래스에 혼재</td>
+      <td>소규모 프로젝트, 위젯 수가 적을 때</td>
+    </tr>
+    <tr>
+      <td><strong>AHUD 서브클래스</strong></td>
+      <td>HUD 전용 로직 분리, DrawHUD() 사용 가능</td>
+      <td>한 단계(HUD 클래스) 더 추가해야 함</td>
+      <td>대규모 프로젝트, HUD 로직이 복잡할 때</td>
+    </tr>
+    <tr>
+      <td><strong>GameInstanceSubsystem (UIManager)</strong></td>
+      <td>레벨 전환에도 유지, 위젯 라이프사이클 일괄 관리</td>
+      <td>초기 설정이 복잡, 위젯 소유권 별도 관리</td>
+      <td>패널/모달을 여러 개 관리, Show/Hide 자주 전환</td>
+    </tr>
+  </table>
+
+  <h3>5-5. Build.cs 설정 (필수)</h3>
+  <p>UMG 관련 C++ 코드를 사용하려면 프로젝트의 <code>.Build.cs</code> 파일에 <strong>UMG 모듈</strong>을 추가해야 합니다:</p>
+
+  <div class="codeblock" data-id="buildcs">
+    <div class="codeblock-bar">
+      <button class="codeblock-tab tab-cpp active" data-panel="cs">MyProject.Build.cs</button>
+      <button class="codeblock-copy">Copy</button>
+    </div>
+    <div class="codeblock-panel active" data-name="cs">
+      <pre class="hljs"><span class="hljs-comment">// MyProject.Build.cs</span>
+PublicDependencyModuleNames.AddRange(<span class="hljs-keyword">new</span> <span class="hljs-keyword">string</span>[]
+{
+    <span class="hljs-string">"Core"</span>,
+    <span class="hljs-string">"CoreUObject"</span>,
+    <span class="hljs-string">"Engine"</span>,
+    <span class="hljs-string">"InputCore"</span>,
+    <span class="hljs-string">"UMG"</span>,              <span class="hljs-comment">// ← UMG 위젯 사용 시 필수</span>
+    <span class="hljs-string">"Slate"</span>,            <span class="hljs-comment">// ← UMG가 Slate 기반이므로 필요</span>
+    <span class="hljs-string">"SlateCore"</span>         <span class="hljs-comment">// ← Slate 코어 타입</span>
+});</pre>
+    </div>
+  </div>
+
+  <div class="pitfall">
+    <div class="ic">!</div>
+    <div class="pitfall-text"><strong>주의:</strong> Build.cs에 <code>"UMG"</code>를 추가하지 않으면 <code>#include "Components/TextBlock.h"</code> 등에서 "파일을 찾을 수 없습니다" 컴파일 에러가 발생합니다. UMG C++ 코드 작성의 첫 번째 단계입니다!</div>
+  </div>
+</section>
+
+<!-- ===== SECTION 6: 확장 ===== -->
+<section class="section" id="extend">
+  <div class="section-label">06 — 확장</div>
+  <h2>고급 패턴과 디버깅</h2>
+
+  <h3>위젯 애니메이션 (UWidgetAnimation)</h3>
+  <p>Designer의 <strong>Animations</strong> 탭에서 생성한 애니메이션을 C++에서 재생할 수 있습니다:</p>
+
+  <div class="codeblock" data-id="anim">
+    <div class="codeblock-bar">
+      <button class="codeblock-tab tab-h active" data-panel="h">애니메이션 재생</button>
+      <button class="codeblock-copy">Copy</button>
+    </div>
+    <div class="codeblock-panel active" data-name="h">
+      <pre class="hljs"><span class="hljs-comment">// .h — BindWidgetAnim으로 Designer 애니메이션을 C++에 연결</span>
+<span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">Transient</span>, <span class="hljs-keyword">meta</span>=(<span class="hljs-keyword">BindWidgetAnim</span>))</span>
+<span class="hljs-built_in">UWidgetAnimation</span>* FadeInAnim;
+
+<span class="hljs-comment">// .cpp — NativeConstruct()에서 페이드인 재생</span>
+<span class="hljs-keyword">if</span> (FadeInAnim)
+{
+    <span class="hljs-title">PlayAnimation</span>(FadeInAnim, <span class="hljs-number">0.f</span>, <span class="hljs-number">1</span>, EUMGSequencePlayMode::Forward, <span class="hljs-number">1.f</span>);
+}
+
+<span class="hljs-comment">// 역재생 (페이드아웃)</span>
+<span class="hljs-title">PlayAnimationReverse</span>(FadeInAnim);
+
+<span class="hljs-comment">// 애니메이션 종료 시 콜백</span>
+<span class="hljs-built_in">FWidgetAnimationDynamicEvent</span> EndDelegate;
+EndDelegate.<span class="hljs-title">BindDynamic</span>(<span class="hljs-keyword">this</span>, &amp;<span class="hljs-built_in">UMyWidget</span>::OnFadeOutFinished);
+<span class="hljs-title">BindToAnimationFinished</span>(FadeInAnim, EndDelegate);</pre>
+    </div>
+  </div>
+
+  <h3>입력 처리</h3>
+  <p>위젯이 화면에 표시될 때 게임 입력을 차단하거나, 마우스 커서를 표시하는 방법입니다:</p>
+
+  <div class="codeblock" data-id="input">
+    <div class="codeblock-bar">
+      <button class="codeblock-tab tab-cpp active" data-panel="cpp">입력 모드 전환</button>
+      <button class="codeblock-copy">Copy</button>
+    </div>
+    <div class="codeblock-panel active" data-name="cpp">
+      <pre class="hljs"><span class="hljs-comment">// UI 모드로 전환 (게임 입력 차단, 마우스 커서 표시)</span>
+<span class="hljs-built_in">FInputModeUIOnly</span> InputMode;
+InputMode.<span class="hljs-title">SetWidgetToFocus</span>(MyWidget-&gt;<span class="hljs-title">TakeWidget</span>());
+InputMode.<span class="hljs-title">SetLockMouseToViewportBehavior</span>(EMouseLockMode::DoNotLock);
+PlayerController-&gt;<span class="hljs-title">SetInputMode</span>(InputMode);
+PlayerController-&gt;<span class="hljs-title">SetShowMouseCursor</span>(<span class="hljs-literal">true</span>);
+
+<span class="hljs-comment">// 게임 + UI 동시 입력 (인게임 HUD, 클릭 가능 버튼)</span>
+<span class="hljs-built_in">FInputModeGameAndUI</span> GameAndUI;
+GameAndUI.<span class="hljs-title">SetWidgetToFocus</span>(MyWidget-&gt;<span class="hljs-title">TakeWidget</span>());
+PlayerController-&gt;<span class="hljs-title">SetInputMode</span>(GameAndUI);
+
+<span class="hljs-comment">// 게임 전용 모드로 복귀 (UI 닫을 때)</span>
+PlayerController-&gt;<span class="hljs-title">SetInputMode</span>(<span class="hljs-built_in">FInputModeGameOnly</span>());
+PlayerController-&gt;<span class="hljs-title">SetShowMouseCursor</span>(<span class="hljs-literal">false</span>);</pre>
+    </div>
+  </div>
+
+  <h3>위젯 풀링 (성능 최적화)</h3>
+  <p>자주 생성/파괴되는 위젯(데미지 텍스트, 알림 팝업 등)은 매번 CreateWidget하면 GC 부하가 큽니다. <strong>SetVisibility로 재사용</strong>하는 풀링 패턴을 권장합니다:</p>
+
+  <div class="codeblock" data-id="pool">
+    <div class="codeblock-bar">
+      <button class="codeblock-tab tab-cpp active" data-panel="cpp">풀링 패턴</button>
+      <button class="codeblock-copy">Copy</button>
+    </div>
+    <div class="codeblock-panel active" data-name="cpp">
+      <pre class="hljs"><span class="hljs-comment">// 위젯 숨기기 (파괴하지 않음)</span>
+MyWidget-&gt;<span class="hljs-title">SetVisibility</span>(ESlateVisibility::Collapsed);  <span class="hljs-comment">// 공간도 차지 안 함</span>
+
+<span class="hljs-comment">// 위젯 다시 표시</span>
+MyWidget-&gt;<span class="hljs-title">SetVisibility</span>(ESlateVisibility::SelfHitTestInvisible);  <span class="hljs-comment">// 보이지만 클릭 투과</span>
+MyWidget-&gt;<span class="hljs-title">SetVisibility</span>(ESlateVisibility::Visible);  <span class="hljs-comment">// 보이고 클릭 가능</span></pre>
+    </div>
+  </div>
+
+  <h3>비동기 로딩 (TSoftClassPtr)</h3>
+  <p>위젯 클래스를 즉시 로드하지 않고, 필요할 때 비동기로 로드하여 초기 메모리를 절약합니다:</p>
+
+  <div class="codeblock" data-id="async">
+    <div class="codeblock-bar">
+      <button class="codeblock-tab tab-cpp active" data-panel="cpp">비동기 로딩</button>
+      <button class="codeblock-copy">Copy</button>
+    </div>
+    <div class="codeblock-panel active" data-name="cpp">
+      <pre class="hljs"><span class="hljs-comment">// .h — 소프트 레퍼런스 (즉시 로드하지 않음)</span>
+<span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">EditDefaultsOnly</span>, <span class="hljs-keyword">Category</span> = <span class="hljs-string">"UI"</span>)</span>
+TSoftClassPtr&lt;<span class="hljs-built_in">UUserWidget</span>&gt; InventoryWidgetClass;
+
+<span class="hljs-comment">// .cpp — 필요할 때 비동기 로드</span>
+<span class="hljs-keyword">void</span> <span class="hljs-built_in">AMyController</span>::<span class="hljs-title">OpenInventory</span>()
+{
+    <span class="hljs-keyword">if</span> (InventoryWidgetClass.<span class="hljs-title">IsNull</span>()) <span class="hljs-keyword">return</span>;
+
+    <span class="hljs-comment">// 이미 로드됐는지 확인</span>
+    <span class="hljs-keyword">if</span> (<span class="hljs-built_in">UClass</span>* Loaded = InventoryWidgetClass.<span class="hljs-title">Get</span>())
+    {
+        <span class="hljs-comment">// 즉시 사용</span>
+        <span class="hljs-built_in">UUserWidget</span>* Widget = <span class="hljs-title">CreateWidget</span>&lt;<span class="hljs-built_in">UUserWidget</span>&gt;(<span class="hljs-keyword">this</span>, Loaded);
+        Widget-&gt;<span class="hljs-title">AddToViewport</span>();
+    }
+    <span class="hljs-keyword">else</span>
+    {
+        <span class="hljs-comment">// 비동기 로드 요청</span>
+        <span class="hljs-built_in">FStreamableManager</span>&amp; Mgr = <span class="hljs-built_in">UAssetManager</span>::<span class="hljs-title">GetStreamableManager</span>();
+        Mgr.<span class="hljs-title">RequestAsyncLoad</span>(InventoryWidgetClass.<span class="hljs-title">ToSoftObjectPath</span>(),
+            <span class="hljs-built_in">FStreamableDelegate</span>::<span class="hljs-title">CreateUObject</span>(<span class="hljs-keyword">this</span>, &amp;<span class="hljs-built_in">AMyController</span>::OnInventoryLoaded));
+    }
+}</pre>
+    </div>
+  </div>
+
+  <h3>디버깅 팁</h3>
+
+  <table class="tbl">
+    <tr><th>도구/명령</th><th>경로/사용법</th><th>용도</th></tr>
+    <tr>
+      <td><strong>Widget Reflector</strong></td>
+      <td>에디터 상단 메뉴: <strong>Window</strong> &gt; <strong>Developer Tools</strong> &gt; <strong>Widget Reflector</strong></td>
+      <td>실행 중인 위젯 계층을 실시간 검사. 마우스 오버한 위젯의 클래스·크기·위치 확인</td>
+    </tr>
+    <tr>
+      <td><strong>ShowFocusedWidget</strong></td>
+      <td>콘솔(<code>~</code> 키)에 <code>Slate.ShowFocusedWidget 1</code> 입력</td>
+      <td>현재 포커스된 위젯을 하이라이트 표시. 입력이 어디로 가는지 확인</td>
+    </tr>
+    <tr>
+      <td><strong>BindWidget 불일치 표시</strong></td>
+      <td>Designer의 Hierarchy에서 위젯 이름 옆 빨간 느낌표 아이콘</td>
+      <td>C++ BindWidget 변수와 이름/타입이 불일치할 때 표시됨</td>
+    </tr>
+    <tr>
+      <td><strong>Output Log</strong></td>
+      <td><strong>Window</strong> &gt; <strong>Developer Tools</strong> &gt; <strong>Output Log</strong></td>
+      <td>UE_LOG 출력 확인, UI 관련 경고/에러 메시지 확인</td>
+    </tr>
+  </table>
+
+  <h3>자주 하는 실수 종합</h3>
+
+  <table class="tbl">
+    <tr><th>증상</th><th>원인</th><th>해결</th></tr>
+    <tr>
+      <td>위젯이 안 보임</td>
+      <td><code>AddToViewport()</code> 미호출 또는 Visibility가 Hidden/Collapsed</td>
+      <td>AddToViewport 호출 확인, <code>SetVisibility(ESlateVisibility::Visible)</code></td>
+    </tr>
+    <tr>
+      <td>에디터 크래시 (WBP 열 때)</td>
+      <td>BindWidget 이름 또는 타입 불일치</td>
+      <td>C++ 변수명과 Designer 위젯명을 정확히 일치시킴 (대소문자 포함)</td>
+    </tr>
+    <tr>
+      <td>버튼 클릭이 안 됨</td>
+      <td>다른 위젯이 위를 덮고 있음 (Hit Test Invisible 미설정)</td>
+      <td>ZOrder 확인, 덮는 위젯의 <strong>Is Hit Test Visible</strong> = false 설정</td>
+    </tr>
+    <tr>
+      <td>텍스트가 안 바뀜</td>
+      <td>SetText 호출했지만 포인터가 nullptr</td>
+      <td>NativeConstruct 이후에 호출하는지 확인, BindWidget 이름 확인</td>
+    </tr>
+    <tr>
+      <td>해상도 바뀌면 UI 깨짐</td>
+      <td>앵커 미설정 (기본값 좌상 고정)</td>
+      <td>부모 Canvas Panel에서 적절한 앵커(스트레치 포함) 설정</td>
+    </tr>
+    <tr>
+      <td>위젯 제거 후 크래시</td>
+      <td>NativeDestruct()에서 델리게이트 미해제 (dangling pointer)</td>
+      <td><code>RemoveAll(this)</code>를 NativeDestruct()에서 반드시 호출</td>
+    </tr>
+    <tr>
+      <td>#include 컴파일 에러</td>
+      <td>Build.cs에 "UMG" 모듈 미추가</td>
+      <td>Build.cs의 PublicDependencyModuleNames에 <code>"UMG"</code>, <code>"Slate"</code>, <code>"SlateCore"</code> 추가</td>
+    </tr>
+    <tr>
+      <td>AddDynamic 컴파일 에러</td>
+      <td>핸들러 함수에 UFUNCTION() 매크로 미선언</td>
+      <td>Dynamic Delegate 핸들러는 반드시 <code>UFUNCTION()</code>으로 선언</td>
+    </tr>
+  </table>
+
+  <div class="callout tip">
+    <div class="ic">*</div>
+    <div>
+      <p><strong>스타일 일관성 팁:</strong> 프로젝트 전체 UI의 폰트, 색상, 패딩을 <code>USlateWidgetStyle</code> 또는 <code>DataTable</code>로 중앙 관리하면, 스타일 변경 시 한 곳만 수정하면 됩니다. 위젯마다 하드코딩하지 마세요.</p>
+    </div>
+  </div>
+</section>
+
+</div><!-- /content -->
+
+<!-- FOOTER -->
+<footer>
+  <span>UMG + C++ 연동 프레임워크 v1.0</span>
+  <span>Master v1.3 · Template 02-A</span>
+</footer>
+
+<!-- INLINE SCRIPT: Tab switching + Copy button -->
+<script>
+(function(){
+  // Tab switching
+  document.querySelectorAll('.codeblock').forEach(function(block){
+    var tabs = block.querySelectorAll('.codeblock-tab:not(.codeblock-copy)');
+    var panels = block.querySelectorAll('.codeblock-panel');
+    tabs.forEach(function(tab){
+      tab.addEventListener('click', function(){
+        tabs.forEach(function(t){ t.classList.remove('active'); });
+        panels.forEach(function(p){ p.classList.remove('active'); });
+        tab.classList.add('active');
+        var target = tab.getAttribute('data-panel');
+        block.querySelectorAll('.codeblock-panel').forEach(function(p){
+          if(p.getAttribute('data-name') === target) p.classList.add('active');
+        });
+      });
+    });
+  });
+
+  // Copy button
+  document.querySelectorAll('.codeblock-copy').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var block = btn.closest('.codeblock');
+      var activePanel = block.querySelector('.codeblock-panel.active pre');
+      if(!activePanel) return;
+      var text = activePanel.textContent;
+      navigator.clipboard.writeText(text).then(function(){
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(function(){ btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+      });
+    });
+  });
+})();
+</script>
+
+</body>
+</html>

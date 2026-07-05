@@ -1,0 +1,7 @@
+---,Id,Title,Genre,DurationSec,bFree,UnlockCostGold,SoftPath
+1,"ember-vigil","Ember Vigil","Medieval",252,true,0,"/Game/RecordTales/Audio/Music/S_EmberVigil"
+2,"rain-over-stone-keep","Rain Over Stone Keep","Lo-fi Fantasy",198,true,0,"/Game/RecordTales/Audio/Music/S_RainOverStoneKeep"
+3,"torchlit-library","Torchlit Library","Lo-fi",221,false,3000,"/Game/RecordTales/Audio/Music/S_TorchlitLibrary"
+4,"forge-of-stars","Forge of Stars","Medieval",243,false,5000,"/Game/RecordTales/Audio/Music/S_ForgeOfStars"
+5,"moonlit-vow","Moonlit Vow","Ambient",304,false,8000,"/Game/RecordTales/Audio/Music/S_MoonlitVow"
+6,"whispers-of-the-arch","Whispers of the Arch","Orchestral",287,false,12000,"/Game/RecordTales/Audio/Music/S_WhispersOfTheArch"

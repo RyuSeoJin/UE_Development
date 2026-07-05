@@ -1,0 +1,13 @@
+---,Id,DisplayName,Rarity,BaseATK,BaseDEF,BaseSPD,Trait,SynergyTag1,SynergyTag2
+1,"char_knight","기사 아르테",Rare,45,60,30,"수비형","Shield","Valor"
+2,"char_mage","마법사 루미아",Rare,65,25,45,"공격형","Arcane","Wisdom"
+3,"char_archer","궁수 실바",Normal,55,30,55,"속도형","Nature","Precision"
+4,"char_healer","치유사 에밀리아",Rare,20,40,35,"지원형","Holy","Wisdom"
+5,"char_warrior","전사 고르도",Normal,60,50,25,"공격형","Valor","Might"
+6,"char_thief","도적 카이",Normal,40,20,70,"속도형","Shadow","Precision"
+7,"char_sage","현자 오딘",Epic,70,35,40,"공격형","Arcane","Holy"
+8,"char_paladin","성기사 레오나",Epic,50,70,30,"수비형","Holy","Shield"
+9,"char_assassin","암살자 제로",Normal,75,15,65,"공격형","Shadow","Precision"
+10,"char_bard","음유시인 리라",Normal,30,30,50,"지원형","Nature","Wisdom"
+11,"char_dragon","용기사 드레이크",Legendary,80,55,35,"공격형","Might","Valor"
+12,"char_fairy","요정 티아나",Legendary,45,45,60,"지원형","Nature","Arcane"

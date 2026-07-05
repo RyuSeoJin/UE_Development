@@ -3,9 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RecordTales 프로젝트 허브 & 개발 용어집 v1.2</title>
+<title>RecordTales 프로젝트 허브 & 개발 용어집 v1.4</title>
 <!-- CHANGELOG — recordtales-index.html
      RecordTales 프로젝트 허브 & 프로젝트 용어집. 작업 규약: doc-process/DOC-TRACKS.md (Track B)
+     v1.4 · 2026-07-05
+       - (추가) 문서 목록에 10 UMG + C++ 구현 가이드 등록 (설계 문서 10개 → 11개).
+     v1.3 · 2026-07-05
+       - (추가) 문서 목록에 09 개발 플로우 로드맵 등록 (설계 문서 9개 → 10개).
+       - (추가) 용어집에 "개발 프로세스" 카테고리 신설: 개발 플로우 로드맵 · Phase ·
+         중간 검증 · 의존성 맵 (상세 링크는 09 문서의 term 앵커).
      v1.2 · 2026-07-02
        - (추가) 문서 목록에 08 데이터 설계 명세 등록 (설계 문서 8개 → 9개).
        - (추가) 용어집에 "데이터 설계" 카테고리 신설: 데이터 3계층 · RowName 참조 ·
@@ -423,13 +429,13 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">RecordTales &middot; v1.2 &middot; Project Hub</div>
+  <div class="hero-eyebrow">RecordTales &middot; v1.4 &middot; Project Hub</div>
   <h1>RecordTales<br><span>프로젝트 허브</span></h1>
   <p class="hero-sub">
     포모도로 기반 집중 관리 + 길드 게임화 시스템을 언리얼 엔진으로 구현하는 프로젝트입니다. 이 허브는 프로젝트의 모든 설계 문서를 모으고, 개발에 필요한 용어·데이터 구조·프레임워크 배치를 정리합니다.
   </p>
   <div class="hero-meta">
-    <span class="badge badge-blue">8개 설계 문서</span>
+    <span class="badge badge-blue">11개 설계 문서</span>
     <span class="badge badge-green">개발 용어집</span>
     <span class="badge badge-purple">프레임워크 설계</span>
   </div>
@@ -443,7 +449,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   <div class="section" id="docs">
     <div class="section-label">01 — 문서 목록</div>
     <h2>설계 문서</h2>
-    <p>RecordTales를 구성하는 9개의 설계 문서입니다. 각 문서는 CSS inline으로 단독 열람이 가능합니다.</p>
+    <p>RecordTales를 구성하는 11개의 설계 문서입니다. 각 문서는 CSS inline으로 단독 열람이 가능합니다.</p>
 
     <table class="tbl">
       <tr>
@@ -505,6 +511,18 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <td>데이터</td>
         <td>전수 인벤토리, 보관처 결정표, DataTable/SaveGame 스키마, 실측 수치표</td>
         <td><a href="./08-data-design.html" style="color:var(--accent)">열기 &rarr;</a></td>
+      </tr>
+      <tr>
+        <td>09 개발 플로우 로드맵</td>
+        <td>개발 프로세스</td>
+        <td>6 Phase 개발 순서, 시스템 의존성, 마일스톤 체크리스트, 트러블슈팅</td>
+        <td><a href="./09-dev-flow-roadmap.html" style="color:var(--accent)">열기 &rarr;</a></td>
+      </tr>
+      <tr>
+        <td>10 UMG + C++ 구현 가이드</td>
+        <td>UI/UX 구현</td>
+        <td>UIManagerSubsystem, 7개 위젯 C++ 클래스, BindWidget, Designer 배치, 델리게이트 바인딩</td>
+        <td><a href="./10-umg-cpp-integration.html" style="color:var(--accent)">열기 &rarr;</a></td>
       </tr>
     </table>
   </div>
@@ -1084,6 +1102,41 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <td><code>URecordTalesSaveGame</code></td>
         <td>구조 변경 시 +1, 로드 시 버전 분기로 마이그레이션</td>
         <td><a href="./08-data-design.html#term-savegame-root" style="color:var(--accent)">08 데이터</a></td>
+      </tr>
+
+      <!-- ===== 개발 프로세스 ===== -->
+      <tr class="cat-header"><td colspan="6">개발 프로세스</td></tr>
+      <tr id="term-dev-flow-roadmap">
+        <td>개발 플로우 로드맵</td>
+        <td>프로젝트 전체의 구현 순서를 6 Phase로 나눈 개발 로드맵</td>
+        <td>Phase 1~6, 각 Phase별 선행조건&rarr;구현&rarr;검증 패턴</td>
+        <td>모든 <code>UGameInstanceSubsystem</code></td>
+        <td>의존성 맵 기반: 의존 대상 없는 시스템부터 구현</td>
+        <td><a href="./09-dev-flow-roadmap.html#roadmap" style="color:var(--accent)">09 로드맵</a></td>
+      </tr>
+      <tr id="term-phase">
+        <td>Phase (개발 단계)</td>
+        <td>의존성 기반으로 분리한 구현 단위 (P1=기반 &rarr; P6=통합)</td>
+        <td>Phase 1~6: 기반&rarr;핵심로직&rarr;게임화&rarr;에셋&rarr;UI&rarr;통합</td>
+        <td>&mdash;</td>
+        <td>각 Phase 완료 후 중간 검증을 통과해야 다음 Phase로 진행</td>
+        <td><a href="./09-dev-flow-roadmap.html#roadmap" style="color:var(--accent)">09 로드맵</a></td>
+      </tr>
+      <tr id="term-mid-verify">
+        <td>중간 검증</td>
+        <td>각 Phase 끝에서 PIE/로그/콘솔로 동작을 확인하는 검증 절차</td>
+        <td>&mdash;</td>
+        <td>PIE, Output Log, 콘솔 명령</td>
+        <td>"이것이 동작해야 다음으로 넘어간다" 체크포인트</td>
+        <td><a href="./09-dev-flow-roadmap.html#milestone" style="color:var(--accent)">09 로드맵</a></td>
+      </tr>
+      <tr id="term-depmap">
+        <td>의존성 맵</td>
+        <td>서브시스템 간 데이터 흐름 방향을 나타낸 방향 그래프</td>
+        <td>7 서브시스템 + GameInstance + SaveGame 노드</td>
+        <td>&mdash;</td>
+        <td>순환 의존 없음. 잎 노드(의존 대상 없음)부터 구현</td>
+        <td><a href="./09-dev-flow-roadmap.html#depmap" style="color:var(--accent)">09 로드맵</a></td>
       </tr>
     </table>
   </div>
