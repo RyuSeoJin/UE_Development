@@ -44,6 +44,7 @@
 | `framework/` | 게임플레이 프레임워크·Subsystem·상태 머신 등 **엔진이 제공하는 게임 구조/패턴** | GameMode, GameInstanceSubsystem |
 | `ui/` | UMG·Slate·Common UI 등 **UI 계층 전반** | 위젯 블루프린트, SWidget, 레이어 스택 |
 | `data/` | DataTable·DataAsset·Config 등 **데이터 관리** | 마스터 데이터, 행 구조체 |
+| `rendering/` | 머티리얼·셰이딩·포스트 프로세스 등 **화면을 그리는 기법** | 툰 셰이딩, 아웃라인, Custom Depth |
 
 **폴더 이름 규칙**: 영문 소문자 kebab-case, 단수형 우선, `ue-` 접두어 금지(상위 폴더가 이미 ue-architect). 파일명 규칙(`ue-….html`)은 기존 그대로.
 
@@ -51,7 +52,7 @@
 
 1. 문서의 **핵심 주제 시스템**이 위 표의 판별 기준에 맞으면 그 폴더에 저장합니다. 두 영역에 걸치면 **"독자가 이 문서를 찾을 때 먼저 떠올릴 영역"**을 따릅니다(예: UMG+C++ 연동 → `ui/`).
 2. 맞는 카테고리가 없으면 아래 **표준 후보 목록**에서 골라 새 폴더를 생성합니다:
-   `rendering/`, `animation/`, `networking/`, `ai/`, `physics/`, `audio/`, `editor-tools/`, `build-pipeline/`
+   `animation/`, `networking/`, `ai/`, `physics/`, `audio/`, `editor-tools/`, `build-pipeline/`
 3. 후보 목록에도 없으면 kebab-case 이름을 새로 제안하되, 신규 폴더 생성은 **플레이북 STEP 2 사용자 확인 ① 시점에 저장 폴더(기존/신규 여부 포함)를 함께 공유**해 확인받습니다.
 4. 새 폴더를 만들면 **① 위 카테고리 표에 행 추가, ② 중앙 허브 문서 목록에 해당 카테고리 소구획 추가** — 두 가지를 반드시 함께 수행합니다.
 
@@ -106,6 +107,9 @@
 
 ## 변경 이력 (CHANGELOG)
 
+- **v1.5 · 2026-07-06**
+  - (추가) §2-1 카테고리 표에 `rendering/` 행 추가 (표준 후보 목록에서 승격 — 첫 문서: 툰 셰이딩 & 아웃라인 렌더링).
+    후보 목록에서 `rendering/` 제거.
 - **v1.4 · 2026-07-06**
   - (추가) §2-1 유형 ① 카테고리 규칙 — ue-architect 하위를 카테고리 폴더(core-cpp/framework/ui/data)로 구획.
     카테고리 표(단일 소스)·폴더 이름 규칙(영문 kebab-case)·배치 판별 절차·표준 후보 목록·신규 폴더 생성 절차 정의.

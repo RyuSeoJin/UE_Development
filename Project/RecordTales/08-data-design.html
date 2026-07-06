@@ -3,11 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RecordTales 데이터 설계 명세 — v1.0</title>
+<title>RecordTales 데이터 설계 명세 — v1.2</title>
 <!-- ============================================================
      CHANGELOG — 08-data-design.html
      RecordTales 데이터 설계 통합 명세 (프로토타입 → UE 데이터 자산 번역).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.2 · 2026-07-06
+       - (추가) FQuestInstanceData에 SuspendedAt(FDateTime) — 캘린더 "중단일까지 표기"
+         타임라인 규칙(03 문서 v1.3)의 필수 저장 사실. DoneAt과 대칭.
+       - (변경) EQuestStatus 비고: 임의 날짜 D 기준 파생(GetStatusForDate(D))로 일반화,
+         날짜별 표기 구간 규칙은 03 문서 타임라인 섹션 참조 명시.
+     v1.1 · 2026-07-06
+       - (변경) 통합 기록 ID 도입(11-archive-record-id.html v1.0 설계)에 따른 스키마 개정:
+         FFocusRecord → FArchiveRecord (Id·Source·CreatedAt·Title·SourceRefId·DueDate),
+         EFocusMode → ERecordSource(Timer/Stopwatch/Quest/Manual).
+       - (변경) SaveGame: ArchiveRecords·RecordIdCounters 추가, SaveVersion 기본값 1 → 2
+         (v1 세이브 로드 시 마이그레이션 — 절차는 11번 문서 05 섹션이 단일 소스).
      v1.0 · 2026-07-02
        - 신규 생성. 프로토타입(TestFile/RecordTales.html, "Grimhollow — Guild Master" v14)의
          전체 데이터를 전수 조사하여 정적(DataTable/Settings)·동적(SaveGame)·휘발(런타임)
@@ -539,10 +550,10 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
     <table class="tbl">
       <tr><th>UENUM</th><th>값</th><th>프로토타입 문자열</th><th>주 사용처</th></tr>
-      <tr><td><code>EFocusMode</code></td><td>Timer, Stopwatch</td><td><code>'timer' / 'sw'</code></td><td>기록 모드 구분</td></tr>
+      <tr><td><code>ERecordSource</code></td><td>Timer, Stopwatch, Quest, Manual</td><td><code>'timer' / 'sw'</code> (2종을 4종 출처로 확장)</td><td>기록 출처 구분 — 아카이브 필터 축 ① (구 EFocusMode 대체, v1.1)</td></tr>
       <tr><td><code>EFocusState</code></td><td>Idle, Focusing, Resting, LastResting, Paused</td><td><code>timerState</code></td><td>타이머 상태 머신 (휘발)</td></tr>
       <tr><td><code>EQuestRecurrence</code></td><td>None, Daily, Weekly, Monthly</td><td><code>recurrence</code></td><td>반복 규칙</td></tr>
-      <tr><td><code>EQuestStatus</code></td><td>Upcoming, Active, Overdue, Done, Suspended</td><td>파생값 (저장 안 함)</td><td>날짜·완료 여부에서 <strong>계산</strong>되는 상태 &mdash; 저장하면 자정이 지날 때 어긋남</td></tr>
+      <tr><td><code>EQuestStatus</code></td><td>Upcoming, Active, Overdue, Done, Suspended</td><td>파생값 (저장 안 함)</td><td>날짜·완료 여부에서 <strong>계산</strong>되는 상태 &mdash; 저장하면 자정이 지날 때 어긋남. 임의 날짜 D 기준으로 일반화(<code>GetStatusForDate(D)</code>) — 캘린더 날짜별 표기 구간 규칙은 03 문서 "퀘스트 상태 타임라인 표기 규칙" 참조</td></tr>
       <tr><td><code>EGuildRarity</code></td><td>Normal, Rare, Epic, Legendary</td><td><code>'normal'~'legendary'</code></td><td>캐릭터 등급</td></tr>
       <tr><td><code>EMemberStat</code></td><td>FocusTime, GoldGain, QuestReward, StopwatchReward, AccuracyBonus, XpBonus, StreakBonus, AllReward, XpBoost</td><td><code>STAT_POOL</code> 9종</td><td>캐릭터 스탯·시너지 보너스 종류</td></tr>
       <tr><td><code>EUnlockCategory</code></td><td>Preset, Squad, Stopwatch, Timer, Quest</td><td><code>UNLOCKS_V2.cat</code></td><td>기능 해금 분류</td></tr>
@@ -561,7 +572,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <span class="hljs-meta">#include <span class="hljs-string">"RecordTalesTypes.generated.h"</span></span>
 
 <span class="hljs-meta">UENUM(BlueprintType)</span>
-<span class="hljs-keyword">enum class</span> <span class="hljs-title">EFocusMode</span> : <span class="hljs-keyword">uint8</span> { Timer, Stopwatch };
+<span class="hljs-keyword">enum class</span> <span class="hljs-title">ERecordSource</span> : <span class="hljs-keyword">uint8</span> { Timer, Stopwatch, Quest, Manual };  <span class="hljs-comment">// 구 EFocusMode 대체 (v1.1)</span>
 
 <span class="hljs-meta">UENUM(BlueprintType)</span>
 <span class="hljs-keyword">enum class</span> <span class="hljs-title">EQuestRecurrence</span> : <span class="hljs-keyword">uint8</span> { None, Daily, Weekly, Monthly };
@@ -989,7 +1000,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
     <div class="rel-map">
       <div class="rel-row">
-        <div class="rel-node c-savegame"><b>URecordTalesSaveGame</b><span>FocusRecords &middot; QuestMasters &middot; OwnedMembers &middot; 경제 상태 &middot; 설정</span></div>
+        <div class="rel-node c-savegame"><b>URecordTalesSaveGame</b><span>ArchiveRecords &middot; QuestMasters &middot; OwnedMembers &middot; 경제 상태 &middot; 설정</span></div>
         <div class="rel-arrow"><span class="ra-line"></span><span class="ra-label">FName RowName 참조</span></div>
         <div class="rel-node c-instance"><b>정적 DataTable 7종</b><span>DT_GuildMembers &middot; DT_Unlocks &middot; DT_MusicTracks &hellip;</span></div>
       </div>
@@ -1000,34 +1011,46 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       </div>
     </div>
 
-    <h3 id="term-focus-record">05-1 &middot; FFocusRecord &mdash; 집중 기록</h3>
-    <p>프로토타입은 한 기록에 날짜를 <strong>4가지 형태</strong>(date, dateLong, clock, ts)로 중복 저장합니다. UE에서는 <code>FDateTime</code>(날짜+시각을 담는 언리얼 표준 타입) <strong>하나만</strong> 저장하고 나머지는 표시 시점에 파생시킵니다 &mdash; 같은 사실을 두 곳에 저장하면 언젠가 서로 어긋납니다.</p>
+    <h3 id="term-focus-record">05-1 &middot; FArchiveRecord &mdash; 통합 아카이브 기록 (구 FFocusRecord)</h3>
+    <p>프로토타입은 한 기록에 날짜를 <strong>4가지 형태</strong>(date, dateLong, clock, ts)로 중복 저장합니다. UE에서는 <code>FDateTime</code>(날짜+시각을 담는 언리얼 표준 타입) <strong>하나만</strong>(<code>CreatedAt</code>) 저장하고 나머지는 표시 시점에 파생시킵니다 &mdash; 같은 사실을 두 곳에 저장하면 언젠가 서로 어긋납니다. v1.1에서 통합 기록 ID 설계에 따라 모든 출처(타이머·스톱워치·퀘스트 완료·직접 작성)의 기록이 이 구조 하나로 통합되었습니다. <strong>필드별 근거·ID 발급 규칙·마이그레이션의 단일 소스는 11 통합 기록 ID 문서</strong>입니다.</p>
 
     <div class="codeblock">
       <div class="codeblock-bar">
-        <button class="codeblock-tab tab-h active" type="button">SaveTypes.h &mdash; FFocusRecord</button>
+        <button class="codeblock-tab tab-h active" type="button">SaveTypes.h &mdash; FArchiveRecord</button>
         <button class="codeblock-copy" type="button">복사</button>
       </div>
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 집중 세션 1회의 기록. 프로토타입 A.records[] 의 한 항목.</span>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 아카이브 "사건" 1건의 통합 기록. 프로토타입 A.records[] 의 한 항목을 확장.</span>
 <span class="hljs-meta">USTRUCT(BlueprintType)</span>
-<span class="hljs-keyword">struct</span> <span class="hljs-title">FFocusRecord</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title">FArchiveRecord</span>
 {
     <span class="hljs-meta">GENERATED_BODY()</span>
 
     <span class="hljs-meta">UPROPERTY()</span>
-    FString Category;               <span class="hljs-comment">// 사용자 카테고리 (예: 공부)</span>
+    FString Id;                     <span class="hljs-comment">// 통합 기록 ID "YYYYMMDD+5자리" — 정렬·식별 전용, 불변</span>
 
     <span class="hljs-meta">UPROPERTY()</span>
-    <span class="hljs-keyword">int32</span> DurationSeconds = <span class="hljs-number">0</span>;     <span class="hljs-comment">// 집중한 시간(초)</span>
+    ERecordSource Source = ERecordSource::Timer;   <span class="hljs-comment">// 출처 — 필터 축 ①</span>
 
     <span class="hljs-meta">UPROPERTY()</span>
-    EFocusMode Mode = EFocusMode::Timer;
+    FString Category;               <span class="hljs-comment">// 사용자 카테고리 (예: 공부) — 필터 축 ②</span>
+
+    <span class="hljs-meta">UPROPERTY()</span>
+    FDateTime CreatedAt;            <span class="hljs-comment">// 사건 발생 시각 — 필터 축 ③, date/clock 등은 여기서 파생</span>
+
+    <span class="hljs-meta">UPROPERTY()</span>
+    <span class="hljs-keyword">int32</span> DurationSeconds = <span class="hljs-number">0</span>;     <span class="hljs-comment">// 집중한 시간(초) — Timer/Stopwatch만 의미</span>
+
+    <span class="hljs-meta">UPROPERTY()</span>
+    FString Title;                  <span class="hljs-comment">// 퀘스트 제목 스냅샷 / 직접 작성 제목</span>
 
     <span class="hljs-meta">UPROPERTY()</span>
     FString Notes;                  <span class="hljs-comment">// 세션 메모 (빈 문자열 허용)</span>
 
     <span class="hljs-meta">UPROPERTY()</span>
-    FDateTime Timestamp;            <span class="hljs-comment">// 기록 시각 — date/clock 등은 여기서 파생</span>
+    FString SourceRefId;            <span class="hljs-comment">// Source==Quest: 원본 퀘스트 마스터 ID</span>
+
+    <span class="hljs-meta">UPROPERTY()</span>
+    FDateTime DueDate;              <span class="hljs-comment">// Source==Quest: 목표 완료 일자 — 가변이라 ID 밖</span>
 };</pre></div>
     </div>
 
@@ -1048,6 +1071,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">bool</span> bDone = <span class="hljs-keyword">false</span>;
     <span class="hljs-meta">UPROPERTY()</span> FDateTime DoneAt;
     <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">bool</span> bSuspended = <span class="hljs-keyword">false</span>;
+    <span class="hljs-meta">UPROPERTY()</span> FDateTime SuspendedAt;   <span class="hljs-comment">// 중단 시각 — 캘린더 "중단일까지 표기" 규칙의 기준 (03 타임라인, v1.2 신규)</span>
     <span class="hljs-meta">UPROPERTY()</span> FString SuspendReason;
 };
 
@@ -1160,10 +1184,12 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-meta">GENERATED_BODY()</span>
 <span class="hljs-keyword">public</span>:
     <span class="hljs-comment">// ── 마이그레이션 대비 ──</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">int32</span> SaveVersion = <span class="hljs-number">1</span>;   <span class="hljs-comment">// 구조 변경 시 +1, 로드 시 분기</span>
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-keyword">int32</span> SaveVersion = <span class="hljs-number">2</span>;   <span class="hljs-comment">// 구조 변경 시 +1, 로드 시 분기 (v2: 통합 기록 ID)</span>
 
-    <span class="hljs-comment">// ── 기록 (03 아카이브) ──</span>
-    <span class="hljs-meta">UPROPERTY()</span> TArray&lt;FFocusRecord&gt; FocusRecords;
+    <span class="hljs-comment">// ── 기록 (03 아카이브 · 11 통합 기록 ID) ──</span>
+    <span class="hljs-meta">UPROPERTY()</span> TArray&lt;FArchiveRecord&gt; ArchiveRecords;     <span class="hljs-comment">// 항상 Id 오름차순(=시간순)</span>
+    <span class="hljs-meta">UPROPERTY()</span> TMap&lt;FString, <span class="hljs-keyword">int32</span>&gt; RecordIdCounters;    <span class="hljs-comment">// "YYYYMMDD" → 다음 시퀀스 (퀘스트 IdCounters와 별도)</span>
+    <span class="hljs-meta">UPROPERTY()</span> TArray&lt;FFocusRecord&gt; FocusRecords;         <span class="hljs-comment">// [구버전 잔재] v1 세이브 마이그레이션용 — 이전 후 Empty (11번 문서 05)</span>
 
     <span class="hljs-comment">// ── 퀘스트 (02) ──</span>
     <span class="hljs-meta">UPROPERTY()</span> TArray&lt;FQuestMasterData&gt; QuestMasters;
@@ -1298,7 +1324,7 @@ Content/
 </div>
 
 <footer>
-  <span>RecordTales &middot; 데이터 설계 명세 v1.0</span>
+  <span>RecordTales &middot; 데이터 설계 명세 v1.2</span>
   <span>디자인: Dark &middot; Indigo Minimal &middot; Master v1.3</span>
 </footer>
 

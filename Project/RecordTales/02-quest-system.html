@@ -3,10 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>02 · 퀘스트 시스템 — RecordTales v1.1</title>
+<title>02 · 퀘스트 시스템 — RecordTales v1.2</title>
 <!-- ============================================================
      CHANGELOG — 02-quest-system.html
      퀘스트 시스템 설계 문서. 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.2 · 2026-07-06
+       - (변경) 인스턴스 상태 구조체 명칭·스키마를 08 데이터 설계 명세 기준으로 통일:
+         FQuestOccurrenceData → FQuestInstanceData (한 개념 한 용어),
+         FString DoneAt/SuspendedAt → bDone+FDateTime DoneAt / bSuspended+FDateTime SuspendedAt+SuspendReason.
+       - (추가) 상태 판정을 임의 날짜 D 기준으로 일반화하는 원칙 명시 —
+         캘린더 날짜별 표기(타임라인) 규칙은 03 아카이브 문서의 "퀘스트 상태 타임라인 표기 규칙" 참조.
      v1.1 · 2026-07-02
        - (추가) 08 — 데이터 설계 섹션: 프로토타입 v14(TestFile/RecordTales.html) 실측 기준 —
          FQuestMasterData/FQuestInstanceData 필드 명세·ID 규칙·파생 상태 원칙·IdCounters/LastRolloverDate 저장 명세.
@@ -533,7 +539,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
     <span class="hljs-comment">// 날짜별 인스턴스 상태 맵 (키: "YYYY.MM.DD", 값: 해당 날짜의 상태)</span>
     <span class="hljs-meta">UPROPERTY(BlueprintReadWrite, Category = "Quest")</span>
-    <span class="hljs-type">TMap</span>&lt;<span class="hljs-type">FString</span>, <span class="hljs-type">FQuestOccurrenceData</span>&gt; RecurData;
+    <span class="hljs-type">TMap</span>&lt;<span class="hljs-type">FString</span>, <span class="hljs-type">FQuestInstanceData</span>&gt; RecurData;
 
     <span class="hljs-comment">// 즐겨찾기 여부</span>
     <span class="hljs-meta">UPROPERTY(BlueprintReadWrite, Category = "Quest")</span>
@@ -541,25 +547,34 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 };</pre></div>
     </div>
 
-    <h3>FQuestOccurrenceData, EQuestRecurrence, EQuestStatus</h3>
+    <h3>FQuestInstanceData, EQuestRecurrence, EQuestStatus</h3>
     <div class="codeblock">
       <div class="codeblock-bar">
         <button class="codeblock-tab tab-h active" type="button">QuestTypes.h (Supporting)</button>
         <button class="codeblock-copy" type="button">복사</button>
       </div>
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 특정 날짜의 인스턴스 상태를 저장하는 구조체</span>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 특정 날짜의 인스턴스 상태를 저장하는 구조체 (스키마 단일 소스: 08 데이터 설계 명세)</span>
 <span class="hljs-meta">USTRUCT(BlueprintType)</span>
-<span class="hljs-keyword">struct</span> <span class="hljs-title class_">FQuestOccurrenceData</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title class_">FQuestInstanceData</span>
 {
     <span class="hljs-meta">GENERATED_BODY()</span>
 
-    <span class="hljs-comment">// 완료 시각 (빈 문자열이면 미완료)</span>
+    <span class="hljs-comment">// 완료 여부 + 완료 시각</span>
     <span class="hljs-meta">UPROPERTY(BlueprintReadWrite, Category = "Quest")</span>
-    <span class="hljs-type">FString</span> DoneAt;
+    <span class="hljs-type">bool</span> bDone = <span class="hljs-literal">false</span>;
 
-    <span class="hljs-comment">// 보류(일시정지) 시각 (빈 문자열이면 보류 아님)</span>
     <span class="hljs-meta">UPROPERTY(BlueprintReadWrite, Category = "Quest")</span>
-    <span class="hljs-type">FString</span> SuspendedAt;
+    <span class="hljs-type">FDateTime</span> DoneAt;
+
+    <span class="hljs-comment">// 중단(보류) 여부 + 중단 시각 + 사유</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadWrite, Category = "Quest")</span>
+    <span class="hljs-type">bool</span> bSuspended = <span class="hljs-literal">false</span>;
+
+    <span class="hljs-meta">UPROPERTY(BlueprintReadWrite, Category = "Quest")</span>
+    <span class="hljs-type">FDateTime</span> SuspendedAt;   <span class="hljs-comment">// 캘린더 "중단일까지 표기" 규칙의 기준 (03 타임라인)</span>
+
+    <span class="hljs-meta">UPROPERTY(BlueprintReadWrite, Category = "Quest")</span>
+    <span class="hljs-type">FString</span> SuspendReason;
 };
 
 <span class="hljs-comment">// 반복 유형 열거형</span>
@@ -596,7 +611,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>Deadline</code></td><td><code>FString</code></td><td>단발성 퀘스트의 절대 마감일. 반복 퀘스트에서는 사용하지 않습니다(빈 문자열).</td></tr>
       <tr><td><code>DeadlineOffset</code></td><td><code>int32</code></td><td>반복 퀘스트 전용. 각 인스턴스의 발생일로부터 N일 후가 마감일. 단발성에서는 0입니다.</td></tr>
       <tr><td><code>RecEndDate</code></td><td><code>FString</code></td><td>반복 종료일. 기본값은 시작일 + 1년. 이 날짜 이후에는 새 인스턴스가 생기지 않습니다.</td></tr>
-      <tr><td><code>RecurData</code></td><td><code>TMap&lt;FString, FQuestOccurrenceData&gt;</code></td><td>날짜 키("YYYY.MM.DD")별 인스턴스 상태 맵. 완료/보류 등의 상태를 날짜별로 기록합니다.</td></tr>
+      <tr><td><code>RecurData</code></td><td><code>TMap&lt;FString, FQuestInstanceData&gt;</code></td><td>날짜 키("YYYY.MM.DD")별 인스턴스 상태 맵. 완료(bDone·DoneAt)/중단(bSuspended·SuspendedAt·사유)을 날짜별로 기록합니다.</td></tr>
       <tr><td><code>bFavorite</code></td><td><code>bool</code></td><td>즐겨찾기 플래그. UI에서 별표로 표시됩니다.</td></tr>
     </table>
 
@@ -748,8 +763,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <h3>상태 계산 로직</h3>
     <table class="tbl">
       <tr><th>상태</th><th>판정 조건</th><th>우선순위</th></tr>
-      <tr><td style="color:var(--text-muted)"><strong>Suspended</strong></td><td><code>SuspendedAt</code>이 비어 있지 않음 (보류 시각이 기록됨)</td><td>1 (최우선)</td></tr>
-      <tr><td style="color:var(--accent-3)"><strong>Done</strong></td><td><code>DoneAt</code>이 비어 있지 않음 (완료 시각이 기록됨)</td><td>2</td></tr>
+      <tr><td style="color:var(--text-muted)"><strong>Suspended</strong></td><td><code>bSuspended</code>가 true (중단 시각은 <code>SuspendedAt</code>에 기록됨)</td><td>1 (최우선)</td></tr>
+      <tr><td style="color:var(--accent-3)"><strong>Done</strong></td><td><code>bDone</code>이 true (완료 시각은 <code>DoneAt</code>에 기록됨)</td><td>2</td></tr>
       <tr><td style="color:var(--accent)"><strong>Upcoming</strong></td><td>시작일 &gt; 오늘 (아직 시작되지 않음)</td><td>3</td></tr>
       <tr><td style="color:var(--accent-2)"><strong>Active</strong></td><td>시작일 &le; 오늘 &le; 마감일 (진행 기간 내)</td><td>4</td></tr>
       <tr><td style="color:var(--red)"><strong>Overdue</strong></td><td>마감일 &lt; 오늘 (마감일 지남)</td><td>5</td></tr>
@@ -757,7 +772,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
     <div class="pitfall" style="margin-top:18px">
       <span class="ic">&#9888;&#65039;</span>
-      <div class="pitfall-text"><strong>상태는 DB에 저장하지 않습니다.</strong> 현재 날짜 기준으로 매번 실시간 계산합니다. 왜냐하면 날짜가 바뀌면 동일 퀘스트의 상태가 자동으로 변하기 때문입니다. 예를 들어, 어제 Active였던 퀘스트가 오늘 마감일이 지나면 자동으로 Overdue가 됩니다. 상태를 저장하면 매일 모든 퀘스트를 순회하여 갱신해야 하므로 불필요한 복잡성이 생깁니다.</div>
+      <div class="pitfall-text"><strong>상태는 DB에 저장하지 않습니다.</strong> 현재 날짜 기준으로 매번 실시간 계산합니다. 왜냐하면 날짜가 바뀌면 동일 퀘스트의 상태가 자동으로 변하기 때문입니다. 예를 들어, 어제 Active였던 퀘스트가 오늘 마감일이 지나면 자동으로 Overdue가 됩니다. 상태를 저장하면 매일 모든 퀘스트를 순회하여 갱신해야 하므로 불필요한 복잡성이 생깁니다. 이 판정은 "오늘" 전용이 아니라 <strong>임의 날짜 D를 넣어도 동작하는 함수(<code>GetStatusForDate(D)</code> 개념)</strong>로 만들어 두세요 — 아카이브 캘린더가 과거 날짜를 조회할 때 같은 함수를 재사용합니다. 날짜별 캘린더 표기 구간(어느 날부터 어느 날까지 어떤 상태로 보이는가)의 규칙은 03 아카이브 문서의 "퀘스트 상태 타임라인 표기 규칙" 섹션이 단일 소스입니다.</div>
     </div>
 
     <h3 id="term-dday-calc">D-Day 표시</h3>
@@ -944,7 +959,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Date) <span class="hljs-keyword">const</span>
 {
     <span class="hljs-comment">// 1. RecurData에서 해당 날짜의 상태 조회</span>
-    <span class="hljs-keyword">const</span> <span class="hljs-type">FQuestOccurrenceData</span>* Occ = Master.RecurData.<span class="hljs-title function_">Find</span>(Date);
+    <span class="hljs-keyword">const</span> <span class="hljs-type">FQuestInstanceData</span>* Occ = Master.RecurData.<span class="hljs-title function_">Find</span>(Date);
 
     <span class="hljs-comment">// 2. 우선순위 1: Suspended</span>
     <span class="hljs-keyword">if</span> (Occ &amp;&amp; !Occ-&gt;SuspendedAt.<span class="hljs-title function_">IsEmpty</span>())
@@ -1121,7 +1136,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>RecordTales &middot; Quest System v1.1</span>
+  <span>RecordTales &middot; Quest System v1.2</span>
   <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial</span>
 </footer>
 

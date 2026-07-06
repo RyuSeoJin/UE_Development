@@ -3,10 +3,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>03 · 아카이브 시스템 — RecordTales v1.1</title>
+<title>03 · 아카이브 시스템 — RecordTales v1.3</title>
 <!-- ============================================================
      CHANGELOG — 03-archive-system.html
      아카이브 시스템 설계 문서. 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.3 · 2026-07-06
+       - (추가) 캘린더 섹션에 "퀘스트 상태 타임라인 표기 규칙" 신설(id="term-status-timeline") —
+         날짜 D별 표기 구간: 진행 예정(생성일~시작일 전, 마스터 단위) · 진행 중 · 완료(완료일까지) ·
+         지연(단발: 완료/중단까지 계속, 반복: 다음 발생 전날까지) · 중단(중단일까지, SuspendedAt 기준).
+         표기 상태는 저장하지 않고 파생(GetStatusForDate(D) 개념). 이 섹션이 표기 규칙의 단일 소스.
+       - (변경) 캘린더 도트 판정 조건: F/S를 Mode → Source 기준으로 정정(v1.2 누락분),
+         T를 타임라인 표기 규칙 기준으로 갱신.
+     v1.2 · 2026-07-06
+       - (변경) 통합 기록 ID 도입(11-archive-record-id.html v1.0 설계)에 따른 개정:
+         FFocusRecord → FArchiveRecord 대체 (Id·Source·CreatedAt·Title·SourceRefId·DueDate 추가),
+         EFocusMode → ERecordSource(Timer/Stopwatch/Quest/Manual)로 출처 축 확장.
+       - (변경) 저장 관례: "인덱스 0 삽입(최신순)" → "ID 오름차순 append(시간순), 표시만 역순".
+       - (변경) GetRecordsFiltered 시그니처: Mode 단일 필터 → Source 다중 선택 필터.
+       - 구조체·ID 발급·마이그레이션의 단일 소스는 11번 문서. 이 문서는 아카이브 시스템 관점 요약만 유지.
      v1.1 · 2026-07-02
        - (추가) 08 — 데이터 설계 섹션: 프로토타입 v14(TestFile/RecordTales.html) 실측 기준 —
          FFocusRecord 날짜 정규화(FDateTime 1개) 결정·조회 상태 휘발 명세.
@@ -457,7 +471,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <div class="callout info">
       <span class="ic">&#128214;</span>
       <p>
-        <strong>FFocusRecord</strong> &mdash; 한 번의 집중 세션이 끝난 후 저장되는 기록 데이터. 카테고리, 집중 시간(초 단위), 모드(Timer/Stopwatch), 메모, 날짜, 시각, 타임스탬프를 포함합니다.<br><br>
+        <strong>FArchiveRecord</strong> &mdash; 아카이브에 저장되는 통합 기록 데이터(구 FFocusRecord 대체). 13자리 통합 기록 ID(YYYYMMDD+5자리 시퀀스), 출처(Source: 타이머/스톱워치/퀘스트/직접 작성), 카테고리, 집중 시간, 메모, 사건 발생 시각(CreatedAt)을 포함합니다. 구조체 정의·ID 발급 규칙의 단일 소스는 11 통합 기록 ID 문서입니다.<br><br>
         <strong id="term-category">카테고리(Category)</strong> &mdash; 기록을 분류하는 사용자 정의 태그. "공부", "운동", "독서" 등을 자유롭게 추가할 수 있으며, 각 카테고리마다 고유 색상이 지정됩니다.<br><br>
         <strong id="term-period-filter">기간 필터(Period Filter)</strong> &mdash; 기록을 조회할 시간 범위를 결정하는 필터. Daily(하루), Weekly(월~일 한 주), Monthly(한 달) 3가지가 있습니다.<br><br>
         <strong id="term-calendar-dot">캘린더 도트(Calendar Dot)</strong> &mdash; 캘린더에서 날짜 아래에 표시되는 작은 점. F(주황, Timer 기록 있음), S(초록, Stopwatch 기록 있음), T(노랑, 퀘스트 있음) 3종류가 있습니다. 한 날짜에 여러 도트가 동시에 표시될 수 있습니다.
@@ -473,73 +487,76 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <h2>데이터 구조</h2>
 
     <p>
-      아카이브 시스템의 핵심 데이터는 <code>FFocusRecord</code> 구조체입니다. 집중 세션이 끝날 때마다 하나의 레코드가 생성되어 배열에 추가됩니다.
+      아카이브 시스템의 핵심 데이터는 <code>FArchiveRecord</code> 구조체입니다(v1.2에서 구 <code>FFocusRecord</code>를 대체). 집중 세션 종료·퀘스트 완료·직접 작성 — 어떤 출처든 하나의 "사건"이 하나의 레코드가 되어, 13자리 통합 기록 ID를 부여받고 배열 끝에 추가됩니다. 아래는 요약이며, 필드별 근거·ID 발급 규칙·마이그레이션의 <strong>단일 소스는 11 통합 기록 ID &amp; 아카이브 저장 설계 문서</strong>입니다.
     </p>
 
-    <h3>FFocusRecord &mdash; 집중 기록 구조체</h3>
+    <h3>FArchiveRecord &mdash; 통합 기록 구조체 (요약)</h3>
     <div class="codeblock">
       <div class="codeblock-bar">
         <button class="codeblock-tab tab-h active" type="button">RecordTypes.h</button>
         <button class="codeblock-copy" type="button">복사</button>
       </div>
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 포커스 모드 열거형</span>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 기록 출처 — 필터 축 ①. 캘린더 도트 색도 여기서 파생. (구 EFocusMode 대체)</span>
 <span class="hljs-meta">UENUM(BlueprintType)</span>
-<span class="hljs-keyword">enum class</span> <span class="hljs-title class_">EFocusMode</span> : <span class="hljs-type">uint8</span>
+<span class="hljs-keyword">enum class</span> <span class="hljs-title class_">ERecordSource</span> : <span class="hljs-type">uint8</span>
 {
     Timer      <span class="hljs-meta">UMETA(DisplayName = "타이머")</span>,
-    Stopwatch  <span class="hljs-meta">UMETA(DisplayName = "스톱워치")</span>
+    Stopwatch  <span class="hljs-meta">UMETA(DisplayName = "스톱워치")</span>,
+    Quest      <span class="hljs-meta">UMETA(DisplayName = "퀘스트")</span>,
+    Manual     <span class="hljs-meta">UMETA(DisplayName = "직접 작성")</span>
 };
 
+<span class="hljs-comment">// 통합 아카이브 기록 (요약 — 전체 정의·필드별 근거는 11번 문서가 단일 소스)</span>
 <span class="hljs-meta">USTRUCT(BlueprintType)</span>
-<span class="hljs-keyword">struct</span> <span class="hljs-title class_">FFocusRecord</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title class_">FArchiveRecord</span>
 {
     <span class="hljs-meta">GENERATED_BODY()</span>
 
-    <span class="hljs-comment">// 카테고리 (예: "공부", "운동", "독서")</span>
-    <span class="hljs-meta">UPROPERTY(BlueprintReadWrite, Category = "Record")</span>
+    <span class="hljs-comment">// 통합 기록 ID "YYYYMMDD+5자리" — 정렬·식별 전용, 불변</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span>
+    <span class="hljs-type">FString</span> Id;
+
+    <span class="hljs-comment">// 필터 축 3종: 출처 · 카테고리 · 사건 발생 시각</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span>
+    <span class="hljs-type">ERecordSource</span> Source;
+
+    <span class="hljs-meta">UPROPERTY(BlueprintReadWrite)</span>
     <span class="hljs-type">FString</span> Category;
 
-    <span class="hljs-comment">// 집중 시간 (초 단위)</span>
-    <span class="hljs-meta">UPROPERTY(BlueprintReadWrite, Category = "Record")</span>
-    <span class="hljs-type">int32</span> TimeSeconds;
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span>
+    <span class="hljs-type">FDateTime</span> CreatedAt;
 
-    <span class="hljs-comment">// 포커스 모드: Timer(포모도로) 또는 Stopwatch</span>
-    <span class="hljs-meta">UPROPERTY(BlueprintReadWrite, Category = "Record")</span>
-    <span class="hljs-type">EFocusMode</span> Mode;
+    <span class="hljs-comment">// 내용물</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadWrite)</span>
+    <span class="hljs-type">int32</span> DurationSeconds;      <span class="hljs-comment">// Timer/Stopwatch만 의미</span>
 
-    <span class="hljs-comment">// 사용자 메모 (선택 입력)</span>
-    <span class="hljs-meta">UPROPERTY(BlueprintReadWrite, Category = "Record")</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadWrite)</span>
+    <span class="hljs-type">FString</span> Title;              <span class="hljs-comment">// 퀘스트 제목 스냅샷 / 직접 작성 제목</span>
+
+    <span class="hljs-meta">UPROPERTY(BlueprintReadWrite)</span>
     <span class="hljs-type">FString</span> Notes;
 
-    <span class="hljs-comment">// 기록 날짜 (YYYY.MM.DD 형식)</span>
-    <span class="hljs-meta">UPROPERTY(BlueprintReadWrite, Category = "Record")</span>
-    <span class="hljs-type">FString</span> Date;
+    <span class="hljs-comment">// 퀘스트 전용 (Source == Quest)</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span>
+    <span class="hljs-type">FString</span> SourceRefId;        <span class="hljs-comment">// 원본 퀘스트 마스터 ID</span>
 
-    <span class="hljs-comment">// 표시용 날짜 (예: "2026년 7월 2일 수요일")</span>
-    <span class="hljs-meta">UPROPERTY(BlueprintReadWrite, Category = "Record")</span>
-    <span class="hljs-type">FString</span> DateLong;
-
-    <span class="hljs-comment">// 기록 시각 (HH:MM 형식)</span>
-    <span class="hljs-meta">UPROPERTY(BlueprintReadWrite, Category = "Record")</span>
-    <span class="hljs-type">FString</span> Clock;
-
-    <span class="hljs-comment">// Unix 타임스탬프 (정렬·비교용)</span>
-    <span class="hljs-meta">UPROPERTY(BlueprintReadWrite, Category = "Record")</span>
-    <span class="hljs-type">int64</span> Timestamp;
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span>
+    <span class="hljs-type">FDateTime</span> DueDate;          <span class="hljs-comment">// 목표 완료 일자 — 가변이므로 ID 밖</span>
 };</pre></div>
     </div>
 
     <h3>필드 설명 테이블</h3>
     <table class="tbl">
       <tr><th>필드</th><th>타입</th><th>설명</th></tr>
-      <tr><td><code>Category</code></td><td><code>FString</code></td><td>기록의 분류. RecordSubsystem의 카테고리 목록에서 선택합니다. 필터링의 기준이 됩니다.</td></tr>
-      <tr><td><code>TimeSeconds</code></td><td><code>int32</code></td><td>실제 집중한 시간을 초 단위로 저장합니다. UI에서는 "1시간 23분" 형태로 변환하여 표시합니다.</td></tr>
-      <tr><td><code>Mode</code></td><td><code>EFocusMode</code></td><td>Timer(포모도로 타이머) 또는 Stopwatch(자유 스톱워치). 캘린더 도트 색상과 필터 분류에 사용됩니다.</td></tr>
+      <tr><td><code>Id</code></td><td><code>FString</code></td><td>통합 기록 ID(YYYYMMDD+5자리 시퀀스). 고정 자릿수라 문자열 사전순 정렬 = 시간순. <strong>정렬·식별 전용 — 필터링에 파싱하지 않습니다.</strong></td></tr>
+      <tr><td><code>Source</code></td><td><code>ERecordSource</code></td><td>기록 출처(타이머/스톱워치/퀘스트/직접 작성). 필터 축 ①이자 캘린더 도트 색상의 기준입니다.</td></tr>
+      <tr><td><code>Category</code></td><td><code>FString</code></td><td>기록의 분류. RecordSubsystem의 카테고리 목록에서 선택합니다. 필터 축 ②.</td></tr>
+      <tr><td><code>CreatedAt</code></td><td><code>FDateTime</code></td><td>사건 발생(저장) 시각. 기간 필터(축 ③)와 시각 표시는 전부 이 필드로 — 날짜·시각 파생 표기는 표시 시점에 생성합니다.</td></tr>
+      <tr><td><code>DurationSeconds</code></td><td><code>int32</code></td><td>집중 시간(초). Timer/Stopwatch 기록에서만 의미가 있습니다. UI에서 "1시간 23분" 형태로 변환 표시.</td></tr>
+      <tr><td><code>Title</code></td><td><code>FString</code></td><td>퀘스트 제목 <strong>스냅샷</strong>(참조 아님) 또는 직접 작성 기록의 제목.</td></tr>
       <tr><td><code>Notes</code></td><td><code>FString</code></td><td>사용자가 선택적으로 남기는 메모. 빈 문자열 허용합니다.</td></tr>
-      <tr><td><code>Date</code></td><td><code>FString</code></td><td>YYYY.MM.DD 형식의 날짜. 필터링과 그룹핑의 핵심 키입니다.</td></tr>
-      <tr><td><code>DateLong</code></td><td><code>FString</code></td><td>UI 표시용 한국어 날짜 문자열. 기록 목록에서 사람이 읽기 쉽게 보여줍니다.</td></tr>
-      <tr><td><code>Clock</code></td><td><code>FString</code></td><td>기록 시점의 시:분. 같은 날 여러 기록이 있을 때 시간 순서를 보여줍니다.</td></tr>
-      <tr><td><code>Timestamp</code></td><td><code>int64</code></td><td>Unix 타임스탬프. 날짜 문자열 비교보다 정확한 정렬이 필요할 때 사용합니다.</td></tr>
+      <tr><td><code>SourceRefId</code></td><td><code>FString</code></td><td>Source가 Quest일 때 원본 퀘스트 마스터 ID(13자리). 역추적용.</td></tr>
+      <tr><td><code>DueDate</code></td><td><code>FDateTime</code></td><td>Source가 Quest일 때 목표 완료 일자. <strong>가변 정보라 ID에 넣지 않고</strong> 필드로 둡니다.</td></tr>
     </table>
 
     <h3>카테고리 시스템</h3>
@@ -610,14 +627,14 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <div class="pipe-num">4</div>
       <div class="pipe-body">
         <div class="pipe-title">SaveRecord 호출</div>
-        <div class="pipe-desc">사용자가 "저장" 버튼을 누르면, UI가 <code>URecordSubsystem::SaveRecord(FFocusRecord)</code>를 호출합니다. FFocusRecord의 Date, DateLong, Clock, Timestamp 필드는 이 시점에 현재 시각으로 자동 채워집니다.</div>
+        <div class="pipe-desc">사용자가 "저장" 버튼을 누르면, UI가 <code>URecordSubsystem::SaveRecord(FArchiveRecord)</code>를 호출합니다. 호출자는 내용물(출처·카테고리·시간·메모)만 채우며, <strong>Id(통합 기록 ID)와 CreatedAt(사건 발생 시각)은 이 시점에 SaveRecord가 확정</strong>합니다 — 발급 통로는 이 한 곳뿐입니다.</div>
       </div>
     </div>
     <div class="pipe-step">
       <div class="pipe-num">5</div>
       <div class="pipe-body">
-        <div class="pipe-title">배열에 Unshift (최신순 삽입)</div>
-        <div class="pipe-desc">새 기록을 <code>TArray&lt;FFocusRecord&gt; Records</code> 배열의 <strong>맨 앞</strong>(인덱스 0)에 삽입합니다. 이렇게 하면 배열이 항상 최신순으로 정렬되어 있으므로, 조회 시 별도 정렬 없이 순서대로 읽으면 됩니다.</div>
+        <div class="pipe-title">배열 끝에 Append (ID 오름차순 유지)</div>
+        <div class="pipe-desc">새 기록을 <code>TArray&lt;FArchiveRecord&gt; ArchiveRecords</code> 배열의 <strong>맨 끝</strong>에 추가합니다. ID는 발급 순서대로 커지므로 append만으로 배열이 항상 ID 오름차순(=시간순)을 유지합니다. 최신순 화면은 UI에서 역순으로 순회해 표시합니다. (v1.1까지의 "인덱스 0 삽입" 관례를 대체 — 근거는 11번 문서)</div>
       </div>
     </div>
     <div class="pipe-step">
@@ -649,14 +666,37 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <h3>날짜별 도트 표시</h3>
     <table class="tbl">
       <tr><th>도트</th><th>색상</th><th>데이터 소스</th><th>판정 조건</th></tr>
-      <tr><td><strong>F</strong></td><td style="color:var(--amber)">주황</td><td><code>RecordSubsystem</code></td><td>해당 날짜에 <code>Mode = Timer</code>인 기록이 1개 이상 존재</td></tr>
-      <tr><td><strong>S</strong></td><td style="color:var(--accent-3)">초록</td><td><code>RecordSubsystem</code></td><td>해당 날짜에 <code>Mode = Stopwatch</code>인 기록이 1개 이상 존재</td></tr>
-      <tr><td><strong>T</strong></td><td style="color:var(--ue-folder)">노랑</td><td><code>QuestSubsystem</code></td><td>해당 날짜에 Active, Done, 또는 Overdue 상태의 퀘스트 인스턴스가 1개 이상 존재</td></tr>
+      <tr><td><strong>F</strong></td><td style="color:var(--amber)">주황</td><td><code>RecordSubsystem</code></td><td>해당 날짜에 <code>Source = Timer</code>인 기록이 1개 이상 존재</td></tr>
+      <tr><td><strong>S</strong></td><td style="color:var(--accent-3)">초록</td><td><code>RecordSubsystem</code></td><td>해당 날짜에 <code>Source = Stopwatch</code>인 기록이 1개 이상 존재</td></tr>
+      <tr><td><strong>T</strong></td><td style="color:var(--ue-folder)">노랑</td><td><code>QuestSubsystem</code></td><td>아래 <strong>타임라인 표기 규칙</strong>에 따라 해당 날짜에 표기되는 퀘스트가 1개 이상 존재</td></tr>
     </table>
 
     <p>
       하나의 날짜에 여러 도트가 동시에 표시될 수 있습니다. 예를 들어 2026년 7월 2일에 타이머 기록과 퀘스트가 모두 있다면, F와 T 도트가 나란히 표시됩니다.
     </p>
+
+    <h3 id="term-status-timeline">퀘스트 상태 타임라인 표기 규칙</h3>
+    <p>
+      "퀘스트가 캘린더의 <strong>어느 날짜부터 어느 날짜까지, 어떤 상태로 보이는가</strong>"의 규칙입니다. 핵심 원칙은 두 가지입니다: ① <strong>표기 상태는 저장하지 않습니다</strong> — 저장된 사실(생성일·시작일·마감일·완료일·중단일)에서 날짜 D를 넣으면 계산되는 파생값입니다(02 문서의 <code>GetStatusForDate(D)</code> 개념 — "오늘"뿐 아니라 과거 날짜 조회에도 같은 함수 사용). ② 가변 정보(목표일 변경 등)가 과거 표기를 바꾸지 않도록, 판정은 항상 <strong>기록된 사실 필드</strong>로만 합니다.
+    </p>
+
+    <table class="tbl">
+      <tr><th>상태</th><th>날짜 D에 표기되는 구간</th><th>판정에 쓰는 저장 사실</th></tr>
+      <tr><td><strong>진행 예정</strong> (Upcoming)</td><td>마스터 생성일 &le; D &lt; 시작일 — <strong>마스터 단위</strong> (단발·반복 공통. 반복 인스턴스에는 예정 구간이 없음)</td><td>마스터 ID 날짜부(생성일), <code>StartDate</code></td></tr>
+      <tr><td><strong>진행 중</strong> (Active)</td><td>시작일(반복: 인스턴스 발생일) &le; D &le; 마감일, 완료&middot;중단 전</td><td><code>StartDate</code>/발생일, <code>Deadline</code>(반복: 발생일 + <code>DeadlineOffset</code>)</td></tr>
+      <tr><td><strong>완료</strong> (Done)</td><td><strong>완료일까지</strong> 표기 후 종료 — 완료라는 "사건"은 Source=Quest 아카이브 기록이 영구 보존하므로 캘린더 중복 표기 불필요</td><td><code>bDone</code>, <code>DoneAt</code></td></tr>
+      <tr><td><strong>지연</strong> (Overdue)</td><td>마감일 &lt; D. <strong>단발성: 완료/중단 전까지 계속</strong> 표기(처리를 유도하는 동기 장치). <strong>반복: 다음 인스턴스 발생 전날까지만</strong></td><td><code>Deadline</code>, <code>bDone</code>/<code>bSuspended</code>, 반복 규칙(다음 발생일)</td></tr>
+      <tr><td><strong>중단</strong> (Suspended)</td><td><strong>중단일까지</strong> 표기 후 종료</td><td><code>bSuspended</code>, <code>SuspendedAt</code></td></tr>
+    </table>
+
+    <div class="callout info">
+      <span class="ic">&#128260;</span>
+      <p><strong>반복 퀘스트(Weekly/Monthly)는 "기간 지속"이 아니라 "지정 요일/일자에 발생하는 인스턴스"입니다.</strong> 각 인스턴스의 표기 창 = 발생일 ~ 발생일+<code>DeadlineOffset</code>. 지연을 "다음 발생 전날까지"로 자르는 이유: 매일 반복을 일주일 놓치면 지연 인스턴스가 7개 쌓여 캘린더가 지연 표기로 도배되고 다음 회차와 이중으로 보이기 때문입니다. 놓친 회차는 다음 회차가 올 때까지만 보이고, 자리를 넘겨줍니다.</p>
+    </div>
+    <div class="pitfall">
+      <span class="ic">&#9888;&#65039;</span>
+      <div class="pitfall-text"><strong>표기 상태를 저장하고 싶은 유혹</strong> — "매일 밤 그날의 상태를 스냅샷으로 저장하면 되지 않나?"는 함정입니다. 상태를 저장하는 순간 목표일 변경·완료·중단이 일어날 때마다 과거 스냅샷과 어긋나고, 이를 맞추려면 매일 전체 퀘스트를 순회해야 합니다. 파생 계산이면 그런 동기화 문제 자체가 없습니다. (같은 원리: 02 문서 "상태는 DB에 저장하지 않습니다")</div>
+    </div>
 
     <div class="callout info">
       <span class="ic">&#128197;</span>
@@ -727,7 +767,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <div class="pipe-num">5</div>
       <div class="pipe-body">
         <div class="pipe-title">날짜별 그룹핑 + 누적 시간 계산</div>
-        <div class="pipe-desc">필터링된 기록을 <code>Date</code> 기준으로 그룹핑하고, 각 그룹(날짜)의 <code>TimeSeconds</code>를 합산하여 누적 시간을 계산합니다. 전체 기간의 총 누적 시간도 함께 계산합니다.</div>
+        <div class="pipe-desc">필터링된 기록을 <code>CreatedAt</code>에서 파생한 날짜 기준으로 그룹핑하고, 각 그룹(날짜)의 <code>DurationSeconds</code>를 합산하여 누적 시간을 계산합니다. 전체 기간의 총 누적 시간도 함께 계산합니다.</div>
       </div>
     </div>
 
@@ -803,26 +843,25 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
     <span class="hljs-comment">// ── 기록 저장 ──</span>
 
-    <span class="hljs-comment">/** 새 기록을 저장한다 (배열 맨 앞에 삽입). */</span>
+    <span class="hljs-comment">/** 새 기록을 저장한다 — Id·CreatedAt을 여기서 확정하고 배열 끝에 추가. 발급된 Id 반환. */</span>
     <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Record")</span>
-    <span class="hljs-keyword">void</span> <span class="hljs-title function_">SaveRecord</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FFocusRecord</span>&amp; InRecord);
+    <span class="hljs-type">FString</span> <span class="hljs-title function_">SaveRecord</span>(<span class="hljs-type">FArchiveRecord</span> InRecord);
 
     <span class="hljs-comment">// ── 조회 ──</span>
 
     <span class="hljs-comment">/** 날짜 범위 내 기록을 반환한다. */</span>
     <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Record")</span>
-    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FFocusRecord</span>&gt; <span class="hljs-title function_">GetRecordsForDateRange</span>(
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FArchiveRecord</span>&gt; <span class="hljs-title function_">GetRecordsForDateRange</span>(
         <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; StartDate,
         <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; EndDate) <span class="hljs-keyword">const</span>;
 
-    <span class="hljs-comment">/** 3축 필터(기간 × 타입 × 카테고리) 적용된 기록을 반환한다. */</span>
+    <span class="hljs-comment">/** 3축 필터(기간 × 출처 × 카테고리) 적용된 기록을 반환한다. Sources 빈 배열 = 전체. */</span>
     <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Record")</span>
-    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FFocusRecord</span>&gt; <span class="hljs-title function_">GetRecordsFiltered</span>(
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FArchiveRecord</span>&gt; <span class="hljs-title function_">GetRecordsFiltered</span>(
         <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; BaseDate,
         <span class="hljs-type">EPeriodFilter</span> Period,
-        <span class="hljs-type">EFocusMode</span> ModeFilter,
-        <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; CategoryFilter,
-        <span class="hljs-type">bool</span> bFilterAll) <span class="hljs-keyword">const</span>;
+        <span class="hljs-keyword">const</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">ERecordSource</span>&gt;&amp; Sources,
+        <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; CategoryFilter) <span class="hljs-keyword">const</span>;
 
     <span class="hljs-comment">// ── 카테고리 ──</span>
 
@@ -835,9 +874,15 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FString</span>&gt; <span class="hljs-title function_">GetCategories</span>() <span class="hljs-keyword">const</span>;
 
 <span class="hljs-keyword">private</span>:
-    <span class="hljs-comment">// 전체 기록 배열 (최신순)</span>
+    <span class="hljs-comment">// ID 발급의 유일한 통로 — 카운터 증가 + 조립. (구현: 11번 문서)</span>
+    <span class="hljs-type">FString</span> <span class="hljs-title function_">MakeRecordId</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FDateTime</span>&amp; When);
+
+    <span class="hljs-comment">// 전체 기록 배열 — 항상 Id 오름차순(=시간순). 신규는 append.</span>
     <span class="hljs-meta">UPROPERTY()</span>
-    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FFocusRecord</span>&gt; Records;
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FArchiveRecord</span>&gt; ArchiveRecords;
+
+    <span class="hljs-comment">// "YYYYMMDD" → 그날의 다음 시퀀스 (퀘스트 IdCounters와 별도)</span>
+    <span class="hljs-type">TMap</span>&lt;<span class="hljs-type">FString</span>, <span class="hljs-type">int32</span>&gt; RecordIdCounters;
 
     <span class="hljs-comment">// 카테고리 이름 목록</span>
     <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FString</span>&gt; Categories;
@@ -858,38 +903,45 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">URecordSubsystem</span>::<span class="hljs-title function_">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection)
 {
     <span class="hljs-type">Super</span>::<span class="hljs-title function_">Initialize</span>(Collection);
-    <span class="hljs-comment">// TODO: SaveGame에서 Records, Categories, CatColors 로드</span>
+    <span class="hljs-comment">// TODO: SaveGame에서 ArchiveRecords, RecordIdCounters, Categories, CatColors 로드</span>
+    <span class="hljs-comment">//       (SaveVersion 1 세이브면 MigrateV1ToV2 실행 — 11번 문서 05 섹션)</span>
 }
 
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">URecordSubsystem</span>::<span class="hljs-title function_">Deinitialize</span>()
 {
-    <span class="hljs-comment">// TODO: SaveGame에 Records, Categories, CatColors 저장</span>
+    <span class="hljs-comment">// TODO: SaveGame에 ArchiveRecords, RecordIdCounters, Categories, CatColors 저장</span>
     <span class="hljs-type">Super</span>::<span class="hljs-title function_">Deinitialize</span>();
 }
 
-<span class="hljs-keyword">void</span> <span class="hljs-title class_">URecordSubsystem</span>::<span class="hljs-title function_">SaveRecord</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FFocusRecord</span>&amp; InRecord)
+<span class="hljs-type">FString</span> <span class="hljs-title class_">URecordSubsystem</span>::<span class="hljs-title function_">SaveRecord</span>(<span class="hljs-type">FArchiveRecord</span> InRecord)
 {
-    <span class="hljs-comment">// 배열 맨 앞에 삽입 (최신순 유지)</span>
-    Records.<span class="hljs-title function_">Insert</span>(InRecord, <span class="hljs-number">0</span>);
+    <span class="hljs-comment">// Id·CreatedAt은 저장 순간에 확정 — 호출자는 내용물만 채운다 (11번 문서 04 섹션)</span>
+    InRecord.CreatedAt = <span class="hljs-type">FDateTime</span>::<span class="hljs-title function_">Now</span>();
+    InRecord.Id        = <span class="hljs-title function_">MakeRecordId</span>(InRecord.CreatedAt);
+
+    <span class="hljs-comment">// 배열 끝에 추가 — 발급 순서 = 배열 순서(ID 오름차순) 유지</span>
+    ArchiveRecords.<span class="hljs-title function_">Add</span>(InRecord);
 
     <span class="hljs-comment">// SaveGame에 동기화</span>
     <span class="hljs-comment">// TODO: SaveToSlot();</span>
 
     <span class="hljs-built_in">UE_LOG</span>(LogTemp, Log,
-        <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"RecordSubsystem: 기록 저장 — %s, %d초, %s"</span>),
-        *InRecord.Category, InRecord.TimeSeconds, *InRecord.Date);
+        <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"RecordSubsystem: 기록 저장 — [%s] %s, %d초"</span>),
+        *InRecord.Id, *InRecord.Category, InRecord.DurationSeconds);
+    <span class="hljs-keyword">return</span> InRecord.Id;
 }
 
-<span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FFocusRecord</span>&gt; <span class="hljs-title class_">URecordSubsystem</span>::<span class="hljs-title function_">GetRecordsForDateRange</span>(
+<span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FArchiveRecord</span>&gt; <span class="hljs-title class_">URecordSubsystem</span>::<span class="hljs-title function_">GetRecordsForDateRange</span>(
     <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; StartDate,
     <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; EndDate) <span class="hljs-keyword">const</span>
 {
-    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FFocusRecord</span>&gt; Result;
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FArchiveRecord</span>&gt; Result;
 
-    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">const</span> <span class="hljs-type">FFocusRecord</span>&amp; Rec : Records)
+    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">const</span> <span class="hljs-type">FArchiveRecord</span>&amp; Rec : ArchiveRecords)
     {
-        <span class="hljs-comment">// 날짜 문자열 비교 (YYYY.MM.DD 형식이므로 사전순 = 시간순)</span>
-        <span class="hljs-keyword">if</span> (Rec.Date &gt;= StartDate &amp;&amp; Rec.Date &lt;= EndDate)
+        <span class="hljs-comment">// 기간 판정은 CreatedAt(사건 발생 시각)에서 파생 — ID를 파싱하지 않는다</span>
+        <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span> RecDate = Rec.CreatedAt.<span class="hljs-title function_">ToString</span>(<span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"%Y.%m.%d"</span>));
+        <span class="hljs-keyword">if</span> (RecDate &gt;= StartDate &amp;&amp; RecDate &lt;= EndDate)
         {
             Result.<span class="hljs-title function_">Add</span>(Rec);
         }
@@ -898,36 +950,36 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-keyword">return</span> Result;
 }
 
-<span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FFocusRecord</span>&gt; <span class="hljs-title class_">URecordSubsystem</span>::<span class="hljs-title function_">GetRecordsFiltered</span>(
+<span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FArchiveRecord</span>&gt; <span class="hljs-title class_">URecordSubsystem</span>::<span class="hljs-title function_">GetRecordsFiltered</span>(
     <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; BaseDate,
     <span class="hljs-type">EPeriodFilter</span> Period,
-    <span class="hljs-type">EFocusMode</span> ModeFilter,
-    <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; CategoryFilter,
-    <span class="hljs-type">bool</span> bFilterAll) <span class="hljs-keyword">const</span>
+    <span class="hljs-keyword">const</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">ERecordSource</span>&gt;&amp; Sources,
+    <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; CategoryFilter) <span class="hljs-keyword">const</span>
 {
     <span class="hljs-comment">// 1단계: 기간으로 날짜 범위 계산</span>
     <span class="hljs-type">FString</span> RangeStart, RangeEnd;
     <span class="hljs-title function_">CalcDateRange</span>(BaseDate, Period, RangeStart, RangeEnd);
 
-    <span class="hljs-comment">// 2단계: 범위 내 기록 가져오기</span>
-    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FFocusRecord</span>&gt; Filtered = <span class="hljs-title function_">GetRecordsForDateRange</span>(RangeStart, RangeEnd);
+    <span class="hljs-comment">// 2단계: 범위 내 기록 가져오기 (필터는 전부 필드로 — ID 파싱 금지)</span>
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FArchiveRecord</span>&gt; Filtered = <span class="hljs-title function_">GetRecordsForDateRange</span>(RangeStart, RangeEnd);
 
-    <span class="hljs-comment">// 3단계: 타입 필터 (bFilterAll이 false이면 ModeFilter 적용)</span>
-    <span class="hljs-keyword">if</span> (!bFilterAll)
+    <span class="hljs-comment">// 3단계: 출처 필터 — 다중 선택, 빈 배열이면 전체 통과</span>
+    <span class="hljs-keyword">if</span> (Sources.<span class="hljs-title function_">Num</span>() &gt; <span class="hljs-number">0</span>)
     {
-        Filtered.<span class="hljs-title function_">RemoveAll</span>([&amp;](<span class="hljs-keyword">const</span> <span class="hljs-type">FFocusRecord</span>&amp; R) {
-            <span class="hljs-keyword">return</span> R.Mode != ModeFilter;
+        Filtered.<span class="hljs-title function_">RemoveAll</span>([&amp;](<span class="hljs-keyword">const</span> <span class="hljs-type">FArchiveRecord</span>&amp; R) {
+            <span class="hljs-keyword">return</span> !Sources.<span class="hljs-title function_">Contains</span>(R.Source);
         });
     }
 
     <span class="hljs-comment">// 4단계: 카테고리 필터</span>
     <span class="hljs-keyword">if</span> (!CategoryFilter.<span class="hljs-title function_">IsEmpty</span>())
     {
-        Filtered.<span class="hljs-title function_">RemoveAll</span>([&amp;](<span class="hljs-keyword">const</span> <span class="hljs-type">FFocusRecord</span>&amp; R) {
+        Filtered.<span class="hljs-title function_">RemoveAll</span>([&amp;](<span class="hljs-keyword">const</span> <span class="hljs-type">FArchiveRecord</span>&amp; R) {
             <span class="hljs-keyword">return</span> R.Category != CategoryFilter;
         });
     }
 
+    <span class="hljs-comment">// 원본이 Id 오름차순이므로 결과도 시간순 — 최신순 표시는 UI에서 역순 순회</span>
     <span class="hljs-keyword">return</span> Filtered;
 }
 
@@ -966,9 +1018,10 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <h3>주요 함수 설명</h3>
     <table class="tbl">
       <tr><th>함수</th><th>역할</th><th>비고</th></tr>
-      <tr><td><code>SaveRecord</code></td><td>새 기록을 Records 배열 맨 앞에 삽입하고 SaveGame에 동기화</td><td>Unshift(인덱스 0 삽입)로 최신순 유지</td></tr>
-      <tr><td><code>GetRecordsForDateRange</code></td><td>시작일~종료일 범위 내 기록을 반환</td><td>YYYY.MM.DD 문자열 비교 (사전순 = 시간순)</td></tr>
-      <tr><td><code>GetRecordsFiltered</code></td><td>3축 필터(기간 x 타입 x 카테고리) 적용된 기록 반환</td><td>내부에서 CalcDateRange + GetRecordsForDateRange 호출</td></tr>
+      <tr><td><code>SaveRecord</code></td><td>Id·CreatedAt을 확정하고 새 기록을 ArchiveRecords 끝에 추가, SaveGame 동기화. 발급 Id 반환</td><td>append로 ID 오름차순(=시간순) 유지. ID 발급 통로는 이 함수뿐</td></tr>
+      <tr><td><code>MakeRecordId</code></td><td>"YYYYMMDD"+5자리 시퀀스 통합 기록 ID 발급 (private)</td><td>RecordIdCounters(일자별 카운터) 증가와 항상 함께. 구현: 11번 문서</td></tr>
+      <tr><td><code>GetRecordsForDateRange</code></td><td>시작일~종료일 범위 내 기록을 반환</td><td>CreatedAt에서 파생한 YYYY.MM.DD 비교 — ID 파싱 금지</td></tr>
+      <tr><td><code>GetRecordsFiltered</code></td><td>3축 필터(기간 x 출처 x 카테고리) 적용된 기록 반환</td><td>출처는 다중 선택(빈 배열=전체). 내부에서 CalcDateRange + GetRecordsForDateRange 호출</td></tr>
       <tr><td><code>AddCategory</code></td><td>새 카테고리(이름 + 색상)를 등록</td><td>중복 이름은 무시</td></tr>
       <tr><td><code>GetCategories</code></td><td>등록된 카테고리 이름 목록 반환</td><td>UI의 카테고리 필터/선택에 사용</td></tr>
       <tr><td><code>CalcDateRange</code></td><td>기간 필터(Daily/Weekly/Monthly)에 따른 날짜 범위 계산</td><td>private 헬퍼. Weekly는 월요일 시작 기준</td></tr>
@@ -984,7 +1037,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
     <div class="pitfall" style="margin-bottom:14px">
       <span class="ic">&#9888;&#65039;</span>
-      <div class="pitfall-text"><strong>기록 배열이 커지면 날짜별 TMap 인덱싱을 고려하세요.</strong> <code>TArray&lt;FFocusRecord&gt;</code>를 순차 탐색하는 <code>GetRecordsForDateRange()</code>는 기록이 수백~수천 개가 되면 느려질 수 있습니다. 이때 <code>TMap&lt;FString, TArray&lt;FFocusRecord&gt;&gt;</code>로 날짜별 인덱스를 별도로 유지하면 O(날짜 수)로 조회할 수 있습니다. 단, 삽입 시 두 곳(배열 + 맵)을 동시에 갱신해야 합니다.</div>
+      <div class="pitfall-text"><strong>기록 배열이 커지면 날짜별 TMap 인덱싱을 고려하세요.</strong> <code>TArray&lt;FArchiveRecord&gt;</code>를 순차 탐색하는 <code>GetRecordsForDateRange()</code>는 기록이 수백~수천 개가 되면 느려질 수 있습니다. 이때 <code>TMap&lt;FString, TArray&lt;int32&gt;&gt;</code>(날짜 → 배열 인덱스)로 날짜별 인덱스를 별도로 유지하면 O(날짜 수)로 조회할 수 있습니다. 단, 삽입 시 두 곳(배열 + 맵)을 동시에 갱신해야 하며, 저장 구조 자체는 바꿀 필요가 없습니다.</div>
     </div>
 
     <div class="pitfall" style="margin-bottom:14px">
@@ -996,7 +1049,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <div class="dd do">
         <h4>DO</h4>
         <ul>
-          <li>기록 삽입 시 항상 인덱스 0에 Insert하여 최신순 유지</li>
+          <li>기록 삽입 시 항상 배열 끝에 Add(append)하여 ID 오름차순 유지 — 최신순은 표시 시 역순</li>
+          <li>Id·CreatedAt은 SaveRecord 안에서만 확정 — 호출자가 직접 채우지 말 것</li>
           <li>날짜 문자열은 <code>YYYY.MM.DD</code> 형식 함수를 통해 생성</li>
           <li>캘린더 위젯은 하나만 만들고 모드별로 재사용</li>
           <li>카테고리 색상은 <code>FLinearColor</code>로 저장하여 UI에서 직접 사용</li>
@@ -1006,7 +1060,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <div class="dd dont">
         <h4>DON'T</h4>
         <ul>
-          <li>기록을 정렬 없이 배열 끝에 Add하지 말 것 &mdash; 최신순 보장이 깨짐</li>
+          <li>인덱스 0에 Insert하지 말 것 &mdash; ID 오름차순 불변식이 깨짐 (v1.1까지의 구 관례)</li>
+          <li>필터링·기간 연산에 ID를 파싱하지 말 것 &mdash; 필터 축은 Source·CreatedAt·Category 필드로</li>
           <li>주간 범위 시작일을 일요일로 바꾸지 말 것 &mdash; 캘린더와 불일치</li>
           <li>카테고리를 하드코딩하지 말 것 &mdash; 사용자가 자유롭게 추가 가능해야 함</li>
           <li>날짜별 인덱싱 없이 수천 개 기록을 매번 전체 탐색하지 말 것</li>
@@ -1017,7 +1072,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
     <div class="callout tip">
       <span class="ic">&#128161;</span>
-      <p><strong>통계 대시보드(일별/주별/월별 집중 시간 차트)는 이 데이터를 기반으로 확장 가능합니다.</strong> <code>GetRecordsFiltered()</code>의 결과를 날짜별로 그룹핑하고 <code>TimeSeconds</code>를 합산하면 차트 데이터가 됩니다. 카테고리별 비율 파이 차트, 주간 추이 라인 차트 등으로 확장할 수 있습니다.</p>
+      <p><strong>통계 대시보드(일별/주별/월별 집중 시간 차트)는 이 데이터를 기반으로 확장 가능합니다.</strong> <code>GetRecordsFiltered()</code>의 결과를 날짜별로 그룹핑하고 <code>DurationSeconds</code>를 합산하면 차트 데이터가 됩니다. 카테고리별 비율 파이 차트, 주간 추이 라인 차트 등으로 확장할 수 있습니다.</p>
     </div>
   </div>
 
@@ -1030,15 +1085,17 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <h2>아카이브 시스템의 데이터 (실측 기준)</h2>
     <p>이 섹션은 프로토타입 v14(<code>TestFile/RecordTales.html</code>) 코드에서 <strong>실측한 데이터 기준</strong>입니다. 본문의 예시 수치와 다를 경우 이 섹션이 우선하며, 전 시스템 통합 스키마는 프로젝트 허브의 <strong>08 데이터 설계 명세</strong> 문서에 있습니다.</p>
 
-    <h3>FFocusRecord — 저장 필드 (날짜 정규화 결정)</h3>
-    <p>프로토타입은 한 기록에 날짜를 <strong>4가지 형태</strong>(<code>date</code>, <code>dateLong</code>, <code>clock</code>, <code>ts</code>)로 중복 저장합니다. UE에서는 <code>FDateTime Timestamp</code> <strong>하나만</strong> 저장하고 나머지 표기는 표시 시점에 파생시킵니다 — 같은 사실을 여러 곳에 저장하면 언젠가 서로 어긋납니다.</p>
+    <h3>FArchiveRecord — 저장 필드 (날짜 정규화 결정 + v1.2 통합 ID 확장)</h3>
+    <p>프로토타입은 한 기록에 날짜를 <strong>4가지 형태</strong>(<code>date</code>, <code>dateLong</code>, <code>clock</code>, <code>ts</code>)로 중복 저장합니다. UE에서는 <code>FDateTime CreatedAt</code> <strong>하나만</strong> 저장하고 나머지 표기는 표시 시점에 파생시킵니다 — 같은 사실을 여러 곳에 저장하면 언젠가 서로 어긋납니다. v1.2에서 통합 기록 ID 설계(11번 문서)에 따라 <code>Id</code>·<code>Source</code> 등이 추가되었습니다.</p>
     <table class="tbl">
       <tr><th>필드</th><th>타입</th><th>프로토타입 원본</th></tr>
+      <tr><td><code>Id</code></td><td><code>FString</code> (YYYYMMDD+5자리)</td><td>(프로토타입에 없음 — v1.2 신규, 발급 규칙은 11번 문서)</td></tr>
+      <tr><td><code>Source</code></td><td><code>ERecordSource</code> (Timer/Stopwatch/Quest/Manual)</td><td><code>mode: 'timer' | 'sw'</code> 를 4종 출처로 확장</td></tr>
       <tr><td><code>Category</code></td><td><code>FString</code></td><td><code>category</code></td></tr>
       <tr><td><code>DurationSeconds</code></td><td><code>int32</code></td><td><code>time</code> (초)</td></tr>
-      <tr><td><code>Mode</code></td><td><code>EFocusMode</code> (Timer/Stopwatch)</td><td><code>mode: 'timer' | 'sw'</code></td></tr>
       <tr><td><code>Notes</code></td><td><code>FString</code></td><td><code>notes</code> (빈 문자열 허용)</td></tr>
-      <tr><td><code>Timestamp</code></td><td><code>FDateTime</code></td><td><code>date + dateLong + clock + ts</code> 4종을 1개로 통합</td></tr>
+      <tr><td><code>CreatedAt</code></td><td><code>FDateTime</code></td><td><code>date + dateLong + clock + ts</code> 4종을 1개로 통합 (구 Timestamp)</td></tr>
+      <tr><td><code>Title</code> / <code>SourceRefId</code> / <code>DueDate</code></td><td><code>FString</code> / <code>FString</code> / <code>FDateTime</code></td><td>(프로토타입에 없음 — 퀘스트 완료·직접 작성 출처용, v1.2 신규)</td></tr>
     </table>
 
     <h3>휘발 데이터 — 조회 상태 (저장 금지)</h3>
@@ -1048,13 +1105,13 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td>캘린더 도트 맵 (날짜별 F/S/T 표시)</td><td>기록·퀘스트 배열에서 재계산되는 파생 데이터</td></tr>
     </table>
 
-    <div class="callout"><span class="ic">&#128161;</span><p><strong>정렬 규칙</strong>: 프로토타입은 새 기록을 배열 앞에 넣습니다(<code>unshift</code> = 최신이 먼저). UE에서는 <code>Timestamp</code> 내림차순 정렬로 같은 결과를 얻으므로 삽입 순서에 의존하지 않는 것을 권장합니다.</p></div>
+    <div class="callout"><span class="ic">&#128161;</span><p><strong>정렬 규칙(v1.2 확정)</strong>: 프로토타입은 새 기록을 배열 앞에 넣습니다(<code>unshift</code> = 최신이 먼저). UE에서는 통합 기록 ID가 고정 자릿수라 <strong>배열 끝 append만으로 ID 오름차순(=시간순)이 유지</strong>되며, 최신순 화면은 표시 시점에 역순으로 순회합니다. 삽입 위치로 정렬을 흉내 내지 않습니다.</p></div>
   </div>
 
 </div>
 
 <footer>
-  <span>RecordTales &middot; Archive System v1.1</span>
+  <span>RecordTales &middot; Archive System v1.3</span>
   <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial</span>
 </footer>
 

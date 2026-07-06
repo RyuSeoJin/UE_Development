@@ -3,9 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RecordTales 프로젝트 허브 & 개발 용어집 v1.4</title>
+<title>RecordTales 프로젝트 허브 & 개발 용어집 v1.6</title>
 <!-- CHANGELOG — recordtales-index.html
      RecordTales 프로젝트 허브 & 프로젝트 용어집. 작업 규약: doc-process/DOC-TRACKS.md (Track B)
+     v1.6 · 2026-07-06
+       - (추가) 용어집 퀘스트 카테고리에 '상태 타임라인 표기' 등록 (03 문서 v1.3 신설 규칙,
+         링크: 03-archive-system.html#term-status-timeline).
+       - (변경) '상태 머신(퀘스트)' 비고를 임의 날짜 D 기준(GetStatusForDate)으로 갱신.
+     v1.5 · 2026-07-06
+       - (추가) 문서 목록에 11 통합 기록 ID & 아카이브 저장 설계 등록 (설계 문서 11개 → 12개).
+       - (변경) 용어집 '집중 기록' 정의를 FArchiveRecord 기준으로 갱신 (구 FFocusRecord 대체).
+       - (추가) 용어집 아카이브 카테고리에 3개 용어: 통합 기록 ID · ERecordSource(기록 출처) ·
+         RecordIdCounters (상세 링크는 11 문서의 term 앵커).
      v1.4 · 2026-07-05
        - (추가) 문서 목록에 10 UMG + C++ 구현 가이드 등록 (설계 문서 10개 → 11개).
      v1.3 · 2026-07-05
@@ -429,7 +438,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">RecordTales &middot; v1.4 &middot; Project Hub</div>
+  <div class="hero-eyebrow">RecordTales &middot; v1.6 &middot; Project Hub</div>
   <h1>RecordTales<br><span>프로젝트 허브</span></h1>
   <p class="hero-sub">
     포모도로 기반 집중 관리 + 길드 게임화 시스템을 언리얼 엔진으로 구현하는 프로젝트입니다. 이 허브는 프로젝트의 모든 설계 문서를 모으고, 개발에 필요한 용어·데이터 구조·프레임워크 배치를 정리합니다.
@@ -523,6 +532,12 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <td>UI/UX 구현</td>
         <td>UIManagerSubsystem, 7개 위젯 C++ 클래스, BindWidget, Designer 배치, 델리게이트 바인딩</td>
         <td><a href="./10-umg-cpp-integration.html" style="color:var(--accent)">열기 &rarr;</a></td>
+      </tr>
+      <tr>
+        <td>11 통합 기록 ID &amp; 아카이브 저장 설계</td>
+        <td>아카이브 · 데이터</td>
+        <td>13자리 통합 기록 ID(YYYYMMDD+5자리), FArchiveRecord, 출처·기간·카테고리 필터, SaveVersion 2 마이그레이션</td>
+        <td><a href="./11-archive-record-id.html" style="color:var(--accent)">열기 &rarr;</a></td>
       </tr>
     </table>
   </div>
@@ -692,10 +707,11 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   StartDate, Deadline, DeadlineOffset,
   RecEndDate, RecurData, bFavorite
 
-<span class="cm">// --- 집중 기록 ---</span>
-<span class="tag">USTRUCT</span>() <span class="val">FFocusRecord</span>
-  Category, TimeSeconds, Mode, Notes,
-  Date, Clock, Timestamp
+<span class="cm">// --- 집중 기록 (통합 기록 — 11 문서) ---</span>
+<span class="tag">USTRUCT</span>() <span class="val">FArchiveRecord</span>
+  Id, Source, Category, CreatedAt,
+  DurationSeconds, Title, Notes,
+  SourceRefId, DueDate
 
 <span class="cm">// --- 길드원 ---</span>
 <span class="tag">USTRUCT</span>() <span class="val">FGuildMemberData</span>
@@ -716,7 +732,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <span class="cm">// --- SaveGame 본체 ---</span>
 <span class="tag">UCLASS</span>() <span class="val">URecordTalesSaveGame</span> : <span class="atr">USaveGame</span>
   TArray&lt;FQuestMasterData&gt;   Quests
-  TArray&lt;FFocusRecord&gt;       Records
+  TArray&lt;FArchiveRecord&gt;     ArchiveRecords   <span class="cm">// Id 오름차순</span>
+  TMap&lt;FString, int32&gt;       RecordIdCounters
   TArray&lt;FString&gt;            OwnedMemberIds
   TArray&lt;FSquadPreset&gt;       SquadPresets
   FEconomyState              Economy
@@ -851,8 +868,16 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <td>Overdue&rarr;Active&rarr;Upcoming&rarr;Done&rarr;Suspended</td>
         <td><code>EQuestStatus</code> UENUM (계산 속성)</td>
         <td><code>UQuestSubsystem</code></td>
-        <td>DB 저장 안 함. 현재 날짜 기준 실시간 계산</td>
+        <td>DB 저장 안 함. 임의 날짜 D 기준 실시간 계산(GetStatusForDate)</td>
         <td><a href="./02-quest-system.html" style="color:var(--accent)">02 퀘스트</a></td>
+      </tr>
+      <tr id="term-status-timeline">
+        <td>상태 타임라인 표기</td>
+        <td>퀘스트가 캘린더의 어느 날짜에 어떤 상태로 보이는지의 파생 규칙</td>
+        <td>저장 안 함 — 생성일·시작일·마감일·DoneAt·SuspendedAt에서 계산</td>
+        <td><code>UQuestSubsystem</code> + 캘린더 위젯</td>
+        <td>예정=생성~시작 전 · 완료=완료일까지 · 지연=단발 계속/반복 다음 발생 전날까지 · 중단=중단일까지</td>
+        <td><a href="./03-archive-system.html#term-status-timeline" style="color:var(--accent)">03 아카이브</a></td>
       </tr>
       <tr id="term-dday">
         <td>D-Day</td>
@@ -866,12 +891,36 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <!-- ===== 아카이브 ===== -->
       <tr class="cat-header"><td colspan="6">아카이브</td></tr>
       <tr id="term-focus-record">
-        <td>집중 기록</td>
-        <td>세션 종료 후 저장되는 기록</td>
-        <td><code>FFocusRecord {Category, TimeSeconds, Mode, Notes, Date, Clock, Timestamp}</code></td>
+        <td>집중 기록 (통합 기록)</td>
+        <td>아카이브에 저장되는 사건 1건 — 타이머·스톱워치·퀘스트 완료·직접 작성</td>
+        <td><code>FArchiveRecord {Id, Source, Category, CreatedAt, DurationSeconds, Title, Notes, SourceRefId, DueDate}</code></td>
         <td><code>URecordSubsystem</code></td>
-        <td>TArray&lt;FFocusRecord&gt;. 최신순 Unshift</td>
-        <td><a href="./03-archive-system.html" style="color:var(--accent)">03 아카이브</a></td>
+        <td>TArray&lt;FArchiveRecord&gt;. Id 오름차순 append (구 FFocusRecord·Unshift 대체)</td>
+        <td><a href="./11-archive-record-id.html#term-farchiverecord" style="color:var(--accent)">11 통합 기록 ID</a></td>
+      </tr>
+      <tr id="term-archive-record-id">
+        <td>통합 기록 ID</td>
+        <td>모든 아카이브 기록의 13자리 식별자 — YYYYMMDD(사건 발생일) + 5자리 시퀀스</td>
+        <td><code>FString Id</code> (예: <code>2026070600001</code>)</td>
+        <td><code>URecordSubsystem::MakeRecordId</code></td>
+        <td>정렬·식별 전용(사전순=시간순). 필터링에 파싱 금지. 불변 — 가변 정보(목표일)는 필드로</td>
+        <td><a href="./11-archive-record-id.html#term-archive-record-id" style="color:var(--accent)">11 통합 기록 ID</a></td>
+      </tr>
+      <tr id="term-record-source">
+        <td>기록 출처 (ERecordSource)</td>
+        <td>기록이 어떤 활동에서 생겼는지 — Timer/Stopwatch/Quest/Manual 4종</td>
+        <td><code>ERecordSource</code> UENUM</td>
+        <td><code>URecordSubsystem</code></td>
+        <td>아카이브 필터 축 ①. 구 EFocusMode(2종)를 확장. 캘린더 도트 색의 기준</td>
+        <td><a href="./11-archive-record-id.html#term-erecordsource" style="color:var(--accent)">11 통합 기록 ID</a></td>
+      </tr>
+      <tr id="term-record-id-counters">
+        <td>RecordIdCounters</td>
+        <td>날짜별 기록 시퀀스 카운터 — "그날 몇 번째 기록"을 발급</td>
+        <td><code>TMap&lt;FString, int32&gt;</code> ("YYYYMMDD" → 다음 시퀀스)</td>
+        <td><code>URecordTalesSaveGame</code></td>
+        <td>퀘스트 IdCounters와 별도. 삭제해도 되감지 않음(ID 재사용 금지)</td>
+        <td><a href="./11-archive-record-id.html#term-recordidcounters" style="color:var(--accent)">11 통합 기록 ID</a></td>
       </tr>
       <tr id="term-category">
         <td>카테고리</td>
