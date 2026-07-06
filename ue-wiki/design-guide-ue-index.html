@@ -3,10 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>문서 허브 & 용어집 — UE 문서 디자인 시스템 v2.8</title>
+<title>문서 허브 & 용어집 — UE 문서 디자인 시스템 v2.9</title>
 <!-- ============================================================
      CHANGELOG — design-guide-ue-index.html
      생성 문서 인덱스 + 중앙 용어집(범용 UE 용어 전용). 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md
+     v2.9 · 2026-07-06
+       - (변경) ue-architect 카테고리 폴더 도입(DOC-TRACKS.md v1.4 §2-1)에 따른 재편:
+         문서 11건 이동 반영 — 링크 ./ue-architect/파일.html → ./ue-architect/<카테고리>/파일.html
+         (core-cpp 2건 · framework 3건 · ui 5건 · data 1건, 용어집 "자세히 →" 링크 포함 일괄 갱신)
+       - (변경) 문서 목록(#docs)을 단일 표 → 카테고리별 소구획(h3 + 표)으로 재편:
+         Core C++ / 프레임워크 / UI / 데이터 / 프로젝트 허브(Track B).
+         유형 칼럼 제거(카테고리 소구획이 대체), 등록 안내 문구를 "해당 카테고리 표에 등록"으로 수정
      v2.8 · 2026-07-03
        - (추가) 문서 목록에 'Common UI — 레이어 스택으로 설계하는
          게임 UI 아키텍처' 등록 (Lyra 4레이어 구조 분석 + 최소 구현)
@@ -507,22 +514,43 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   <div class="section" id="docs">
     <div class="section-label">01 — 생성 문서 목록</div>
     <h2>지금까지 만든 문서</h2>
-    <p>새 문서를 만들면 <strong>이 표에 등록</strong>합니다(유형·날짜·링크). 아직 생성된 콘텐츠 문서가 없다면 아래 안내가 보입니다.</p>
+    <p>아키텍처 문서(유형 ①)는 <strong>카테고리별 표에 등록</strong>합니다(문서·날짜·링크). 카테고리 폴더·판별 규칙: <code>doc-process/DOC-TRACKS.md</code> §2-1. 새 카테고리 폴더가 생기면 여기에도 소구획을 추가합니다.</p>
 
+    <h3>Core C++ — 코드 구조·리플렉션·빌드 <code>core-cpp/</code></h3>
     <table class="tbl">
-      <tr><th>문서</th><th>유형</th><th>날짜</th><th>열기</th></tr>
-      <tr><td><code>언리얼 엔진 C++ 프로그래밍 완전 구조 가이드 v2.1</code></td><td>아키텍처</td><td>2026-07-01</td><td><a href="./ue-architect/ue-cpp-programming-structure.html" style="color:var(--accent)">열기 →</a></td></tr>
-      <tr><td><code>GameInstanceSubsystem — 수명 자동 관리 전역 서비스</code></td><td>아키텍처</td><td>2026-07-02</td><td><a href="./ue-architect/ue-gameinstance-subsystem.html" style="color:var(--accent)">열기 →</a></td></tr>
-      <tr><td><code>상태 머신 — 상태·전이·이벤트로 동작 제어</code></td><td>아키텍처</td><td>2026-07-02</td><td><a href="./ue-architect/ue-state-machine.html" style="color:var(--accent)">열기 →</a></td></tr>
-      <tr><td><code>DataTable — 코드 밖에서 관리하는 표 데이터</code></td><td>아키텍처</td><td>2026-07-02</td><td><a href="./ue-architect/ue-datatable.html" style="color:var(--accent)">열기 →</a></td></tr>
-      <tr><td><code>UMG 기초 — 위젯 블루프린트로 만드는 게임 UI</code></td><td>아키텍처</td><td>2026-07-03</td><td><a href="./ue-architect/ue-umg-basics.html" style="color:var(--accent)">열기 →</a></td></tr>
-      <tr><td><code>UMG 위젯 카탈로그 — 팔레트 전 위젯 레퍼런스</code></td><td>아키텍처</td><td>2026-07-03</td><td><a href="./ue-architect/ue-umg-widget-catalog.html" style="color:var(--accent)">열기 →</a></td></tr>
-      <tr><td><code>Slate 개요 — UMG 아래의 C++ UI 프레임워크</code></td><td>아키텍처</td><td>2026-07-03</td><td><a href="./ue-architect/ue-slate-overview.html" style="color:var(--accent)">열기 →</a></td></tr>
-      <tr><td><code>Common UI — 레이어 스택으로 설계하는 게임 UI 아키텍처</code></td><td>아키텍처</td><td>2026-07-03</td><td><a href="./ue-architect/ue-common-ui-architecture.html" style="color:var(--accent)">열기 →</a></td></tr>
-      <tr><td><code>리플렉션 매크로 — 6대 매크로와 UHT 빌드 파이프라인</code></td><td>아키텍처</td><td>2026-07-02</td><td><a href="./ue-architect/ue-reflection-macros.html" style="color:var(--accent)">열기 →</a></td></tr>
-      <tr><td><code>게임플레이 프레임워크 — 전체 구조와 클래스별 설계 분석</code></td><td>아키텍처</td><td>2026-07-03</td><td><a href="./ue-architect/ue-gameplay-framework.html" style="color:var(--accent)">열기 →</a></td></tr>
-      <tr><td><code>UMG + C++ 연동 프레임워크 — Designer·BindWidget·라이프사이클</code></td><td>아키텍처</td><td>2026-07-05</td><td><a href="./ue-architect/umg-cpp-framework.html" style="color:var(--accent)">열기 →</a></td></tr>
-      <tr><td><code>RecordTales 프로젝트 허브</code></td><td>프로젝트 허브</td><td>2026-07-02</td><td><a href="../Project/RecordTales/recordtales-index.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><th>문서</th><th>날짜</th><th>열기</th></tr>
+      <tr><td><code>언리얼 엔진 C++ 프로그래밍 완전 구조 가이드 v2.1</code></td><td>2026-07-01</td><td><a href="./ue-architect/core-cpp/ue-cpp-programming-structure.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>리플렉션 매크로 — 6대 매크로와 UHT 빌드 파이프라인</code></td><td>2026-07-02</td><td><a href="./ue-architect/core-cpp/ue-reflection-macros.html" style="color:var(--accent)">열기 →</a></td></tr>
+    </table>
+
+    <h3>프레임워크 — 게임 구조·Subsystem·패턴 <code>framework/</code></h3>
+    <table class="tbl">
+      <tr><th>문서</th><th>날짜</th><th>열기</th></tr>
+      <tr><td><code>게임플레이 프레임워크 — 전체 구조와 클래스별 설계 분석</code></td><td>2026-07-03</td><td><a href="./ue-architect/framework/ue-gameplay-framework.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>GameInstanceSubsystem — 수명 자동 관리 전역 서비스</code></td><td>2026-07-02</td><td><a href="./ue-architect/framework/ue-gameinstance-subsystem.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>상태 머신 — 상태·전이·이벤트로 동작 제어</code></td><td>2026-07-02</td><td><a href="./ue-architect/framework/ue-state-machine.html" style="color:var(--accent)">열기 →</a></td></tr>
+    </table>
+
+    <h3>UI — UMG·Slate·Common UI <code>ui/</code></h3>
+    <table class="tbl">
+      <tr><th>문서</th><th>날짜</th><th>열기</th></tr>
+      <tr><td><code>UMG 기초 — 위젯 블루프린트로 만드는 게임 UI</code></td><td>2026-07-03</td><td><a href="./ue-architect/ui/ue-umg-basics.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>UMG 위젯 카탈로그 — 팔레트 전 위젯 레퍼런스</code></td><td>2026-07-03</td><td><a href="./ue-architect/ui/ue-umg-widget-catalog.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>UMG + C++ 연동 프레임워크 — Designer·BindWidget·라이프사이클</code></td><td>2026-07-05</td><td><a href="./ue-architect/ui/umg-cpp-framework.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>Slate 개요 — UMG 아래의 C++ UI 프레임워크</code></td><td>2026-07-03</td><td><a href="./ue-architect/ui/ue-slate-overview.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>Common UI — 레이어 스택으로 설계하는 게임 UI 아키텍처</code></td><td>2026-07-03</td><td><a href="./ue-architect/ui/ue-common-ui-architecture.html" style="color:var(--accent)">열기 →</a></td></tr>
+    </table>
+
+    <h3>데이터 — DataTable·DataAsset·Config <code>data/</code></h3>
+    <table class="tbl">
+      <tr><th>문서</th><th>날짜</th><th>열기</th></tr>
+      <tr><td><code>DataTable — 코드 밖에서 관리하는 표 데이터</code></td><td>2026-07-02</td><td><a href="./ue-architect/data/ue-datatable.html" style="color:var(--accent)">열기 →</a></td></tr>
+    </table>
+
+    <h3>프로젝트 허브 (Track B)</h3>
+    <table class="tbl">
+      <tr><th>프로젝트</th><th>날짜</th><th>열기</th></tr>
+      <tr><td><code>RecordTales 프로젝트 허브</code></td><td>2026-07-02</td><td><a href="../Project/RecordTales/recordtales-index.html" style="color:var(--accent)">열기 →</a></td></tr>
     </table>
     <div class="callout info"><span class="ic">📁</span><p><strong>프로젝트 문서(Track B)는 각 프로젝트 허브가 관리합니다.</strong> 이 목록에는 프로젝트당 허브 행 1개만 등록하고, 개별 문서 목록·프로젝트 용어집은 프로젝트 허브에서 봅니다. (규칙: <code>doc-process/DOC-TRACKS.md</code>)</p></div>
 
@@ -553,54 +581,54 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>GameInstance</code></td><td>레벨이 바뀌어도 유지되는 <strong>세션 전역·영속</strong> 객체</td><td><a href="../design-template/02-ue-architecture.html#components" style="color:var(--accent)">02 아키텍처 →</a></td></tr>
       <tr><td><code>SaveGame</code></td><td>디스크에 저장되어 <strong>재실행 후에도 남는</strong> 데이터</td><td><a href="../design-template/02-ue-architecture.html#components" style="color:var(--accent)">02 아키텍처 →</a></td></tr>
       <tr><td><code>Possess</code></td><td>컨트롤러가 폰을 <strong>소유·조종하는 관계</strong></td><td><a href="../design-template/02-ue-architecture.html#components" style="color:var(--accent)">02 아키텍처 →</a></td></tr>
-      <tr><td><code>UObject</code></td><td>언리얼 모든 오브젝트의 <strong>최상위 부모 클래스</strong> (리플렉션·GC·직렬화 제공)</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-uobject" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
-      <tr><td><code>AActor</code></td><td><strong>월드에 배치 가능한</strong> 오브젝트 (Transform·Tick·복제 지원)</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-actor" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
-      <tr><td><code>UActorComponent</code></td><td>액터에 붙여 <strong>기능을 부여하는 모듈</strong> (컴포지션 패턴)</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-component" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
-      <tr><td><code>리플렉션</code></td><td>코드 구조 정보를 <strong>런타임에 조회</strong>하는 시스템</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-reflection" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
-      <tr><td><code>UCLASS / UPROPERTY / UFUNCTION</code></td><td>클래스·변수·함수를 <strong>리플렉션에 등록</strong>하는 매크로</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-uclass" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
-      <tr><td><code>가비지 컬렉션 (GC)</code></td><td>참조 없는 UObject를 <strong>자동 해제</strong>하는 메모리 관리</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-gc" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
-      <tr><td><code>CDO (Class Default Object)</code></td><td>클래스마다 엔진이 만드는 <strong>기본값 템플릿 오브젝트</strong></td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-cdo" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
-      <tr><td><code>UHT (Unreal Header Tool)</code></td><td>매크로를 스캔해 <strong>.generated.h를 생성</strong>하는 빌드 전 도구</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-uht" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
-      <tr><td><code>UBT (Unreal Build Tool)</code></td><td>언리얼 전용 <strong>빌드 도구</strong> (모듈·의존성 관리)</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-ubt" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
-      <tr><td><code>모듈 (Module)</code></td><td>코드를 묶는 <strong>최소 빌드 단위</strong> (.Build.cs로 관리)</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-module" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
-      <tr><td><code>델리게이트 (Delegate)</code></td><td>함수 포인터를 안전하게 감싼 <strong>콜백 시스템</strong></td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-delegate" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
-      <tr><td><code>접두사 규칙 (A/U/F/E/T/I/b)</code></td><td>클래스 역할을 <strong>이름 앞 글자로 구분</strong>하는 네이밍 표준</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-prefix" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
-      <tr><td><code>.generated.h</code></td><td>UHT가 자동 생성하는 헤더. <strong>반드시 마지막 #include</strong></td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-generated-h" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
-      <tr><td><code>FString / FName / FText</code></td><td>언리얼 전용 <strong>문자열 3종</strong> (조작/식별/현지화)</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-fstring" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
-      <tr><td><code>FVector / FRotator / FTransform</code></td><td>3D <strong>위치·회전·변환</strong> 타입</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-fvector" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
-      <tr><td><code>TArray / TMap / TSet</code></td><td>STL 대신 쓰는 언리얼 <strong>컨테이너</strong> (UPROPERTY 통합)</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-tarray" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
-      <tr><td><code>UE_LOG</code></td><td>카테고리별 필터링 가능한 언리얼 <strong>로깅 매크로</strong></td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-ue-log" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
-      <tr><td><code>스마트 포인터 (TSharedPtr 등)</code></td><td>비-UObject의 <strong>참조 카운팅 기반 메모리 관리</strong></td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-smartptr" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
-      <tr><td><code>BlueprintCallable / BlueprintPure</code></td><td>C++ 함수를 <strong>BP에서 호출</strong>하는 UFUNCTION 지정자</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-bp-callable" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
-      <tr><td><code>BlueprintNativeEvent</code></td><td>C++ 기본 구현 + <strong>BP 오버라이드</strong> 가능한 패턴</td><td><a href="./ue-architect/ue-cpp-programming-structure.html#term-bp-native-event" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
-      <tr><td><code>지정자 (Specifier)</code></td><td>리플렉션 매크로 괄호 안에 쓰는 키워드. <strong>에디터 노출·BP 접근</strong> 등 동작 제어</td><td><a href="./ue-architect/ue-reflection-macros.html#term-specifier" style="color:var(--accent)">리플렉션 매크로 →</a></td></tr>
-      <tr><td><code>USTRUCT / UENUM / UINTERFACE</code></td><td>구조체·열거형·인터페이스를 <strong>리플렉션에 등록</strong>하는 매크로</td><td><a href="./ue-architect/ue-reflection-macros.html#relation" style="color:var(--accent)">리플렉션 매크로 →</a></td></tr>
-      <tr><td><code>GENERATED_BODY()</code></td><td>generated.h의 코드를 클래스/구조체 <strong>본문에 삽입</strong>하는 매크로 (필수)</td><td><a href="./ue-architect/ue-reflection-macros.html#term-generated-body" style="color:var(--accent)">리플렉션 매크로 →</a></td></tr>
-      <tr><td><code>직렬화 (Serialization)</code></td><td>객체를 바이트 스트림으로 변환해 <strong>저장/전송</strong>하는 것</td><td><a href="./ue-architect/ue-reflection-macros.html#term-serialization" style="color:var(--accent)">리플렉션 매크로 →</a></td></tr>
-      <tr><td><code>Replication (복제)</code></td><td>서버의 데이터 변경을 클라이언트에 <strong>자동 전송</strong>하는 네트워크 동기화</td><td><a href="./ue-architect/ue-gameplay-framework.html#term-replication" style="color:var(--accent)">게임플레이 프레임워크 →</a></td></tr>
-      <tr><td><code>Authority (권한)</code></td><td>데이터의 진실(Truth)을 보유한 쪽. 보통 <strong>서버</strong>가 Authority</td><td><a href="./ue-architect/ue-gameplay-framework.html#term-authority" style="color:var(--accent)">게임플레이 프레임워크 →</a></td></tr>
-      <tr><td><code>RPC (Remote Procedure Call)</code></td><td>네트워크를 통해 <strong>원격 머신의 함수를 호출</strong>하는 방식</td><td><a href="./ue-architect/ue-gameplay-framework.html#term-rpc" style="color:var(--accent)">게임플레이 프레임워크 →</a></td></tr>
-      <tr><td><code>BeginPlay</code></td><td>액터가 월드에 준비된 후 <strong>최초 1회 호출</strong>되는 초기화 함수</td><td><a href="./ue-architect/ue-gameplay-framework.html#term-beginplay" style="color:var(--accent)">게임플레이 프레임워크 →</a></td></tr>
-      <tr><td><code>Tick</code></td><td><strong>매 프레임 호출</strong>되는 업데이트 함수</td><td><a href="./ue-architect/ue-gameplay-framework.html#term-tick" style="color:var(--accent)">게임플레이 프레임워크 →</a></td></tr>
-      <tr><td><code>GameInstanceSubsystem</code></td><td>GameInstance 수명에 묶이는 <strong>자동 관리 서비스 객체</strong></td><td><a href="./ue-architect/ue-gameinstance-subsystem.html#term-gameinstance-subsystem" style="color:var(--accent)">GameInstanceSubsystem →</a></td></tr>
+      <tr><td><code>UObject</code></td><td>언리얼 모든 오브젝트의 <strong>최상위 부모 클래스</strong> (리플렉션·GC·직렬화 제공)</td><td><a href="./ue-architect/core-cpp/ue-cpp-programming-structure.html#term-uobject" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>AActor</code></td><td><strong>월드에 배치 가능한</strong> 오브젝트 (Transform·Tick·복제 지원)</td><td><a href="./ue-architect/core-cpp/ue-cpp-programming-structure.html#term-actor" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>UActorComponent</code></td><td>액터에 붙여 <strong>기능을 부여하는 모듈</strong> (컴포지션 패턴)</td><td><a href="./ue-architect/core-cpp/ue-cpp-programming-structure.html#term-component" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>리플렉션</code></td><td>코드 구조 정보를 <strong>런타임에 조회</strong>하는 시스템</td><td><a href="./ue-architect/core-cpp/ue-cpp-programming-structure.html#term-reflection" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>UCLASS / UPROPERTY / UFUNCTION</code></td><td>클래스·변수·함수를 <strong>리플렉션에 등록</strong>하는 매크로</td><td><a href="./ue-architect/core-cpp/ue-cpp-programming-structure.html#term-uclass" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>가비지 컬렉션 (GC)</code></td><td>참조 없는 UObject를 <strong>자동 해제</strong>하는 메모리 관리</td><td><a href="./ue-architect/core-cpp/ue-cpp-programming-structure.html#term-gc" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>CDO (Class Default Object)</code></td><td>클래스마다 엔진이 만드는 <strong>기본값 템플릿 오브젝트</strong></td><td><a href="./ue-architect/core-cpp/ue-cpp-programming-structure.html#term-cdo" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>UHT (Unreal Header Tool)</code></td><td>매크로를 스캔해 <strong>.generated.h를 생성</strong>하는 빌드 전 도구</td><td><a href="./ue-architect/core-cpp/ue-cpp-programming-structure.html#term-uht" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>UBT (Unreal Build Tool)</code></td><td>언리얼 전용 <strong>빌드 도구</strong> (모듈·의존성 관리)</td><td><a href="./ue-architect/core-cpp/ue-cpp-programming-structure.html#term-ubt" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>모듈 (Module)</code></td><td>코드를 묶는 <strong>최소 빌드 단위</strong> (.Build.cs로 관리)</td><td><a href="./ue-architect/core-cpp/ue-cpp-programming-structure.html#term-module" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>델리게이트 (Delegate)</code></td><td>함수 포인터를 안전하게 감싼 <strong>콜백 시스템</strong></td><td><a href="./ue-architect/core-cpp/ue-cpp-programming-structure.html#term-delegate" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>접두사 규칙 (A/U/F/E/T/I/b)</code></td><td>클래스 역할을 <strong>이름 앞 글자로 구분</strong>하는 네이밍 표준</td><td><a href="./ue-architect/core-cpp/ue-cpp-programming-structure.html#term-prefix" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>.generated.h</code></td><td>UHT가 자동 생성하는 헤더. <strong>반드시 마지막 #include</strong></td><td><a href="./ue-architect/core-cpp/ue-cpp-programming-structure.html#term-generated-h" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>FString / FName / FText</code></td><td>언리얼 전용 <strong>문자열 3종</strong> (조작/식별/현지화)</td><td><a href="./ue-architect/core-cpp/ue-cpp-programming-structure.html#term-fstring" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>FVector / FRotator / FTransform</code></td><td>3D <strong>위치·회전·변환</strong> 타입</td><td><a href="./ue-architect/core-cpp/ue-cpp-programming-structure.html#term-fvector" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>TArray / TMap / TSet</code></td><td>STL 대신 쓰는 언리얼 <strong>컨테이너</strong> (UPROPERTY 통합)</td><td><a href="./ue-architect/core-cpp/ue-cpp-programming-structure.html#term-tarray" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>UE_LOG</code></td><td>카테고리별 필터링 가능한 언리얼 <strong>로깅 매크로</strong></td><td><a href="./ue-architect/core-cpp/ue-cpp-programming-structure.html#term-ue-log" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>스마트 포인터 (TSharedPtr 등)</code></td><td>비-UObject의 <strong>참조 카운팅 기반 메모리 관리</strong></td><td><a href="./ue-architect/core-cpp/ue-cpp-programming-structure.html#term-smartptr" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>BlueprintCallable / BlueprintPure</code></td><td>C++ 함수를 <strong>BP에서 호출</strong>하는 UFUNCTION 지정자</td><td><a href="./ue-architect/core-cpp/ue-cpp-programming-structure.html#term-bp-callable" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>BlueprintNativeEvent</code></td><td>C++ 기본 구현 + <strong>BP 오버라이드</strong> 가능한 패턴</td><td><a href="./ue-architect/core-cpp/ue-cpp-programming-structure.html#term-bp-native-event" style="color:var(--accent)">C++ 구조 가이드 →</a></td></tr>
+      <tr><td><code>지정자 (Specifier)</code></td><td>리플렉션 매크로 괄호 안에 쓰는 키워드. <strong>에디터 노출·BP 접근</strong> 등 동작 제어</td><td><a href="./ue-architect/core-cpp/ue-reflection-macros.html#term-specifier" style="color:var(--accent)">리플렉션 매크로 →</a></td></tr>
+      <tr><td><code>USTRUCT / UENUM / UINTERFACE</code></td><td>구조체·열거형·인터페이스를 <strong>리플렉션에 등록</strong>하는 매크로</td><td><a href="./ue-architect/core-cpp/ue-reflection-macros.html#relation" style="color:var(--accent)">리플렉션 매크로 →</a></td></tr>
+      <tr><td><code>GENERATED_BODY()</code></td><td>generated.h의 코드를 클래스/구조체 <strong>본문에 삽입</strong>하는 매크로 (필수)</td><td><a href="./ue-architect/core-cpp/ue-reflection-macros.html#term-generated-body" style="color:var(--accent)">리플렉션 매크로 →</a></td></tr>
+      <tr><td><code>직렬화 (Serialization)</code></td><td>객체를 바이트 스트림으로 변환해 <strong>저장/전송</strong>하는 것</td><td><a href="./ue-architect/core-cpp/ue-reflection-macros.html#term-serialization" style="color:var(--accent)">리플렉션 매크로 →</a></td></tr>
+      <tr><td><code>Replication (복제)</code></td><td>서버의 데이터 변경을 클라이언트에 <strong>자동 전송</strong>하는 네트워크 동기화</td><td><a href="./ue-architect/framework/ue-gameplay-framework.html#term-replication" style="color:var(--accent)">게임플레이 프레임워크 →</a></td></tr>
+      <tr><td><code>Authority (권한)</code></td><td>데이터의 진실(Truth)을 보유한 쪽. 보통 <strong>서버</strong>가 Authority</td><td><a href="./ue-architect/framework/ue-gameplay-framework.html#term-authority" style="color:var(--accent)">게임플레이 프레임워크 →</a></td></tr>
+      <tr><td><code>RPC (Remote Procedure Call)</code></td><td>네트워크를 통해 <strong>원격 머신의 함수를 호출</strong>하는 방식</td><td><a href="./ue-architect/framework/ue-gameplay-framework.html#term-rpc" style="color:var(--accent)">게임플레이 프레임워크 →</a></td></tr>
+      <tr><td><code>BeginPlay</code></td><td>액터가 월드에 준비된 후 <strong>최초 1회 호출</strong>되는 초기화 함수</td><td><a href="./ue-architect/framework/ue-gameplay-framework.html#term-beginplay" style="color:var(--accent)">게임플레이 프레임워크 →</a></td></tr>
+      <tr><td><code>Tick</code></td><td><strong>매 프레임 호출</strong>되는 업데이트 함수</td><td><a href="./ue-architect/framework/ue-gameplay-framework.html#term-tick" style="color:var(--accent)">게임플레이 프레임워크 →</a></td></tr>
+      <tr><td><code>GameInstanceSubsystem</code></td><td>GameInstance 수명에 묶이는 <strong>자동 관리 서비스 객체</strong></td><td><a href="./ue-architect/framework/ue-gameinstance-subsystem.html#term-gameinstance-subsystem" style="color:var(--accent)">GameInstanceSubsystem →</a></td></tr>
       <!-- TODO: FTimerHandle은 전용 범용 문서(ue-architect)가 생기면 링크 교체 (DOC-TRACKS.md §5) -->
       <tr><td><code>FTimerHandle</code></td><td>엔진 타이머 <strong>핸들</strong>. SetTimer/ClearTimer로 카운트다운 제어</td><td><a href="../Project/RecordTales/01-focus-system.html#skeleton" style="color:var(--accent)">포커스 시스템 →</a></td></tr>
-      <tr><td><code>상태 머신 (State Machine)</code></td><td>현재 상태와 전환 조건을 정의해 <strong>동작을 제어</strong>하는 패턴</td><td><a href="./ue-architect/ue-state-machine.html#term-state-machine" style="color:var(--accent)">상태 머신 →</a></td></tr>
-      <tr><td><code>DataTable</code></td><td>언리얼 에디터에서 <strong>표 형태로 편집하는 데이터 시트</strong> (마스터 데이터 관리)</td><td><a href="./ue-architect/ue-datatable.html#term-datatable" style="color:var(--accent)">DataTable →</a></td></tr>
-      <tr><td><code>CoreMinimal.h</code></td><td>언리얼 코드의 <strong>표준 시작 헤더</strong> — FString·TArray·FVector 등 코어 타입 모음 (엔진 클래스는 미포함)</td><td><a href="./ue-architect/ue-datatable.html#term-coreminimal" style="color:var(--accent)">DataTable →</a></td></tr>
-      <tr><td><code>모듈 API 매크로 (…_API)</code></td><td>타입을 <strong>모듈(DLL) 밖에 공개</strong>하는 내보내기 매크로 — 이름은 &lt;모듈 이름 대문자&gt;_API, UBT가 자동 정의</td><td><a href="./ue-architect/ue-datatable.html#term-module-api" style="color:var(--accent)">DataTable →</a></td></tr>
-      <tr><td><code>UMG</code></td><td>게임 화면 UI를 <strong>위젯 블루프린트로 제작</strong>하는 언리얼 UI 저작 시스템</td><td><a href="./ue-architect/ue-umg-basics.html#term-umg" style="color:var(--accent)">UMG 기초 →</a></td></tr>
-      <tr><td><code>위젯 블루프린트 (Widget Blueprint)</code></td><td>위젯들을 조립한 <strong>화면 조각 1개</strong>를 정의하는 BP 에셋 (접두사 WBP_)</td><td><a href="./ue-architect/ue-umg-basics.html#term-widget-blueprint" style="color:var(--accent)">UMG 기초 →</a></td></tr>
-      <tr><td><code>슬롯 (Slot)</code></td><td>부모 패널이 자식의 <strong>배치 속성을 담는 자리</strong> — 배치는 자식이 아니라 부모가 결정</td><td><a href="./ue-architect/ue-umg-basics.html#term-slot" style="color:var(--accent)">UMG 기초 →</a></td></tr>
-      <tr><td><code>앵커 (Anchor)</code></td><td>해상도가 바뀔 때 위젯이 붙어 있을 <strong>기준점</strong> (Canvas Panel 슬롯 전용)</td><td><a href="./ue-architect/ue-umg-basics.html#term-anchor" style="color:var(--accent)">UMG 기초 →</a></td></tr>
-      <tr><td><code>BindWidget</code></td><td>디자이너의 <strong>같은 이름 위젯을 C++ 변수에 자동 연결</strong>하는 UPROPERTY meta</td><td><a href="./ue-architect/ue-umg-basics.html#term-bindwidget" style="color:var(--accent)">UMG 기초 →</a></td></tr>
-      <tr><td><code>Visibility (Collapsed/Hidden)</code></td><td>위젯 표시 상태 5종 — <strong>Collapsed는 자리도 접고, Hidden은 자리 유지</strong></td><td><a href="./ue-architect/ue-umg-widget-catalog.html#term-visibility" style="color:var(--accent)">위젯 카탈로그 →</a></td></tr>
-      <tr><td><code>가상화 (Virtualization)</code></td><td>목록에서 <strong>보이는 항목만 위젯을 생성·재활용</strong>하는 방식 (List View 계열)</td><td><a href="./ue-architect/ue-umg-widget-catalog.html#term-virtualization" style="color:var(--accent)">위젯 카탈로그 →</a></td></tr>
-      <tr><td><code>Slate</code></td><td>엔진·에디터 전체 UI를 그리는 <strong>C++ UI 프레임워크</strong> — UMG의 하부, 비-UObject</td><td><a href="./ue-architect/ue-slate-overview.html#term-slate" style="color:var(--accent)">Slate 개요 →</a></td></tr>
-      <tr><td><code>Common UI</code></td><td>다층 UI의 <strong>겹침·입력 라우팅·플랫폼 대응</strong>을 담당하는 엔진 UI 플러그인</td><td><a href="./ue-architect/ue-common-ui-architecture.html#term-common-ui" style="color:var(--accent)">Common UI →</a></td></tr>
-      <tr><td><code>Activatable Widget</code></td><td>생성과 별개로 <strong>활성(입력 수신)/비활성 상태</strong>를 갖는 Common UI 화면 단위 위젯</td><td><a href="./ue-architect/ue-common-ui-architecture.html#term-activatable" style="color:var(--accent)">Common UI →</a></td></tr>
-      <tr><td><code>입력 라우팅 (Input Routing)</code></td><td>입력을 <strong>활성 위젯에게만 전달</strong>하는 Common UI의 교통정리 시스템</td><td><a href="./ue-architect/ue-common-ui-architecture.html#term-input-routing" style="color:var(--accent)">Common UI →</a></td></tr>
-      <tr><td><code>GameplayTag</code></td><td><code>UI.Layer.Menu</code>처럼 <strong>점으로 구분하는 계층형 이름표</strong> 시스템 (분류·식별용)</td><td><a href="./ue-architect/ue-common-ui-architecture.html#term-gameplaytag" style="color:var(--accent)">Common UI →</a></td></tr>
+      <tr><td><code>상태 머신 (State Machine)</code></td><td>현재 상태와 전환 조건을 정의해 <strong>동작을 제어</strong>하는 패턴</td><td><a href="./ue-architect/framework/ue-state-machine.html#term-state-machine" style="color:var(--accent)">상태 머신 →</a></td></tr>
+      <tr><td><code>DataTable</code></td><td>언리얼 에디터에서 <strong>표 형태로 편집하는 데이터 시트</strong> (마스터 데이터 관리)</td><td><a href="./ue-architect/data/ue-datatable.html#term-datatable" style="color:var(--accent)">DataTable →</a></td></tr>
+      <tr><td><code>CoreMinimal.h</code></td><td>언리얼 코드의 <strong>표준 시작 헤더</strong> — FString·TArray·FVector 등 코어 타입 모음 (엔진 클래스는 미포함)</td><td><a href="./ue-architect/data/ue-datatable.html#term-coreminimal" style="color:var(--accent)">DataTable →</a></td></tr>
+      <tr><td><code>모듈 API 매크로 (…_API)</code></td><td>타입을 <strong>모듈(DLL) 밖에 공개</strong>하는 내보내기 매크로 — 이름은 &lt;모듈 이름 대문자&gt;_API, UBT가 자동 정의</td><td><a href="./ue-architect/data/ue-datatable.html#term-module-api" style="color:var(--accent)">DataTable →</a></td></tr>
+      <tr><td><code>UMG</code></td><td>게임 화면 UI를 <strong>위젯 블루프린트로 제작</strong>하는 언리얼 UI 저작 시스템</td><td><a href="./ue-architect/ui/ue-umg-basics.html#term-umg" style="color:var(--accent)">UMG 기초 →</a></td></tr>
+      <tr><td><code>위젯 블루프린트 (Widget Blueprint)</code></td><td>위젯들을 조립한 <strong>화면 조각 1개</strong>를 정의하는 BP 에셋 (접두사 WBP_)</td><td><a href="./ue-architect/ui/ue-umg-basics.html#term-widget-blueprint" style="color:var(--accent)">UMG 기초 →</a></td></tr>
+      <tr><td><code>슬롯 (Slot)</code></td><td>부모 패널이 자식의 <strong>배치 속성을 담는 자리</strong> — 배치는 자식이 아니라 부모가 결정</td><td><a href="./ue-architect/ui/ue-umg-basics.html#term-slot" style="color:var(--accent)">UMG 기초 →</a></td></tr>
+      <tr><td><code>앵커 (Anchor)</code></td><td>해상도가 바뀔 때 위젯이 붙어 있을 <strong>기준점</strong> (Canvas Panel 슬롯 전용)</td><td><a href="./ue-architect/ui/ue-umg-basics.html#term-anchor" style="color:var(--accent)">UMG 기초 →</a></td></tr>
+      <tr><td><code>BindWidget</code></td><td>디자이너의 <strong>같은 이름 위젯을 C++ 변수에 자동 연결</strong>하는 UPROPERTY meta</td><td><a href="./ue-architect/ui/ue-umg-basics.html#term-bindwidget" style="color:var(--accent)">UMG 기초 →</a></td></tr>
+      <tr><td><code>Visibility (Collapsed/Hidden)</code></td><td>위젯 표시 상태 5종 — <strong>Collapsed는 자리도 접고, Hidden은 자리 유지</strong></td><td><a href="./ue-architect/ui/ue-umg-widget-catalog.html#term-visibility" style="color:var(--accent)">위젯 카탈로그 →</a></td></tr>
+      <tr><td><code>가상화 (Virtualization)</code></td><td>목록에서 <strong>보이는 항목만 위젯을 생성·재활용</strong>하는 방식 (List View 계열)</td><td><a href="./ue-architect/ui/ue-umg-widget-catalog.html#term-virtualization" style="color:var(--accent)">위젯 카탈로그 →</a></td></tr>
+      <tr><td><code>Slate</code></td><td>엔진·에디터 전체 UI를 그리는 <strong>C++ UI 프레임워크</strong> — UMG의 하부, 비-UObject</td><td><a href="./ue-architect/ui/ue-slate-overview.html#term-slate" style="color:var(--accent)">Slate 개요 →</a></td></tr>
+      <tr><td><code>Common UI</code></td><td>다층 UI의 <strong>겹침·입력 라우팅·플랫폼 대응</strong>을 담당하는 엔진 UI 플러그인</td><td><a href="./ue-architect/ui/ue-common-ui-architecture.html#term-common-ui" style="color:var(--accent)">Common UI →</a></td></tr>
+      <tr><td><code>Activatable Widget</code></td><td>생성과 별개로 <strong>활성(입력 수신)/비활성 상태</strong>를 갖는 Common UI 화면 단위 위젯</td><td><a href="./ue-architect/ui/ue-common-ui-architecture.html#term-activatable" style="color:var(--accent)">Common UI →</a></td></tr>
+      <tr><td><code>입력 라우팅 (Input Routing)</code></td><td>입력을 <strong>활성 위젯에게만 전달</strong>하는 Common UI의 교통정리 시스템</td><td><a href="./ue-architect/ui/ue-common-ui-architecture.html#term-input-routing" style="color:var(--accent)">Common UI →</a></td></tr>
+      <tr><td><code>GameplayTag</code></td><td><code>UI.Layer.Menu</code>처럼 <strong>점으로 구분하는 계층형 이름표</strong> 시스템 (분류·식별용)</td><td><a href="./ue-architect/ui/ue-common-ui-architecture.html#term-gameplaytag" style="color:var(--accent)">Common UI →</a></td></tr>
     </table>
     <div class="callout info"><span class="ic">📚</span><p><strong>용어집 이원화</strong>: 이 중앙 용어집에는 <strong>범용 UE 용어만</strong> 등록합니다. 프로젝트 고유 용어(가챠·스쿼드·마스터 레코드 등)는 각 <strong>프로젝트 허브의 용어집</strong>에서 봅니다 (예: <a href="../Project/RecordTales/recordtales-index.html#glossary" style="color:var(--accent)">RecordTales 용어집 →</a>). 배치 기준: <code>doc-process/DOC-TRACKS.md</code> §4.</p></div>
     <div class="callout tip"><span class="ic">💡</span><p>용어집은 <strong>보조 수단</strong>입니다. 각 문서는 처음 등장 용어를 자체적으로 한 번 풀어 설명하므로, 링크 없이도 문서 하나만으로 이해됩니다. 용어집은 "더 깊이 보고 싶을 때"의 지름길입니다.</p></div>
