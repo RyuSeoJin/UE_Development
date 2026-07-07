@@ -333,11 +333,15 @@
 
     <div class="snip">
       <div class="snip-head"><div class="code-dot" style="background:var(--accent)"></div>UCLASS 사용 예시</div>
-      <pre><span class="kw">UCLASS</span>(<span class="atr">Blueprintable</span>, <span class="atr">BlueprintType</span>, <span class="atr">Abstract</span>)
-<span class="kw">class</span> MYGAME_API <span class="tp">UMyBaseAbility</span> : <span class="kw">public</span> <span class="tp">UObject</span>
+      <pre><span class="cm">// Blueprintable: BP로 상속 가능 / BlueprintType: BP 변수 타입으로 사용 가능</span>
+<span class="cm">// Abstract: 이 클래스 자체는 인스턴스화 금지 — 반드시 자식을 만들어 쓴다</span>
+<span class="kw">UCLASS</span>(<span class="atr">Blueprintable</span>, <span class="atr">BlueprintType</span>, <span class="atr">Abstract</span>)
+<span class="kw">class</span> MYGAME_API <span class="tp">UMyBaseAbility</span> : <span class="kw">public</span> <span class="tp">UObject</span>  <span class="cm">// MYGAME_API: 다른 모듈에 클래스 공개(DLL export)</span>
 {
-    <span class="kw">GENERATED_BODY</span>()
+    <span class="kw">GENERATED_BODY</span>()  <span class="cm">// 리플렉션 코드가 들어갈 자리 — 클래스 본문 첫 줄 고정</span>
 <span class="kw">public</span>:
+    <span class="cm">// PURE_VIRTUAL: UObject는 순수 가상 함수(= 0)를 못 쓰므로 이 매크로로 대체</span>
+    <span class="cm">// 자식이 오버라이드하지 않고 호출하면 런타임 에러를 낸다</span>
     <span class="kw">virtual</span> <span class="kw">void</span> <span class="fn">ActivateAbility</span>() <span class="kw">PURE_VIRTUAL</span>(<span class="tp">UMyBaseAbility</span>::<span class="fn">ActivateAbility</span>,);
 };</pre>
     </div>
@@ -393,16 +397,21 @@
 
     <div class="snip">
       <div class="snip-head"><div class="code-dot" style="background:var(--accent-2)"></div>UPROPERTY 사용 예시</div>
-      <pre><span class="kw">UPROPERTY</span>(<span class="atr">EditAnywhere</span>, <span class="atr">BlueprintReadWrite</span>, <span class="atr">Category</span>=<span class="str">"Stats"</span>,
+      <pre><span class="cm">// 에디터 어디서나 편집 + BP 읽기/쓰기 가능, 값은 0~100으로 제한</span>
+<span class="kw">UPROPERTY</span>(<span class="atr">EditAnywhere</span>, <span class="atr">BlueprintReadWrite</span>, <span class="atr">Category</span>=<span class="str">"Stats"</span>,
     <span class="atr">meta</span>=(<span class="atr">ClampMin</span>=<span class="str">"0"</span>, <span class="atr">ClampMax</span>=<span class="str">"100"</span>))
 <span class="tp">float</span> <span class="fn">Health</span> = <span class="val">100.0f</span>;
 
+<span class="cm">// 컴포넌트 포인터는 보통 VisibleAnywhere — 포인터 자체를 바꾸면 안 되니 편집 금지, 내용만 보이게</span>
 <span class="kw">UPROPERTY</span>(<span class="atr">VisibleAnywhere</span>, <span class="atr">BlueprintReadOnly</span>, <span class="atr">Category</span>=<span class="str">"Components"</span>)
 <span class="tp">UStaticMeshComponent</span>* <span class="fn">MeshComp</span>;
 
+<span class="cm">// Replicated: 서버 값이 클라이언트로 자동 복제 (GetLifetimeReplicatedProps 등록 필요)</span>
 <span class="kw">UPROPERTY</span>(<span class="atr">Replicated</span>, <span class="atr">BlueprintReadOnly</span>, <span class="atr">Category</span>=<span class="str">"State"</span>)
 <span class="tp">bool</span> <span class="fn">bIsAlive</span> = <span class="val">true</span>;
 
+<span class="cm">// EditDefaultsOnly: BP 클래스 기본값에서만 편집(레벨 인스턴스에선 불가)</span>
+<span class="cm">// TSubclassOf: AActor 계열 클래스만 선택 가능하도록 타입 제한</span>
 <span class="kw">UPROPERTY</span>(<span class="atr">EditDefaultsOnly</span>, <span class="atr">BlueprintReadOnly</span>, <span class="atr">Category</span>=<span class="str">"Config"</span>,
     <span class="atr">meta</span>=(<span class="atr">AllowPrivateAccess</span>=<span class="str">"true"</span>))
 <span class="tp">TSubclassOf</span>&lt;<span class="tp">AActor</span>&gt; <span class="fn">ProjectileClass</span>;</pre>
@@ -480,26 +489,31 @@
     <div class="grid-2">
       <div class="snip" style="margin:0">
         <div class="snip-head"><div class="code-dot" style="background:var(--ue-mat)"></div>USTRUCT 예시</div>
-        <pre><span class="kw">USTRUCT</span>(<span class="atr">BlueprintType</span>)
+        <pre><span class="cm">// BlueprintType: 이 구조체를 BP 변수로 사용 가능. 구조체 이름은 F 접두사</span>
+<span class="kw">USTRUCT</span>(<span class="atr">BlueprintType</span>)
 <span class="kw">struct</span> <span class="tp">FItemData</span>
 {
-    <span class="kw">GENERATED_BODY</span>()
+    <span class="kw">GENERATED_BODY</span>()  <span class="cm">// 구조체에도 필수</span>
 
     <span class="kw">UPROPERTY</span>(<span class="atr">EditAnywhere</span>, <span class="atr">BlueprintReadWrite</span>)
     <span class="tp">FString</span> <span class="fn">ItemName</span>;
 
+    <span class="cm">// 값 타입은 초기값을 꼭 지정 — 안 하면 쓰레기 값이 들어간다</span>
     <span class="kw">UPROPERTY</span>(<span class="atr">EditAnywhere</span>, <span class="atr">BlueprintReadWrite</span>)
     <span class="tp">int32</span> <span class="fn">ItemCount</span> = <span class="val">0</span>;
 
+    <span class="cm">// 포인터도 nullptr로 초기화 — UPROPERTY라서 GC 추적 대상이 된다</span>
     <span class="kw">UPROPERTY</span>(<span class="atr">EditAnywhere</span>, <span class="atr">BlueprintReadWrite</span>)
     <span class="tp">UTexture2D</span>* <span class="fn">Icon</span> = <span class="val">nullptr</span>;
 };</pre>
       </div>
       <div class="snip" style="margin:0">
         <div class="snip-head"><div class="code-dot" style="background:var(--accent-2)"></div>UENUM 예시</div>
-        <pre><span class="kw">UENUM</span>(<span class="atr">BlueprintType</span>)
+        <pre><span class="cm">// BP에 노출하는 enum은 반드시 uint8 기반 + E 접두사</span>
+<span class="kw">UENUM</span>(<span class="atr">BlueprintType</span>)
 <span class="kw">enum class</span> <span class="tp">EWeaponType</span> : <span class="tp">uint8</span>
 {
+    <span class="cm">// UMETA(DisplayName): 에디터/BP 드롭다운에 표시될 이름</span>
     Sword     <span class="kw">UMETA</span>(<span class="atr">DisplayName</span>=<span class="str">"검"</span>),
     Bow       <span class="kw">UMETA</span>(<span class="atr">DisplayName</span>=<span class="str">"활"</span>),
     Staff     <span class="kw">UMETA</span>(<span class="atr">DisplayName</span>=<span class="str">"지팡이"</span>),
@@ -724,12 +738,13 @@
 <span class="cm">// 로그 카테고리 구현 (cpp)</span>
 <span class="kw">DEFINE_LOG_CATEGORY</span>(<span class="fn">LogMyGame</span>);
 
-<span class="cm">// 사용 예시</span>
+<span class="cm">// 사용 예시 — (카테고리, 심각도, 포맷 문자열, 인자...) 순서</span>
+<span class="cm">// FString을 %s로 찍을 땐 앞에 * 필수 (TCHAR*로 변환)</span>
 <span class="kw">UE_LOG</span>(<span class="fn">LogMyGame</span>, <span class="atr">Display</span>, <span class="kw">TEXT</span>(<span class="str">"플레이어 %s 스폰 완료"</span>), *<span class="fn">PlayerName</span>);
 <span class="kw">UE_LOG</span>(<span class="fn">LogMyGame</span>, <span class="atr">Warning</span>, <span class="kw">TEXT</span>(<span class="str">"체력이 %f 이하입니다"</span>), <span class="fn">Health</span>);
 <span class="kw">UE_LOG</span>(<span class="fn">LogMyGame</span>, <span class="atr">Error</span>,   <span class="kw">TEXT</span>(<span class="str">"컴포넌트를 찾을 수 없습니다!"</span>));
 
-<span class="cm">// 화면에 디버그 메시지 출력</span>
+<span class="cm">// 화면에 디버그 메시지 출력 — (-1: 매번 새 줄로 추가, 5.f: 표시 시간(초), 색상, 내용)</span>
 <span class="kw">GEngine</span>-&gt;<span class="fn">AddOnScreenDebugMessage</span>(-<span class="val">1</span>, <span class="val">5.f</span>, <span class="tp">FColor</span>::<span class="val">Red</span>,
     <span class="kw">TEXT</span>(<span class="str">"디버그 메시지"</span>));</pre>
     </div>

@@ -726,26 +726,31 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <div class="grid-2">
       <div class="snip" style="margin:0">
         <div class="snip-head"><div class="code-dot" style="background:var(--ue-mat)"></div>USTRUCT 예시</div>
-        <pre><span class="hljs-meta">USTRUCT(BlueprintType)</span>
+        <pre><span class="hljs-comment">// BlueprintType: BP 변수 타입으로 사용 가능. 구조체는 F 접두사</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
 <span class="hljs-keyword">struct</span> <span class="hljs-title class_">FItemData</span>
 {
-    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">GENERATED_BODY()</span>   <span class="hljs-comment">// 구조체에도 필수</span>
 
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
     <span class="hljs-type">FString</span> ItemName;
 
+    <span class="hljs-comment">// 값 타입은 초기값 필수 — 없으면 쓰레기 값이 들어간다</span>
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
     <span class="hljs-type">int32</span> ItemCount = <span class="hljs-number">0</span>;
 
+    <span class="hljs-comment">// UObject 포인터는 UPROPERTY 덕분에 GC가 추적한다</span>
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
     <span class="hljs-type">UTexture2D</span>* Icon = <span class="hljs-literal">nullptr</span>;
 };</pre>
       </div>
       <div class="snip" style="margin:0">
         <div class="snip-head"><div class="code-dot" style="background:var(--accent-2)"></div>UENUM 예시</div>
-        <pre><span class="hljs-meta">UENUM(BlueprintType)</span>
+        <pre><span class="hljs-comment">// BP 노출 enum은 반드시 uint8 기반 + E 접두사</span>
+<span class="hljs-meta">UENUM(BlueprintType)</span>
 <span class="hljs-keyword">enum class</span> <span class="hljs-title class_">EWeaponType</span> : <span class="hljs-type">uint8</span>
 {
+    <span class="hljs-comment">// UMETA(DisplayName): 에디터/BP 드롭다운에 보일 이름</span>
     Sword   <span class="hljs-meta">UMETA(DisplayName="검")</span>,
     Bow     <span class="hljs-meta">UMETA(DisplayName="활")</span>,
     Staff   <span class="hljs-meta">UMETA(DisplayName="지팡이")</span>,
@@ -1216,11 +1221,12 @@ GEngine-&gt;<span class="hljs-title function_">AddOnScreenDebugMessage</span>(-<
 
 <span class="hljs-title class_">UHealthComponent</span>::<span class="hljs-title function_">UHealthComponent</span>()
 {
-    CurrentHealth = MaxHealth;
+    CurrentHealth = MaxHealth;   <span class="hljs-comment">// 시작 체력은 최대치로</span>
 }
 
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">UHealthComponent</span>::<span class="hljs-title function_">ApplyDamage</span>(<span class="hljs-type">float</span> DamageAmount)
 {
+    <span class="hljs-comment">// Clamp로 0 ~ MaxHealth 범위를 벗어나지 않게 (음수 체력 방지)</span>
     CurrentHealth = <span class="hljs-built_in">FMath</span>::<span class="hljs-title function_">Clamp</span>(CurrentHealth - DamageAmount,
                                    <span class="hljs-number">0.0f</span>, MaxHealth);
 
@@ -1383,6 +1389,7 @@ OnHealthChanged.<span class="hljs-title function_">Broadcast</span>(CurrentHealt
 <span class="hljs-meta">#include <span class="hljs-string">"GameFramework/Character.h"</span></span>
 <span class="hljs-meta">#include <span class="hljs-string">"MyCharacter.generated.h"</span></span>
 
+<span class="hljs-comment">// 전방 선언 — 헤더에서 포인터만 쓸 땐 #include 대신 이걸로 컴파일 의존성 최소화</span>
 <span class="hljs-keyword">class</span> <span class="hljs-title class_">USpringArmComponent</span>;
 <span class="hljs-keyword">class</span> <span class="hljs-title class_">UCameraComponent</span>;
 
@@ -1396,16 +1403,19 @@ OnHealthChanged.<span class="hljs-title function_">Broadcast</span>(CurrentHealt
 
 <span class="hljs-keyword">protected</span>:
     <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">BeginPlay</span>() <span class="hljs-keyword">override</span>;
+    <span class="hljs-comment">// 입력 바인딩 전용 함수 — 엔진이 폰 빙의(Possess) 시 자동 호출</span>
     <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">SetupPlayerInputComponent</span>(
         <span class="hljs-keyword">class</span> <span class="hljs-title class_">UInputComponent</span>* PlayerInputComponent) <span class="hljs-keyword">override</span>;
 
 <span class="hljs-keyword">private</span>:
+    <span class="hljs-comment">// 스프링 암: 카메라와 캐릭터 사이 거리를 유지하고 벽 충돌 시 줄여주는 붐대</span>
     <span class="hljs-meta">UPROPERTY(VisibleAnywhere, Category = "Camera")</span>
     <span class="hljs-type">USpringArmComponent</span>* SpringArm;
 
     <span class="hljs-meta">UPROPERTY(VisibleAnywhere, Category = "Camera")</span>
     <span class="hljs-type">UCameraComponent</span>* Camera;
 
+    <span class="hljs-comment">// 축 입력 콜백 — Value는 -1.0 ~ 1.0 (W/S, A/D 또는 스틱 기울기)</span>
     <span class="hljs-keyword">void</span> <span class="hljs-title function_">MoveForward</span>(<span class="hljs-type">float</span> Value);
     <span class="hljs-keyword">void</span> <span class="hljs-title function_">MoveRight</span>(<span class="hljs-type">float</span> Value);
 };</pre></div>
@@ -1422,7 +1432,7 @@ OnHealthChanged.<span class="hljs-title function_">Broadcast</span>(CurrentHealt
         <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"SpringArm"</span>));
     SpringArm-&gt;<span class="hljs-title function_">SetupAttachment</span>(<span class="hljs-title function_">RootComponent</span>);
     SpringArm-&gt;TargetArmLength = <span class="hljs-number">300.0f</span>;  <span class="hljs-comment">// 카메라 거리</span>
-    SpringArm-&gt;bUsePawnControlRotation = <span class="hljs-literal">true</span>;
+    SpringArm-&gt;bUsePawnControlRotation = <span class="hljs-literal">true</span>;  <span class="hljs-comment">// 마우스 회전을 스프링 암이 따라가게</span>
 
     <span class="hljs-comment">// 카메라를 스프링 암 끝에 붙입니다.</span>
     Camera = <span class="hljs-title function_">CreateDefaultSubobject</span>&lt;<span class="hljs-type">UCameraComponent</span>&gt;(
@@ -1457,10 +1467,12 @@ OnHealthChanged.<span class="hljs-title function_">Broadcast</span>(CurrentHealt
 
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">AMyCharacter</span>::<span class="hljs-title function_">MoveForward</span>(<span class="hljs-type">float</span> Value)
 {
-    <span class="hljs-keyword">if</span> (Value != <span class="hljs-number">0.0f</span>)
+    <span class="hljs-keyword">if</span> (Value != <span class="hljs-number">0.0f</span>)   <span class="hljs-comment">// 입력이 없으면(0) 아무것도 안 함</span>
     {
+        <span class="hljs-comment">// 카메라(컨트롤러)가 보는 방향 기준의 "앞" 방향을 구한다 (X축 = 전방)</span>
         <span class="hljs-keyword">const</span> <span class="hljs-type">FRotator</span> Rot = Controller-&gt;<span class="hljs-title function_">GetControlRotation</span>();
         <span class="hljs-keyword">const</span> <span class="hljs-type">FVector</span> Dir = <span class="hljs-type">FRotationMatrix</span>(Rot).<span class="hljs-title function_">GetUnitAxis</span>(<span class="hljs-type">EAxis</span>::X);
+        <span class="hljs-comment">// 실제 이동은 CharacterMovementComponent가 처리 — 여기선 방향과 세기만 전달</span>
         <span class="hljs-title function_">AddMovementInput</span>(Dir, Value);
     }
 }
@@ -1469,6 +1481,7 @@ OnHealthChanged.<span class="hljs-title function_">Broadcast</span>(CurrentHealt
 {
     <span class="hljs-keyword">if</span> (Value != <span class="hljs-number">0.0f</span>)
     {
+        <span class="hljs-comment">// 같은 원리로 "오른쪽" 방향 (Y축 = 우측)</span>
         <span class="hljs-keyword">const</span> <span class="hljs-type">FRotator</span> Rot = Controller-&gt;<span class="hljs-title function_">GetControlRotation</span>();
         <span class="hljs-keyword">const</span> <span class="hljs-type">FVector</span> Dir = <span class="hljs-type">FRotationMatrix</span>(Rot).<span class="hljs-title function_">GetUnitAxis</span>(<span class="hljs-type">EAxis</span>::Y);
         <span class="hljs-title function_">AddMovementInput</span>(Dir, Value);

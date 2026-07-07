@@ -161,28 +161,34 @@ USaveGame
     <span class="hljs-type">int32</span> <span class="hljs-title function_">LoadProgress</span>() <span class="hljs-keyword">const</span>;
 
 <span class="hljs-keyword">private</span>:
+    <span class="hljs-comment">// 저장 슬롯 이름 — 저장/로드가 같은 문자열을 쓰도록 한곳에서 관리</span>
     <span class="hljs-keyword">static</span> <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span> SlotName;
 };</pre></div>
       <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"MyGameInstance.h"</span></span>
 <span class="hljs-meta">#include <span class="hljs-string">"MySaveGame.h"</span></span>
 <span class="hljs-meta">#include <span class="hljs-string">"Kismet/GameplayStatics.h"</span></span>
 
+<span class="hljs-comment">// 슬롯 이름의 실제 값 정의 — static 멤버는 .cpp에서 한 번만 정의한다</span>
 <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span> <span class="hljs-title class_">UMyGameInstance</span>::SlotName = <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"PlayerSave"</span>);
 
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">UMyGameInstance</span>::<span class="hljs-title function_">SaveProgress</span>(<span class="hljs-type">int32</span> Score)
 {
+    <span class="hljs-comment">// 1) 메모리에 빈 세이브 객체를 만든다 (아직 디스크에 안 씀)</span>
     <span class="hljs-type">UMySaveGame</span>* Save = <span class="hljs-built_in">Cast</span>&lt;<span class="hljs-type">UMySaveGame</span>&gt;(
         <span class="hljs-type">UGameplayStatics</span>::<span class="hljs-title function_">CreateSaveGameObject</span>(<span class="hljs-type">UMySaveGame</span>::<span class="hljs-title function_">StaticClass</span>()));
 
+    <span class="hljs-comment">// 2) 저장할 값을 채운 뒤 3) 슬롯 이름으로 디스크에 기록 (마지막 0은 유저 인덱스)</span>
     Save-&gt;HighScore = Score;
     <span class="hljs-type">UGameplayStatics</span>::<span class="hljs-title function_">SaveGameToSlot</span>(Save, SlotName, <span class="hljs-number">0</span>);
 }
 
 <span class="hljs-type">int32</span> <span class="hljs-title class_">UMyGameInstance</span>::<span class="hljs-title function_">LoadProgress</span>() <span class="hljs-keyword">const</span>
 {
+    <span class="hljs-comment">// 슬롯에서 읽기 — 저장 파일이 없으면 nullptr가 돌아온다</span>
     <span class="hljs-type">UMySaveGame</span>* Save = <span class="hljs-built_in">Cast</span>&lt;<span class="hljs-type">UMySaveGame</span>&gt;(
         <span class="hljs-type">UGameplayStatics</span>::<span class="hljs-title function_">LoadGameFromSlot</span>(SlotName, <span class="hljs-number">0</span>));
 
+    <span class="hljs-comment">// nullptr 체크 필수 — 첫 실행처럼 저장이 없을 때 크래시 방지</span>
     <span class="hljs-keyword">return</span> Save ? Save-&gt;HighScore : <span class="hljs-number">0</span>;
 }</pre></div>
     </div>
