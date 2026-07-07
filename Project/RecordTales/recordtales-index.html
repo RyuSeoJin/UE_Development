@@ -3,9 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RecordTales 프로젝트 허브 & 개발 용어집 v1.6</title>
+<title>RecordTales 프로젝트 허브 & 개발 용어집 v1.9</title>
 <!-- CHANGELOG — recordtales-index.html
      RecordTales 프로젝트 허브 & 프로젝트 용어집. 작업 규약: doc-process/DOC-TRACKS.md (Track B)
+     v1.9 · 2026-07-07
+       - (추가) 문서 목록에 13 Phase 1 구현 명세 등록 (설계 문서 13개 → 14개 행).
+         복붙 가능한 완성본 7파일: Types(공용+행 구조체 7종+레거시)·QuestTypes·GuildTypes·
+         Settings(21상수)·SaveGame(29필드)·GameInstance(왕복)·Build.cs.
+       - (변경) 문서 개수 표기 12 → 13.
+     v1.8 · 2026-07-07
+       - (변경) 12 코드 & 변수 연결 지도 행의 핵심 내용에 옵시디언 스타일 관계망·Mermaid 플로차트 반영
+         (12 문서 v1.1 재생성에 따름 — Mermaid 소스 *.mmd 병기, master v1.5).
+     v1.7 · 2026-07-07
+       - (추가) 문서 목록에 12 코드 & 변수 연결 지도 등록 (설계 문서 12개 → 13개 행,
+         신규 템플릿 04 데이터 설계 지도 기반 첫 문서).
+       - (추가) 용어집 데이터 설계 카테고리에 3개 용어: 변수 소유(Owner) · 배선(Wiring) ·
+         데이터 지도 표기(수명 배지·연결 4색) — 상세 링크는 12 문서의 term 앵커.
      v1.6 · 2026-07-06
        - (추가) 용어집 퀘스트 카테고리에 '상태 타임라인 표기' 등록 (03 문서 v1.3 신설 규칙,
          링크: 03-archive-system.html#term-status-timeline).
@@ -438,7 +451,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">RecordTales &middot; v1.6 &middot; Project Hub</div>
+  <div class="hero-eyebrow">RecordTales &middot; v1.9 &middot; Project Hub</div>
   <h1>RecordTales<br><span>프로젝트 허브</span></h1>
   <p class="hero-sub">
     포모도로 기반 집중 관리 + 길드 게임화 시스템을 언리얼 엔진으로 구현하는 프로젝트입니다. 이 허브는 프로젝트의 모든 설계 문서를 모으고, 개발에 필요한 용어·데이터 구조·프레임워크 배치를 정리합니다.
@@ -458,7 +471,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   <div class="section" id="docs">
     <div class="section-label">01 — 문서 목록</div>
     <h2>설계 문서</h2>
-    <p>RecordTales를 구성하는 11개의 설계 문서입니다. 각 문서는 CSS inline으로 단독 열람이 가능합니다.</p>
+    <p>RecordTales를 구성하는 13개의 설계 문서입니다. 각 문서는 CSS inline으로 단독 열람이 가능합니다.</p>
 
     <table class="tbl">
       <tr>
@@ -538,6 +551,18 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <td>아카이브 · 데이터</td>
         <td>13자리 통합 기록 ID(YYYYMMDD+5자리), FArchiveRecord, 출처·기간·카테고리 필터, SaveVersion 2 마이그레이션</td>
         <td><a href="./11-archive-record-id.html" style="color:var(--accent)">열기 &rarr;</a></td>
+      </tr>
+      <tr>
+        <td>12 코드 &amp; 변수 연결 지도</td>
+        <td>데이터 · 아키텍처</td>
+        <td>파일-변수 카드(.h/.cpp별 소유 변수 전수), 소유 결정표, 옵시디언 스타일 전체 관계망, 저장·보상 흐름 전도, 변수 여정 3편, 배치 결정 Mermaid 플로차트(소스 병기)</td>
+        <td><a href="./12-code-variable-map.html" style="color:var(--accent)">열기 &rarr;</a></td>
+      </tr>
+      <tr>
+        <td>13 Phase 1 구현 명세</td>
+        <td>구현 · Core</td>
+        <td>복붙 가능한 완성본 7파일 — 공용 타입·행 구조체 7종·Settings 21상수·SaveGame 29필드·GameInstance 저장/로드 왕복·Build.cs, 검증 시나리오 7종</td>
+        <td><a href="./13-phase1-core-data.html" style="color:var(--accent)">열기 &rarr;</a></td>
       </tr>
     </table>
   </div>
@@ -1153,6 +1178,31 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <td><a href="./08-data-design.html#term-savegame-root" style="color:var(--accent)">08 데이터</a></td>
       </tr>
 
+      <tr id="term-var-ownership-hub">
+        <td>변수 소유 (Owner)</td>
+        <td>변수를 선언하고 값 갱신을 책임지는 파일 — RecordTales에서 변수의 주인은 항상 하나</td>
+        <td>예: <code>Gold</code>의 주인은 <code>EconomySubsystem</code>, SaveGame 필드는 전부 "사본"</td>
+        <td><code>UGameInstanceSubsystem</code></td>
+        <td>다른 시스템은 요청 함수(<code>AddGold()</code> 등)로만 접근 — 입출금 창구 단일화</td>
+        <td><a href="./12-code-variable-map.html#term-ownership" style="color:var(--accent)">12 데이터 지도</a></td>
+      </tr>
+      <tr id="term-wiring-hub">
+        <td>배선 (Wiring)</td>
+        <td>각 서브시스템 <code>Initialize()</code>에서 델리게이트 구독·의존성 선언으로 시스템을 잇는 작업</td>
+        <td><code>InitializeDependency()</code> + <code>AddDynamic()</code> 두 줄 패턴</td>
+        <td><code>FSubsystemCollectionBase</code>, 동적 멀티캐스트 델리게이트</td>
+        <td>화살표(아는 방향)는 한쪽만 — 방송하는 쪽은 구독자를 모름, 순환 의존 금지</td>
+        <td><a href="./12-code-variable-map.html#term-wiring" style="color:var(--accent)">12 데이터 지도</a></td>
+      </tr>
+      <tr id="term-data-map-notation">
+        <td>데이터 지도 표기</td>
+        <td>12 문서의 시각 규칙: 수명 배지 4종(SAVE·RUNTIME·CONFIG·ROW) + 연결 유형 4색(호출·델리게이트·직렬화·조회)</td>
+        <td>배지 = "껐다 켰을 때 값이 어디서 오는가", 색 = "시스템 사이 통로"</td>
+        <td>&mdash;</td>
+        <td>같은 색·배지는 문서 어디서든 같은 의미 — 범례로 고정</td>
+        <td><a href="./12-code-variable-map.html#term-lifetime-badge" style="color:var(--accent)">12 데이터 지도</a></td>
+      </tr>
+
       <!-- ===== 개발 프로세스 ===== -->
       <tr class="cat-header"><td colspan="6">개발 프로세스</td></tr>
       <tr id="term-dev-flow-roadmap">
@@ -1229,7 +1279,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>RecordTales Project Hub &middot; v1.0</span>
+  <span>RecordTales Project Hub &middot; v1.9</span>
   <span>디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.2</span>
 </footer>
 

@@ -1,3 +1,21 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeveloperSettings — 코드 밖에서 조정하는 밸런스 상수 · UE 아키텍처</title>
+<!-- ============================================================
+     CHANGELOG — ue-developer-settings.html
+     유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿 · data/).
+     작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.0 · 2026-07-07
+       - 신규 생성. Config(ini) 계층, UDeveloperSettings의 Project Settings 자동
+         노출, Config=Game/DefaultConfig 지정자 의미, GetDefault 읽기 패턴,
+         Settings vs SaveGame vs DataTable 보관처 경계를 다룸.
+       - 마스터 CSS v1.5 inline 스냅샷, hljs 구워넣기, 탭/복사 inline JS
+       - 용어 앵커: term-config-ini · term-developer-settings · term-cdo
+     ============================================================ -->
+<style>
 /* ============================================================
    UE Design System — Master Stylesheet
    (design-guide-ue-master.css)
@@ -532,3 +550,212 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   footer { padding: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">UE WIKI · DEVELOPER SETTINGS</div>
+  <div class="nav-links">
+    <a href="#concept">개념</a>
+    <a href="#relation">관계</a>
+    <a href="#responsibility">책임</a>
+    <a href="#flow">흐름</a>
+    <a href="#skeleton">스켈레톤</a>
+    <a href="#extend">확장</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">UE Architecture · Type ① · 02-A</div>
+  <h1>DeveloperSettings<br><span>코드 밖에서 조정하는 밸런스 상수</span></h1>
+  <p class="hero-sub">
+    "가챠 비용을 1,000에서 800으로 바꿔볼까?"가 <strong>코드 수정 + 리컴파일</strong>이 되는 순간 밸런싱은 멈춥니다. <code>UDeveloperSettings</code>는 C++ 클래스 하나로 <strong>Project Settings 메뉴에 자동 노출되는 설정 페이지</strong>를 만들어, 상수를 에디터에서 조정하고 <code>.ini</code> 파일로 관리하게 해 줍니다. 행 하나짜리 값을 DataTable로 만들지 않아도 되는 이유이기도 합니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">엔진 자체 기능</span>
+    <span class="badge badge-green">UE4 / UE5 공통</span>
+    <span class="badge badge-purple">C++ · 에디터</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- 01 개념 -->
+  <div class="section" id="concept">
+    <div class="section-label">01 — 개념 · 역할</div>
+    <h2>ini 계층 위에 얹힌 자동 설정 페이지</h2>
+    <p>언리얼의 모든 설정은 결국 <strong>텍스트 파일(<code>.ini</code>)</strong>에 삽니다. <code>UDeveloperSettings</code>는 "내 클래스의 <code>Config</code> 프로퍼티들을 특정 ini 파일과 자동으로 동기화하고, 편집 UI(Project Settings 페이지)까지 만들어 주는" 편의 기반 클래스입니다.</p>
+    <h3 id="term-config-ini">핵심 용어</h3>
+    <div class="callout info"><span class="ic">📖</span><p>
+      <strong>Config 시스템</strong> — 프로퍼티 값을 <code>.ini</code> 파일에서 읽고 쓰는 엔진 장치. <code>UPROPERTY(Config)</code>가 붙은 프로퍼티만 참여합니다.<br><br>
+      <strong>ini 계층</strong> — 같은 설정 파일이 여러 층으로 겹칩니다: 엔진 기본(<code>Base*.ini</code>) → <strong>프로젝트 기본(<code>Config/Default*.ini</code>, 버전 관리 대상)</strong> → 로컬 사용자(<code>Saved/Config/</code>). 나중 층이 앞 층을 덮어씁니다.<br><br>
+      <strong id="term-cdo">CDO(Class Default Object)</strong> — 클래스마다 엔진이 만들어 두는 <strong>기본값 원본 객체</strong>. Settings 값을 읽는 <code>GetDefault&lt;T&gt;()</code>는 이 CDO를 돌려주는 것입니다 — 인스턴스를 새로 만드는 것이 아닙니다.<br><br>
+      <strong id="term-developer-settings">UDeveloperSettings</strong> — Config 시스템 + Project Settings UI 자동 등록을 묶은 기반 클래스. 파생 클래스를 만들기만 하면 에디터 메뉴에 페이지가 생깁니다.
+    </p></div>
+  </div>
+
+  <!-- 02 관계 -->
+  <div class="section" id="relation">
+    <div class="section-label">02 — 구조 관계</div>
+    <h2>클래스 · ini · 에디터 UI의 삼각형</h2>
+    <div class="rel-map">
+      <div class="rel-row">
+        <div class="rel-node n-instance"><div class="rn-name">UMyGameSettings : UDeveloperSettings</div><div class="rn-role">Config 프로퍼티 선언 — 값의 스키마</div></div>
+        <div class="rel-arrow"><div class="ra-label">Config=Game 지정</div><div class="ra-line">→</div></div>
+        <div class="rel-node n-savegame"><div class="rn-name">Config/DefaultGame.ini</div><div class="rn-role">값이 실제로 저장되는 텍스트 파일 (버전 관리 대상)</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-controller"><div class="rn-name">Project Settings ▸ Game ▸ (페이지)</div><div class="rn-role">자동 생성되는 편집 UI — 저장 시 ini에 기록</div></div>
+        <div class="rel-arrow"><div class="ra-label">읽기는 코드에서</div><div class="ra-line">→</div></div>
+        <div class="rel-node n-subsystem"><div class="rn-name">GetDefault&lt;UMyGameSettings&gt;()</div><div class="rn-role">CDO를 읽기 전용으로 — 어느 코드에서든 한 줄</div></div>
+      </div>
+    </div>
+    <div class="tree"><span class="folder">프로젝트 루트/</span>
+├── <span class="folder">Config/</span>                        ← 프로젝트 기본값 층 (Git에 커밋)
+│   ├── DefaultGame.ini             <span class="note">← Config=Game 프로퍼티가 여기 기록됨</span>
+│   ├── DefaultEngine.ini           <span class="note">← Config=Engine (렌더링·맵 설정 등)</span>
+│   └── DefaultInput.ini
+└── <span class="folder">Saved/Config/</span>                  <span class="note">← 로컬 사용자 층 (커밋 금지) — 개발 PC별 오버라이드</span></div>
+  </div>
+
+  <!-- 03 책임 -->
+  <div class="section" id="responsibility">
+    <div class="section-label">03 — 보관처 경계</div>
+    <h2>Settings인가, SaveGame인가, DataTable인가</h2>
+    <p>값 하나가 생겼을 때 세 보관처 중 어디로 보낼지 — 이 경계가 흐려지면 데이터 설계 전체가 무너집니다.</p>
+    <table class="tbl">
+      <tr><th>질문</th><th>보관처</th><th>예</th></tr>
+      <tr><td>기획자가 정하는 <strong>게임 전체 공통 상수</strong>인가? (유저마다 다르지 않음)</td><td><span class="owner o-instance">DeveloperSettings</span></td><td>가챠 비용, 보상 배율, 타이머 기본값</td></tr>
+      <tr><td><strong>유저마다 다르고</strong> 껐다 켜도 남아야 하는가?</td><td><span class="owner o-savegame">SaveGame</span></td><td>보유 재화, 유저가 바꾼 설정값</td></tr>
+      <tr><td>같은 구조의 <strong>행이 여러 개</strong>인 콘텐츠인가?</td><td><span class="owner o-controller">DataTable</span></td><td>캐릭터 목록, 레벨 테이블</td></tr>
+    </table>
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>"기본값은 Settings, 유저의 변경본은 SaveGame"</strong> — 새 유저의 타이머 기본 25분은 Settings 상수, 유저가 30분으로 바꾼 값은 SaveGame 필드입니다. 첫 실행 때 Settings → SaveGame으로 복사하는 한 방향 흐름만 허용하면 두 보관처가 충돌하지 않습니다.</div></div>
+  </div>
+
+  <!-- 04 흐름 -->
+  <div class="section" id="flow">
+    <div class="section-label">04 — 사용 흐름</div>
+    <h2>클래스 작성 → 에디터 조정 → 코드에서 읽기</h2>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">클래스 선언</div><div class="pipe-desc"><code>UCLASS(Config=Game, DefaultConfig)</code>로 파생 클래스를 만듭니다. <code>Config=Game</code> = "DefaultGame.ini에 저장", <code>DefaultConfig</code> = "로컬 층이 아니라 <strong>프로젝트 기본 층</strong>에 기록"(팀 공유에 필수).</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">프로퍼티 추가</div><div class="pipe-desc">저장할 값마다 <code>UPROPERTY(Config, EditAnywhere, Category="...")</code>. <strong><code>Config</code>가 빠지면 에디터에 보여도 ini에 저장되지 않습니다</strong>(§06 함정 ①). 결과: 컴파일 후 Project Settings ▸ Game 아래 페이지가 자동 생성.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">에디터에서 조정</div><div class="pipe-desc">Project Settings에서 값을 바꾸면 <code>Config/DefaultGame.ini</code>에 즉시 기록됩니다. 이 파일을 커밋하면 팀 전체가 같은 밸런스를 받습니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">코드에서 읽기</div><div class="pipe-desc"><code>const UMyGameSettings* S = GetDefault&lt;UMyGameSettings&gt;();</code> — 읽기 전용 CDO입니다. 어느 시점(Initialize 포함)에서도 안전하게 읽을 수 있습니다 — World가 필요 없기 때문입니다.</div></div></div>
+  </div>
+
+  <!-- 05 스켈레톤 -->
+  <div class="section" id="skeleton">
+    <div class="section-label">05 — 구현 스켈레톤</div>
+    <h2>설정 클래스와 읽는 쪽</h2>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">MyGameSettings.h</button>
+        <button class="codeblock-tab tab-cpp" type="button">읽는 쪽 .cpp</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// MyGameSettings.h — 컴파일하면 Project Settings ▸ Game 에 자동 노출</span>
+<span class="hljs-meta">#pragma once</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"Engine/DeveloperSettings.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"MyGameSettings.generated.h"</span>
+
+<span class="hljs-meta">UCLASS(Config=Game, DefaultConfig, meta=(DisplayName="My Game Balance"))</span>
+<span class="hljs-keyword">class</span> MYGAME_API <span class="hljs-type">UMyGameSettings</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UDeveloperSettings</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// Config가 빠지면 UI에 보여도 ini에 저장되지 않는다</span>
+    <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category="Economy")</span>
+    <span class="hljs-type">int32</span> HireCost = <span class="hljs-number">1000</span>;          <span class="hljs-comment">// 코드의 값은 "최초 기본값"일 뿐</span>
+
+    <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category="Economy",
+              meta=(ClampMin="0", ClampMax="100000"))</span>
+    <span class="hljs-type">int32</span> StartingGold = <span class="hljs-number">5000</span>;     <span class="hljs-comment">// meta로 에디터 입력 범위 제한</span>
+
+    <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category="Timer")</span>
+    <span class="hljs-type">int32</span> DefaultFocusMinutes = <span class="hljs-number">25</span>;
+};
+<span class="hljs-comment">// .cpp 는 비어 있어도 된다 (GENERATED_BODY 구현은 UHT가 생성)</span></pre></div>
+      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-comment">// 어느 시스템에서든 — World가 필요 없어 Initialize()에서도 안전</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"MyGameSettings.h"</span>
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UGachaSubsystem</span>::<span class="hljs-title">Hire</span>()
+{
+    <span class="hljs-keyword">const</span> <span class="hljs-type">UMyGameSettings</span>* S = <span class="hljs-title">GetDefault</span>&lt;<span class="hljs-type">UMyGameSettings</span>&gt;();
+
+    <span class="hljs-keyword">if</span> (!Economy-&gt;<span class="hljs-title">TrySpendGold</span>(S-&gt;HireCost))   <span class="hljs-comment">// 상수를 하드코딩하지 않는다</span>
+        <span class="hljs-keyword">return</span>;
+    <span class="hljs-comment">// ...</span>
+}
+
+<span class="hljs-comment">// 결과 확인: Config/DefaultGame.ini 에 이렇게 기록된다
+// [/Script/MyGame.MyGameSettings]
+// HireCost=800
+// StartingGold=5000</span></pre></div>
+    </div>
+  </div>
+
+  <!-- 06 확장 -->
+  <div class="section" id="extend">
+    <div class="section-label">06 — 확장 &amp; 주의</div>
+    <h2>ini가 말을 안 듣는 순간들</h2>
+    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>① Config 지정자 누락</strong> — <code>EditAnywhere</code>만 붙이면 Project Settings에 보이고 편집도 되지만 <strong>에디터를 껐다 켜면 값이 사라집니다</strong>(ini에 기록이 안 되므로). 프로퍼티마다 <code>Config</code>를 확인하세요.</div></div>
+    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>② DefaultConfig 누락</strong> — 클래스에 <code>DefaultConfig</code>가 없으면 값이 <code>Saved/Config/</code>(로컬 층)에 저장돼 <strong>내 PC에서만</strong> 적용됩니다. "내 에디터에선 800인데 팀원은 1000"의 원인입니다.</div></div>
+    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>③ 런타임 변경의 착각</strong> — <code>GetMutableDefault&lt;T&gt;()</code>로 값을 바꿔도 <strong>메모리의 CDO만</strong> 바뀝니다. 유저별로 저장하고 싶은 값이라면 Settings가 아니라 SaveGame이 맞는 자리입니다(§03 경계).</div></div>
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>페이지 위치 바꾸기</strong> — 기본은 Project Settings ▸ Game 아래입니다. <code>virtual FName GetCategoryName() const override { return TEXT("Project"); }</code>로 다른 분류로 옮길 수 있고, <code>meta=(DisplayName)</code>으로 페이지 이름을 정합니다.</div></div>
+  </div>
+
+</div>
+
+<footer>
+  <span>UE 아키텍처 문서 · DeveloperSettings v1.0</span>
+  <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.5</span>
+</footer>
+
+<script>
+(function () {
+  document.querySelectorAll('.codeblock').forEach(function (block) {
+    var tabs = block.querySelectorAll('.codeblock-tab');
+    var panels = block.querySelectorAll('.codeblock-panel');
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) { t.classList.remove('active'); });
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        if (panels[i]) panels[i].classList.add('active');
+      });
+    });
+    var copyBtn = block.querySelector('.codeblock-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () {
+        var pre = block.querySelector('.codeblock-panel.active pre');
+        if (!pre) return;
+        var text = pre.innerText;
+        var done = function () {
+          copyBtn.textContent = '복사됨 ✓';
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.textContent = '복사';
+            copyBtn.classList.remove('copied');
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+        } else {
+          fallbackCopy(text, done);
+        }
+      });
+    }
+  });
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+})();
+</script>
+
+</body>
+</html>

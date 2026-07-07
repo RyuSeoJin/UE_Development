@@ -3,11 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>디자인 마스터 (비주얼) — UE 문서 디자인 시스템 v1.4</title>
+<title>디자인 마스터 (비주얼) — UE 문서 디자인 시스템 v1.6</title>
 <link rel="stylesheet" href="design-guide-ue-master.css">
 <!-- ============================================================
      CHANGELOG — design-guide-ue-master-visual.html
      master.css의 시각 레퍼런스. 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.6 · 2026-07-07
+       - (추가) 08 섹션: master.css v1.5 다이어그램 컴포넌트 데모
+         (.diagram — Mermaid 스타일 구워넣은 SVG, .graph-net — 옵시디언 그래프 뷰 스타일)
+       - (추가) 다이어그램 사용 규칙 명문화: SVG 구워넣기(런타임 렌더링 금지) +
+         Mermaid 소스 병기(.codeblock 단일 탭 *.mmd)
+       - (변경) 버전 표기 v1.5 → v1.6 (헤더·hero·footer), nav에 다이어그램(#v15) 링크 추가
+     v1.5 · 2026-07-07
+       - (추가) 07 섹션: master.css v1.4 데이터 설계 컴포넌트 데모
+         (.var-card + .vbadge 수명 배지, .flow-hub + .flow-legend 연결 전도, .lane-seq 변수 여정)
+       - (변경) 버전 표기 v1.4 → v1.5 (헤더·hero·footer), nav에 데이터 설계(#v14) 링크 추가
+       - 사유: 데이터 설계 지도 템플릿(design-template/04-ue-data-map.html, Case C) 지원
      v1.4 · 2026-07-02
        - (변경) 문서 허브 이동(ue-wiki/ue-architect/ → ue-wiki/) 반영: nav 허브 링크 갱신
      v1.3 · 2026-07-02
@@ -38,6 +49,8 @@
     <a href="#layout">레이아웃</a>
     <a href="#base">기본 컴포넌트</a>
     <a href="#rules">규칙</a>
+    <a href="#v14">데이터 설계</a>
+    <a href="#v15">다이어그램</a>
     <a href="../design-template/01-ue-asset-analysis.html">→ 에셋 분석</a>
     <a href="../design-template/02-ue-architecture.html">→ 아키텍처</a>
     <a href="../ue-wiki/design-guide-ue-index.html">→ 문서 허브</a>
@@ -45,7 +58,7 @@
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">Design System · v1.4 · Master Visual</div>
+  <div class="hero-eyebrow">Design System · v1.6 · Master Visual</div>
   <h1>UE 디자인<br><span>마스터</span></h1>
   <p class="hero-sub">
     모든 언리얼 문서(에셋 분석 · 아키텍처 설계)가 공유하는 디자인 마스터입니다. 컬러·타이포·레이아웃·기본 컴포넌트를 한 곳에 고정합니다. 스타일 원본은 <code>design-guide-ue-master.css</code> 한 파일이며, 이 문서는 그 시각 레퍼런스입니다.
@@ -346,10 +359,180 @@
     </div></div>
   </div>
 
+  <!-- 07 v1.4 데이터 설계 컴포넌트 -->
+  <div class="section" id="v14">
+    <div class="section-label">07 — v1.4 데이터 설계 컴포넌트</div>
+    <h2>파일-변수 카드 · 흐름 전도 · 변수 여정</h2>
+    <p>데이터 설계 지도 템플릿(<a href="../design-template/04-ue-data-map.html" style="color:var(--accent)">04 데이터 설계 지도</a>) 전용 컴포넌트입니다. "변수가 어느 파일에 살고(정적 배치), 어떻게 흘러가는지(동적 연결)"를 시각화합니다. 색은 전부 기존 팔레트를 재사용합니다.</p>
+
+    <h3>파일-변수 카드 (.var-card + .vbadge)</h3>
+    <p>헤더/소스 파일 쌍이 <strong>소유한 변수의 전수 목록</strong>을 카드로 보여줍니다. 각 행은 변수명 · 타입 · 수명 배지 · 한 줄 설명으로 구성합니다. 수명 배지 4종: <span class="vbadge save">SAVE</span> 디스크 저장 · <span class="vbadge run">RUNTIME</span> 휘발 · <span class="vbadge cfg">CONFIG</span> Settings 상수 · <span class="vbadge row">ROW</span> DataTable 행.</p>
+    <div class="demo"><div class="demo-head">Live</div><div class="demo-body">
+      <div class="var-card" style="margin:0">
+        <div class="vc-head">
+          <span class="vc-domain">Score</span>
+          <span class="vc-file">ScoreSubsystem<span style="color:var(--ue-header)">.h</span> / <span style="color:var(--ue-source)">.cpp</span></span>
+          <span class="vc-role">점수 적립 · 랭킹 판정</span>
+        </div>
+        <div class="vc-var">
+          <span class="vv-name">CurrentScore</span><span class="vv-type">int32</span><span class="vbadge save">SAVE</span>
+          <span class="vv-note">현재 점수. 변경 즉시 SaveGame에 기록</span>
+        </div>
+        <div class="vc-var">
+          <span class="vv-name">ComboTimer</span><span class="vv-type">FTimerHandle</span><span class="vbadge run">RUNTIME</span>
+          <span class="vv-note">콤보 유지 타이머 — 세션이 끝나면 소멸</span>
+        </div>
+        <div class="vc-var">
+          <span class="vv-name">ComboWindowSec</span><span class="vv-type">float</span><span class="vbadge cfg">CONFIG</span>
+          <span class="vv-note">콤보 인정 시간(초). DeveloperSettings에서 조정</span>
+        </div>
+      </div>
+    </div></div>
+
+    <h3>변수 흐름 연결 전도 (.flow-hub + .flow-legend)</h3>
+    <p>허브(중앙) 노드를 사이에 두고 <strong>좌 → 중 → 우로 데이터가 흐르는 N:N 전도</strong>입니다. 각 노드의 연결은 색 칩(<code>.fh-link</code>)으로 표기하고, 색의 의미는 범례(<code>.flow-legend</code>)가 고정합니다.</p>
+    <div class="demo"><div class="demo-head">Live</div><div class="demo-body">
+      <div class="flow-legend" style="margin-top:0">
+        <span><span class="lk lk-call"></span>함수 호출</span>
+        <span><span class="lk lk-event"></span>델리게이트 브로드캐스트</span>
+        <span><span class="lk lk-save"></span>SaveGame 직렬화</span>
+        <span><span class="lk lk-table"></span>DataTable 조회</span>
+      </div>
+      <div class="flow-hub">
+        <div class="fh-col">
+          <div class="fh-node n-subsystem">
+            <div class="fn-name">UScoreSubsystem</div>
+            <div class="fn-role">점수 적립 로직</div>
+            <div class="fh-links"><span class="fh-link lk-call">AddScore() →</span><span class="fh-link lk-save">CurrentScore →</span></div>
+          </div>
+          <div class="fh-node n-table">
+            <div class="fn-name">DT_ScoreTable</div>
+            <div class="fn-role">점수 배율 마스터</div>
+            <div class="fh-links"><span class="fh-link lk-table">FindRow() →</span></div>
+          </div>
+        </div>
+        <div class="fh-hub">
+          <div class="fn-name">UMySaveGame</div>
+          <div class="fn-role">디스크에 저장되는<br>유일한 지점</div>
+        </div>
+        <div class="fh-col">
+          <div class="fh-node n-ui">
+            <div class="fn-name">WBP_ScorePanel</div>
+            <div class="fn-role">점수 표시 위젯</div>
+            <div class="fh-links"><span class="fh-link lk-event">← OnScoreChanged</span></div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+
+    <h3>변수 여정 시퀀스 (.lane-seq)</h3>
+    <p>변수 하나가 <strong>어느 파일의 어느 함수를 거쳐 어떻게 변하는지</strong>를 단계로 추적합니다. 파일 칩(<code>.ls-file</code>) 색: <span class="ls-file">.h</span> 선언 · <span class="ls-file cpp">.cpp</span> 구현 · <span class="ls-file save">SaveGame</span> 저장 · <span class="ls-file table">DataTable</span> 데이터.</p>
+    <div class="demo"><div class="demo-head">Live</div><div class="demo-body">
+      <div class="lane-seq" style="margin:0">
+        <div class="ls-step">
+          <div class="ls-head"><span class="ls-file cpp">ScoreSubsystem.cpp</span><span class="ls-title">적 처치 판정</span><span class="ls-fn">AddScore(100)</span></div>
+          <div class="ls-var">CurrentScore: 400 → 500</div>
+          <div class="ls-desc">처치 이벤트가 점수를 더합니다. 변수의 주인은 ScoreSubsystem 하나뿐입니다.</div>
+        </div>
+        <div class="ls-step">
+          <div class="ls-head"><span class="ls-file save">MySaveGame.sav</span><span class="ls-title">즉시 저장</span><span class="ls-fn">SaveGameToSlot()</span></div>
+          <div class="ls-var">SaveGame.CurrentScore = 500</div>
+          <div class="ls-desc">변경 직후 디스크에 직렬화합니다. 앱이 꺼져도 값이 살아남습니다.</div>
+        </div>
+        <div class="ls-step">
+          <div class="ls-head"><span class="ls-file">ScorePanelWidget.h</span><span class="ls-title">UI 갱신</span><span class="ls-fn">OnScoreChanged.Broadcast(500)</span></div>
+          <div class="ls-var">TXT_Score = "500"</div>
+          <div class="ls-desc">위젯은 델리게이트로 통지받아 표시만 바꿉니다. UI는 값을 소유하지 않습니다.</div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- 08 v1.5 다이어그램 컴포넌트 -->
+  <div class="section" id="v15">
+    <div class="section-label">08 — v1.5 다이어그램 컴포넌트</div>
+    <h2>Mermaid 스타일 SVG · 옵시디언 그래프 뷰</h2>
+    <p>다이어그램은 <strong>생성 시점에 SVG로 미리 렌더링해 구워넣습니다</strong> — C++ 하이라이팅(hljs span)과 같은 철학입니다. 런타임 렌더링 라이브러리(mermaid.js 등)는 넣지 않으며, 대신 <strong>Mermaid 소스를 <code>.codeblock</code> 단일 탭(<code>*.mmd</code>)으로 병기</strong>해 옵시디언·GitHub에 복사해 재사용할 수 있게 합니다. 색은 전부 기존 토큰(연결 lk-* 4색, 타입 k-*)을 재사용합니다.</p>
+
+    <h3>구워넣은 플로차트 (.diagram)</h3>
+    <div class="demo"><div class="demo-head">Live</div><div class="demo-body">
+      <div class="diagram" style="margin:0">
+        <svg viewBox="0 0 640 150" role="img" aria-label="예시 플로차트: 저장 필요 판정">
+          <defs>
+            <marker id="mv-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="var(--text-dim)"/>
+            </marker>
+          </defs>
+          <rect class="dg-node k-subsystem" x="20" y="55" width="150" height="44" rx="8"/>
+          <text class="dg-text" x="95" y="74" text-anchor="middle">값 변경 발생</text>
+          <text class="dg-sub" x="95" y="90" text-anchor="middle">Subsystem 내부</text>
+          <polygon class="dg-node k-decision" points="305,45 385,77 305,109 225,77"/>
+          <text class="dg-text" x="305" y="73" text-anchor="middle">껐다 켜도</text>
+          <text class="dg-text" x="305" y="88" text-anchor="middle">남아야 하나?</text>
+          <rect class="dg-node k-savegame" x="460" y="20" width="160" height="40" rx="8"/>
+          <text class="dg-text" x="540" y="44" text-anchor="middle">SaveGame 필드</text>
+          <rect class="dg-node" x="460" y="95" width="160" height="40" rx="8"/>
+          <text class="dg-text" x="540" y="119" text-anchor="middle">RUNTIME 멤버</text>
+          <path class="dg-edge lk-call" d="M170,77 L221,77" marker-end="url(#mv-arrow)"/>
+          <path class="dg-edge lk-save" d="M385,77 C420,77 425,40 456,40" marker-end="url(#mv-arrow)"/>
+          <text class="dg-elabel" x="415" y="48">예</text>
+          <path class="dg-edge" d="M385,77 C420,77 425,115 456,115" marker-end="url(#mv-arrow)"/>
+          <text class="dg-elabel" x="412" y="110">아니오</text>
+        </svg>
+      </div>
+    </div></div>
+
+    <h3>Mermaid 소스 병기 규칙 (.codeblock 단일 탭)</h3>
+    <div class="demo"><div class="demo-head">Live</div><div class="demo-body">
+      <div class="codeblock" style="margin:0">
+        <div class="codeblock-bar">
+          <button class="codeblock-tab tab-h active" type="button">save-decision.mmd</button>
+          <button class="codeblock-copy" type="button">복사</button>
+        </div>
+        <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-keyword">flowchart</span> LR
+    A[<span class="hljs-string">"값 변경 발생"</span>] --&gt; Q{<span class="hljs-string">"껐다 켜도 남아야 하나?"</span>}
+    Q -- 예 --&gt; S[<span class="hljs-string">"SaveGame 필드"</span>]
+    Q -- 아니오 --&gt; R[<span class="hljs-string">"RUNTIME 멤버"</span>]</pre></div>
+      </div>
+    </div></div>
+
+    <h3>옵시디언 그래프 뷰 스타일 관계망 (.graph-net)</h3>
+    <p>노드 크기 = 연결 수, 노드 색 = 타입, 엣지 색 = 연결 유형(<code>.flow-legend</code>와 동일 의미). 정적 SVG이므로 오프라인·단일 파일 규칙을 그대로 지킵니다.</p>
+    <div class="demo"><div class="demo-head">Live</div><div class="demo-body">
+      <div class="graph-net" style="margin:0">
+        <svg viewBox="0 0 640 220" role="img" aria-label="예시 관계망: 서브시스템과 SaveGame">
+          <line class="gn-edge lk-event" x1="150" y1="70" x2="320" y2="110"/>
+          <line class="gn-edge lk-save"  x1="320" y1="110" x2="490" y2="80"/>
+          <line class="gn-edge lk-save"  x1="150" y1="70"  x2="490" y2="80"/>
+          <line class="gn-edge lk-call"  x1="320" y1="110" x2="200" y2="180"/>
+          <line class="gn-edge lk-table" x1="320" y1="110" x2="470" y2="180"/>
+          <circle class="gn-node k-subsystem" cx="150" cy="70" r="14"/>
+          <text class="gn-label" x="150" y="42">FocusSubsystem</text>
+          <circle class="gn-node k-subsystem" cx="320" cy="110" r="20"/>
+          <text class="gn-label big" x="320" y="145">EconomySubsystem</text>
+          <circle class="gn-node k-savegame" cx="490" cy="80" r="17"/>
+          <text class="gn-label big" x="490" y="52">SaveGame</text>
+          <circle class="gn-node k-ui" cx="200" cy="180" r="11"/>
+          <text class="gn-label" x="200" y="207">WBP 위젯</text>
+          <circle class="gn-node k-table" cx="470" cy="180" r="11"/>
+          <text class="gn-label" x="470" y="207">DT_GuildLevels</text>
+        </svg>
+      </div>
+      <div class="flow-legend" style="margin-bottom:0">
+        <span><span class="lk lk-call"></span>함수 호출</span>
+        <span><span class="lk lk-event"></span>델리게이트</span>
+        <span><span class="lk lk-save"></span>직렬화</span>
+        <span><span class="lk lk-table"></span>테이블 조회</span>
+      </div>
+    </div></div>
+
+    <div class="callout warn"><span class="ic">⚠️</span><p><strong>다이어그램 3원칙</strong> — ① SVG는 생성 시점에 구워넣기(런타임 렌더링 스크립트 금지), ② Mermaid 소스를 반드시 병기(단일 탭 <code>*.mmd</code> + 복사 버튼), ③ 같은 정보를 전도·표와 삼중으로 중복 표현하지 않기 — 관계망(조감)과 전도(주제별 상세)처럼 역할이 다를 때만 함께 씁니다.</p></div>
+  </div>
+
 </div>
 
 <footer>
-  <span>UE 문서 디자인 시스템 · Master v1.4</span>
+  <span>UE 문서 디자인 시스템 · Master v1.6</span>
   <span>기준 디자인: Dark · Indigo Minimal · Editorial</span>
 </footer>
 

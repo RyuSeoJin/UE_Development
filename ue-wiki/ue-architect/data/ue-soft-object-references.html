@@ -1,3 +1,21 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>소프트 레퍼런스 — 필요할 때만 로드하는 에셋 참조 · UE 아키텍처</title>
+<!-- ============================================================
+     CHANGELOG — ue-soft-object-references.html
+     유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿 · data/).
+     작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.0 · 2026-07-07
+       - 신규 생성. 하드 참조의 로드 연쇄 문제, TSoftObjectPtr/FSoftObjectPath,
+         하드/소프트 판별 기준, 동기(LoadSynchronous)/비동기(StreamableManager)
+         로드 흐름, 쿠킹 누락("에디터에선 보였는데") 함정을 다룸.
+       - 마스터 CSS v1.5 inline 스냅샷, hljs 구워넣기, 탭/복사 inline JS
+       - 용어 앵커: term-hard-reference · term-soft-reference · term-cooking
+     ============================================================ -->
+<style>
 /* ============================================================
    UE Design System — Master Stylesheet
    (design-guide-ue-master.css)
@@ -532,3 +550,216 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   footer { padding: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">UE WIKI · SOFT REFERENCES</div>
+  <div class="nav-links">
+    <a href="#concept">개념</a>
+    <a href="#relation">관계</a>
+    <a href="#responsibility">책임</a>
+    <a href="#flow">흐름</a>
+    <a href="#skeleton">스켈레톤</a>
+    <a href="#extend">확장</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">UE Architecture · Type ① · 02-A</div>
+  <h1>소프트 레퍼런스<br><span>필요할 때만 로드하는 에셋 참조</span></h1>
+  <p class="hero-sub">
+    캐릭터 100명의 초상화를 <code>UTexture2D*</code>로 참조하면, 목록을 열지 않아도 <strong>100장이 전부 메모리에 올라옵니다</strong>. 소프트 레퍼런스(<code>TSoftObjectPtr</code>)는 에셋 대신 <strong>주소(경로)만 들고 있다가 필요할 때 로드</strong>하는 참조 방식입니다. 이 문서는 하드/소프트 판별 기준, 동기·비동기 로드, 그리고 "에디터에선 보였는데 패키징하면 안 나오는" 함정을 다룹니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">엔진 자체 기능</span>
+    <span class="badge badge-green">UE4 / UE5 공통</span>
+    <span class="badge badge-purple">C++ · Blueprint</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- 01 개념 -->
+  <div class="section" id="concept">
+    <div class="section-label">01 — 개념 · 역할</div>
+    <h2>참조가 곧 로드다 — 하드 참조의 연쇄</h2>
+    <p>언리얼에서 <code>UPROPERTY() UTexture2D* Portrait;</code>처럼 <strong>포인터로 에셋을 참조하면, 그 참조를 가진 객체가 로드될 때 에셋도 같이 로드됩니다.</strong> 참조가 참조를 물고 늘어지는 것을 <strong>로드 연쇄</strong>라 하며, DataTable 하나 열었더니 텍스처 수백 장이 딸려 오는 것이 전형적인 증상입니다.</p>
+    <h3 id="term-soft-reference">핵심 용어</h3>
+    <div class="callout info"><span class="ic">📖</span><p>
+      <strong id="term-hard-reference">하드 참조(Hard Reference)</strong> — 포인터 타입(<code>UTexture2D*</code>, <code>TObjectPtr</code>)으로 거는 참조. <strong>소유자 로드 = 에셋 로드.</strong> 확실하지만 무겁습니다.<br><br>
+      <strong>소프트 참조(Soft Reference)</strong> — <code>TSoftObjectPtr&lt;UTexture2D&gt;</code>. 내부는 에셋의 <strong>경로 문자열</strong>(<code>FSoftObjectPath</code>)뿐이라 소유자를 로드해도 에셋은 안 올라옵니다. 쓰는 쪽이 명시적으로 로드해야 합니다.<br><br>
+      <strong>TSoftClassPtr</strong> — 에셋이 아니라 <strong>클래스(위젯 BP 등)</strong>를 소프트로 가리키는 버전.<br><br>
+      <strong id="term-cooking">쿠킹(Cooking)</strong> — 패키징 시 "게임에 실제로 쓰이는 에셋만" 골라 담는 과정. <strong>소프트 참조는 이 수집에서 제외될 수 있어서</strong> §06의 대표 함정이 됩니다.
+    </p></div>
+  </div>
+
+  <!-- 02 관계 -->
+  <div class="section" id="relation">
+    <div class="section-label">02 — 하드 vs 소프트</div>
+    <h2>두 참조의 성격 비교</h2>
+    <div class="grid-2">
+      <div class="compare-box">
+        <h4 style="color:var(--ue-mat)">하드 참조 — 같이 태어난다</h4>
+        <p>소유자가 로드되는 순간 에셋도 메모리에. null 걱정이 없고 코드가 단순하지만, 연쇄 로드로 메모리·로딩 시간이 커집니다.</p>
+        <div class="pills">
+          <span class="pill blue">UTexture2D*</span>
+          <span class="pill blue">TObjectPtr&lt;T&gt;</span>
+          <span class="pill green">즉시 사용 가능</span>
+          <span class="pill red">연쇄 로드</span>
+        </div>
+      </div>
+      <div class="compare-box">
+        <h4 style="color:var(--accent-3)">소프트 참조 — 주소만 들고 있다</h4>
+        <p>경로 문자열만 보유. 메모리는 가볍지만 쓰기 전에 로드해야 하고, 로드 전엔 <code>Get()</code>이 null입니다.</p>
+        <div class="pills">
+          <span class="pill green">TSoftObjectPtr&lt;T&gt;</span>
+          <span class="pill green">FSoftObjectPath</span>
+          <span class="pill purple">명시적 로드 필요</span>
+          <span class="pill purple">쿠킹 주의</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 03 책임 -->
+  <div class="section" id="responsibility">
+    <div class="section-label">03 — 판별 기준</div>
+    <h2>언제 하드, 언제 소프트인가</h2>
+    <table class="tbl">
+      <tr><th>상황</th><th>선택</th><th>근거</th></tr>
+      <tr><td>소유자가 살아 있는 동안 <strong>항상</strong> 쓰는 에셋 (캐릭터의 메시 등)</td><td><span class="owner o-pawn">하드</span></td><td>어차피 즉시 필요 — 소프트로 만들면 로드 코드만 늘어남</td></tr>
+      <tr><td><strong>목록성 데이터</strong>의 이미지·사운드 (DataTable 행의 초상화, BGM 트랙)</td><td><span class="owner o-controller">소프트</span></td><td>N행 중 화면에 보이는 것만 로드 — 이 케이스가 소프트의 고향</td></tr>
+      <tr><td>조건부로만 열리는 <strong>큰 에셋</strong> (특정 모달의 배경, 컷신)</td><td><span class="owner o-controller">소프트 + 비동기</span></td><td>안 여는 유저가 다수 — 로딩 튐 방지까지 겸함</td></tr>
+      <tr><td>SaveGame에 남길 "선택한 에셋"</td><td><span class="owner o-savegame">FSoftObjectPath / FName ID</span></td><td>포인터는 저장 불가(위키 SaveGame 문서) — 경로나 ID를 저장하고 로드 후 해석</td></tr>
+    </table>
+  </div>
+
+  <!-- 04 흐름 -->
+  <div class="section" id="flow">
+    <div class="section-label">04 — 로드 흐름</div>
+    <h2>이미 로드됐나 → 동기냐 비동기냐</h2>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">이미 메모리에 있는지 확인</div><div class="pipe-desc"><code>Ptr.Get()</code>이 유효하면 이미 로드된 것 — 바로 씁니다. 소프트 포인터는 로드 전에 <code>Get() == nullptr</code>이 <strong>정상</strong>이라는 것을 전제로 코드를 짭니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">작으면 동기 — LoadSynchronous</div><div class="pipe-desc"><code>Ptr.LoadSynchronous()</code>는 그 자리에서 로드하고 포인터를 돌려줍니다. 아이콘·초상화 수준의 작은 에셋이면 충분합니다. 단, 로드가 끝날 때까지 게임이 멈춘다는 비용을 압니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">크면 비동기 — StreamableManager</div><div class="pipe-desc"><code>UAssetManager::GetStreamableManager().RequestAsyncLoad(경로, 완료델리게이트)</code> — 백그라운드 로드 후 콜백에서 적용합니다. 결과: 프레임이 튀지 않음. 전제: 콜백 시점에 요청한 객체(위젯 등)가 살아 있는지 확인.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">적용 + 해제</div><div class="pipe-desc">로드된 포인터를 위젯/컴포넌트에 꽂습니다. 비동기 로드가 돌려준 핸들(<code>FStreamableHandle</code>)을 놓으면 참조가 풀려 GC 대상이 될 수 있으므로, 쓰는 동안은 핸들이나 하드 포인터로 붙잡아 둡니다.</div></div></div>
+  </div>
+
+  <!-- 05 스켈레톤 -->
+  <div class="section" id="skeleton">
+    <div class="section-label">05 — 구현 스켈레톤</div>
+    <h2>DataTable 행의 초상화를 로드하는 짝</h2>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">행 구조체 .h</button>
+        <button class="codeblock-tab tab-cpp" type="button">로드하는 쪽 .cpp</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// CharacterRow.h — 목록성 데이터의 이미지는 소프트로</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-type">FCharacterRow</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">FTableRowBase</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-type">FText</span> DisplayName;
+
+    <span class="hljs-comment">// 하드(UTexture2D*)로 두면 테이블 로드 = 전체 초상화 로드가 된다</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-type">TSoftObjectPtr</span>&lt;<span class="hljs-type">UTexture2D</span>&gt; Portrait;
+};</pre></div>
+      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-comment">// CharacterCardWidget.cpp — 화면에 보일 때 그 행의 이미지만 로드</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"Engine/AssetManager.h"</span>
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UCharacterCardWidget</span>::<span class="hljs-title">SetRow</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FCharacterRow</span>&amp; Row)
+{
+    <span class="hljs-comment">// ① 이미 로드돼 있으면 즉시 사용</span>
+    <span class="hljs-keyword">if</span> (<span class="hljs-type">UTexture2D</span>* Tex = Row.Portrait.<span class="hljs-title">Get</span>())
+    {
+        IMG_Portrait-&gt;<span class="hljs-title">SetBrushFromTexture</span>(Tex);
+        <span class="hljs-keyword">return</span>;
+    }
+
+    <span class="hljs-comment">// ② 작은 이미지라면 이 한 줄로 충분 (동기)</span>
+    <span class="hljs-comment">//    IMG_Portrait-&gt;SetBrushFromTexture(Row.Portrait.LoadSynchronous());</span>
+
+    <span class="hljs-comment">// ③ 비동기 — 완료 콜백에서 적용. WeakLambda로 위젯 파괴에 안전하게.</span>
+    <span class="hljs-type">FStreamableManager</span>&amp; SM = <span class="hljs-type">UAssetManager</span>::<span class="hljs-title">GetStreamableManager</span>();
+    PortraitHandle = SM.<span class="hljs-title">RequestAsyncLoad</span>(
+        Row.Portrait.<span class="hljs-title">ToSoftObjectPath</span>(),
+        <span class="hljs-type">FStreamableDelegate</span>::<span class="hljs-title">CreateWeakLambda</span>(<span class="hljs-keyword">this</span>, [<span class="hljs-keyword">this</span>, Row]()
+        {
+            <span class="hljs-keyword">if</span> (<span class="hljs-type">UTexture2D</span>* Tex = Row.Portrait.<span class="hljs-title">Get</span>())
+                IMG_Portrait-&gt;<span class="hljs-title">SetBrushFromTexture</span>(Tex);
+        }));
+    <span class="hljs-comment">// PortraitHandle(TSharedPtr&lt;FStreamableHandle&gt; 멤버)을 유지하는 동안 GC로부터 안전</span>
+}</pre></div>
+    </div>
+  </div>
+
+  <!-- 06 확장 -->
+  <div class="section" id="extend">
+    <div class="section-label">06 — 확장 &amp; 주의</div>
+    <h2>"에디터에선 보였는데" — 소프트 참조의 함정</h2>
+    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>① 쿠킹 누락</strong> — 에디터는 모든 에셋을 갖고 있어 항상 성공하지만, 패키징은 <strong>참조 사슬로 도달 가능한 에셋만</strong> 담습니다. 소프트로만 참조되는 에셋은 사슬에서 빠질 수 있습니다. 해법: Project Settings ▸ Packaging의 <strong>Additional Asset Directories to Cook</strong>에 해당 폴더 등록(또는 PrimaryAssetLabel 사용). "패키징 후에만 이미지가 안 뜨면" 십중팔구 이것입니다.</div></div>
+    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>② 로드 전 Get() 역참조</strong> — <code>Ptr.Get()</code>은 로드 전에 null이 정상입니다. null 체크 없이 쓰면 에디터(이미 로드됨)에선 멀쩡하고 실기기에서만 죽는, 재현 안 되는 크래시가 됩니다.</div></div>
+    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>③ 비동기 중 소유자 파괴</strong> — 로드가 끝났을 때 요청한 위젯이 이미 닫혔을 수 있습니다. 일반 람다 대신 <code>CreateWeakLambda(this, ...)</code>를 쓰면 소유자가 죽은 경우 콜백이 자동으로 무시됩니다.</div></div>
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>핸들을 놓으면 GC 대상</strong> — 비동기 로드 결과를 계속 쓸 거라면 <code>FStreamableHandle</code>을 멤버로 유지하거나 하드 포인터(UPROPERTY)로 옮겨 잡으세요. 다 썼으면 핸들을 <code>Reset()</code>해 메모리를 돌려줍니다.</div></div>
+  </div>
+
+</div>
+
+<footer>
+  <span>UE 아키텍처 문서 · 소프트 레퍼런스 v1.0</span>
+  <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.5</span>
+</footer>
+
+<script>
+(function () {
+  document.querySelectorAll('.codeblock').forEach(function (block) {
+    var tabs = block.querySelectorAll('.codeblock-tab');
+    var panels = block.querySelectorAll('.codeblock-panel');
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) { t.classList.remove('active'); });
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        if (panels[i]) panels[i].classList.add('active');
+      });
+    });
+    var copyBtn = block.querySelector('.codeblock-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () {
+        var pre = block.querySelector('.codeblock-panel.active pre');
+        if (!pre) return;
+        var text = pre.innerText;
+        var done = function () {
+          copyBtn.textContent = '복사됨 ✓';
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.textContent = '복사';
+            copyBtn.classList.remove('copied');
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+        } else {
+          fallbackCopy(text, done);
+        }
+      });
+    }
+  });
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+})();
+</script>
+
+</body>
+</html>

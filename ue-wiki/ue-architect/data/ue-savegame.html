@@ -1,3 +1,21 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SaveGame — 디스크에 살아남는 데이터 · UE 아키텍처</title>
+<!-- ============================================================
+     CHANGELOG — ue-savegame.html
+     유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿 · data/).
+     작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.0 · 2026-07-07
+       - 신규 생성. USaveGame 슬롯 모델·UPROPERTY 직렬화 규칙·지원 타입·
+         저장/로드 왕복·SaveVersion 마이그레이션 패턴을 다룸.
+       - 저장/로드 왕복 다이어그램(.diagram SVG + Mermaid 소스 병기, STEP 7 v3.7)
+       - 마스터 CSS v1.5 inline 스냅샷, hljs 구워넣기, 탭/복사 inline JS
+       - 용어 앵커: term-serialization · term-save-slot · term-save-migration
+     ============================================================ -->
+<style>
 /* ============================================================
    UE Design System — Master Stylesheet
    (design-guide-ue-master.css)
@@ -532,3 +550,286 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   footer { padding: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">UE WIKI · SAVEGAME</div>
+  <div class="nav-links">
+    <a href="#concept">개념</a>
+    <a href="#relation">관계</a>
+    <a href="#responsibility">책임</a>
+    <a href="#flow">흐름</a>
+    <a href="#skeleton">스켈레톤</a>
+    <a href="#extend">확장</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">UE Architecture · Type ① · 02-A</div>
+  <h1>SaveGame<br><span>디스크에 살아남는 데이터</span></h1>
+  <p class="hero-sub">
+    앱을 껐다 켜도 남아야 하는 값(재화·설정·진행도)을 파일로 보존하는 언리얼의 표준 장치가 <strong><code>USaveGame</code></strong>입니다. 이 문서는 "어떤 멤버가 저장되고 어떤 멤버는 조용히 사라지는가"의 규칙, 저장/로드 왕복 절차, 그리고 세이브 구조가 바뀌었을 때 기존 유저의 데이터를 살리는 <strong>SaveVersion 마이그레이션</strong>을 다룹니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">엔진 자체 기능</span>
+    <span class="badge badge-green">UE4 / UE5 공통</span>
+    <span class="badge badge-purple">C++ · Blueprint</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- 01 개념 -->
+  <div class="section" id="concept">
+    <div class="section-label">01 — 개념 · 역할</div>
+    <h2>메모리는 휘발한다 — 살릴 값을 고르는 일</h2>
+    <p>게임의 모든 변수는 메모리에 살고, 프로세스가 끝나면 전부 사라집니다. <code>USaveGame</code>은 그중 <strong>살아남아야 할 값만 골라 담는 전용 클래스</strong>입니다. 이 클래스의 객체를 통째로 파일로 바꿔 쓰고(저장), 파일에서 객체로 되살리는(로드) 과정이 전부입니다.</p>
+
+    <h3 id="term-serialization">핵심 용어</h3>
+    <div class="callout info"><span class="ic">📖</span><p>
+      <strong>직렬화(Serialization)</strong> — 메모리 속 객체를 <strong>바이트 줄(파일)로 바꿔 쓰는 것</strong>. 역방향(파일 → 객체)은 역직렬화입니다. SaveGame에서는 엔진이 자동으로 해 주지만, <strong>무엇을 직렬화할지는 <code>UPROPERTY()</code>로 표시한 멤버만</strong>입니다.<br><br>
+      <strong id="term-save-slot">슬롯(Slot)</strong> — 세이브 파일 하나의 주소. <strong>슬롯 이름(문자열) + UserIndex(정수)</strong> 조합이며, 프로젝트의 <code>Saved/SaveGames/&lt;슬롯이름&gt;.sav</code>로 저장됩니다(패키징 후에는 플랫폼별 사용자 데이터 폴더).<br><br>
+      <strong id="term-save-migration">마이그레이션(Migration)</strong> — 세이브 <strong>구조</strong>가 바뀐 뒤에도 구버전 파일을 읽어 새 구조로 옮기는 작업. 버전 필드(<code>SaveVersion</code>)로 분기합니다.
+    </p></div>
+
+    <div class="stat-row">
+      <div class="stat-card"><div class="stat-num" style="color:var(--ue-savegame)">1</div><div class="stat-label">직렬화 조건 — UPROPERTY()<br>붙은 멤버만 저장</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent)">2</div><div class="stat-label">슬롯 주소 — 이름 + UserIndex<br>(.sav 파일 1개)</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent-3)">+1</div><div class="stat-label">구조 변경 시 SaveVersion<br>+1과 분기 코드</div></div>
+    </div>
+  </div>
+
+  <!-- 02 관계 -->
+  <div class="section" id="relation">
+    <div class="section-label">02 — 클래스 관계</div>
+    <h2>세 배우 — SaveGame · GameplayStatics · 소유자</h2>
+    <div class="rel-map">
+      <div class="rel-row">
+        <div class="rel-node n-instance"><div class="rn-name">소유자 (GameInstance 권장)</div><div class="rn-role">로드된 세이브 객체 포인터를 붙잡고, 저장/로드 시점을 결정</div></div>
+        <div class="rel-arrow"><div class="ra-label">SaveGameToSlot / LoadGameFromSlot</div><div class="ra-line">→</div></div>
+        <div class="rel-node n-gamemode"><div class="rn-name">UGameplayStatics</div><div class="rn-role">디스크 왕복을 대신 해 주는 정적 함수 모음</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-gamemode"><div class="rn-name">UGameplayStatics</div><div class="rn-role">CreateSaveGameObject로 빈 객체 생성도 담당</div></div>
+        <div class="rel-arrow"><div class="ra-label">직렬화 / 역직렬화</div><div class="ra-line">→</div></div>
+        <div class="rel-node n-savegame"><div class="rn-name">UMySaveGame : USaveGame</div><div class="rn-role">저장할 필드(UPROPERTY)만 담는 데이터 그릇 — 로직 없음</div></div>
+      </div>
+    </div>
+    <div class="callout tip"><span class="ic">💡</span><p><strong>왜 소유자가 GameInstance인가</strong> — 세이브 객체는 레벨이 바뀌어도 유지되어야 하고, 어느 시스템보다 먼저 로드되어야 합니다. 앱과 수명이 같은 유일한 표준 객체가 GameInstance입니다(상세: 위키 GameInstanceSubsystem 문서). 각 시스템은 소유자를 통해 자기 몫의 필드만 읽고 씁니다.</p></div>
+  </div>
+
+  <!-- 03 책임 -->
+  <div class="section" id="responsibility">
+    <div class="section-label">03 — 무엇을 저장하나</div>
+    <h2>저장되는 것, 안 되는 것, 하면 안 되는 것</h2>
+    <p>판별 기준은 세 줄입니다: <strong>① <code>UPROPERTY()</code>가 붙어 있는가 ② 값 타입인가 ③ 다시 계산할 수 없는가.</strong> 셋 다 "예"일 때만 SaveGame 필드가 됩니다.</p>
+    <table class="tbl">
+      <tr><th>분류</th><th>타입 예</th><th>저장</th><th>비고</th></tr>
+      <tr><td>기본 값 타입</td><td><code>bool</code> <code>int32</code> <code>int64</code> <code>float</code></td><td>✓</td><td>상한 없는 재화는 <code>int64</code> 권장</td></tr>
+      <tr><td>문자열·이름</td><td><code>FString</code> <code>FName</code> <code>FText</code></td><td>✓</td><td>ID·키는 <code>FName</code>, 표시용은 <code>FText</code></td></tr>
+      <tr><td>시각</td><td><code>FDateTime</code> <code>FTimespan</code></td><td>✓</td><td>내부 틱(정수)이 저장됨 — 자세히: 위키 FDateTime 문서</td></tr>
+      <tr><td>컨테이너</td><td><code>TArray</code> <code>TMap</code> <code>TSet</code></td><td>✓</td><td>원소 타입이 저장 가능해야 함</td></tr>
+      <tr><td>구조체</td><td><code>USTRUCT</code> (멤버에 UPROPERTY)</td><td>✓</td><td>UPROPERTY 없는 멤버는 그 구조체 안에서도 빠짐</td></tr>
+      <tr><td>에셋 경로</td><td><code>FSoftObjectPath</code> <code>TSoftObjectPtr</code></td><td>✓</td><td>경로 문자열이 저장됨 — 에셋 자체가 아님</td></tr>
+      <tr><td><strong>UPROPERTY 없는 멤버</strong></td><td>무엇이든</td><td><strong>✗ (조용히 무시)</strong></td><td>저장 안 되고 에러도 없음 — §06 함정 ①</td></tr>
+      <tr><td><strong>오브젝트 포인터</strong></td><td><code>UTexture2D*</code> <code>AActor*</code></td><td><strong>✗ (사실상)</strong></td><td>메모리 주소는 다음 실행에서 무의미 — 대신 <strong>ID(FName)나 SoftObjectPath</strong>를 저장</td></tr>
+      <tr><td><strong>파생 가능한 값</strong></td><td>캐시·정렬 결과·통계</td><td>저장하지 말 것</td><td>로드 후 재계산 — 원본과 어긋날 통로를 없앰</td></tr>
+    </table>
+  </div>
+
+  <!-- 04 흐름 -->
+  <div class="section" id="flow">
+    <div class="section-label">04 — 저장/로드 왕복</div>
+    <h2>왕복 한 바퀴와 버전 분기</h2>
+
+    <div class="diagram">
+      <svg viewBox="0 0 700 240" role="img" aria-label="SaveGame 저장/로드 왕복 흐름">
+        <defs>
+          <marker id="dgs-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--text-dim)"/>
+          </marker>
+        </defs>
+        <rect class="dg-node k-instance" x="20" y="85" width="180" height="70" rx="8"/>
+        <text class="dg-text" x="110" y="113" text-anchor="middle">소유자</text>
+        <text class="dg-sub" x="110" y="131" text-anchor="middle">GameInstance</text>
+        <rect class="dg-node k-savegame" x="270" y="85" width="180" height="70" rx="8"/>
+        <text class="dg-text" x="360" y="113" text-anchor="middle">UMySaveGame 객체</text>
+        <text class="dg-sub" x="360" y="131" text-anchor="middle">UPROPERTY 필드만 유효</text>
+        <rect class="dg-node" x="520" y="85" width="160" height="70" rx="8"/>
+        <text class="dg-text" x="600" y="113" text-anchor="middle">슬롯.sav 파일</text>
+        <text class="dg-sub" x="600" y="131" text-anchor="middle">Saved/SaveGames/</text>
+        <path class="dg-edge lk-save" d="M200,100 L266,100" marker-end="url(#dgs-arrow)"/>
+        <text class="dg-elabel" x="205" y="90">값 밀어넣기</text>
+        <path class="dg-edge lk-save" d="M450,100 L516,100" marker-end="url(#dgs-arrow)"/>
+        <text class="dg-elabel" x="455" y="90">SaveGameToSlot</text>
+        <path class="dg-edge lk-call" d="M516,140 L454,140" marker-end="url(#dgs-arrow)"/>
+        <text class="dg-elabel" x="458" y="158">LoadGameFromSlot</text>
+        <path class="dg-edge lk-call" d="M266,140 L204,140" marker-end="url(#dgs-arrow)"/>
+        <text class="dg-elabel" x="212" y="158">값 복원 + 버전 분기</text>
+      </svg>
+    </div>
+
+    <h3>저장 — 값이 바뀔 때마다</h3>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">밀어넣기</div><div class="pipe-desc">런타임 값의 주인(각 시스템)이 자기 몫의 SaveGame 필드를 갱신합니다. 전제: 세이브 객체가 이미 로드되어 있음.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">디스크 쓰기</div><div class="pipe-desc"><code>UGameplayStatics::SaveGameToSlot(SaveObj, TEXT("MySlot"), 0)</code>. 결과: <code>.sav</code> 파일 갱신. 반환값(bool)으로 성공을 확인합니다.</div></div></div>
+    <h3>로드 — 앱 시작 시 1회</h3>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">존재 확인</div><div class="pipe-desc"><code>DoesSaveGameExist("MySlot", 0)</code> — 없으면 <code>CreateSaveGameObject</code>로 새 객체를 만들고 기본값을 채웁니다(첫 실행).</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">읽기 + 캐스팅</div><div class="pipe-desc"><code>Cast&lt;UMySaveGame&gt;(LoadGameFromSlot("MySlot", 0))</code> — 반환 타입이 <code>USaveGame*</code>라 반드시 내 타입으로 캐스팅합니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">버전 분기 (마이그레이션)</div><div class="pipe-desc"><code>if (Save-&gt;SaveVersion &lt; 최신) Migrate(Save)</code> — 구버전 필드를 새 필드로 옮기고 버전을 올립니다. 결과: 이후 코드는 항상 최신 구조만 상대합니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">복원</div><div class="pipe-desc">각 시스템이 자기 몫의 필드를 런타임 멤버로 복사해 갑니다. 결과: 게임이 어제 상태로 이어집니다.</div></div></div>
+
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">save-cycle.mmd</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-keyword">flowchart</span> LR
+    SYS[각 시스템 — 런타임 값의 주인] -- 값 밀어넣기 --&gt; OBJ[UMySaveGame 객체]
+    OBJ -- SaveGameToSlot --&gt; FILE[(슬롯.sav 파일)]
+    FILE -- LoadGameFromSlot --&gt; OBJ2[UMySaveGame 객체]
+    OBJ2 -- SaveVersion 분기 --&gt; MIG{구버전인가?}
+    MIG -- 예 --&gt; M[Migrate: 구 필드 → 새 필드]
+    MIG -- 아니오 --&gt; RES[각 시스템으로 값 복원]
+    M --&gt; RES</pre></div>
+    </div>
+  </div>
+
+  <!-- 05 스켈레톤 -->
+  <div class="section" id="skeleton">
+    <div class="section-label">05 — 구현 스켈레톤</div>
+    <h2>세이브 클래스 + 소유자 왕복 코드</h2>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">MySaveGame.h</button>
+        <button class="codeblock-tab tab-cpp" type="button">소유자 .cpp</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// MySaveGame.h — 데이터 그릇. 로직을 넣지 않는다.</span>
+<span class="hljs-meta">#pragma once</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"GameFramework/SaveGame.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"MySaveGame.generated.h"</span>
+
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> MYGAME_API <span class="hljs-type">UMySaveGame</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">USaveGame</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// 구조를 바꾸면 이 값을 +1 하고 로드에서 분기한다</span>
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">int32</span> SaveVersion = <span class="hljs-number">1</span>;
+
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">int64</span> Gold = <span class="hljs-number">0</span>;
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FName</span>&gt; UnlockedIds;
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">TMap</span>&lt;<span class="hljs-type">FString</span>, <span class="hljs-type">int32</span>&gt; DailyCounters;
+
+    <span class="hljs-comment">// UPROPERTY가 없으면 이 멤버는 절대 저장되지 않는다 (조용한 무시)</span>
+    <span class="hljs-comment">// int32 ThisWillBeLost;</span>
+};</pre></div>
+      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-comment">// MyGameInstance.cpp — 왕복은 소유자 한 곳에서만</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"Kismet/GameplayStatics.h"</span>
+
+<span class="hljs-keyword">static</span> <span class="hljs-keyword">const</span> <span class="hljs-type">TCHAR</span>* kSlot = <span class="hljs-string">TEXT("MySlot")</span>;
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UMyGameInstance</span>::<span class="hljs-title">LoadOrCreate</span>()
+{
+    <span class="hljs-keyword">if</span> (<span class="hljs-type">UGameplayStatics</span>::<span class="hljs-title">DoesSaveGameExist</span>(kSlot, <span class="hljs-number">0</span>))
+    {
+        CurrentSave = <span class="hljs-title">Cast</span>&lt;<span class="hljs-type">UMySaveGame</span>&gt;(
+            <span class="hljs-type">UGameplayStatics</span>::<span class="hljs-title">LoadGameFromSlot</span>(kSlot, <span class="hljs-number">0</span>));
+        <span class="hljs-title">MigrateIfNeeded</span>(CurrentSave);   <span class="hljs-comment">// 버전 분기</span>
+    }
+    <span class="hljs-keyword">else</span>
+    {
+        CurrentSave = <span class="hljs-title">Cast</span>&lt;<span class="hljs-type">UMySaveGame</span>&gt;(
+            <span class="hljs-type">UGameplayStatics</span>::<span class="hljs-title">CreateSaveGameObject</span>(<span class="hljs-type">UMySaveGame</span>::<span class="hljs-title">StaticClass</span>()));
+        <span class="hljs-comment">// 첫 실행 기본값은 여기서 채운다 (Settings 상수 권장)</span>
+    }
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UMyGameInstance</span>::<span class="hljs-title">SaveNow</span>()
+{
+    <span class="hljs-keyword">if</span> (!CurrentSave) <span class="hljs-keyword">return</span>;
+    <span class="hljs-keyword">const</span> <span class="hljs-keyword">bool</span> bOk = <span class="hljs-type">UGameplayStatics</span>::<span class="hljs-title">SaveGameToSlot</span>(CurrentSave, kSlot, <span class="hljs-number">0</span>);
+    <span class="hljs-keyword">if</span> (!bOk) { <span class="hljs-comment">/* 로그 — 디스크 부족/권한 등 */</span> }
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UMyGameInstance</span>::<span class="hljs-title">MigrateIfNeeded</span>(<span class="hljs-type">UMySaveGame</span>* S)
+{
+    <span class="hljs-keyword">if</span> (S-&gt;SaveVersion &lt; <span class="hljs-number">2</span>)
+    {
+        <span class="hljs-comment">// 예: v1의 int32 골드를 v2의 int64 필드로 이전</span>
+        <span class="hljs-comment">// S-&gt;Gold = S-&gt;OldGold_DEPRECATED;</span>
+        S-&gt;SaveVersion = <span class="hljs-number">2</span>;
+        <span class="hljs-title">SaveNow</span>();   <span class="hljs-comment">// 이전 결과를 즉시 굳힌다</span>
+    }
+}</pre></div>
+    </div>
+  </div>
+
+  <!-- 06 확장 -->
+  <div class="section" id="extend">
+    <div class="section-label">06 — 확장 &amp; 주의</div>
+    <h2>말없이 데이터를 잃는 함정들</h2>
+    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>① UPROPERTY 누락</strong> — 증상: 저장·로드 모두 "성공"하는데 특정 필드만 항상 기본값. 새 필드를 추가할 때 매크로를 빠뜨린 경우가 대부분입니다. 필드 추가 = <code>UPROPERTY()</code>까지가 한 세트라고 기억하세요.</div></div>
+    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>② 구버전 필드 삭제</strong> — 필드를 지우면 구버전 <code>.sav</code>의 그 값은 로드 시 조용히 버려집니다. 마이그레이션이 끝나기 전까지는 옛 필드를 <code>_DEPRECATED</code>로 남겨 두고, 이전 완료 후에 지우세요.</div></div>
+    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>③ 테스트 세이브 오염</strong> — 개발 중 구조를 바꾸면 옛 <code>.sav</code>가 이상 동작을 만듭니다. 프로젝트의 <code>Saved/SaveGames/</code> 폴더에서 파일을 지우면 첫 실행 상태로 돌아갑니다 — "세이브 지우고 재현되나?"를 디버깅 1순위 질문으로.</div></div>
+    <div class="pitfall tip" style="margin-bottom:12px"><span class="ic">💡</span><div class="pitfall-text"><strong>비동기 저장</strong> — 데이터가 커져 프레임이 튀면 <code>AsyncSaveGameToSlot</code>(완료 콜백 델리게이트 제공)으로 바꿉니다. 단, "변경 즉시 저장" 정책에서는 대부분 동기 저장으로 충분합니다.</div></div>
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>슬롯 전략</strong> — 슬롯 이름을 바꾸면 사실상 별도 세이브가 됩니다(수동 슬롯 여러 개, 자동 저장 슬롯 분리 등). 슬롯 이름은 한 곳(상수)에서만 정의하세요.</div></div>
+  </div>
+
+</div>
+
+<footer>
+  <span>UE 아키텍처 문서 · SaveGame v1.0</span>
+  <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.5</span>
+</footer>
+
+<script>
+(function () {
+  document.querySelectorAll('.codeblock').forEach(function (block) {
+    var tabs = block.querySelectorAll('.codeblock-tab');
+    var panels = block.querySelectorAll('.codeblock-panel');
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) { t.classList.remove('active'); });
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        if (panels[i]) panels[i].classList.add('active');
+      });
+    });
+    var copyBtn = block.querySelector('.codeblock-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () {
+        var pre = block.querySelector('.codeblock-panel.active pre');
+        if (!pre) return;
+        var text = pre.innerText;
+        var done = function () {
+          copyBtn.textContent = '복사됨 ✓';
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.textContent = '복사';
+            copyBtn.classList.remove('copied');
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+        } else {
+          fallbackCopy(text, done);
+        }
+      });
+    }
+  });
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+})();
+</script>
+
+</body>
+</html>

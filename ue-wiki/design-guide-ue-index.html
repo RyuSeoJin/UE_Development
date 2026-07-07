@@ -3,10 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>문서 허브 & 용어집 — UE 문서 디자인 시스템 v2.10</title>
+<title>문서 허브 & 용어집 — UE 문서 디자인 시스템 v2.13</title>
 <!-- ============================================================
      CHANGELOG — design-guide-ue-index.html
      생성 문서 인덱스 + 중앙 용어집(범용 UE 용어 전용). 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md
+     v2.13 · 2026-07-07
+       - (추가) 문서 목록 ui/에 '한글 폰트 파이프라인', framework/에 '데스크톱 앱 셸' 등록
+         (02-A · Master v1.5 — RecordTales 스팀 출시 대비 실무 공백 보강)
+       - (추가) 용어집에 4개 신규 용어 (글리프·두부 현상, 폰트 폴백, GameUserSettings, 창 모드 3종)
+     v2.12 · 2026-07-07
+       - (추가) 문서 목록 framework/에 '신뢰 시간 — 시계 치트 방지와 Steam 서버 시간' 등록
+         (02-A · Master v1.5 — GetServerRealTime, 오프셋 범위 검증, 신뢰 경과시간, 보류 정책)
+       - (추가) 용어집에 3개 신규 용어 (신뢰 시간, 시간 권위자, 오프셋 검증)
+     v2.11 · 2026-07-07
+       - (추가) 문서 목록에 개념 공백 문서 6건 등록 — core-cpp/: 델리게이트, FDateTime ·
+         framework/: 타이머와 World · data/: SaveGame, 소프트 레퍼런스, DeveloperSettings
+         (전부 02-A 템플릿 · Master v1.5 스냅샷, RecordTales 구현 선행 지식 보강)
+       - (추가) 용어집에 12개 신규 용어 (델리게이트, 브로드캐스트, 바인딩, 직렬화, 세이브 슬롯,
+         SaveVersion 마이그레이션, FTimerManager, FTimerHandle, FDateTime/FTimespan, 날짜 키,
+         소프트/하드 레퍼런스, CDO·Config 계층)
      v2.10 · 2026-07-06
        - (추가) 문서 목록에 '렌더링' 카테고리 소구획 신설 (rendering/ 폴더 신규 — DOC-TRACKS.md v1.5 §2-1)
          + '툰 셰이딩 & 아웃라인 렌더링 — NPR 스타일의 원리와 UE 구현' 등록
@@ -526,6 +541,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><th>문서</th><th>날짜</th><th>열기</th></tr>
       <tr><td><code>언리얼 엔진 C++ 프로그래밍 완전 구조 가이드 v2.1</code></td><td>2026-07-01</td><td><a href="./ue-architect/core-cpp/ue-cpp-programming-structure.html" style="color:var(--accent)">열기 →</a></td></tr>
       <tr><td><code>리플렉션 매크로 — 6대 매크로와 UHT 빌드 파이프라인</code></td><td>2026-07-02</td><td><a href="./ue-architect/core-cpp/ue-reflection-macros.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>델리게이트 — 서로 모르는 시스템을 잇는 방송</code></td><td>2026-07-07</td><td><a href="./ue-architect/core-cpp/ue-delegates.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>FDateTime — 날짜 연산과 자정 경계</code></td><td>2026-07-07</td><td><a href="./ue-architect/core-cpp/ue-datetime.html" style="color:var(--accent)">열기 →</a></td></tr>
     </table>
 
     <h3>프레임워크 — 게임 구조·Subsystem·패턴 <code>framework/</code></h3>
@@ -534,6 +551,9 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>게임플레이 프레임워크 — 전체 구조와 클래스별 설계 분석</code></td><td>2026-07-03</td><td><a href="./ue-architect/framework/ue-gameplay-framework.html" style="color:var(--accent)">열기 →</a></td></tr>
       <tr><td><code>GameInstanceSubsystem — 수명 자동 관리 전역 서비스</code></td><td>2026-07-02</td><td><a href="./ue-architect/framework/ue-gameinstance-subsystem.html" style="color:var(--accent)">열기 →</a></td></tr>
       <tr><td><code>상태 머신 — 상태·전이·이벤트로 동작 제어</code></td><td>2026-07-02</td><td><a href="./ue-architect/framework/ue-state-machine.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>타이머와 World — 시간 콜백은 누구 소속인가</code></td><td>2026-07-07</td><td><a href="./ue-architect/framework/ue-timer-world.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>신뢰 시간 — 시계 치트 방지와 Steam 서버 시간</code></td><td>2026-07-07</td><td><a href="./ue-architect/framework/ue-trusted-time.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>데스크톱 앱 셸 — 창 모드·크기·백그라운드 동작</code></td><td>2026-07-07</td><td><a href="./ue-architect/framework/ue-desktop-app-shell.html" style="color:var(--accent)">열기 →</a></td></tr>
     </table>
 
     <h3>UI — UMG·Slate·Common UI <code>ui/</code></h3>
@@ -544,12 +564,16 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>UMG + C++ 연동 프레임워크 — Designer·BindWidget·라이프사이클</code></td><td>2026-07-05</td><td><a href="./ue-architect/ui/umg-cpp-framework.html" style="color:var(--accent)">열기 →</a></td></tr>
       <tr><td><code>Slate 개요 — UMG 아래의 C++ UI 프레임워크</code></td><td>2026-07-03</td><td><a href="./ue-architect/ui/ue-slate-overview.html" style="color:var(--accent)">열기 →</a></td></tr>
       <tr><td><code>Common UI — 레이어 스택으로 설계하는 게임 UI 아키텍처</code></td><td>2026-07-03</td><td><a href="./ue-architect/ui/ue-common-ui-architecture.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>한글 폰트 파이프라인 — UMG에서 한글이 □로 나올 때</code></td><td>2026-07-07</td><td><a href="./ue-architect/ui/ue-korean-font-pipeline.html" style="color:var(--accent)">열기 →</a></td></tr>
     </table>
 
     <h3>데이터 — DataTable·DataAsset·Config <code>data/</code></h3>
     <table class="tbl">
       <tr><th>문서</th><th>날짜</th><th>열기</th></tr>
       <tr><td><code>DataTable — 코드 밖에서 관리하는 표 데이터</code></td><td>2026-07-02</td><td><a href="./ue-architect/data/ue-datatable.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>SaveGame — 디스크에 살아남는 데이터</code></td><td>2026-07-07</td><td><a href="./ue-architect/data/ue-savegame.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>소프트 레퍼런스 — 필요할 때만 로드하는 에셋 참조</code></td><td>2026-07-07</td><td><a href="./ue-architect/data/ue-soft-object-references.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>DeveloperSettings — 코드 밖에서 조정하는 밸런스 상수</code></td><td>2026-07-07</td><td><a href="./ue-architect/data/ue-developer-settings.html" style="color:var(--accent)">열기 →</a></td></tr>
     </table>
 
     <h3>렌더링 — 머티리얼·셰이딩·포스트 프로세스 <code>rendering/</code></h3>
@@ -646,6 +670,25 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>인버티드 헐 (Inverted Hull)</code></td><td>부풀린 복제 메시를 <strong>뒤집어 씌워</strong> 테두리 선을 만드는 아웃라인 기법</td><td><a href="./ue-architect/rendering/ue-toon-shading-outline.html#term-inverted-hull" style="color:var(--accent)">툰 셰이딩 →</a></td></tr>
       <tr><td><code>Custom Depth / Custom Stencil</code></td><td>체크한 메시만 기록되는 <strong>별도 깊이 버퍼 + 0~255 그룹 도장</strong> (포스트 프로세스에서 대상 선별용)</td><td><a href="./ue-architect/rendering/ue-toon-shading-outline.html#term-custom-depth" style="color:var(--accent)">툰 셰이딩 →</a></td></tr>
       <tr><td><code>포스트 프로세스 머티리얼</code></td><td>완성된 화면 이미지에 후처리를 가하는 머티리얼 (<strong>Material Domain = Post Process</strong>)</td><td><a href="./ue-architect/rendering/ue-toon-shading-outline.html#term-pp-material" style="color:var(--accent)">툰 셰이딩 →</a></td></tr>
+      <tr><td><code>델리게이트 (Delegate)</code></td><td>"이 시그니처의 함수를 나중에 부르겠다"는 <strong>함수 예약 슬롯</strong> — 방송/구독으로 시스템을 잇는 장치</td><td><a href="./ue-architect/core-cpp/ue-delegates.html#term-delegate" style="color:var(--accent)">델리게이트 →</a></td></tr>
+      <tr><td><code>브로드캐스트 (Broadcast)</code></td><td>델리게이트에 등록된 <strong>모든 함수를 호출</strong>하는 방송 — 방송자는 구독자를 모름</td><td><a href="./ue-architect/core-cpp/ue-delegates.html#term-broadcast" style="color:var(--accent)">델리게이트 →</a></td></tr>
+      <tr><td><code>바인딩 (Binding)</code></td><td>델리게이트에 "내 함수를 불러줘"라고 <strong>등록</strong>하는 것 (동적 바인딩 콜백엔 UFUNCTION 필수)</td><td><a href="./ue-architect/core-cpp/ue-delegates.html#term-binding" style="color:var(--accent)">델리게이트 →</a></td></tr>
+      <tr><td><code>직렬화 (Serialization)</code></td><td>메모리 객체를 <strong>파일(바이트 줄)로 변환</strong> — SaveGame에선 UPROPERTY 멤버만 참여</td><td><a href="./ue-architect/data/ue-savegame.html#term-serialization" style="color:var(--accent)">SaveGame →</a></td></tr>
+      <tr><td><code>세이브 슬롯 (Slot)</code></td><td>세이브 파일 하나의 주소 — <strong>슬롯 이름 + UserIndex</strong> 조합 (.sav)</td><td><a href="./ue-architect/data/ue-savegame.html#term-save-slot" style="color:var(--accent)">SaveGame →</a></td></tr>
+      <tr><td><code>세이브 마이그레이션</code></td><td>세이브 <strong>구조 변경 후에도 구버전 파일을 살리는</strong> 버전 분기(SaveVersion) 작업</td><td><a href="./ue-architect/data/ue-savegame.html#term-save-migration" style="color:var(--accent)">SaveGame →</a></td></tr>
+      <tr><td><code>FTimerManager</code></td><td>"N초 뒤 이 함수 호출" 예약 접수처 — <strong>World 소속</strong>이라 레벨 이동 시 예약 소멸</td><td><a href="./ue-architect/framework/ue-timer-world.html#term-timer-manager" style="color:var(--accent)">타이머와 World →</a></td></tr>
+      <tr><td><code>FTimerHandle</code></td><td>타이머 예약 번호표 — 취소·조회·일시정지에 필요하므로 <strong>멤버로 보관</strong></td><td><a href="./ue-architect/framework/ue-timer-world.html#term-timer-handle" style="color:var(--accent)">타이머와 World →</a></td></tr>
+      <tr><td><code>FDateTime / FTimespan</code></td><td>특정 <strong>시각</strong>과 두 시각 사이의 <strong>구간</strong> — 내부는 틱 정수라 비교·저장이 안전</td><td><a href="./ue-architect/core-cpp/ue-datetime.html#term-fdatetime" style="color:var(--accent)">FDateTime →</a></td></tr>
+      <tr><td><code>날짜 키 (Date Key)</code></td><td>하루를 대표하는 문자열(예: "20260707") — "오늘 처리했는가"를 <strong>비교 한 번</strong>으로 판정</td><td><a href="./ue-architect/core-cpp/ue-datetime.html#term-date-key" style="color:var(--accent)">FDateTime →</a></td></tr>
+      <tr><td><code>하드/소프트 레퍼런스</code></td><td>포인터 참조(<strong>소유자 로드 = 에셋 로드</strong>) vs 경로만 보유(<strong>필요할 때 로드</strong>, TSoftObjectPtr)</td><td><a href="./ue-architect/data/ue-soft-object-references.html#term-soft-reference" style="color:var(--accent)">소프트 레퍼런스 →</a></td></tr>
+      <tr><td><code>CDO · Config 계층</code></td><td>클래스 기본값 원본 객체(GetDefault가 반환) · 설정 ini의 <strong>겹층 구조</strong>(Base→Default→Saved)</td><td><a href="./ue-architect/data/ue-developer-settings.html#term-cdo" style="color:var(--accent)">DeveloperSettings →</a></td></tr>
+      <tr><td><code>신뢰 시간 (Trusted Time)</code></td><td>사용자가 조작할 수 없는 출처의 현재 시각 — 스팀작에선 <strong>GetServerRealTime()</strong>의 밸브 서버 UTC</td><td><a href="./ue-architect/framework/ue-trusted-time.html#term-trusted-time" style="color:var(--accent)">신뢰 시간 →</a></td></tr>
+      <tr><td><code>시간 권위자 (Time Authority)</code></td><td>"지금 몇 시인가"를 <strong>한 창구에서만</strong> 답하는 서브시스템 — 시간 판정 코드가 로컬 시계를 직접 읽지 않게 함</td><td><a href="./ue-architect/framework/ue-trusted-time.html#term-time-authority" style="color:var(--accent)">신뢰 시간 →</a></td></tr>
+      <tr><td><code>오프셋 검증</code></td><td>로컬 − 신뢰UTC 차이가 <strong>시간대 물리 한계(±15h)</strong>를 벗어나면 시계 조작으로 확정하는 규칙</td><td><a href="./ue-architect/framework/ue-trusted-time.html#term-offset-check" style="color:var(--accent)">신뢰 시간 →</a></td></tr>
+      <tr><td><code>글리프 · 두부 현상</code></td><td>폰트 속 글자 모양 1개 · 글리프가 없어 <strong>□로 그려지는</strong> 현상(UMG 기본 폰트엔 한글 글리프 없음)</td><td><a href="./ue-architect/ui/ue-korean-font-pipeline.html#term-glyph" style="color:var(--accent)">한글 폰트 →</a></td></tr>
+      <tr><td><code>폰트 폴백 (Fallback)</code></td><td>기본 서체에 없는 문자를 <strong>다음 후보 폰트에서 찾아 그리는</strong> 체인 — 영문/한글 분담의 원리</td><td><a href="./ue-architect/ui/ue-korean-font-pipeline.html#term-font-fallback" style="color:var(--accent)">한글 폰트 →</a></td></tr>
+      <tr><td><code>GameUserSettings</code></td><td>해상도·창 모드·FPS 상한을 소유하는 엔진 표준 설정 — <strong>유저별 ini</strong>에 저장(SaveGame 아님)</td><td><a href="./ue-architect/framework/ue-desktop-app-shell.html#term-gameusersettings" style="color:var(--accent)">데스크톱 셸 →</a></td></tr>
+      <tr><td><code>창 모드 3종</code></td><td>Fullscreen / WindowedFullscreen / <strong>Windowed(일반 창 — 데스크톱 앱의 선택지)</strong></td><td><a href="./ue-architect/framework/ue-desktop-app-shell.html#term-window-mode" style="color:var(--accent)">데스크톱 셸 →</a></td></tr>
     </table>
     <div class="callout info"><span class="ic">📚</span><p><strong>용어집 이원화</strong>: 이 중앙 용어집에는 <strong>범용 UE 용어만</strong> 등록합니다. 프로젝트 고유 용어(가챠·스쿼드·마스터 레코드 등)는 각 <strong>프로젝트 허브의 용어집</strong>에서 봅니다 (예: <a href="../Project/RecordTales/recordtales-index.html#glossary" style="color:var(--accent)">RecordTales 용어집 →</a>). 배치 기준: <code>doc-process/DOC-TRACKS.md</code> §4.</p></div>
     <div class="callout tip"><span class="ic">💡</span><p>용어집은 <strong>보조 수단</strong>입니다. 각 문서는 처음 등장 용어를 자체적으로 한 번 풀어 설명하므로, 링크 없이도 문서 하나만으로 이해됩니다. 용어집은 "더 깊이 보고 싶을 때"의 지름길입니다.</p></div>

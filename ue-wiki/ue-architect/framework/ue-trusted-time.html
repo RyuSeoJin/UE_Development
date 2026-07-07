@@ -1,3 +1,23 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>신뢰 시간 — 시계 치트 방지와 Steam 서버 시간 · UE 아키텍처</title>
+<!-- ============================================================
+     CHANGELOG — ue-trusted-time.html
+     유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿 · framework/).
+     작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.0 · 2026-07-07
+       - 신규 생성. 로컬 시계 조작(치트) 위협 모델 3종, Steam 서버 시간
+         (GetServerRealTime) 기반 신뢰 시간, 오프셋 범위 검증 + 신뢰 경과시간
+         AND 조건, 오프라인 폴백·조용한 보류 정책, TrustedTimeSubsystem 스켈레톤을 다룸.
+       - 롤오버 승인 플로차트(.diagram SVG + Mermaid 소스 병기, STEP 7 v3.7)
+       - 전제 문서: FDateTime(날짜 연산·클램프 가드) · SaveGame(영속) · 델리게이트
+       - 마스터 CSS v1.5 inline 스냅샷, hljs 구워넣기, 탭/복사 inline JS
+       - 용어 앵커: term-trusted-time · term-time-authority · term-offset-check
+     ============================================================ -->
+<style>
 /* ============================================================
    UE Design System — Master Stylesheet
    (design-guide-ue-master.css)
@@ -532,3 +552,339 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   footer { padding: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">UE WIKI · TRUSTED TIME</div>
+  <div class="nav-links">
+    <a href="#concept">개념</a>
+    <a href="#relation">관계</a>
+    <a href="#responsibility">책임</a>
+    <a href="#flow">흐름</a>
+    <a href="#skeleton">스켈레톤</a>
+    <a href="#extend">확장</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">UE Architecture · Type ① · 02-A</div>
+  <h1>신뢰 시간<br><span>시계 치트 방지와 Steam 서버 시간</span></h1>
+  <p class="hero-sub">
+    일일 보상·스트릭·출석 체크는 전부 <strong>사용자가 마음대로 돌릴 수 있는 OS 시계</strong> 위에 서 있습니다. 이 문서는 스팀 출시작이 별도 서버 없이 확보할 수 있는 신뢰 시계 — <strong><code>GetServerRealTime()</code></strong> — 를 축으로, 시계 조작 3종을 각각 어떤 규칙으로 잡는지, 그리고 잡았을 때 <strong>처벌 대신 조용히 보류</strong>해야 하는 이유를 다룹니다. 목표는 "조작 불가능"이 아니라 <strong>"조작해도 수지가 안 맞게"</strong>입니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">Steamworks 연동</span>
+    <span class="badge badge-green">UE4 / UE5 공통</span>
+    <span class="badge badge-purple">C++ 중심</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- 01 개념 -->
+  <div class="section" id="concept">
+    <div class="section-label">01 — 개념 · 위협 모델</div>
+    <h2>적을 먼저 정의한다 — 시계 조작 3종</h2>
+    <p>방어를 설계하려면 공격부터 명확히 해야 합니다. 로컬 시계로 시간을 판정하는 앱에서 가능한 조작은 세 가지뿐입니다.</p>
+    <table class="tbl">
+      <tr><th>조작</th><th>수법</th><th>노리는 것</th><th>잡는 규칙 (§03)</th></tr>
+      <tr><td><strong>A. 크게 앞으로</strong></td><td>OS 날짜를 +1일 이상 변경</td><td>캐치업 루프를 속여 며칠치 일일 보상 선수령</td><td>오프셋 범위 검증</td></tr>
+      <tr><td><strong>B. 자정 미세 조작</strong></td><td>23:59 → 00:01로 몇 분만 이동</td><td>날짜 키만 바꿔 하루 보상을 하루 두 번</td><td>신뢰 경과시간 AND 조건</td></tr>
+      <tr><td><strong>C. 뒤로 돌리기</strong></td><td>날짜를 과거로 변경(또는 시간대 서쪽 이동)</td><td>치트라기보다 데이터 꼬임 유발</td><td>클램프 가드 (FDateTime 문서)</td></tr>
+    </table>
+
+    <h3 id="term-trusted-time">핵심 용어</h3>
+    <div class="callout info"><span class="ic">📖</span><p>
+      <strong>신뢰 시간(Trusted Time)</strong> — 사용자가 조작할 수 없는 출처에서 온 현재 시각. 이 문서에서는 <strong>밸브 서버가 알려주는 UTC</strong>(Steamworks <code>ISteamUtils::GetServerRealTime()</code>, 유닉스 타임스탬프)입니다.<br><br>
+      <strong id="term-time-authority">시간 권위자(Time Authority)</strong> — "지금 몇 시인가"에 대한 답을 <strong>한 곳에서만</strong> 내리는 서브시스템. 모든 시간 판정 코드가 로컬 시계를 직접 읽지 않고 이 창구를 거치게 합니다 — 값의 창구를 하나로 좁히는 소유(Ownership) 원칙의 시간판입니다.<br><br>
+      <strong>유닉스 타임스탬프(Unix Timestamp)</strong> — 1970-01-01 00:00 UTC부터의 경과 <strong>초</strong>(정수). <code>FDateTime::FromUnixTimestamp()</code>로 변환합니다.<br><br>
+      <strong id="term-offset-check">오프셋(Offset)</strong> — <code>로컬 Now() − 신뢰 UTC</code>. 정상값은 그 사용자의 <strong>시간대 차이</strong>뿐이므로 지구상 한계(약 −12h ~ +14h)를 벗어날 수 없습니다 — 이 물리적 상한이 조작 탐지의 근거가 됩니다.
+    </p></div>
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>왜 UtcNow()로는 안 되는가</strong> — <code>FDateTime::UtcNow()</code>도 결국 <strong>OS 시계</strong>를 읽습니다. 사용자가 OS 시계를 돌리면 로컬과 UTC가 같이 돌아가므로 방어가 되지 않습니다. 신뢰 시간은 반드시 <strong>기기 밖</strong>에서 와야 합니다.</div></div>
+  </div>
+
+  <!-- 02 관계 -->
+  <div class="section" id="relation">
+    <div class="section-label">02 — 시계 3종과 권위자</div>
+    <h2>누가 시간을 답하는가</h2>
+    <div class="rel-map">
+      <div class="rel-row">
+        <div class="rel-node n-subsystem"><div class="rn-name">UTrustedTimeSubsystem (시간 권위자)</div><div class="rn-role">GetTrustedNow() · ApproveRollover() — 시간 판정의 유일한 창구</div></div>
+        <div class="rel-arrow"><div class="ra-label">온라인이면 조회</div><div class="ra-line">→</div></div>
+        <div class="rel-node n-gamemode"><div class="rn-name">Steam 서버 시계</div><div class="rn-role">GetServerRealTime() — 조작 불가 UTC. 스팀 클라이언트 경유</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-subsystem"><div class="rn-name">UTrustedTimeSubsystem</div><div class="rn-role">오프라인이면 폴백 + 가드</div></div>
+        <div class="rel-arrow"><div class="ra-label">검증하며 사용</div><div class="ra-line">→</div></div>
+        <div class="rel-node n-controller"><div class="rn-name">로컬 OS 시계 (FDateTime::Now)</div><div class="rn-role">"사용자의 오늘" 계산·표시용 — 신뢰 대상 아님</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-instance"><div class="rn-name">일일 리셋 · 스트릭 · 출석 시스템들</div><div class="rn-role">시간 판정이 필요한 소비자들</div></div>
+        <div class="rel-arrow"><div class="ra-label">직접 읽기 금지 · 권위자 경유</div><div class="ra-line">→</div></div>
+        <div class="rel-node n-subsystem"><div class="rn-name">UTrustedTimeSubsystem</div><div class="rn-role">승인/보류 결과만 돌려줌</div></div>
+      </div>
+    </div>
+    <div class="callout info"><span class="ic">🧭</span><p><strong>역할 분리가 핵심입니다</strong> — 로컬 시계는 <strong>"사용자의 자정이 언제인가"</strong>(시간대 반영)를 계산하는 데는 계속 쓰입니다. 신뢰 시계는 <strong>"실제로 시간이 흘렀는가"</strong>를 승인하는 데만 씁니다. 둘은 경쟁 관계가 아니라 질문이 다른 두 심판입니다.</p></div>
+  </div>
+
+  <!-- 03 책임 -->
+  <div class="section" id="responsibility">
+    <div class="section-label">03 — 판정 규칙</div>
+    <h2>규칙 4개 — 조작 3종과의 1:1 대응</h2>
+    <table class="tbl">
+      <tr><th>규칙</th><th>내용</th><th>잡는 조작</th><th>근거</th></tr>
+      <tr><td><span class="owner o-gamemode">① 오프셋 범위 검증</span></td><td><code>|로컬 − 신뢰UTC|</code>가 시간대 물리 한계(<strong>15시간</strong> = 최대 +14h + DST 여유)를 넘으면 조작 판정</td><td><strong>A</strong> 크게 앞으로</td><td>+24h 조작은 어떤 시간대로도 설명 불가 — 오탐 없는 확정 판정</td></tr>
+      <tr><td><span class="owner o-gamemode">② 신뢰 경과시간 AND 조건</span></td><td>날짜 키가 바뀌어도 <strong>마지막 승인 롤오버로부터 신뢰 시계 기준 20시간 이상</strong> 지나야 승인</td><td><strong>B</strong> 자정 미세 조작</td><td>달력을 어떻게 주물러도 실제 시간이 안 흘렀으면 보상 없음. 20h(24h가 아니라)인 이유: DST·시간대 이동의 정상 하루 단축 흡수</td></tr>
+      <tr><td><span class="owner o-savegame">③ 클램프 가드</span></td><td>마지막 처리일이 미래면 오늘로 당기고 종료 (FDateTime 문서의 패턴 그대로)</td><td><strong>C</strong> 뒤로 돌리기</td><td>데이터 무결성 담당 — ①②와 역할 분리</td></tr>
+      <tr><td><span class="owner o-controller">④ 오프라인 폴백 + 보류</span></td><td>신뢰 시계가 없으면(스팀 오프라인) 롤오버는 실행하되 <strong>보상만 '보류' 표시</strong> → 다음 온라인 검증 때 확정 지급</td><td>A·B의 오프라인 우회</td><td>오프라인 앞돌리기는 원리상 탐지 불가 — 지급 시점을 검증 가능한 순간으로 미루는 것이 유일한 수</td></tr>
+    </table>
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>정책 원칙 — 처벌하지 말고 보류하라.</strong> 시간대 변경·듀얼부팅·CMOS 배터리 방전 같은 <strong>정상 유저의 오탐이 반드시 발생</strong>합니다. 감지 시 계정 제재·경고창은 금물이고, 해당 롤오버 보상만 조용히 보류했다가 신뢰 시간이 따라잡으면 자동 지급하세요. 정상 유저는 존재조차 모르게 하는 것이 목표입니다.</div></div>
+  </div>
+
+  <!-- 04 흐름 -->
+  <div class="section" id="flow">
+    <div class="section-label">04 — 승인 흐름</div>
+    <h2>롤오버 승인 플로차트</h2>
+    <p>일일 리셋 시스템이 "오늘 롤오버를 실행해도 되는가?"를 물었을 때 권위자가 내리는 판정 전체입니다.</p>
+
+    <div class="diagram">
+      <svg viewBox="0 0 720 560" role="img" aria-label="신뢰 시간 롤오버 승인 플로차트">
+        <defs>
+          <marker id="dgtt-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--text-dim)"/>
+          </marker>
+        </defs>
+        <!-- Q1 날짜 키 -->
+        <polygon class="dg-node k-decision" points="250,25 400,65 250,105 100,65"/>
+        <text class="dg-text" x="250" y="61" text-anchor="middle">로컬 날짜 키가</text>
+        <text class="dg-text" x="250" y="77" text-anchor="middle">바뀌었는가?</text>
+        <rect class="dg-node" x="500" y="40" width="180" height="44" rx="8"/>
+        <text class="dg-text" x="590" y="66" text-anchor="middle">할 일 없음</text>
+        <path class="dg-edge" d="M400,65 L496,62" marker-end="url(#dgtt-arrow)"/>
+        <text class="dg-elabel" x="430" y="54">아니오</text>
+        <!-- Q2 온라인 -->
+        <path class="dg-edge" d="M250,105 L250,145" marker-end="url(#dgtt-arrow)"/>
+        <text class="dg-elabel" x="260" y="130">예</text>
+        <polygon class="dg-node k-decision" points="250,150 400,190 250,230 100,190"/>
+        <text class="dg-text" x="250" y="186" text-anchor="middle">Steam 신뢰 시계</text>
+        <text class="dg-text" x="250" y="202" text-anchor="middle">사용 가능? (온라인)</text>
+        <rect class="dg-node k-config" x="480" y="162" width="220" height="56" rx="8"/>
+        <text class="dg-text" x="590" y="184" text-anchor="middle">롤오버 실행 + 보상 보류</text>
+        <text class="dg-sub" x="590" y="202" text-anchor="middle">다음 온라인 검증 때 확정 (규칙 ④)</text>
+        <path class="dg-edge" d="M400,190 L476,190" marker-end="url(#dgtt-arrow)"/>
+        <text class="dg-elabel" x="418" y="182">아니오</text>
+        <!-- Q3 오프셋 -->
+        <path class="dg-edge" d="M250,230 L250,270" marker-end="url(#dgtt-arrow)"/>
+        <text class="dg-elabel" x="260" y="255">예</text>
+        <polygon class="dg-node k-decision" points="250,275 400,315 250,355 100,315"/>
+        <text class="dg-text" x="250" y="311" text-anchor="middle">|로컬 − 신뢰UTC|</text>
+        <text class="dg-text" x="250" y="327" text-anchor="middle">≤ 15시간? (규칙 ①)</text>
+        <rect class="dg-node" x="480" y="287" width="220" height="56" rx="8"/>
+        <text class="dg-text" x="590" y="309" text-anchor="middle">조작 확정 — 보상 보류</text>
+        <text class="dg-sub" x="590" y="327" text-anchor="middle">롤오버는 실행, 지급만 잠금</text>
+        <path class="dg-edge lk-event" d="M400,315 L476,315" marker-end="url(#dgtt-arrow)"/>
+        <text class="dg-elabel" x="418" y="307">아니오</text>
+        <!-- Q4 경과시간 -->
+        <path class="dg-edge" d="M250,355 L250,395" marker-end="url(#dgtt-arrow)"/>
+        <text class="dg-elabel" x="260" y="380">예</text>
+        <polygon class="dg-node k-decision" points="250,400 400,440 250,480 100,440"/>
+        <text class="dg-text" x="250" y="436" text-anchor="middle">마지막 승인 후 신뢰 기준</text>
+        <text class="dg-text" x="250" y="452" text-anchor="middle">20시간 경과? (규칙 ②)</text>
+        <rect class="dg-node" x="480" y="412" width="220" height="56" rx="8"/>
+        <text class="dg-text" x="590" y="434" text-anchor="middle">아직 이르다 — 대기</text>
+        <text class="dg-sub" x="590" y="452" text-anchor="middle">자정 미세 조작이 여기서 무력화</text>
+        <path class="dg-edge lk-event" d="M400,440 L476,440" marker-end="url(#dgtt-arrow)"/>
+        <text class="dg-elabel" x="418" y="432">아니오</text>
+        <!-- 승인 -->
+        <path class="dg-edge lk-save" d="M250,480 L250,516" marker-end="url(#dgtt-arrow)"/>
+        <text class="dg-elabel" x="260" y="502">예</text>
+        <rect class="dg-node k-savegame" x="120" y="520" width="260" height="36" rx="8"/>
+        <text class="dg-text" x="250" y="542" text-anchor="middle">승인 — 롤오버 실행 + 신뢰 시각 기록</text>
+      </svg>
+    </div>
+
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">rollover-approval.mmd</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-keyword">flowchart</span> TD
+    Q1{"로컬 날짜 키가 바뀌었는가?"} -- 아니오 --&gt; N["할 일 없음"]
+    Q1 -- 예 --&gt; Q2{"Steam 신뢰 시계 사용 가능?"}
+    Q2 -- 아니오 --&gt; HOLD1["롤오버 실행 + 보상 보류 (다음 온라인 때 확정)"]
+    Q2 -- 예 --&gt; Q3{"|로컬 − 신뢰UTC| ≤ 15시간?"}
+    Q3 -- 아니오 --&gt; HOLD2["조작 확정 — 롤오버는 실행, 지급만 보류"]
+    Q3 -- 예 --&gt; Q4{"마지막 승인 후 신뢰 기준 20h 경과?"}
+    Q4 -- 아니오 --&gt; WAIT["아직 이르다 — 대기"]
+    Q4 -- 예 --&gt; OK["승인 — 롤오버 실행 + 신뢰 시각 기록"]</pre></div>
+    </div>
+    <div class="callout tip"><span class="ic">💡</span><p><strong>"롤오버는 실행, 지급만 보류"인 이유</strong> — 퀘스트 목록 갱신 같은 <strong>상태 전환</strong>은 막으면 앱이 이상해 보입니다(어제 퀘스트가 계속 떠 있음). 막는 것은 <strong>가치가 있는 것(보상·스트릭 증가)</strong>만으로 좁혀야 오탐의 피해도 최소화됩니다.</p></div>
+  </div>
+
+  <!-- 05 스켈레톤 -->
+  <div class="section" id="skeleton">
+    <div class="section-label">05 — 구현 스켈레톤</div>
+    <h2>TrustedTimeSubsystem + Steamworks 연결</h2>
+    <p><strong>전제 — 엔진 등록부터</strong>: Steamworks SDK 심볼을 쓰려면 ① <code>프로젝트.Build.cs</code>에 <code>PrivateDependencyModuleNames</code>로 <code>"OnlineSubsystem", "OnlineSubsystemSteam"</code> 추가 + <code>AddEngineThirdPartyPrivateStaticDependencies(Target, "Steamworks")</code>, ② <code>Config/DefaultEngine.ini</code>에 <code>[OnlineSubsystem] DefaultPlatformService=Steam</code>과 <code>[OnlineSubsystemSteam] bEnabled=true, SteamDevAppId=480</code>(테스트용 앱ID, 출시 시 자기 AppId로 교체)을 등록해야 합니다. 이 설정이 없으면 아래 코드는 컴파일/초기화에 실패합니다.</p>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">TrustedTimeSubsystem.h</button>
+        <button class="codeblock-tab tab-cpp" type="button">TrustedTimeSubsystem.cpp</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"TrustedTimeSubsystem.generated.h"</span>
+
+<span class="hljs-comment">// 롤오버 승인 요청의 판정 결과 — 플로차트(§04)의 출구 4개와 1:1</span>
+<span class="hljs-meta">UENUM(BlueprintType)</span>
+<span class="hljs-keyword">enum class</span> <span class="hljs-type">ERolloverVerdict</span> : <span class="hljs-type">uint8</span>
+{
+    NotYet,        <span class="hljs-comment">// 날짜 안 바뀜 / 경과시간 미달 — 대기</span>
+    Approved,      <span class="hljs-comment">// 승인 — 보상 포함 전부 실행</span>
+    HoldOffline,   <span class="hljs-comment">// 오프라인 — 실행하되 보상 보류</span>
+    HoldSuspicious <span class="hljs-comment">// 오프셋 이탈 — 실행하되 보상 보류</span>
+};
+
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> MYGAME_API <span class="hljs-type">UTrustedTimeSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// 신뢰 UTC. 성공 시 true — 오프라인이면 false (그때 로컬을 쓸지는 호출자가 아님,</span>
+    <span class="hljs-comment">// 이 클래스의 판정 함수가 결정한다. 시간 판정 창구는 여기 하나뿐.</span>
+    <span class="hljs-keyword">bool</span> <span class="hljs-title">TryGetTrustedUtcNow</span>(<span class="hljs-type">FDateTime</span>&amp; OutUtc) <span class="hljs-keyword">const</span>;
+
+    <span class="hljs-comment">// 일일 리셋 시스템이 부르는 유일한 질문</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "TrustedTime")</span>
+    <span class="hljs-type">ERolloverVerdict</span> <span class="hljs-title">ApproveRollover</span>();
+
+<span class="hljs-keyword">private</span>:
+    <span class="hljs-comment">// ↓ 두 값은 SaveGame에 영속 (로드/저장은 소유자 경유 — SaveGame 문서)</span>
+    <span class="hljs-type">FDateTime</span> LastApprovedTrustedUtc;   <span class="hljs-comment">// 마지막 승인 시점의 "신뢰" 시각</span>
+    <span class="hljs-type">FString</span>   LastLocalDateKey;         <span class="hljs-comment">// 마지막 승인의 로컬 날짜 키 "YYYYMMDD"</span>
+
+    <span class="hljs-keyword">static constexpr</span> <span class="hljs-type">double</span> MaxOffsetHours  = <span class="hljs-number">15.0</span>;  <span class="hljs-comment">// 규칙 ① — 시간대 한계 + 여유</span>
+    <span class="hljs-keyword">static constexpr</span> <span class="hljs-type">double</span> MinElapsedHours = <span class="hljs-number">20.0</span>;  <span class="hljs-comment">// 규칙 ② — DST·이동 흡수</span>
+};</pre></div>
+      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include</span> <span class="hljs-string">"TrustedTimeSubsystem.h"</span>
+<span class="hljs-comment">// Steamworks 직접 호출 — Build.cs의 Steamworks 서드파티 의존이 전제</span>
+<span class="hljs-meta">THIRD_PARTY_INCLUDES_START</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">&lt;steam/steam_api.h&gt;</span>
+<span class="hljs-meta">THIRD_PARTY_INCLUDES_END</span>
+
+<span class="hljs-keyword">bool</span> <span class="hljs-type">UTrustedTimeSubsystem</span>::<span class="hljs-title">TryGetTrustedUtcNow</span>(<span class="hljs-type">FDateTime</span>&amp; OutUtc) <span class="hljs-keyword">const</span>
+{
+    <span class="hljs-comment">// OnlineSubsystemSteam이 SteamAPI를 초기화한 뒤에만 SteamUtils()가 유효.</span>
+    <span class="hljs-comment">// 오프라인 모드·스팀 미실행이면 null — 그것이 곧 "신뢰 시계 없음" 신호다.</span>
+    <span class="hljs-keyword">if</span> (<span class="hljs-title">SteamUtils</span>() == <span class="hljs-literal">nullptr</span>) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+
+    <span class="hljs-keyword">const</span> <span class="hljs-type">uint32</span> UnixUtc = <span class="hljs-title">SteamUtils</span>()-&gt;<span class="hljs-title">GetServerRealTime</span>();
+    OutUtc = <span class="hljs-type">FDateTime</span>::<span class="hljs-title">FromUnixTimestamp</span>((<span class="hljs-type">int64</span>)UnixUtc);
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+}
+
+<span class="hljs-type">ERolloverVerdict</span> <span class="hljs-type">UTrustedTimeSubsystem</span>::<span class="hljs-title">ApproveRollover</span>()
+{
+    <span class="hljs-comment">// Q1 — 사용자의 "오늘"은 로컬로 계산한다 (시간대 반영, FDateTime 문서)</span>
+    <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span> TodayKey = <span class="hljs-type">FDateTime</span>::<span class="hljs-title">Now</span>().<span class="hljs-title">ToString</span>(<span class="hljs-string">TEXT("%Y%m%d")</span>);
+    <span class="hljs-keyword">if</span> (TodayKey == LastLocalDateKey) <span class="hljs-keyword">return</span> <span class="hljs-type">ERolloverVerdict</span>::NotYet;
+
+    <span class="hljs-comment">// Q2 — 신뢰 시계 확보 시도</span>
+    <span class="hljs-type">FDateTime</span> TrustedUtc;
+    <span class="hljs-keyword">if</span> (!<span class="hljs-title">TryGetTrustedUtcNow</span>(TrustedUtc))
+    {
+        LastLocalDateKey = TodayKey;   <span class="hljs-comment">// 상태 전환은 진행, 지급만 보류 (규칙 ④)</span>
+        <span class="hljs-keyword">return</span> <span class="hljs-type">ERolloverVerdict</span>::HoldOffline;
+    }
+
+    <span class="hljs-comment">// Q3 — 규칙 ①: 오프셋이 시간대 물리 한계를 벗어나면 조작 확정</span>
+    <span class="hljs-keyword">const</span> <span class="hljs-type">FTimespan</span> Offset = <span class="hljs-type">FDateTime</span>::<span class="hljs-title">Now</span>() - TrustedUtc;
+    <span class="hljs-keyword">if</span> (<span class="hljs-type">FMath</span>::<span class="hljs-title">Abs</span>(Offset.<span class="hljs-title">GetTotalHours</span>()) &gt; MaxOffsetHours)
+    {
+        LastLocalDateKey = TodayKey;
+        <span class="hljs-keyword">return</span> <span class="hljs-type">ERolloverVerdict</span>::HoldSuspicious;
+    }
+
+    <span class="hljs-comment">// Q4 — 규칙 ②: 달력이 아니라 "실제 흐른 시간"이 승인한다</span>
+    <span class="hljs-keyword">const</span> <span class="hljs-type">double</span> ElapsedH = (TrustedUtc - LastApprovedTrustedUtc).<span class="hljs-title">GetTotalHours</span>();
+    <span class="hljs-keyword">if</span> (ElapsedH &lt; MinElapsedHours) <span class="hljs-keyword">return</span> <span class="hljs-type">ERolloverVerdict</span>::NotYet;
+
+    <span class="hljs-comment">// 승인 — 신뢰 시각을 기록해 다음 판정의 기준점으로</span>
+    LastApprovedTrustedUtc = TrustedUtc;
+    LastLocalDateKey = TodayKey;
+    <span class="hljs-comment">// SaveNow() — 소유자 경유 저장</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-type">ERolloverVerdict</span>::Approved;
+}</pre></div>
+    </div>
+    <div class="callout tip"><span class="ic">💡</span><p><strong>보류(Hold)의 구현</strong> — 보류 판정을 받은 보상은 "보류 큐"(예: <code>TArray&lt;FPendingReward&gt;</code>, SaveGame 영속)에 넣어 두고, 다음에 <code>Approved</code>가 나오는 순간 함께 지급하면 됩니다. 첫 구현에서는 큐 없이 "보류 = 그날 보상 스킵"으로 시작해도 충분합니다 — 정책 강도는 나중에 올릴 수 있습니다.</p></div>
+  </div>
+
+  <!-- 06 확장 -->
+  <div class="section" id="extend">
+    <div class="section-label">06 — 확장 &amp; 주의</div>
+    <h2>연동에서 미끄러지는 지점들</h2>
+    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>① SteamAPI 초기화 전 호출</strong> — <code>SteamUtils()</code>는 OnlineSubsystemSteam이 초기화를 마친 뒤에만 유효합니다. GameInstance <code>Init()</code> 극초반이나 에디터 PIE(스팀 미연결 상태)에서는 null이 정상 — <strong>null = 오프라인 폴백 경로</strong>로 설계돼 있으므로 크래시 없이 흘러가는지 확인하세요.</div></div>
+    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>② 에디터에서는 대부분 오프라인 판정</strong> — PIE는 SteamDevAppId=480 설정이 있어도 스팀 연결이 불안정합니다. 개발 중 판정 로직을 테스트하려면 <code>TryGetTrustedUtcNow</code>를 콘솔 변수로 강제 성공/실패시키는 테스트 훅을 붙이는 것이 편합니다.</div></div>
+    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>③ 임계값을 24h로 잡는 실수</strong> — 경과시간 조건을 24h로 하면 서머타임 시작일(23h짜리 하루)과 동쪽으로 여행한 유저의 정상 롤오버가 거부됩니다. <strong>20h</strong>가 "정상 하루의 최소 길이"를 흡수하는 안전값입니다. 오프셋 한계도 ±14h가 아니라 <strong>15h</strong>로 여유를 두는 같은 이유입니다.</div></div>
+    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>④ 신뢰 시각의 저장을 빠뜨림</strong> — <code>LastApprovedTrustedUtc</code>가 SaveGame에 없으면 앱을 껐다 켤 때마다 경과시간 기준점이 사라져 규칙 ②가 무력화됩니다. UPROPERTY 필드로 반드시 영속시키세요(SaveGame 문서의 함정 ①과 동일 계열).</div></div>
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>테스트 시나리오 4종</strong> — ⓐ OS 시계 +3일 → HoldSuspicious ⓑ 23:59→00:01 → NotYet(경과 미달) ⓒ 스팀 끄고 자정 경과 → HoldOffline, 스팀 켜면 확정 지급 ⓓ 시간대만 서쪽 변경 → 오프셋 정상 범위 → 클램프 가드 경로. 넷 다 통과하면 방어가 완성된 것입니다.</div></div>
+  </div>
+
+</div>
+
+<footer>
+  <span>UE 아키텍처 문서 · 신뢰 시간 v1.0</span>
+  <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.5</span>
+</footer>
+
+<script>
+(function () {
+  document.querySelectorAll('.codeblock').forEach(function (block) {
+    var tabs = block.querySelectorAll('.codeblock-tab');
+    var panels = block.querySelectorAll('.codeblock-panel');
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) { t.classList.remove('active'); });
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        if (panels[i]) panels[i].classList.add('active');
+      });
+    });
+    var copyBtn = block.querySelector('.codeblock-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () {
+        var pre = block.querySelector('.codeblock-panel.active pre');
+        if (!pre) return;
+        var text = pre.innerText;
+        var done = function () {
+          copyBtn.textContent = '복사됨 ✓';
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.textContent = '복사';
+            copyBtn.classList.remove('copied');
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+        } else {
+          fallbackCopy(text, done);
+        }
+      });
+    }
+  });
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+})();
+</script>
+
+</body>
+</html>

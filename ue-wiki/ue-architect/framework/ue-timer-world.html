@@ -1,3 +1,22 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>타이머와 World — 시간 콜백은 누구 소속인가 · UE 아키텍처</title>
+<!-- ============================================================
+     CHANGELOG — ue-timer-world.html
+     유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿 · framework/).
+     작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.0 · 2026-07-07
+       - 신규 생성. FTimerManager가 World 소속이라는 대전제, GameInstanceSubsystem의
+         Initialize()에서 GetWorld()가 null인 이유(수명 타임라인), 안전한 타이머 시작
+         위치 결정표, 일시정지/남은 시간 보존 패턴을 다룸.
+       - 수명 타임라인 다이어그램(.diagram SVG + Mermaid 소스 병기, STEP 7 v3.7)
+       - 마스터 CSS v1.5 inline 스냅샷, hljs 구워넣기, 탭/복사 inline JS
+       - 용어 앵커: term-timer-manager · term-timer-handle · term-world-lifetime
+     ============================================================ -->
+<style>
 /* ============================================================
    UE Design System — Master Stylesheet
    (design-guide-ue-master.css)
@@ -532,3 +551,257 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   footer { padding: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">UE WIKI · TIMER &amp; WORLD</div>
+  <div class="nav-links">
+    <a href="#concept">개념</a>
+    <a href="#relation">관계</a>
+    <a href="#responsibility">책임</a>
+    <a href="#flow">흐름</a>
+    <a href="#skeleton">스켈레톤</a>
+    <a href="#extend">확장</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">UE Architecture · Type ① · 02-A</div>
+  <h1>타이머와 World<br><span>시간 콜백은 누구 소속인가</span></h1>
+  <p class="hero-sub">
+    "N초 뒤에 이 함수를 불러줘"를 담당하는 <strong><code>FTimerManager</code></strong>는 전역 서비스가 아니라 <strong>World의 부품</strong>입니다. 이 한 문장을 모르면 "Subsystem <code>Initialize()</code>에서 타이머를 걸었는데 <code>GetWorld()</code>가 null"이라는, 초보자가 가장 오래 헤매는 벽에 부딪힙니다. 이 문서는 그 벽의 원인(수명 타임라인)과 안전한 우회로를 다룹니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">엔진 자체 기능</span>
+    <span class="badge badge-green">UE4 / UE5 공통</span>
+    <span class="badge badge-purple">C++ 중심</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- 01 개념 -->
+  <div class="section" id="concept">
+    <div class="section-label">01 — 개념 · 역할</div>
+    <h2>타이머는 예약, 핸들은 예약 번호표</h2>
+    <p>매 프레임 <code>Tick</code>에서 시간을 직접 빼는 대신, 엔진에 "예약"을 겁니다: <em>"5초 뒤에(또는 5초마다) 이 함수를 호출해줘."</em> 예약을 받는 곳이 <code>FTimerManager</code>, 예약증이 <code>FTimerHandle</code>입니다.</p>
+    <h3 id="term-timer-manager">핵심 용어</h3>
+    <div class="callout info"><span class="ic">📖</span><p>
+      <strong>World</strong> — 레벨(맵)이 로드되어 실행 중인 무대. 액터·시간·물리가 전부 World 위에서 돕니다. <strong>레벨을 이동하면 이전 World는 파괴됩니다.</strong><br><br>
+      <strong>FTimerManager</strong> — World가 소유한 예약 접수처. World의 시간(일시정지·시간 배속의 영향을 받는 시간)을 기준으로 만료를 판정합니다. <code>GetWorld()-&gt;GetTimerManager()</code>로 접근합니다.<br><br>
+      <strong id="term-timer-handle">FTimerHandle</strong> — 예약 번호표. 예약을 취소(<code>ClearTimer</code>)·조회(<code>GetTimerRemaining</code>)·일시정지(<code>PauseTimer</code>)하려면 이 핸들이 필요하므로 <strong>멤버 변수로 보관</strong>합니다.<br><br>
+      <strong id="term-world-lifetime">수명(Lifetime)</strong> — 객체가 태어나서 죽기까지의 구간. GameInstance(앱 전체) ⊃ World(레벨 하나) 관계라서, <strong>GameInstance가 살아 있어도 World는 아직 없거나 이미 죽었을 수 있습니다.</strong> 이 어긋남이 이 문서의 주제입니다.
+    </p></div>
+  </div>
+
+  <!-- 02 관계 -->
+  <div class="section" id="relation">
+    <div class="section-label">02 — 수명 관계</div>
+    <h2>왜 Initialize()에서 GetWorld()가 null인가</h2>
+    <p>앱이 켜질 때의 순서를 시간축으로 보면 답이 보입니다. <strong>GameInstance와 그 Subsystem들은 World가 만들어지기 전에 초기화됩니다.</strong></p>
+
+    <div class="diagram">
+      <svg viewBox="0 0 700 250" role="img" aria-label="GameInstance와 World의 수명 타임라인">
+        <defs>
+          <marker id="dgt-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--text-dim)"/>
+          </marker>
+        </defs>
+        <path class="dg-edge" d="M30,40 L690,40" marker-end="url(#dgt-arrow)"/>
+        <text class="dg-elabel" x="640" y="30">시간 →</text>
+        <rect class="dg-node k-instance" x="30" y="60" width="640" height="44" rx="8"/>
+        <text class="dg-text" x="350" y="87" text-anchor="middle">GameInstance + Subsystems — 앱이 켜진 순간부터 꺼질 때까지</text>
+        <rect class="dg-node k-decision" x="30" y="118" width="150" height="36" rx="8"/>
+        <text class="dg-text" x="105" y="140" text-anchor="middle">Initialize() 시점</text>
+        <rect class="dg-node" x="215" y="118" width="215" height="36" rx="8"/>
+        <text class="dg-text" x="322" y="140" text-anchor="middle">World A (첫 레벨)</text>
+        <rect class="dg-node" x="470" y="118" width="200" height="36" rx="8"/>
+        <text class="dg-text" x="570" y="140" text-anchor="middle">World B (레벨 이동 후)</text>
+        <path class="dg-edge lk-event" d="M105,154 L105,190"/>
+        <text class="dg-elabel" x="30" y="210">여기서 GetWorld() = null</text>
+        <text class="dg-elabel" x="30" y="226">→ SetTimer 불가</text>
+        <path class="dg-edge lk-save" d="M430,136 L466,136" marker-end="url(#dgt-arrow)"/>
+        <text class="dg-elabel" x="330" y="210">World가 바뀌면 A의 타이머는 전부 소멸</text>
+        <text class="dg-elabel" x="330" y="226">(TimerManager가 World 소속이므로)</text>
+      </svg>
+    </div>
+
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">lifetime.mmd</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-keyword">flowchart</span> LR
+    GI[GameInstance 생성] --&gt; INIT[Subsystem Initialize — World 없음!]
+    INIT --&gt; WA[World A 로드 + BeginPlay]
+    WA --&gt; WB[레벨 이동 → World A 파괴, World B 생성]
+    WA -. World A의 타이머 전부 소멸 .-&gt; WB</pre></div>
+    </div>
+  </div>
+
+  <!-- 03 책임 -->
+  <div class="section" id="responsibility">
+    <div class="section-label">03 — 어디서 걸어야 안전한가</div>
+    <h2>타이머 시작 위치 결정표</h2>
+    <table class="tbl">
+      <tr><th>내가 있는 곳</th><th>안전한 시작 시점</th><th>이유</th></tr>
+      <tr><td><span class="owner o-pawn">Actor / Component</span></td><td><code>BeginPlay()</code> 이후</td><td>BeginPlay = "World에 배치 완료" 신호. <code>GetWorld()</code>가 항상 유효</td></tr>
+      <tr><td><span class="owner o-controller">UMG 위젯</span></td><td><code>NativeConstruct()</code> 이후</td><td>화면에 붙은 위젯은 World를 가짐. 파괴 시 <code>ClearTimer</code> 필수</td></tr>
+      <tr><td><span class="owner o-subsystem">GameInstanceSubsystem</span></td><td><strong><code>Initialize()</code> ✗</strong> → 사용자 입력/게임 시작 등 <strong>첫 호출 시점</strong>에</td><td>Initialize 시점엔 World가 없음. "타이머 시작" 함수(예: <code>StartXxx()</code>)가 불릴 때는 World가 있으므로 그때 걸기</td></tr>
+      <tr><td><span class="owner o-instance">항상 돌아야 하는 전역 틱</span></td><td><code>FTSTicker</code> (World 무관)</td><td>레벨 이동에도 살아남아야 하는 백그라운드 갱신은 World 타이머가 아니라 엔진 티커 사용(§06)</td></tr>
+    </table>
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>판별 한 줄</strong> — "이 타이머는 레벨이 바뀌어도 계속 가야 하나?" 아니오 → World 타이머(위 셋). 예 → 설계를 다시 보거나(대부분 만료 시각을 저장해 두고 재계산하면 충분) FTSTicker.</div></div>
+  </div>
+
+  <!-- 04 흐름 -->
+  <div class="section" id="flow">
+    <div class="section-label">04 — 사용 흐름</div>
+    <h2>걸기 · 멈추기 · 남은 시간 보존</h2>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">걸기 — SetTimer</div><div class="pipe-desc"><code>GetWorld()-&gt;GetTimerManager().SetTimer(Handle, this, &amp;클래스::OnExpired, 5.f, false)</code>. 마지막 인자 <code>true</code>면 5초마다 반복. 전제: World 유효. 결과: Handle이 유효한 예약을 가리킴.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">일시정지 / 재개</div><div class="pipe-desc"><code>PauseTimer(Handle)</code> / <code>UnPauseTimer(Handle)</code> — 남은 시간이 그대로 얼었다 녹습니다. 대부분의 "일시정지" 요구는 이 두 줄로 끝나며, 남은 시간을 직접 계산할 필요가 없습니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">조회 — 남은 시간 표시</div><div class="pipe-desc"><code>GetTimerRemaining(Handle)</code>이 초 단위 float를 돌려줍니다. UI 카운트다운은 이 값을 읽어 그리기만 하면 됩니다(별도 카운트 변수를 두지 않기 — 이중 장부 방지).</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">끄기 — ClearTimer</div><div class="pipe-desc"><code>ClearTimer(Handle)</code> — 예약 취소 + 핸들 무효화. 소유 객체가 파괴되기 전(위젯 <code>NativeDestruct</code> 등)에 반드시 호출합니다.</div></div></div>
+  </div>
+
+  <!-- 05 스켈레톤 -->
+  <div class="section" id="skeleton">
+    <div class="section-label">05 — 구현 스켈레톤</div>
+    <h2>Subsystem에서 안전하게 타이머 걸기</h2>
+    <p>핵심은 <strong>Initialize가 아니라 Start 함수에서 건다</strong>는 것 — 그 시점엔 World가 반드시 있습니다.</p>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">CountdownSubsystem.h</button>
+        <button class="codeblock-tab tab-cpp" type="button">CountdownSubsystem.cpp</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"CountdownSubsystem.generated.h"</span>
+
+<span class="hljs-meta">DECLARE_DYNAMIC_MULTICAST_DELEGATE</span>(FOnCountdownFinished);
+
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> MYGAME_API <span class="hljs-type">UCountdownSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Start</span>(<span class="hljs-type">float</span> Seconds);
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Pause</span>();
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Resume</span>();
+    <span class="hljs-meta">UFUNCTION(BlueprintPure)</span>     <span class="hljs-type">float</span> <span class="hljs-title">GetRemaining</span>() <span class="hljs-keyword">const</span>;
+
+    <span class="hljs-meta">UPROPERTY(BlueprintAssignable)</span>
+    <span class="hljs-type">FOnCountdownFinished</span> OnFinished;
+
+<span class="hljs-keyword">private</span>:
+    <span class="hljs-keyword">void</span> <span class="hljs-title">HandleExpired</span>();
+    <span class="hljs-type">FTimerHandle</span> Handle;   <span class="hljs-comment">// 예약 번호표 — 반드시 멤버로 보관</span>
+};</pre></div>
+      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include</span> <span class="hljs-string">"CountdownSubsystem.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"TimerManager.h"</span>
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UCountdownSubsystem</span>::<span class="hljs-title">Start</span>(<span class="hljs-type">float</span> Seconds)
+{
+    <span class="hljs-comment">// Initialize()가 아니라 여기서 건다 — 사용자가 부르는 시점엔 World가 있다.</span>
+    <span class="hljs-type">UWorld</span>* World = <span class="hljs-title">GetGameInstance</span>()-&gt;<span class="hljs-title">GetWorld</span>();
+    <span class="hljs-keyword">if</span> (!World) <span class="hljs-keyword">return</span>;   <span class="hljs-comment">// 방어 — 로딩 경계에서 불리는 예외 케이스</span>
+
+    World-&gt;<span class="hljs-title">GetTimerManager</span>().<span class="hljs-title">SetTimer</span>(
+        Handle, <span class="hljs-keyword">this</span>, &amp;<span class="hljs-type">UCountdownSubsystem</span>::HandleExpired,
+        Seconds, <span class="hljs-literal">false</span>);   <span class="hljs-comment">// false = 1회성</span>
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UCountdownSubsystem</span>::<span class="hljs-title">Pause</span>()
+{
+    <span class="hljs-keyword">if</span> (<span class="hljs-type">UWorld</span>* W = <span class="hljs-title">GetGameInstance</span>()-&gt;<span class="hljs-title">GetWorld</span>())
+        W-&gt;<span class="hljs-title">GetTimerManager</span>().<span class="hljs-title">PauseTimer</span>(Handle);   <span class="hljs-comment">// 남은 시간이 언 채로 보존</span>
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UCountdownSubsystem</span>::<span class="hljs-title">Resume</span>()
+{
+    <span class="hljs-keyword">if</span> (<span class="hljs-type">UWorld</span>* W = <span class="hljs-title">GetGameInstance</span>()-&gt;<span class="hljs-title">GetWorld</span>())
+        W-&gt;<span class="hljs-title">GetTimerManager</span>().<span class="hljs-title">UnPauseTimer</span>(Handle);
+}
+
+<span class="hljs-type">float</span> <span class="hljs-type">UCountdownSubsystem</span>::<span class="hljs-title">GetRemaining</span>() <span class="hljs-keyword">const</span>
+{
+    <span class="hljs-keyword">if</span> (<span class="hljs-type">UWorld</span>* W = <span class="hljs-title">GetGameInstance</span>()-&gt;<span class="hljs-title">GetWorld</span>())
+        <span class="hljs-keyword">return</span> W-&gt;<span class="hljs-title">GetTimerManager</span>().<span class="hljs-title">GetTimerRemaining</span>(Handle);
+    <span class="hljs-keyword">return</span> <span class="hljs-number">0.f</span>;
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UCountdownSubsystem</span>::<span class="hljs-title">HandleExpired</span>()
+{
+    OnFinished.<span class="hljs-title">Broadcast</span>();   <span class="hljs-comment">// 후속 처리는 구독자(델리게이트 문서 참조)</span>
+}</pre></div>
+    </div>
+  </div>
+
+  <!-- 06 확장 -->
+  <div class="section" id="extend">
+    <div class="section-label">06 — 확장 &amp; 주의</div>
+    <h2>시간이 꼬이는 지점들</h2>
+    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>① Initialize()에서 SetTimer</strong> — 이 문서의 주제. <code>GetWorld()</code>가 null이라 크래시하거나(체크 없이 역참조) 조용히 무시됩니다. 타이머는 "시작 요청 함수" 안에서 거세요.</div></div>
+    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>② 레벨 이동 = 타이머 전멸</strong> — TimerManager가 World 소속이므로 World가 죽으면 예약도 함께 사라집니다. 레벨을 넘나드는 게임이라면 "만료 시각(FDateTime)을 저장해 두고 새 World에서 남은 시간을 재계산"하는 방식이 정석입니다.</div></div>
+    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>③ 람다 캡처 수명</strong> — <code>SetTimer(Handle, [this](){...}, ...)</code> 식의 람다는 <code>this</code>가 먼저 죽으면 위험합니다. 멤버 함수 바인딩(자동 무효화됨)을 기본으로 하고, 람다가 꼭 필요하면 <code>FTimerDelegate::CreateWeakLambda(this, ...)</code>를 쓰세요.</div></div>
+    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>④ 게임 일시정지의 영향</strong> — World 타이머는 게임 일시정지(<code>SetGamePaused</code>)와 시간 배속의 영향을 받습니다. "실제 벽시계 기준"이 필요하면 타이머가 아니라 <code>FDateTime</code> 비교로 판정하세요(위키 FDateTime 문서).</div></div>
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>FTSTicker</strong> — World와 무관하게 매 틱 불리는 엔진 레벨 티커. 레벨 이동에도 살아남아야 하는 얇은 배경 갱신(초당 1회 폴링 등)에만 제한적으로 사용하고, 게임 로직 타이머는 World 타이머를 유지하세요.</div></div>
+  </div>
+
+</div>
+
+<footer>
+  <span>UE 아키텍처 문서 · 타이머와 World v1.0</span>
+  <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.5</span>
+</footer>
+
+<script>
+(function () {
+  document.querySelectorAll('.codeblock').forEach(function (block) {
+    var tabs = block.querySelectorAll('.codeblock-tab');
+    var panels = block.querySelectorAll('.codeblock-panel');
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) { t.classList.remove('active'); });
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        if (panels[i]) panels[i].classList.add('active');
+      });
+    });
+    var copyBtn = block.querySelector('.codeblock-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () {
+        var pre = block.querySelector('.codeblock-panel.active pre');
+        if (!pre) return;
+        var text = pre.innerText;
+        var done = function () {
+          copyBtn.textContent = '복사됨 ✓';
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.textContent = '복사';
+            copyBtn.classList.remove('copied');
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+        } else {
+          fallbackCopy(text, done);
+        }
+      });
+    }
+  });
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+})();
+</script>
+
+</body>
+</html>

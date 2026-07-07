@@ -1,3 +1,21 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>한글 폰트 파이프라인 — UMG에서 한글이 □로 나올 때 · UE 아키텍처</title>
+<!-- ============================================================
+     CHANGELOG — ue-korean-font-pipeline.html
+     유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿 · ui/).
+     작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.0 · 2026-07-07
+       - 신규 생성. 두부(□) 현상의 원인(글리프 부재), TTF 임포트 → Font Face →
+         Composite Font(폴백 체인) → 위젯 적용 절차, 프로젝트 전역 통일 전략
+         (공통 텍스트 위젯), 무료 상용 폰트·라이선스 안내를 다룸.
+       - 마스터 CSS v1.5 inline 스냅샷, hljs 구워넣기, 탭/복사 inline JS
+       - 용어 앵커: term-glyph · term-tofu · term-font-fallback
+     ============================================================ -->
+<style>
 /* ============================================================
    UE Design System — Master Stylesheet
    (design-guide-ue-master.css)
@@ -532,3 +550,210 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   footer { padding: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">UE WIKI · KOREAN FONT</div>
+  <div class="nav-links">
+    <a href="#concept">개념</a>
+    <a href="#relation">관계</a>
+    <a href="#responsibility">책임</a>
+    <a href="#flow">절차</a>
+    <a href="#skeleton">스켈레톤</a>
+    <a href="#extend">확장</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">UE Architecture · Type ① · 02-A</div>
+  <h1>한글 폰트 파이프라인<br><span>UMG에서 한글이 □로 나올 때</span></h1>
+  <p class="hero-sub">
+    첫 위젯에 "안녕하세요"를 넣는 순간 <strong>□□□□□</strong>가 뜹니다. 코드도 에셋도 멀쩡한데 글자만 깨져서, 초보자는 인코딩·FText·언어 설정을 헤매다 하루를 잃습니다. 진짜 원인은 하나 — <strong>UMG 기본 폰트(Roboto)에 한글 글리프가 없기 때문</strong>입니다. 이 문서는 TTF 임포트부터 프로젝트 전역 폰트 통일까지, 한 번 세팅하면 다시는 만질 일 없는 파이프라인을 다룹니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">엔진 자체 기능</span>
+    <span class="badge badge-green">UE4 / UE5 공통</span>
+    <span class="badge badge-purple">에디터 · C++</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- 01 개념 -->
+  <div class="section" id="concept">
+    <div class="section-label">01 — 개념 · 원인</div>
+    <h2>폰트는 그림 사전이다 — 없는 글자는 못 그린다</h2>
+    <p>폰트 파일은 "문자 코드 → 글자 모양"의 사전입니다. 텍스트 데이터 자체(FString/FText)는 유니코드라 한글을 완벽히 담고 있지만, <strong>그릴 때 쓰는 사전에 한글 항목이 없으면</strong> 렌더러는 대체 기호(□)를 그립니다. 즉 □는 데이터 문제가 아니라 <strong>그리기 재료 문제</strong>입니다.</p>
+    <h3 id="term-glyph">핵심 용어</h3>
+    <div class="callout info"><span class="ic">📖</span><p>
+      <strong>글리프(Glyph)</strong> — 폰트 안에 든 <strong>글자 모양 하나</strong>. 한글을 다 담으려면 완성형 11,172자(실사용 2,350자+)의 글리프가 필요해, 영문 폰트(수백 글리프)와는 파일 크기부터 다릅니다.<br><br>
+      <strong id="term-tofu">두부(Tofu) 현상</strong> — 글리프가 없는 문자가 □로 나오는 것. 생김새 때문에 업계에서 tofu라 부릅니다. 구글의 한글 폰트 이름 "Noto"가 <strong>No Tofu</strong>의 줄임말일 정도로 보편적인 문제입니다.<br><br>
+      <strong>Font Face / Font(컴포짓)</strong> — 언리얼의 폰트 2계층. <strong>Font Face</strong>는 TTF/OTF 파일 하나를 감싼 에셋이고, <strong>Font(컴포짓 폰트)</strong>는 Font Face 여러 개를 "기본 서체 + 폴백 목록"으로 묶은 패밀리입니다. 위젯이 실제로 가리키는 것은 Font 쪽입니다.<br><br>
+      <strong id="term-font-fallback">폴백(Fallback)</strong> — 기본 서체에 글리프가 없을 때 <strong>다음 후보 폰트에서 찾아 그리는</strong> 체인. 영문은 A폰트, 한글은 B폰트로 자동 분담되는 원리입니다.
+    </p></div>
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>에디터에서는 한글이 보였는데?</strong> — 언리얼 <strong>에디터 UI</strong>는 자체 CJK 폴백을 갖고 있어 디테일 패널 등에선 한글이 잘 보입니다. 하지만 <strong>게임 화면(UMG)</strong>의 기본 폰트는 Roboto라 별개입니다. "에디터는 되는데 게임은 □"가 헷갈림의 근원입니다.</div></div>
+  </div>
+
+  <!-- 02 관계 -->
+  <div class="section" id="relation">
+    <div class="section-label">02 — 에셋 관계</div>
+    <h2>파일 → Face → Font → 위젯, 4계층</h2>
+    <div class="rel-map">
+      <div class="rel-row">
+        <div class="rel-node n-controller"><div class="rn-name">Pretendard-Regular.ttf (디스크 파일)</div><div class="rn-role">폰트 원본 — 임포트하면 프로젝트에 복사됨</div></div>
+        <div class="rel-arrow"><div class="ra-label">임포트</div><div class="ra-line">→</div></div>
+        <div class="rel-node n-instance"><div class="rn-name">FF_Pretendard (Font Face 에셋)</div><div class="rn-role">파일 1개 = Face 1개. 굵기별로 따로 (Regular/Bold…)</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-instance"><div class="rn-name">FF_Pretendard 외 Face들</div><div class="rn-role">기본 서체·폴백 후보들</div></div>
+        <div class="rel-arrow"><div class="ra-label">패밀리로 묶음</div><div class="ra-line">→</div></div>
+        <div class="rel-node n-subsystem"><div class="rn-name">F_Main (Font 에셋 · 컴포짓)</div><div class="rn-role">Default Typeface(Regular/Bold) + Fallback 목록</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-subsystem"><div class="rn-name">F_Main</div><div class="rn-role">프로젝트의 유일한 폰트 창구</div></div>
+        <div class="rel-arrow"><div class="ra-label">FSlateFontInfo로 지정</div><div class="ra-line">→</div></div>
+        <div class="rel-node n-gamestate"><div class="rn-name">TextBlock · Button 등 위젯</div><div class="rn-role">Font Family = F_Main, Typeface, Size</div></div>
+      </div>
+    </div>
+    <div class="callout info"><span class="ic">🧭</span><p><strong>창구 하나 원칙, 폰트에도</strong> — 위젯들이 Font Face를 직접 가리키게 하지 말고, <strong>Font 에셋(F_Main) 하나만</strong> 가리키게 하세요. 나중에 폰트를 교체할 때 F_Main의 Face만 바꾸면 전체가 따라옵니다.</p></div>
+  </div>
+
+  <!-- 03 책임 -->
+  <div class="section" id="responsibility">
+    <div class="section-label">03 — 폰트 선택 책임</div>
+    <h2>어떤 폰트를 쓸 것인가 — 라이선스부터</h2>
+    <p>스팀 판매작에 넣을 폰트는 <strong>상업적 이용·임베딩(파일 동봉)이 허용</strong>돼야 합니다. 아래는 검증된 무료 선택지입니다.</p>
+    <table class="tbl">
+      <tr><th>폰트</th><th>라이선스</th><th>성격</th><th>비고</th></tr>
+      <tr><td>Pretendard</td><td>OFL (SIL Open Font License)</td><td>현대적 고딕 — UI 본문에 최적</td><td>9굵기 제공. 이 디자인 시스템의 본문 폰트이기도 함</td></tr>
+      <tr><td>Noto Sans KR</td><td>OFL</td><td>구글 표준 고딕 — 무난·안전</td><td>글리프 커버리지 가장 넓음</td></tr>
+      <tr><td>나눔고딕/나눔스퀘어</td><td>OFL</td><td>부드러운 인상</td><td>네이버 배포</td></tr>
+      <tr><td><strong>시스템 폰트(맑은 고딕 등)</strong></td><td><strong>동봉 불가</strong></td><td>—</td><td>OS 폰트는 게임에 포함해 배포하면 안 됩니다 — 반드시 임포트용 폰트를 따로</td></tr>
+    </table>
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>OFL도 조건이 있습니다</strong> — 폰트 자체를 단독 판매하지 않는 한 게임 동봉·상업 이용이 자유지만, <strong>라이선스 전문을 배포물(크레딧 등)에 포함</strong>하는 것이 안전합니다. 폰트 zip 안의 OFL.txt를 프로젝트에 함께 보관하세요.</div></div>
+  </div>
+
+  <!-- 04 절차 -->
+  <div class="section" id="flow">
+    <div class="section-label">04 — 임포트 → 적용 절차</div>
+    <h2>다섯 걸음 — 한 번만 하면 되는 세팅</h2>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">TTF 임포트 → Font Face 생성</div><div class="pipe-desc">Content Browser의 <code>Content/UI/Fonts/</code>(권장 위치)에 TTF/OTF를 드래그하면 임포트 대화상자가 뜹니다. 결과: <strong>Font Face</strong> 에셋(예: <code>FF_Pretendard</code>)과, 옵션에 따라 Font 에셋까지 함께 생성됩니다. Bold를 쓸 거면 <code>Pretendard-Bold.ttf</code>도 같은 방법으로.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">Font(컴포짓) 에셋 구성</div><div class="pipe-desc">함께 생성된 Font 에셋(없으면 우클릭 ▸ User Interface ▸ Font)을 열고 — <strong>Default Font Family</strong>에 Typeface 항목을 추가합니다: <code>Regular → FF_Pretendard</code>, <code>Bold → FF_Pretendard_Bold</code>. 이름을 <code>F_Main</code>처럼 창구답게 지어 두세요.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">폴백 체인 등록 (선택이지만 권장)</div><div class="pipe-desc">Font 에셋의 <strong>Fallback Font Families</strong>에 보조 폰트(예: Noto Sans KR Face)를 추가합니다. 결과: 기본 서체에 없는 문자(한자 이름, 특수 이모지 등)가 □ 대신 보조 폰트로 그려집니다. 전제: 보조 폰트도 Face로 임포트돼 있어야 함.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">위젯에 적용</div><div class="pipe-desc">위젯 디자이너에서 TextBlock 선택 ▸ Details ▸ Appearance ▸ Font ▸ <strong>Font Family = F_Main</strong>, Typeface = Regular, Size 지정. 미리보기에서 한글이 즉시 살아나면 성공입니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">5</div><div class="pipe-body"><div class="pipe-title">전역 통일 — 위젯마다 반복하지 않기</div><div class="pipe-desc">전 위젯의 폰트를 한 방에 바꾸는 공식 스위치는 없습니다. 정석은 <strong>공통 텍스트 위젯</strong>: C++ 부모(예: <code>UAppTextBlock : UTextBlock</code>)가 생성 시점에 F_Main을 지정하게 하고(아래 스켈레톤), 모든 화면이 TextBlock 대신 이것을 쓰는 규칙을 세웁니다. 결과: 폰트·크기 정책이 클래스 한 곳에 모입니다.</div></div></div>
+  </div>
+
+  <!-- 05 스켈레톤 -->
+  <div class="section" id="skeleton">
+    <div class="section-label">05 — 구현 스켈레톤</div>
+    <h2>공통 텍스트 위젯 — 폰트 정책의 단일 창구</h2>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">AppTextBlock.h</button>
+        <button class="codeblock-tab tab-cpp" type="button">AppTextBlock.cpp</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"Components/TextBlock.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"AppTextBlock.generated.h"</span>
+
+<span class="hljs-comment">// 프로젝트의 모든 텍스트가 상속하는 공통 위젯 — 폰트 정책은 여기 한 곳에만 산다.</span>
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> MYGAME_API <span class="hljs-type">UAppTextBlock</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UTextBlock</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-type">UAppTextBlock</span>();
+};</pre></div>
+      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include</span> <span class="hljs-string">"AppTextBlock.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"Engine/Font.h"</span>
+
+<span class="hljs-type">UAppTextBlock</span>::<span class="hljs-title">UAppTextBlock</span>()
+{
+    <span class="hljs-comment">// 생성자에서 로드해도 되는 이유: 위젯 CDO 구성 시점 — ConstructorHelpers 허용 구간</span>
+    <span class="hljs-keyword">static</span> <span class="hljs-type">ConstructorHelpers</span>::<span class="hljs-type">FObjectFinder</span>&lt;<span class="hljs-type">UFont</span>&gt;
+        MainFont(<span class="hljs-string">TEXT("/Game/UI/Fonts/F_Main.F_Main")</span>);
+
+    <span class="hljs-keyword">if</span> (MainFont.<span class="hljs-title">Succeeded</span>())
+    {
+        <span class="hljs-type">FSlateFontInfo</span> Info = <span class="hljs-title">GetFont</span>();
+        Info.FontObject   = MainFont.Object;   <span class="hljs-comment">// 창구는 F_Main 하나</span>
+        Info.TypefaceFontName = <span class="hljs-string">TEXT("Regular")</span>;
+        <span class="hljs-keyword">if</span> (Info.Size &lt;= <span class="hljs-number">0</span>) Info.Size = <span class="hljs-number">15</span>;   <span class="hljs-comment">// 디자이너 지정이 없을 때의 기본</span>
+        <span class="hljs-title">SetFont</span>(Info);
+    }
+}
+<span class="hljs-comment">// 사용 규칙: 위젯 디자이너 팔레트에서 TextBlock 대신 AppTextBlock을 놓는다.</span>
+<span class="hljs-comment">// 이미 만든 위젯은 우클릭 ▸ Replace With ▸ AppTextBlock 으로 일괄 교체.</span></pre></div>
+    </div>
+    <div class="callout tip"><span class="ic">💡</span><p><strong>BP만으로 하고 싶다면</strong> — C++ 부모 없이도, "폰트가 지정된 TextBlock을 품은 위젯 BP"를 만들어 재사용하는 방식이 가능합니다. 다만 크기·색까지 정책이 늘어나면 결국 클래스 한 곳이 편해집니다 — UMG+C++ 연동 문서의 BindWidget 구조와 같은 철학입니다.</p></div>
+  </div>
+
+  <!-- 06 확장 -->
+  <div class="section" id="extend">
+    <div class="section-label">06 — 확장 &amp; 주의</div>
+    <h2>폰트가 다시 □로 돌아오는 순간들</h2>
+    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>① 패키징 후에만 □</strong> — 위젯이 F_Main을 정상 참조하면 쿠킹에 자동 포함되지만, <strong>C++ 문자열 경로로만</strong> 참조하면(위 ConstructorHelpers 포함) 쿠커가 추적 못 할 수 있습니다. Project Settings ▸ Packaging ▸ <strong>Additional Asset Directories to Cook</strong>에 <code>/Game/UI/Fonts</code>를 등록해 두면 확실합니다 — 소프트 레퍼런스 문서의 쿠킹 누락과 같은 계열입니다.</div></div>
+    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>② Bold를 지정했는데 얇게 나옴</strong> — Font 에셋의 Typeface 목록에 "Bold" 항목이 없으면 이름 매칭에 실패해 기본 서체로 그려집니다. 굵기마다 <strong>별도 TTF를 임포트해 Typeface로 등록</strong>해야 합니다(프로그램이 가짜 굵기를 만들어주지 않습니다).</div></div>
+    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>③ 숫자·영문이 촌스럽게 섞임</strong> — 한글 폰트의 라틴 글리프가 마음에 안 들면, Font 에셋에서 <strong>기본 서체 = 영문 폰트, 폴백 = 한글 폰트</strong> 순서로 뒤집으세요. 라틴은 기본에서, 한글은 폴백에서 그려져 두 폰트가 자연스럽게 분담합니다.</div></div>
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>파일 크기 관리</strong> — 한글 폰트는 굵기당 1~2MB대입니다. 쓸 굵기(Regular·Bold 정도)만 임포트하고, 장식용 디스플레이 폰트가 필요하면 제목 전용 Face 하나만 추가하는 식으로 절제하세요.</div></div>
+  </div>
+
+</div>
+
+<footer>
+  <span>UE 아키텍처 문서 · 한글 폰트 파이프라인 v1.0</span>
+  <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.5</span>
+</footer>
+
+<script>
+(function () {
+  document.querySelectorAll('.codeblock').forEach(function (block) {
+    var tabs = block.querySelectorAll('.codeblock-tab');
+    var panels = block.querySelectorAll('.codeblock-panel');
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) { t.classList.remove('active'); });
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        if (panels[i]) panels[i].classList.add('active');
+      });
+    });
+    var copyBtn = block.querySelector('.codeblock-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () {
+        var pre = block.querySelector('.codeblock-panel.active pre');
+        if (!pre) return;
+        var text = pre.innerText;
+        var done = function () {
+          copyBtn.textContent = '복사됨 ✓';
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.textContent = '복사';
+            copyBtn.classList.remove('copied');
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+        } else {
+          fallbackCopy(text, done);
+        }
+      });
+    }
+  });
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+})();
+</script>
+
+</body>
+</html>

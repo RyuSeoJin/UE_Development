@@ -1,3 +1,22 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>데스크톱 앱 셸 — 창 모드·크기·백그라운드 동작 · UE 아키텍처</title>
+<!-- ============================================================
+     CHANGELOG — ue-desktop-app-shell.html
+     유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿 · framework/).
+     작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.0 · 2026-07-07
+       - 신규 생성. 패키징 기본 동작(풀스크린)의 원인, GameUserSettings와 ini의
+         관계, 창 모드 3종 판별, 첫 실행 창 설정 절차(DefaultGameUserSettings.ini
+         + 코드), 마우스 커서·FPS 상한, 최소화/포커스 상실/절전 시 틱·타이머
+         동작을 다룸. 생산성 앱형(창 기반) 데스크톱 UE 앱의 셸 세팅 기준 문서.
+       - 마스터 CSS v1.5 inline 스냅샷, hljs 구워넣기, 탭/복사 inline JS
+       - 용어 앵커: term-gameusersettings · term-window-mode · term-background-tick
+     ============================================================ -->
+<style>
 /* ============================================================
    UE Design System — Master Stylesheet
    (design-guide-ue-master.css)
@@ -532,3 +551,210 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   footer { padding: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">UE WIKI · DESKTOP APP SHELL</div>
+  <div class="nav-links">
+    <a href="#concept">개념</a>
+    <a href="#relation">관계</a>
+    <a href="#responsibility">책임</a>
+    <a href="#flow">절차</a>
+    <a href="#skeleton">스켈레톤</a>
+    <a href="#extend">확장</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">UE Architecture · Type ① · 02-A</div>
+  <h1>데스크톱 앱 셸<br><span>창 모드 · 크기 · 백그라운드 동작</span></h1>
+  <p class="hero-sub">
+    UE 프로젝트를 패키징해 실행하면 <strong>모니터를 가득 채운 풀스크린 3D 게임</strong>처럼 뜹니다 — 타이머·할 일 앱을 만들었어도요. 이 문서는 "창 기반 데스크톱 앱"이라는 셸을 만드는 방법을 다룹니다: 창 모드와 시작 크기, 마우스 커서, 발열을 잡는 FPS 상한, 그리고 <strong>창을 최소화했을 때 타이머는 계속 가는가</strong>라는, 생산성 앱에는 치명적인 질문까지.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">엔진 자체 기능</span>
+    <span class="badge badge-green">UE4 / UE5 공통</span>
+    <span class="badge badge-purple">C++ · ini</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- 01 개념 -->
+  <div class="section" id="concept">
+    <div class="section-label">01 — 개념 · 역할</div>
+    <h2>창의 주인은 GameUserSettings다</h2>
+    <p>해상도·창 모드·수직동기 같은 "실행 환경 설정"은 흩어져 있지 않고 <strong><code>UGameUserSettings</code></strong> 한 클래스가 소유합니다. 값을 바꾸고 <code>ApplySettings()</code>를 부르면 창이 실제로 변하고, 결과가 ini에 저장돼 다음 실행에도 유지됩니다.</p>
+    <h3 id="term-gameusersettings">핵심 용어</h3>
+    <div class="callout info"><span class="ic">📖</span><p>
+      <strong>UGameUserSettings</strong> — 해상도·창 모드·그래픽 품질·FPS 상한을 담는 엔진 표준 설정 객체. <code>GEngine-&gt;GetGameUserSettings()</code>로 얻습니다. 유저별 값이므로 SaveGame이 아니라 <strong>전용 ini</strong>(<code>Saved/Config/…/GameUserSettings.ini</code>)에 저장됩니다.<br><br>
+      <strong id="term-window-mode">창 모드(Window Mode) 3종</strong> — <code>Fullscreen</code>(독점 전체화면, 게임용) / <code>WindowedFullscreen</code>(테두리 없는 전체창, Alt-Tab 빠름) / <strong><code>Windowed</code>(일반 창 — 데스크톱 앱의 선택지)</strong>.<br><br>
+      <strong>DefaultGameUserSettings.ini</strong> — 유저 ini가 아직 없는 <strong>첫 실행</strong>에 쓰일 기본값을 정하는 프로젝트 파일(<code>Config/</code>, 버전 관리 대상). "처음 켰을 때 어떤 창으로 뜨는가"는 이 파일이 결정합니다.<br><br>
+      <strong id="term-background-tick">백그라운드 틱</strong> — 창이 포커스를 잃거나 최소화된 동안에도 게임 스레드(틱·타이머)가 도는 것. 패키징된 UE 앱은 <strong>기본적으로 계속 돕니다</strong> — 렌더링만 절약되고 로직은 살아 있습니다(§06에서 예외와 함께).
+    </p></div>
+  </div>
+
+  <!-- 02 관계 -->
+  <div class="section" id="relation">
+    <div class="section-label">02 — 설정의 흐름</div>
+    <h2>ini 두 층과 실행 창의 관계</h2>
+    <div class="rel-map">
+      <div class="rel-row">
+        <div class="rel-node n-instance"><div class="rn-name">Config/DefaultGameUserSettings.ini</div><div class="rn-role">첫 실행 기본값 — 프로젝트가 정함 (커밋 대상)</div></div>
+        <div class="rel-arrow"><div class="ra-label">유저 ini 없을 때 복사</div><div class="ra-line">→</div></div>
+        <div class="rel-node n-savegame"><div class="rn-name">Saved/…/GameUserSettings.ini</div><div class="rn-role">유저의 실제 설정 — 이후엔 이쪽이 우선</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-savegame"><div class="rn-name">GameUserSettings.ini</div><div class="rn-role">디스크의 진실</div></div>
+        <div class="rel-arrow"><div class="ra-label">LoadSettings / ApplySettings</div><div class="ra-line">→</div></div>
+        <div class="rel-node n-subsystem"><div class="rn-name">UGameUserSettings 객체 → OS 창</div><div class="rn-role">적용 순간 창 크기·모드가 실제로 변함</div></div>
+      </div>
+    </div>
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>DeveloperSettings와 헷갈리지 않기</strong> — 밸런스 상수(DeveloperSettings)는 <strong>게임 전체 공통</strong>이고 기획자가 만지는 값, GameUserSettings는 <strong>유저마다 다른</strong> 실행 환경입니다. 보관처 경계 감각은 DeveloperSettings 문서 §03과 같은 문제의식입니다.</div></div>
+  </div>
+
+  <!-- 03 책임 -->
+  <div class="section" id="responsibility">
+    <div class="section-label">03 — 셸 설계 결정</div>
+    <h2>데스크톱 앱이 정해야 할 다섯 가지</h2>
+    <table class="tbl">
+      <tr><th>결정</th><th>데스크톱 앱 권장</th><th>근거</th></tr>
+      <tr><td>창 모드</td><td><span class="owner o-subsystem">Windowed</span></td><td>다른 작업과 나란히 쓰는 앱 — 전체화면은 생산성 앱의 목적과 충돌</td></tr>
+      <tr><td>시작 크기</td><td>예: 1280×800 (UI 설계 기준 크기)</td><td>UI 프레임워크가 검증한 기준 해상도로 시작 — 유저가 조절하면 ini에 자동 기억</td></tr>
+      <tr><td>마우스 커서</td><td>항상 표시 + UI 입력 모드</td><td>게임 기본은 커서 숨김·게임 입력 — 앱에서는 PlayerController에서 뒤집어야 함</td></tr>
+      <tr><td>FPS 상한</td><td>60 (t.MaxFPS 또는 SetFrameRateLimit)</td><td>정적 UI를 수백 FPS로 그리면 발열·팬소음 — 노트북에서 앱 평판을 깎는 1순위</td></tr>
+      <tr><td>백그라운드 정책</td><td>틱 유지(기본값) + 절전은 캐치업</td><td>타이머 앱은 최소화 중에도 시간이 가야 함 — §06에서 검증 방법과 예외</td></tr>
+    </table>
+  </div>
+
+  <!-- 04 절차 -->
+  <div class="section" id="flow">
+    <div class="section-label">04 — 첫 실행 절차</div>
+    <h2>ini 기본값 → 코드 보정 → 커서 → FPS</h2>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">DefaultGameUserSettings.ini 작성</div><div class="pipe-desc"><code>Config/DefaultGameUserSettings.ini</code>를 만들고(없는 파일) 아래 블록을 넣습니다. 결과: 첫 실행부터 1280×800 일반 창으로 뜹니다.<br><code>[/Script/Engine.GameUserSettings]</code><br><code>ResolutionSizeX=1280</code> · <code>ResolutionSizeY=800</code><br><code>FullscreenMode=2</code> (0=Fullscreen, 1=WindowedFullscreen, <strong>2=Windowed</strong>)<br><code>bUseDesiredScreenResolution=False</code> · <code>FrameRateLimit=60.000000</code></div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">코드 보정 — 신뢰할 수 있는 이중화</div><div class="pipe-desc">ini는 유저가 지우거나 깨뜨릴 수 있으므로, GameInstance 시작 시점에 같은 정책을 코드로도 강제합니다(아래 스켈레톤). 전제: <code>GEngine</code> 유효 시점 — <code>Init()</code>에서 안전합니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">마우스 커서 + UI 입력 모드</div><div class="pipe-desc">PlayerController에서 <code>bShowMouseCursor = true</code>, <code>SetInputMode(FInputModeGameAndUI())</code>(또는 UIOnly). 결과: 커서가 보이고 위젯 클릭이 자연스럽게 동작합니다. 게임패드형 입력 처리(Possess된 폰 이동)는 이 앱엔 불필요합니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">검증</div><div class="pipe-desc">패키징 후: ① 일반 창으로 뜨는가 ② 창 크기 조절 후 재실행하면 기억되는가(<code>Saved/…/GameUserSettings.ini</code> 갱신 확인) ③ 작업 관리자에서 GPU 사용률이 상한에 맞게 낮은가.</div></div></div>
+  </div>
+
+  <!-- 05 스켈레톤 -->
+  <div class="section" id="skeleton">
+    <div class="section-label">05 — 구현 스켈레톤</div>
+    <h2>셸 세팅 코드 — GameInstance와 PlayerController</h2>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">GameInstance 쪽</button>
+        <button class="codeblock-tab tab-cpp" type="button">PlayerController 쪽</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// MyGameInstance.cpp — 앱 셸 정책은 시작 시점에 한 번</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"GameFramework/GameUserSettings.h"</span>
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UMyGameInstance</span>::<span class="hljs-title">ApplyDesktopShell</span>()
+{
+    <span class="hljs-type">UGameUserSettings</span>* S = <span class="hljs-type">GEngine</span>-&gt;<span class="hljs-title">GetGameUserSettings</span>();
+    <span class="hljs-keyword">if</span> (!S) <span class="hljs-keyword">return</span>;
+
+    S-&gt;<span class="hljs-title">LoadSettings</span>();   <span class="hljs-comment">// 유저 ini가 있으면 그 값을 먼저 존중</span>
+
+    <span class="hljs-comment">// 정책 강제: 데스크톱 앱은 어떤 경우에도 일반 창</span>
+    S-&gt;<span class="hljs-title">SetFullscreenMode</span>(<span class="hljs-type">EWindowMode</span>::Windowed);
+
+    <span class="hljs-comment">// 첫 실행(저장된 해상도 없음)일 때만 기준 크기 지정</span>
+    <span class="hljs-keyword">if</span> (S-&gt;<span class="hljs-title">GetScreenResolution</span>() == <span class="hljs-type">FIntPoint</span>::ZeroValue)
+    {
+        S-&gt;<span class="hljs-title">SetScreenResolution</span>(<span class="hljs-type">FIntPoint</span>(<span class="hljs-number">1280</span>, <span class="hljs-number">800</span>));
+    }
+
+    <span class="hljs-comment">// 발열 억제 — 정적 UI 앱에 수백 FPS는 낭비</span>
+    S-&gt;<span class="hljs-title">SetFrameRateLimit</span>(<span class="hljs-number">60.f</span>);
+
+    S-&gt;<span class="hljs-title">ApplySettings</span>(<span class="hljs-literal">false</span>);   <span class="hljs-comment">// false = 해상도 확인 대화 없이 즉시 적용+저장</span>
+}</pre></div>
+      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-comment">// MyPlayerController.cpp — 커서·입력 모드는 컨트롤러 소관</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"MyPlayerController.h"</span>
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">AMyPlayerController</span>::<span class="hljs-title">BeginPlay</span>()
+{
+    <span class="hljs-type">Super</span>::<span class="hljs-title">BeginPlay</span>();
+
+    bShowMouseCursor = <span class="hljs-literal">true</span>;
+    bEnableClickEvents = <span class="hljs-literal">true</span>;
+    bEnableMouseOverEvents = <span class="hljs-literal">true</span>;
+
+    <span class="hljs-comment">// UI 중심 앱: 게임 입력과 UI 입력을 함께 허용 (단축키 + 위젯 클릭)</span>
+    <span class="hljs-type">FInputModeGameAndUI</span> Mode;
+    Mode.<span class="hljs-title">SetHideCursorDuringCapture</span>(<span class="hljs-literal">false</span>);
+    <span class="hljs-title">SetInputMode</span>(Mode);
+}</pre></div>
+    </div>
+  </div>
+
+  <!-- 06 확장 -->
+  <div class="section" id="extend">
+    <div class="section-label">06 — 확장 &amp; 주의</div>
+    <h2>최소화·절전 — 타이머 앱의 진짜 시험대</h2>
+    <div class="pitfall tip" style="margin-bottom:12px"><span class="ic">💡</span><div class="pitfall-text"><strong>최소화 = 틱 유지 (기본)</strong> — 패키징된 UE 앱은 포커스를 잃거나 최소화돼도 게임 스레드가 계속 돕니다. World 타이머(25분 카운트다운)도 계속 갑니다. 단, <strong>에디터 PIE는 다르게 동작</strong>할 수 있으므로 이 검증은 반드시 패키징 빌드로 하세요: 타이머 시작 → 최소화 → 5분 뒤 복귀 → 남은 시간이 정확히 5분 줄었는지.</div></div>
+    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>① OS 절전은 별개</strong> — 노트북 덮개를 닫으면 프로세스 전체가 얼어붙고 World 타이머도 함께 얼어붙습니다. 깨어난 순간 <strong>벽시계와의 차이로 재구성</strong>해야 합니다: 세션 시작 시각(FDateTime)을 기록해 두고 복귀 시 경과를 재계산 — FDateTime 문서의 "저장된 시각 + 현재 시각 비교" 원리이며, <code>FCoreDelegates::ApplicationHasEnteredForegroundDelegate</code>류 복귀 신호에서 체크 함수를 부릅니다.</div></div>
+    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>② 백그라운드 CPU 절약과의 균형</strong> — 틱이 계속 돈다는 건 최소화 중에도 CPU를 쓴다는 뜻입니다. FPS 상한(60)이 1차 방어이고, 더 줄이고 싶으면 포커스 상실 시 상한을 10~15로 낮췄다가 복귀 시 되돌리는 정책을 쓸 수 있습니다 — 단, 오디오 재생 중에는 낮추지 않는 조건을 함께.</div></div>
+    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>③ ApplySettings를 빠뜨림</strong> — Set 함수들은 값만 바꿉니다. <code>ApplySettings()</code>(또는 <code>ApplyResolutionSettings()</code>)를 불러야 창이 실제로 변하고 ini에 저장됩니다. "코드는 도는데 창이 안 바뀌는" 원인 1순위.</div></div>
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>창 최소 크기·고정 비율</strong> — 엔진 표준 설정으로는 창 최소 크기 강제가 없습니다. 1차 해법은 UI를 반응형(앵커)으로 만들어 작은 창도 견디게 하는 것이고, 꼭 필요하면 네이티브 윈도(<code>GEngine-&gt;GameViewport-&gt;GetWindow()</code>)의 <code>SWindow</code>에 접근해 제한을 거는 고급 경로가 있습니다 — 첫 출시엔 반응형으로 충분합니다.</div></div>
+  </div>
+
+</div>
+
+<footer>
+  <span>UE 아키텍처 문서 · 데스크톱 앱 셸 v1.0</span>
+  <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.5</span>
+</footer>
+
+<script>
+(function () {
+  document.querySelectorAll('.codeblock').forEach(function (block) {
+    var tabs = block.querySelectorAll('.codeblock-tab');
+    var panels = block.querySelectorAll('.codeblock-panel');
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) { t.classList.remove('active'); });
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        if (panels[i]) panels[i].classList.add('active');
+      });
+    });
+    var copyBtn = block.querySelector('.codeblock-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () {
+        var pre = block.querySelector('.codeblock-panel.active pre');
+        if (!pre) return;
+        var text = pre.innerText;
+        var done = function () {
+          copyBtn.textContent = '복사됨 ✓';
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.textContent = '복사';
+            copyBtn.classList.remove('copied');
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+        } else {
+          fallbackCopy(text, done);
+        }
+      });
+    }
+  });
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+})();
+</script>
+
+</body>
+</html>
