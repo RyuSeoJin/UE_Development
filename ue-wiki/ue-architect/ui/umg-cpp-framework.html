@@ -7,6 +7,8 @@
 <!-- ============================================================
      CHANGELOG — umg-cpp-framework.html
      UMG + C++ 연동 프레임워크 아키텍처 문서. 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.1 · 2026-07-08
+       - (추가) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
      v1.0 · 2026-07-05
        - 신규 생성. 02-A 아키텍처 패턴 템플릿 기반.
        - UMG Designer 기초, UUserWidget C++ 패턴, BindWidget, 라이프사이클,
@@ -338,7 +340,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
 <!-- HERO -->
 <section class="hero">
-  <div class="hero-eyebrow">UE Architect · v1.0 · UMG + C++ Framework</div>
+  <div class="hero-eyebrow">UE Architect · v1.1 · UMG + C++ Framework</div>
   <h1>UMG + C++<br><span>연동 프레임워크</span></h1>
   <p class="hero-sub">언리얼 엔진의 UMG(Unreal Motion Graphics)를 C++로 제어하는 아키텍처입니다. Widget Blueprint를 C++ 기반 클래스에 연결해 로직은 코드로, 레이아웃은 Designer로 분리하는 표준 패턴을 다룹니다. UMG Designer 기초부터 BindWidget, 라이프사이클, 델리게이트 바인딩까지 초보자도 따라 할 수 있는 완전한 절차를 제공합니다.</p>
   <div class="hero-meta">
@@ -785,11 +787,12 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <button class="codeblock-copy">Copy</button>
     </div>
     <div class="codeblock-panel active" data-name="h">
-      <pre class="hljs"><span class="hljs-meta">#pragma once</span>
-<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
-<span class="hljs-meta">#include <span class="hljs-string">"Blueprint/UserWidget.h"</span></span>
-<span class="hljs-meta">#include <span class="hljs-string">"MyPanelWidget.generated.h"</span></span>
+      <pre class="hljs"><span class="hljs-meta">#pragma once</span>   <span class="hljs-comment">// 이 헤더가 한 번만 include 되도록 보장 (중복 정의 방지)</span>
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>   <span class="hljs-comment">// int32·FString 등 UE 기본 타입 모음 — UE 헤더의 관례상 첫 줄</span>
+<span class="hljs-meta">#include <span class="hljs-string">"Blueprint/UserWidget.h"</span></span>   <span class="hljs-comment">// 부모 클래스 UUserWidget 정의 — 상속하려면 실제 include 필요</span>
+<span class="hljs-meta">#include <span class="hljs-string">"MyPanelWidget.generated.h"</span></span>   <span class="hljs-comment">// UHT(리플렉션 코드 생성기)가 만드는 헤더 — 반드시 include 목록의 맨 마지막에 있어야 컴파일됨</span>
 
+<span class="hljs-comment">// 전방 선언 — 헤더에서는 포인터 타입만 쓰므로 #include 대신 이름만 알려줌 (컴파일 의존성·시간 절약)</span>
 <span class="hljs-keyword">class</span> <span class="hljs-built_in">UTextBlock</span>;
 <span class="hljs-keyword">class</span> <span class="hljs-built_in">UButton</span>;
 <span class="hljs-keyword">class</span> <span class="hljs-built_in">UProgressBar</span>;
@@ -799,15 +802,19 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
  * UMyPanelWidget — 골드/XP 표시 + 액션 버튼 패널.
  * Widget Blueprint가 이 클래스를 상속(Reparent)합니다.
  */</span>
+<span class="hljs-comment">// Abstract: 이 C++ 클래스 자체는 인스턴스화 금지(반드시 WBP 자식으로만 사용) · Blueprintable: Widget Blueprint가 상속(Reparent) 가능</span>
 <span class="hljs-meta">UCLASS(<span class="hljs-keyword">Abstract</span>, <span class="hljs-keyword">Blueprintable</span>)</span>
+<span class="hljs-comment">// MYPROJECT_API: 이 클래스를 모듈 밖에서도 쓸 수 있게 내보내는 매크로 (프로젝트명_API 형태로 UE가 정의)</span>
 <span class="hljs-keyword">class</span> MYPROJECT_API <span class="hljs-built_in">UMyPanelWidget</span> : <span class="hljs-keyword">public</span> <span class="hljs-built_in">UUserWidget</span>
 {
-    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">GENERATED_BODY()</span>   <span class="hljs-comment">// UHT가 리플렉션 보일러플레이트를 채워 넣는 자리 — UCLASS 클래스 첫 줄에 필수</span>
 
 <span class="hljs-keyword">public</span>:
     <span class="hljs-comment">// --- BindWidget: Designer에서 같은 이름의 위젯을 배치해야 함 ---</span>
+    <span class="hljs-comment">// UPROPERTY: 이 포인터를 GC(가비지 컬렉터)가 추적하게 함 → 위젯이 살아있는 동안 수거 안 됨.</span>
+    <span class="hljs-comment">// meta=(BindWidget): 위젯 로드 시 엔진이 Designer의 동일 이름 위젯을 이 포인터에 자동 연결.</span>
     <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta</span>=(<span class="hljs-keyword">BindWidget</span>))</span>
-    <span class="hljs-built_in">UTextBlock</span>* TXT_Title;
+    <span class="hljs-built_in">UTextBlock</span>* TXT_Title;   <span class="hljs-comment">// Designer에 이름이 "TXT_Title"인 TextBlock이 반드시 있어야 함 (없으면 WBP 열 때 크래시)</span>
 
     <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta</span>=(<span class="hljs-keyword">BindWidget</span>))</span>
     <span class="hljs-built_in">UTextBlock</span>* TXT_Gold;
@@ -823,8 +830,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-built_in">UTextBlock</span>* TXT_Optional;
 
 <span class="hljs-keyword">protected</span>:
-    <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">NativeConstruct</span>() <span class="hljs-keyword">override</span>;
-    <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">NativeDestruct</span>() <span class="hljs-keyword">override</span>;
+    <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">NativeConstruct</span>() <span class="hljs-keyword">override</span>;   <span class="hljs-comment">// 엔진이 위젯을 뷰포트에 추가할 때 호출 → 여기서 초기화 (이 시점엔 BindWidget이 이미 연결됨)</span>
+    <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">NativeDestruct</span>() <span class="hljs-keyword">override</span>;   <span class="hljs-comment">// 엔진이 위젯을 뷰포트에서 제거할 때 호출 → 여기서 정리(델리게이트 해제)</span>
 
 <span class="hljs-keyword">private</span>:
     <span class="hljs-comment">// 서브시스템 캐시 (매번 조회하지 않기 위해)</span>
@@ -849,7 +856,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
 <span class="hljs-keyword">void</span> <span class="hljs-built_in">UMyPanelWidget</span>::<span class="hljs-title">NativeConstruct</span>()
 {
-    <span class="hljs-built_in">Super</span>::NativeConstruct();
+    <span class="hljs-built_in">Super</span>::NativeConstruct();   <span class="hljs-comment">// 부모(UUserWidget)의 초기화를 먼저 실행 — 생략하면 엔진 내부 상태가 누락됨</span>
 
     <span class="hljs-comment">// 1) 서브시스템 캐싱</span>
     EconomySub = <span class="hljs-title">GetGameInstance</span>()-&gt;GetSubsystem&lt;<span class="hljs-built_in">UEconomySubsystem</span>&gt;();
@@ -907,8 +914,10 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
 <span class="hljs-keyword">void</span> <span class="hljs-built_in">UMyPanelWidget</span>::<span class="hljs-title">HandleXPChanged</span>(<span class="hljs-built_in">int32</span> NewXP, <span class="hljs-built_in">int32</span> MaxXP)
 {
+    <span class="hljs-comment">// MaxXP &gt; 0 확인: 0으로 나누기(0 나눗셈 크래시/NaN) 방지</span>
     <span class="hljs-keyword">if</span> (PB_XP &amp;&amp; MaxXP &gt; <span class="hljs-number">0</span>)
     {
+        <span class="hljs-comment">// SetPercent 인자는 0.0~1.0 범위. int/int는 소수점이 버려지므로 float로 캐스팅 후 나눔</span>
         PB_XP-&gt;<span class="hljs-title">SetPercent</span>(<span class="hljs-keyword">static_cast</span>&lt;<span class="hljs-keyword">float</span>&gt;(NewXP) / <span class="hljs-keyword">static_cast</span>&lt;<span class="hljs-keyword">float</span>&gt;(MaxXP));
     }
 }</pre>
@@ -930,9 +939,11 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <span class="hljs-meta">#include <span class="hljs-string">"EconomySubsystem.generated.h"</span></span>
 
 <span class="hljs-comment">// 델리게이트 선언 — 매크로로 시그니처 정의</span>
+<span class="hljs-comment">// Multicast: 여러 위젯이 동시에 구독 가능(1:N). OneParam/TwoParams = 콜백에 넘길 인자 개수.</span>
 <span class="hljs-meta">DECLARE_MULTICAST_DELEGATE_OneParam(<span class="hljs-keyword">FOnGoldChanged</span>, <span class="hljs-built_in">int32</span> <span class="hljs-comment">/*NewGold*/</span>);</span>
 <span class="hljs-meta">DECLARE_MULTICAST_DELEGATE_TwoParams(<span class="hljs-keyword">FOnXPChanged</span>, <span class="hljs-built_in">int32</span> <span class="hljs-comment">/*NewXP*/</span>, <span class="hljs-built_in">int32</span> <span class="hljs-comment">/*MaxXP*/</span>);</span>
 
+<span class="hljs-comment">// GameInstanceSubsystem: 게임 인스턴스 수명(앱 실행 내내) 동안 존재하는 싱글턴 성격의 매니저 → 레벨이 바뀌어도 데이터 유지</span>
 <span class="hljs-meta">UCLASS()</span>
 <span class="hljs-keyword">class</span> MYPROJECT_API <span class="hljs-built_in">UEconomySubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-built_in">UGameInstanceSubsystem</span>
 {
@@ -996,10 +1007,13 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
 <span class="hljs-keyword">private</span>:
     <span class="hljs-comment">// BP에서 WBP_FocusPanel을 할당 (EditDefaultsOnly)</span>
+    <span class="hljs-comment">// TSubclassOf&lt;T&gt;: T를 상속한 "클래스 자체"를 담는 타입(인스턴스 아님) → 어떤 WBP를 띄울지 지정.</span>
+    <span class="hljs-comment">// EditDefaultsOnly: 클래스 기본값에서만 편집(인스턴스별 편집 불가) → BP에서 WBP를 한 번 지정하는 용도에 적합.</span>
     <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">EditDefaultsOnly</span>, <span class="hljs-keyword">Category</span> = <span class="hljs-string">"UI"</span>)</span>
     TSubclassOf&lt;<span class="hljs-built_in">UMyPanelWidget</span>&gt; FocusPanelClass;
 
     <span class="hljs-comment">// 생성된 위젯 인스턴스 참조 (GC 방지)</span>
+    <span class="hljs-comment">// UPROPERTY()만 붙여도 GC가 이 포인터를 추적 → 참조하는 동안 위젯이 수거되지 않음(안 붙이면 갑자기 null)</span>
     <span class="hljs-meta">UPROPERTY()</span>
     <span class="hljs-built_in">UMyPanelWidget</span>* FocusPanel;
 };</pre>
@@ -1008,11 +1022,13 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"MyPlayerController.h"</span></span>
 <span class="hljs-meta">#include <span class="hljs-string">"MyPanelWidget.h"</span></span>
 
+<span class="hljs-comment">// BeginPlay: 컨트롤러가 게임 월드에서 활동을 시작할 때 엔진이 1회 호출 → UI 초기 생성에 적합한 시점</span>
 <span class="hljs-keyword">void</span> <span class="hljs-built_in">AMyPlayerController</span>::<span class="hljs-title">BeginPlay</span>()
 {
-    <span class="hljs-built_in">Super</span>::BeginPlay();
+    <span class="hljs-built_in">Super</span>::BeginPlay();   <span class="hljs-comment">// 부모의 BeginPlay 먼저 실행 (엔진 초기화 순서 보장)</span>
 
     <span class="hljs-comment">// 로컬 플레이어만 UI 생성 (서버에서는 생성하지 않음)</span>
+    <span class="hljs-comment">// IsLocalController(): 이 컨트롤러가 실제 화면을 가진 로컬 플레이어의 것인지 검사 → 데디케이트 서버에서 UI 낭비 방지</span>
     <span class="hljs-keyword">if</span> (<span class="hljs-title">IsLocalController</span>() &amp;&amp; FocusPanelClass)
     {
         <span class="hljs-comment">// CreateWidget: this(PlayerController)가 소유자</span>
@@ -1101,12 +1117,15 @@ PublicDependencyModuleNames.AddRange(<span class="hljs-keyword">new</span> <span
     </div>
     <div class="codeblock-panel active" data-name="h">
       <pre class="hljs"><span class="hljs-comment">// .h — BindWidgetAnim으로 Designer 애니메이션을 C++에 연결</span>
+<span class="hljs-comment">// Transient: 저장(직렬화)하지 않음 — 애니메이션은 런타임에만 존재하므로 디스크에 안 담음.</span>
+<span class="hljs-comment">// meta=(BindWidgetAnim): Designer Animations 탭에서 같은 이름으로 만든 애니메이션을 이 포인터에 자동 연결.</span>
 <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">Transient</span>, <span class="hljs-keyword">meta</span>=(<span class="hljs-keyword">BindWidgetAnim</span>))</span>
-<span class="hljs-built_in">UWidgetAnimation</span>* FadeInAnim;
+<span class="hljs-built_in">UWidgetAnimation</span>* FadeInAnim;   <span class="hljs-comment">// Designer에 "FadeInAnim" 애니메이션이 있어야 연결됨</span>
 
 <span class="hljs-comment">// .cpp — NativeConstruct()에서 페이드인 재생</span>
 <span class="hljs-keyword">if</span> (FadeInAnim)
 {
+    <span class="hljs-comment">// 인자: (애니메이션, 시작시각 0초, 재생횟수 1, 방향 Forward, 재생속도 1.0배). 횟수 0 = 무한 반복.</span>
     <span class="hljs-title">PlayAnimation</span>(FadeInAnim, <span class="hljs-number">0.f</span>, <span class="hljs-number">1</span>, EUMGSequencePlayMode::Forward, <span class="hljs-number">1.f</span>);
 }
 
@@ -1131,6 +1150,7 @@ EndDelegate.<span class="hljs-title">BindDynamic</span>(<span class="hljs-keywor
     <div class="codeblock-panel active" data-name="cpp">
       <pre class="hljs"><span class="hljs-comment">// UI 모드로 전환 (게임 입력 차단, 마우스 커서 표시)</span>
 <span class="hljs-built_in">FInputModeUIOnly</span> InputMode;
+<span class="hljs-comment">// TakeWidget(): UMG 위젯의 내부 Slate 위젯을 꺼내 포커스 대상으로 지정 (키 입력이 이 위젯으로 감)</span>
 InputMode.<span class="hljs-title">SetWidgetToFocus</span>(MyWidget-&gt;<span class="hljs-title">TakeWidget</span>());
 InputMode.<span class="hljs-title">SetLockMouseToViewportBehavior</span>(EMouseLockMode::DoNotLock);
 PlayerController-&gt;<span class="hljs-title">SetInputMode</span>(InputMode);
@@ -1285,7 +1305,7 @@ TSoftClassPtr&lt;<span class="hljs-built_in">UUserWidget</span>&gt; InventoryWid
 
 <!-- FOOTER -->
 <footer>
-  <span>UMG + C++ 연동 프레임워크 v1.0</span>
+  <span>UMG + C++ 연동 프레임워크 v1.1</span>
   <span>Master v1.3 · Template 02-A</span>
 </footer>
 

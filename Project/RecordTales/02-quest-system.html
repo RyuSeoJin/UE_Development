@@ -7,6 +7,8 @@
 <!-- ============================================================
      CHANGELOG — 02-quest-system.html
      퀘스트 시스템 설계 문서. 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.3 · 2026-07-08
+       - (추가) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
      v1.2 · 2026-07-06
        - (변경) 인스턴스 상태 구조체 명칭·스키마를 08 데이터 설계 명세 기준으로 통일:
          FQuestOccurrenceData → FQuestInstanceData (한 개념 한 용어),
@@ -496,12 +498,16 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <button class="codeblock-tab tab-h active" type="button">QuestTypes.h (Master)</button>
         <button class="codeblock-copy" type="button">복사</button>
       </div>
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">USTRUCT(BlueprintType)</span>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// USTRUCT: 이 구조체를 언리얼 리플렉션 시스템에 등록 — 저장(직렬화)·복제·블루프린트 연동의 전제 조건</span>
+<span class="hljs-comment">// BlueprintType: 블루프린트에서 이 구조체를 변수 타입으로 선언하고 Break/Make 노드로 분해·조립 가능</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
 <span class="hljs-keyword">struct</span> <span class="hljs-title class_">FQuestMasterData</span>
 {
-    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">GENERATED_BODY()</span>   <span class="hljs-comment">// UHT(언리얼 헤더 툴)가 만든 리플렉션 코드를 삽입 — USTRUCT 본문 첫 줄에 필수</span>
 
     <span class="hljs-comment">// 퀘스트 고유 ID: YYYYMMDD + 5자리 시퀀스 (예: 2026070200001)</span>
+    <span class="hljs-comment">// UPROPERTY: 리플렉션에 필드 등록 — 없으면 SaveGame 직렬화·블루프린트 접근에서 제외됨</span>
+    <span class="hljs-comment">// BlueprintReadWrite: 블루프린트에서 읽기(Get)와 쓰기(Set) 모두 허용</span>
     <span class="hljs-meta">UPROPERTY(BlueprintReadWrite, Category = "Quest")</span>
     <span class="hljs-type">FString</span> Id;
 
@@ -557,30 +563,34 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <span class="hljs-meta">USTRUCT(BlueprintType)</span>
 <span class="hljs-keyword">struct</span> <span class="hljs-title class_">FQuestInstanceData</span>
 {
-    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">GENERATED_BODY()</span>   <span class="hljs-comment">// 리플렉션 코드 삽입 지점 — 구조체 본문 첫 줄에 필수</span>
 
     <span class="hljs-comment">// 완료 여부 + 완료 시각</span>
+    <span class="hljs-comment">// = false 초기값 필수: C++ 기본 타입은 자동 0 초기화가 보장되지 않아, 생략 시 쓰레기 값으로 "이미 완료"로 잘못 판정될 수 있음</span>
     <span class="hljs-meta">UPROPERTY(BlueprintReadWrite, Category = "Quest")</span>
     <span class="hljs-type">bool</span> bDone = <span class="hljs-literal">false</span>;
 
     <span class="hljs-meta">UPROPERTY(BlueprintReadWrite, Category = "Quest")</span>
-    <span class="hljs-type">FDateTime</span> DoneAt;
+    <span class="hljs-type">FDateTime</span> DoneAt;   <span class="hljs-comment">// bDone == true일 때만 유효 — 완료 목록의 "최근 완료 순" 정렬 기준</span>
 
     <span class="hljs-comment">// 중단(보류) 여부 + 중단 시각 + 사유</span>
     <span class="hljs-meta">UPROPERTY(BlueprintReadWrite, Category = "Quest")</span>
-    <span class="hljs-type">bool</span> bSuspended = <span class="hljs-literal">false</span>;
+    <span class="hljs-type">bool</span> bSuspended = <span class="hljs-literal">false</span>;   <span class="hljs-comment">// bDone과 동일한 이유로 초기값 필수 (미보류가 기본 상태)</span>
 
     <span class="hljs-meta">UPROPERTY(BlueprintReadWrite, Category = "Quest")</span>
     <span class="hljs-type">FDateTime</span> SuspendedAt;   <span class="hljs-comment">// 캘린더 "중단일까지 표기" 규칙의 기준 (03 타임라인)</span>
 
     <span class="hljs-meta">UPROPERTY(BlueprintReadWrite, Category = "Quest")</span>
-    <span class="hljs-type">FString</span> SuspendReason;
+    <span class="hljs-type">FString</span> SuspendReason;   <span class="hljs-comment">// 사용자가 입력한 중단 사유 (선택 입력 — 빈 문자열 허용)</span>
 };
 
 <span class="hljs-comment">// 반복 유형 열거형</span>
+<span class="hljs-comment">// UENUM(BlueprintType): 블루프린트에서 이 열거형을 변수·Switch 노드로 사용 가능하게 등록</span>
+<span class="hljs-comment">// : uint8 — BlueprintType 열거형의 필수 조건 (1바이트 크기로 고정)</span>
 <span class="hljs-meta">UENUM(BlueprintType)</span>
 <span class="hljs-keyword">enum class</span> <span class="hljs-title class_">EQuestRecurrence</span> : <span class="hljs-type">uint8</span>
 {
+    <span class="hljs-comment">// UMETA(DisplayName): 에디터·블루프린트 UI에 표시될 한글 이름 지정 (코드 식별자는 영문 유지)</span>
     None     <span class="hljs-meta">UMETA(DisplayName = "단발성")</span>,
     Daily    <span class="hljs-meta">UMETA(DisplayName = "매일")</span>,
     Weekly   <span class="hljs-meta">UMETA(DisplayName = "매주")</span>,
@@ -588,9 +598,11 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 };
 
 <span class="hljs-comment">// 퀘스트 상태 열거형 (계산용 — DB에 저장하지 않음)</span>
+<span class="hljs-comment">// 저장 금지 이유: 날짜가 바뀌면 같은 퀘스트의 상태가 달라지므로, 저장하면 자정 이후 거짓 데이터가 됨</span>
 <span class="hljs-meta">UENUM(BlueprintType)</span>
 <span class="hljs-keyword">enum class</span> <span class="hljs-title class_">EQuestStatus</span> : <span class="hljs-type">uint8</span>
 {
+    <span class="hljs-comment">// 판정 우선순위는 아래 순서가 아니라 Suspended → Done → Upcoming → Active → Overdue (GetQuestStatus 참조)</span>
     Overdue    <span class="hljs-meta">UMETA(DisplayName = "기한 초과")</span>,
     Active     <span class="hljs-meta">UMETA(DisplayName = "진행 중")</span>,
     Upcoming   <span class="hljs-meta">UMETA(DisplayName = "예정")</span>,
@@ -873,25 +885,31 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <button class="codeblock-copy" type="button">복사</button>
       </div>
       <!-- .h 패널 -->
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>   <span class="hljs-comment">// 이 헤더가 한 번만 include되도록 보장 — 중복 정의 컴파일 에러 방지</span>
 
-<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
-<span class="hljs-meta">#include <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span></span>
-<span class="hljs-meta">#include <span class="hljs-string">"QuestTypes.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>   <span class="hljs-comment">// FString·TArray·TMap 등 UE 핵심 타입 최소 세트</span>
+<span class="hljs-meta">#include <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span></span>   <span class="hljs-comment">// 부모 클래스 UGameInstanceSubsystem 선언</span>
+<span class="hljs-meta">#include <span class="hljs-string">"QuestTypes.h"</span></span>   <span class="hljs-comment">// FQuestMasterData·EQuestStatus 등 이 시스템의 데이터 타입</span>
+<span class="hljs-comment">// *.generated.h는 반드시 마지막 include — UHT가 생성한 리플렉션 코드가 위 타입 선언을 모두 필요로 하기 때문 (순서 위반 시 컴파일 에러)</span>
 <span class="hljs-meta">#include <span class="hljs-string">"QuestSubsystem.generated.h"</span></span>
 
+<span class="hljs-comment">// UCLASS(): UObject 리플렉션에 클래스 등록 — 엔진이 서브시스템을 "자동 발견·자동 생성"하는 데 필수</span>
+<span class="hljs-comment">// RECORDTALES_API: 다른 모듈에서 이 클래스를 사용할 수 있게 내보내는 매크로 (모듈명_API)</span>
 <span class="hljs-meta">UCLASS()</span>
 <span class="hljs-keyword">class</span> RECORDTALES_API <span class="hljs-title class_">UQuestSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
 {
-    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">GENERATED_BODY()</span>   <span class="hljs-comment">// 리플렉션 코드 삽입 — UCLASS 본문 첫 줄에 필수</span>
 
 <span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// 엔진이 GameInstance 생성 직후 자동 호출 (앱 시작 시 1회) — 생성자 대신 여기서 초기화</span>
     <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection) <span class="hljs-keyword">override</span>;
+    <span class="hljs-comment">// 엔진이 GameInstance 파괴 직전 자동 호출 (앱 종료 시) — 데이터를 저장할 마지막 기회</span>
     <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">Deinitialize</span>() <span class="hljs-keyword">override</span>;
 
     <span class="hljs-comment">// ── CRUD ──</span>
 
     <span class="hljs-comment">/** 새 퀘스트를 생성하고 ID를 반환한다. */</span>
+    <span class="hljs-comment">// UFUNCTION(BlueprintCallable): 블루프린트 그래프에서 실행 노드로 호출 가능 (BlueprintPure와 달리 실행 핀이 있음)</span>
     <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Quest")</span>
     <span class="hljs-type">FString</span> <span class="hljs-title function_">CreateQuest</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FQuestMasterData</span>&amp; InData);
 
@@ -917,17 +935,21 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-comment">// ── 자정 롤오버 ──</span>
 
     <span class="hljs-comment">/** 날짜 변경을 감지하고 ID 카운터를 초기화한다. */</span>
+    <span class="hljs-comment">// UFUNCTION 없음 = 블루프린트 미노출 — Initialize·Tick·타이머 등 C++ 내부에서만 호출</span>
     <span class="hljs-keyword">void</span> <span class="hljs-title function_">CheckMidnightRollover</span>();
 
 <span class="hljs-keyword">private</span>:
     <span class="hljs-comment">// 전체 마스터 레코드 배열</span>
+    <span class="hljs-comment">// UPROPERTY(): 지정자가 없어도 리플렉션에 등록 — SaveGame 직렬화 대상이 되고, 구조체 안에 UObject 참조가 생겨도 GC가 추적</span>
     <span class="hljs-meta">UPROPERTY()</span>
     <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FQuestMasterData</span>&gt; Quests;
 
     <span class="hljs-comment">// 날짜별 ID 시퀀스 카운터 (키: "YYYYMMDD")</span>
+    <span class="hljs-comment">// SaveGame에 함께 저장해야 앱 재시작 후에도 같은 날 생성한 ID와 충돌하지 않음</span>
     <span class="hljs-type">TMap</span>&lt;<span class="hljs-type">FString</span>, <span class="hljs-type">int32</span>&gt; IdCounters;
 
     <span class="hljs-comment">// 마지막 롤오버 수행 날짜</span>
+    <span class="hljs-comment">// 오늘 날짜와 비교해 같으면 롤오버를 건너뛰는 중복 실행 가드의 기준값</span>
     <span class="hljs-type">FString</span> LastRolloverDate;
 
     <span class="hljs-comment">// ID 생성 헬퍼</span>
@@ -938,49 +960,58 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
                           <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Date) <span class="hljs-keyword">const</span>;
 };</pre></div>
       <!-- .cpp 패널 -->
-      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"QuestSubsystem.h"</span></span>
-<span class="hljs-meta">#include <span class="hljs-string">"Misc/DateTime.h"</span></span>
+      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"QuestSubsystem.h"</span></span>   <span class="hljs-comment">// 자신의 헤더는 항상 첫 번째 include (UE 코딩 컨벤션)</span>
+<span class="hljs-meta">#include <span class="hljs-string">"Misc/DateTime.h"</span></span>   <span class="hljs-comment">// FDateTime::Now() 등 날짜·시간 유틸리티</span>
 
+<span class="hljs-comment">// 엔진이 GameInstance 생성 직후 자동 호출 — 앱 시작 시 1회 실행되는 초기화 지점</span>
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">UQuestSubsystem</span>::<span class="hljs-title function_">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection)
 {
-    <span class="hljs-type">Super</span>::<span class="hljs-title function_">Initialize</span>(Collection);
+    <span class="hljs-type">Super</span>::<span class="hljs-title function_">Initialize</span>(Collection);   <span class="hljs-comment">// 1) 부모의 초기화를 먼저 — 생략하면 서브시스템 기반 동작이 깨질 수 있음</span>
     <span class="hljs-comment">// TODO: SaveGame에서 Quests, IdCounters, LastRolloverDate 로드</span>
+    <span class="hljs-comment">// 2) 로드가 끝난 뒤 호출해야 함 — LastRolloverDate를 복원하기 전에 부르면 날짜 비교가 무의미</span>
+    <span class="hljs-comment">//    앱을 며칠 만에 다시 켜도 시작 즉시 밀린 날짜 갱신을 처리하기 위한 호출</span>
     <span class="hljs-title function_">CheckMidnightRollover</span>();
 }
 
+<span class="hljs-comment">// 엔진이 GameInstance 파괴 직전 자동 호출 — 데이터를 디스크에 남길 마지막 기회</span>
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">UQuestSubsystem</span>::<span class="hljs-title function_">Deinitialize</span>()
 {
     <span class="hljs-comment">// TODO: SaveGame에 Quests, IdCounters, LastRolloverDate 저장</span>
-    <span class="hljs-type">Super</span>::<span class="hljs-title function_">Deinitialize</span>();
+    <span class="hljs-type">Super</span>::<span class="hljs-title function_">Deinitialize</span>();   <span class="hljs-comment">// 정리 작업을 마친 뒤 부모 호출 — Initialize와 반대 순서(대칭 구조)</span>
 }
 
+<span class="hljs-comment">// 상태를 저장하지 않고 매번 계산 — Date를 인자로 받으므로 과거 날짜 조회(아카이브 캘린더)에도 재사용 가능</span>
 <span class="hljs-type">EQuestStatus</span> <span class="hljs-title class_">UQuestSubsystem</span>::<span class="hljs-title function_">GetQuestStatus</span>(
     <span class="hljs-keyword">const</span> <span class="hljs-type">FQuestMasterData</span>&amp; Master,
     <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Date) <span class="hljs-keyword">const</span>
 {
     <span class="hljs-comment">// 1. RecurData에서 해당 날짜의 상태 조회</span>
+    <span class="hljs-comment">//    TMap::Find는 키가 없으면 nullptr 반환 — "기록이 없는 날짜"는 기본 상태(미완료·미보류)로 취급</span>
     <span class="hljs-keyword">const</span> <span class="hljs-type">FQuestInstanceData</span>* Occ = Master.RecurData.<span class="hljs-title function_">Find</span>(Date);
 
     <span class="hljs-comment">// 2. 우선순위 1: Suspended</span>
+    <span class="hljs-comment">//    앞의 "Occ &amp;&amp;" null 체크가 없으면 기록 없는 날짜에서 nullptr 역참조로 즉시 크래시</span>
     <span class="hljs-keyword">if</span> (Occ &amp;&amp; !Occ-&gt;SuspendedAt.<span class="hljs-title function_">IsEmpty</span>())
     {
         <span class="hljs-keyword">return</span> <span class="hljs-type">EQuestStatus</span>::Suspended;
     }
 
     <span class="hljs-comment">// 3. 우선순위 2: Done</span>
+    <span class="hljs-comment">//    Suspended를 먼저 검사하는 이유: 완료 후 보류된 경우에도 사용자에겐 "보류"가 우선 표시되어야 함</span>
     <span class="hljs-keyword">if</span> (Occ &amp;&amp; !Occ-&gt;DoneAt.<span class="hljs-title function_">IsEmpty</span>())
     {
         <span class="hljs-keyword">return</span> <span class="hljs-type">EQuestStatus</span>::Done;
     }
 
     <span class="hljs-comment">// 4. 현재 날짜 가져오기</span>
+    <span class="hljs-comment">//    "%Y.%m.%d" = "YYYY.MM.DD" — StartDate·RecurData 키와 같은 형식이라 문자열끼리 크기 비교가 곧 날짜 비교</span>
     <span class="hljs-type">FString</span> Today = <span class="hljs-type">FDateTime</span>::<span class="hljs-title function_">Now</span>().<span class="hljs-title function_">ToString</span>(<span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"%Y.%m.%d"</span>));
 
     <span class="hljs-comment">// 5. 마감일 계산</span>
     <span class="hljs-type">FString</span> EffectiveDeadline;
     <span class="hljs-keyword">if</span> (Master.Recurrence == <span class="hljs-type">EQuestRecurrence</span>::None)
     {
-        EffectiveDeadline = Master.Deadline;
+        EffectiveDeadline = Master.Deadline;   <span class="hljs-comment">// 단발성: 절대 마감일을 그대로 사용</span>
     }
     <span class="hljs-keyword">else</span>
     {
@@ -1005,29 +1036,37 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-keyword">return</span> <span class="hljs-type">EQuestStatus</span>::Overdue;
 }
 
+<span class="hljs-comment">// Initialize·Tick·타이머·앱 복귀 시점에 반복 호출됨 — 내부 가드 덕분에 여러 번 불려도 안전(멱등)</span>
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">UQuestSubsystem</span>::<span class="hljs-title function_">CheckMidnightRollover</span>()
 {
+    <span class="hljs-comment">// "%Y%m%d" = 구분자 없는 ID용 형식 — 상태 계산의 "%Y.%m.%d"(RecurData 키)와 다르므로 혼용 금지</span>
     <span class="hljs-type">FString</span> Today = <span class="hljs-type">FDateTime</span>::<span class="hljs-title function_">Now</span>().<span class="hljs-title function_">ToString</span>(<span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"%Y%m%d"</span>));
 
-    <span class="hljs-keyword">if</span> (Today != LastRolloverDate)
+    <span class="hljs-keyword">if</span> (Today != LastRolloverDate)   <span class="hljs-comment">// 날짜가 같으면 이미 처리됨 — 조기 종료로 중복 롤오버 방지</span>
     {
         <span class="hljs-comment">// 새 날짜에 대한 ID 카운터 초기화</span>
+        <span class="hljs-comment">// 1) 오늘 키만 0으로 추가 — 이전 날짜 카운터는 보존(이미 발급된 ID에 영향 없음)</span>
         IdCounters.<span class="hljs-title function_">Add</span>(Today, <span class="hljs-number">0</span>);
+        <span class="hljs-comment">// 2) 기준 날짜 갱신 — 이 줄이 없으면 매 호출마다 카운터가 0으로 리셋되어 ID가 중복 발급됨</span>
         LastRolloverDate = Today;
 
         <span class="hljs-comment">// TODO: SaveGame에 LastRolloverDate 저장</span>
+        <span class="hljs-comment">// 3) 즉시 저장해야 하는 이유: 저장 전에 앱이 종료되면 다음 실행 때 롤오버가 또 수행됨</span>
         <span class="hljs-built_in">UE_LOG</span>(LogTemp, Log,
             <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"QuestSubsystem: 자정 롤오버 완료 — %s"</span>), *Today);
     }
 }
 
+<span class="hljs-comment">// CreateQuest 내부에서만 호출되는 private 헬퍼 — 같은 날 안에서 절대 겹치지 않는 ID를 발급</span>
 <span class="hljs-type">FString</span> <span class="hljs-title class_">UQuestSubsystem</span>::<span class="hljs-title function_">GenerateId</span>()
 {
     <span class="hljs-type">FString</span> Today = <span class="hljs-type">FDateTime</span>::<span class="hljs-title function_">Now</span>().<span class="hljs-title function_">ToString</span>(<span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"%Y%m%d"</span>));
+    <span class="hljs-comment">// FindOrAdd: 키가 없으면 0으로 자동 생성 후 참조 반환 — 롤오버를 놓친 경우의 안전망</span>
     <span class="hljs-type">int32</span>&amp; Counter = IdCounters.<span class="hljs-title function_">FindOrAdd</span>(Today);
-    Counter++;
+    Counter++;   <span class="hljs-comment">// 참조(&amp;)이므로 맵 안의 값이 직접 1 증가 — 다음 호출 시 자동으로 다음 번호</span>
 
     <span class="hljs-comment">// YYYYMMDD + 5자리 시퀀스 (예: 2026070200001)</span>
+    <span class="hljs-comment">// %05d: 빈 자리를 0으로 채운 5자리 (1 → "00001") — 자릿수 고정으로 문자열 정렬 = 생성 순서 보장</span>
     <span class="hljs-keyword">return</span> <span class="hljs-type">FString</span>::<span class="hljs-title function_">Printf</span>(<span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"%s%05d"</span>), *Today, Counter);
 }</pre></div>
     </div>

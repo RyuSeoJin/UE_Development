@@ -8,6 +8,11 @@
      CHANGELOG — ue-datatable.html
      유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.5 · 2026-07-08
+       - (추가) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
+         — 05 스켈레톤 ItemRow.h / ItemQuery.cpp 두 탭: 매크로·지정자 의미,
+           호출 주체, 초기값·nullptr 체크의 이유 중심 한국어 주석 추가
+           (코드 줄·기존 주석·본문은 변경 없음)
      v1.4 · 2026-07-03
        - (추가) 05 — 구현 스켈레톤 섹션에 "스켈레톤 해부" h3 3개 추가:
          ① 헤더 첫 세 줄 표 (CoreMinimal.h · Engine/DataTable.h · generated.h)
@@ -640,49 +645,61 @@ potion_hp,체력 물약,0,</pre></div>
         <button class="codeblock-tab tab-cpp" type="button">ItemQuery.cpp</button>
         <button class="codeblock-copy" type="button">복사</button>
       </div>
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>   <span class="hljs-comment">// 같은 헤더가 두 번 include되는 것을 방지 — 언리얼 헤더 공통 첫 줄</span>
 
-<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>   <span class="hljs-comment">// FName·FText·int32 등 코어 타입 모음 (표준 시작 헤더)</span>
 <span class="hljs-meta">#include <span class="hljs-string">"Engine/DataTable.h"</span></span>       <span class="hljs-comment">// FTableRowBase가 여기 있음</span>
 <span class="hljs-meta">#include <span class="hljs-string">"ItemRow.generated.h"</span></span>       <span class="hljs-comment">// 반드시 마지막 #include</span>
 
 <span class="hljs-comment">// DataTable의 행 = 이 구조체 하나. 필드가 곧 표의 열이 됩니다.</span>
+<span class="hljs-comment">// USTRUCT: 이 구조체를 리플렉션 시스템에 등록 — 에디터가 존재를 인식하는 근거.</span>
+<span class="hljs-comment">// BlueprintType: BP에서도 이 구조체를 변수 타입으로 쓸 수 있게 노출.</span>
 <span class="hljs-meta">USTRUCT(BlueprintType)</span>
-<span class="hljs-keyword">struct</span> MYGAME_API <span class="hljs-type">FItemRow</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">FTableRowBase</span>
+<span class="hljs-keyword">struct</span> MYGAME_API <span class="hljs-type">FItemRow</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">FTableRowBase</span>   <span class="hljs-comment">// FTableRowBase 상속이 없으면 Row Type 목록에 안 나타남</span>
 {
-    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">GENERATED_BODY()</span>   <span class="hljs-comment">// UHT가 만든 리플렉션 코드가 삽입되는 자리 — USTRUCT 본문 필수</span>
 
     <span class="hljs-comment">// 화면 표시용 이름 (FText = 현지화 대상 문자열)</span>
+    <span class="hljs-comment">// EditAnywhere: 에디터 표 편집기에서 값 입력 가능 · BlueprintReadOnly: BP에서는 읽기만</span>
+    <span class="hljs-comment">// (DataTable은 런타임 읽기 전용 원칙이므로 쓰기 노출은 하지 않음)</span>
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = <span class="hljs-string">"Item"</span>)</span>
     <span class="hljs-type">FText</span> DisplayName;
 
+    <span class="hljs-comment">// = 0 초기값 필수 — CSV의 빈 칸은 이 기본값으로 채워지고,</span>
+    <span class="hljs-comment">// 초기화가 없으면 쓰레기 값이 들어갈 수 있음 (에러 없이 잘못된 데이터가 됨)</span>
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = <span class="hljs-string">"Item"</span>)</span>
     <span class="hljs-type">int32</span> Damage = <span class="hljs-number">0</span>;
 
     <span class="hljs-comment">// 아이콘은 소프트 참조: 표를 로드해도 텍스처까지 전부 로드되지 않게</span>
+    <span class="hljs-comment">// (UTexture2D*로 하드 참조하면 행 수백 개의 텍스처가 표와 함께 통째로 로드됨)</span>
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = <span class="hljs-string">"Item"</span>)</span>
     <span class="hljs-type">TSoftObjectPtr&lt;UTexture2D&gt;</span> Icon;
 };</pre></div>
-      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"ItemRow.h"</span></span>
-<span class="hljs-meta">#include <span class="hljs-string">"Engine/DataTable.h"</span></span>
+      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"ItemRow.h"</span></span>   <span class="hljs-comment">// 위에서 정의한 FItemRow 선언을 가져옴</span>
+<span class="hljs-meta">#include <span class="hljs-string">"Engine/DataTable.h"</span></span>   <span class="hljs-comment">// FindRow·GetAllRows 등 UDataTable 멤버를 호출하려면 필요</span>
 
 <span class="hljs-comment">// 헤더에 선언해 둔 DataTable 참조.</span>
 <span class="hljs-comment">// UPROPERTY(EditDefaultsOnly, Category="Item") UDataTable* ItemTable;</span>
 <span class="hljs-comment">// → 에디터에서 BP 디폴트로 DT_Items 에셋을 지정해 둡니다.</span>
 
+<span class="hljs-comment">// 엔진이 부르는 함수가 아니라 우리가 부르는 함수 — UI·전투 코드 등 호출 측에서 사용.</span>
+<span class="hljs-comment">// 흐름: 1) 테이블 지정 확인 → 2) RowName으로 행 조회 → 3) 실패 처리 → 4) 값 반환</span>
 <span class="hljs-type">int32</span> <span class="hljs-type">AMyShop</span>::<span class="hljs-title">GetItemDamage</span>(<span class="hljs-type">FName</span> RowName) <span class="hljs-keyword">const</span>
 {
-    <span class="hljs-keyword">if</span> (!ItemTable) { <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>; }   <span class="hljs-comment">// 테이블 미지정 방어</span>
+    <span class="hljs-keyword">if</span> (!ItemTable) { <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>; }   <span class="hljs-comment">// 테이블 미지정 방어 — 이 체크가 없으면 아래 FindRow에서 즉시 크래시</span>
 
     <span class="hljs-comment">// 두 번째 인자(ContextString)는 실패 로그에 찍힐 위치 표시용</span>
+    <span class="hljs-comment">// 반환은 표 내부 행을 가리키는 포인터(복사 아님) — 그래서 const로 받아 읽기만 한다</span>
     <span class="hljs-keyword">const</span> <span class="hljs-type">FItemRow</span>* Row =
         ItemTable-&gt;<span class="hljs-title">FindRow</span>&lt;<span class="hljs-type">FItemRow</span>&gt;(RowName, TEXT(<span class="hljs-string">"GetItemDamage"</span>));
 
     <span class="hljs-comment">// RowName 오타·행 삭제 시 nullptr — 반드시 체크</span>
+    <span class="hljs-comment">// (체크를 생략하면 "표를 고친 다음 날" Row-&gt;Damage 접근에서 크래시)</span>
     <span class="hljs-keyword">if</span> (!Row)
     {
+        <span class="hljs-comment">// 실패를 조용히 넘기지 않고 로그를 남겨야 데이터 문제를 추적할 수 있음</span>
         <span class="hljs-meta">UE_LOG(LogTemp, Warning, TEXT(<span class="hljs-string">"Item row not found: %s"</span>), *RowName.ToString());</span>
-        <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+        <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;   <span class="hljs-comment">// 실패 시 안전한 기본값(0 대미지)으로 폴백</span>
     }
     <span class="hljs-keyword">return</span> Row-&gt;Damage;
 }
@@ -690,11 +707,13 @@ potion_hp,체력 물약,0,</pre></div>
 <span class="hljs-comment">// 전체 행 순회가 필요할 때 (도감·상점 목록 등)</span>
 <span class="hljs-type">void</span> <span class="hljs-type">AMyShop</span>::<span class="hljs-title">ListAllItems</span>() <span class="hljs-keyword">const</span>
 {
-    <span class="hljs-keyword">if</span> (!ItemTable) { <span class="hljs-keyword">return</span>; }
+    <span class="hljs-keyword">if</span> (!ItemTable) { <span class="hljs-keyword">return</span>; }   <span class="hljs-comment">// 위 함수와 동일한 미지정 방어</span>
 
+    <span class="hljs-comment">// GetAllRows는 표 내부 행들의 포인터로 배열을 채움 — 복사가 아니므로 값 수정 금지(읽기 전용)</span>
     <span class="hljs-type">TArray&lt;FItemRow*&gt;</span> Rows;
     ItemTable-&gt;<span class="hljs-title">GetAllRows</span>&lt;<span class="hljs-type">FItemRow</span>&gt;(TEXT(<span class="hljs-string">"ListAllItems"</span>), Rows);
 
+    <span class="hljs-comment">// 행 순서는 표에 표시되는 순서 그대로 — 도감·상점 목록을 만들 때 그대로 사용 가능</span>
     <span class="hljs-keyword">for</span> (<span class="hljs-keyword">const</span> <span class="hljs-type">FItemRow</span>* Row : Rows)
     {
         <span class="hljs-meta">UE_LOG(LogTemp, Log, TEXT(<span class="hljs-string">"%s (Damage %d)"</span>), *Row-&gt;DisplayName.ToString(), Row-&gt;Damage);</span>
@@ -759,7 +778,7 @@ potion_hp,체력 물약,0,</pre></div>
 </div>
 
 <footer>
-  <span>UE 아키텍처 문서 · DataTable v1.4</span>
+  <span>UE 아키텍처 문서 · DataTable v1.5</span>
   <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.3</span>
 </footer>
 

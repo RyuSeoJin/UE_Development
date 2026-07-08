@@ -319,6 +319,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <!-- ============================================================
      CHANGELOG — 09-dev-flow-roadmap.html
      RecordTales 개발 플로우 로드맵. 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.1 · 2026-07-08
+       - (추가) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
      v1.0 · 2026-07-05
        - 신규 생성. 03 개발 플로우 로드맵 템플릿 기반.
        - 4블록 17섹션: 기반 지식(1~6) → 설계 이해(7~8) → 구현 Phase 1~6(9~14) → 마무리(15~17)
@@ -343,7 +345,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
 <!-- ====== HERO ====== -->
 <div class="hero">
-  <div class="hero-eyebrow">RecordTales &middot; v1.0 &middot; Development Flow Roadmap</div>
+  <div class="hero-eyebrow">RecordTales &middot; v1.1 &middot; Development Flow Roadmap</div>
   <h1>RecordTales<br><span>개발 플로우 로드맵</span></h1>
   <p class="hero-sub">
     포모도로 기반 집중 관리 + 길드 게임화 시스템을 언리얼 엔진으로 구현하는 전체 개발 과정. 어떤 시스템을 먼저 만들고, 각 단계에서 무엇을 구현&middot;검증하는지를 한 문서에 정리합니다. 9개 설계 문서(00~08)의 구현 순서 내비게이션입니다.
@@ -444,23 +446,26 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
 <span class="hljs-keyword">public class</span> <span class="hljs-type">RecordTales</span> : <span class="hljs-type">ModuleRules</span>
 {
+    <span class="hljs-comment">// 생성자 — UBT(언리얼 빌드 툴)가 빌드를 준비할 때 이 코드를 실행해 설정을 읽는다</span>
     <span class="hljs-keyword">public</span> <span class="hljs-title">RecordTales</span>(<span class="hljs-type">ReadOnlyTargetRules</span> Target) : <span class="hljs-keyword">base</span>(Target)
     {
-        PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+        PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;   <span class="hljs-comment">// PCH(미리 컴파일된 헤더) 공유 모드 — UE 권장 기본값, 빌드 속도 향상</span>
 
+        <span class="hljs-comment">// 공개 의존 모듈 — 여기 등록해야 해당 모듈의 헤더를 #include하고 링크할 수 있다 (누락 시 LNK2019 링커 에러)</span>
         PublicDependencyModuleNames.AddRange(<span class="hljs-keyword">new</span> <span class="hljs-keyword">string</span>[]
         {
-            <span class="hljs-string">"Core"</span>,
-            <span class="hljs-string">"CoreUObject"</span>,
-            <span class="hljs-string">"Engine"</span>,
-            <span class="hljs-string">"UMG"</span>,
-            <span class="hljs-string">"Slate"</span>,
-            <span class="hljs-string">"SlateCore"</span>,
-            <span class="hljs-string">"InputCore"</span>
+            <span class="hljs-string">"Core"</span>,   <span class="hljs-comment">// 기본 타입·컨테이너(FString, TArray 등) — 모든 모듈의 필수 토대</span>
+            <span class="hljs-string">"CoreUObject"</span>,   <span class="hljs-comment">// UObject·리플렉션 시스템 (UCLASS, UPROPERTY가 여기서 나옴)</span>
+            <span class="hljs-string">"Engine"</span>,   <span class="hljs-comment">// 게임 프레임워크 (GameInstance, GameplayStatics 등)</span>
+            <span class="hljs-string">"UMG"</span>,   <span class="hljs-comment">// UI 위젯(UUserWidget) — RecordTales는 UI 중심 앱이라 필수</span>
+            <span class="hljs-string">"Slate"</span>,   <span class="hljs-comment">// UMG의 토대가 되는 저수준 UI 프레임워크</span>
+            <span class="hljs-string">"SlateCore"</span>,   <span class="hljs-comment">// Slate 핵심 타입 (브러시, 스타일 등)</span>
+            <span class="hljs-string">"InputCore"</span>   <span class="hljs-comment">// 키·마우스 입력 타입 (FKey 등)</span>
         });
 
-        PrivateDependencyModuleNames.AddRange(<span class="hljs-keyword">new</span> <span class="hljs-keyword">string</span>[] { });
+        PrivateDependencyModuleNames.AddRange(<span class="hljs-keyword">new</span> <span class="hljs-keyword">string</span>[] { });   <span class="hljs-comment">// 이 모듈 내부(.cpp)에서만 쓰는 의존성 — 현재는 없음</span>
 
+        <span class="hljs-comment">// include 검색 경로 등록 — 하위 폴더의 헤더를 "FocusSubsystem.h"처럼 짧은 경로로 include하기 위함</span>
         PublicIncludePaths.AddRange(<span class="hljs-keyword">new</span> <span class="hljs-keyword">string</span>[]
         {
             <span class="hljs-string">"RecordTales/Core"</span>,
@@ -532,6 +537,7 @@ DerivedDataCache/
 <span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
 
 <span class="hljs-comment">// 전역 로그 카테고리</span>
+<span class="hljs-comment">// 인자: (카테고리 이름, 기본 출력 레벨, 컴파일에 포함할 최대 레벨) — Log/All이 일반적인 기본 조합</span>
 <span class="hljs-meta">DECLARE_LOG_CATEGORY_EXTERN</span>(LogRecordTales, Log, All);
 
 <span class="hljs-comment">// 서브시스템별 로그 카테고리 (선택사항, 필터링 편의)</span>
@@ -545,6 +551,7 @@ DerivedDataCache/
 <pre class="hljs"><span class="hljs-comment">// RecordTalesLog.cpp</span>
 <span class="hljs-meta">#include <span class="hljs-string">"RecordTalesLog.h"</span></span>
 
+<span class="hljs-comment">// .h의 DECLARE와 반드시 1:1 쌍 — DEFINE이 빠지면 링커 에러(unresolved external)가 발생한다</span>
 <span class="hljs-meta">DEFINE_LOG_CATEGORY</span>(LogRecordTales);
 <span class="hljs-meta">DEFINE_LOG_CATEGORY</span>(LogFocus);
 <span class="hljs-meta">DEFINE_LOG_CATEGORY</span>(LogQuest);
@@ -1411,7 +1418,7 @@ DerivedDataCache/
 
 <!-- ====== FOOTER ====== -->
 <footer>
-  <span>RecordTales &middot; 09 Dev Flow Roadmap v1.0</span>
+  <span>RecordTales &middot; 09 Dev Flow Roadmap v1.1</span>
   <span>Master v1.3 &middot; Template 03 v1.0</span>
 </footer>
 

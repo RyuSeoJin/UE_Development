@@ -8,6 +8,8 @@
      CHANGELOG — 13-phase1-core-data.html
      RecordTales Phase 1 구현 명세 (Core & 데이터 계층). 유형 ③ (Track B · 02-B 템플릿).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.1 · 2026-07-08
+       - (추가) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
      v1.0 · 2026-07-07
        - 신규 생성. 09 로드맵 Phase 1의 실행 문서 — 복붙해서 컴파일되는 완성본:
          Data/RecordTalesTypes.h(공용 타입+행 구조체 7종+레거시), Quests/QuestTypes.h,
@@ -665,6 +667,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <span class="hljs-keyword">class</span> <span class="hljs-type">USoundBase</span>;
 
 <span class="hljs-comment">// ── 공용 열거형 5종 (08 §03) ──</span>
+<span class="hljs-comment">// BlueprintType = 블루프린트에서도 이 enum을 변수·핀으로 쓸 수 있게 노출.</span>
+<span class="hljs-comment">// : uint8 = 8비트 정수 기반 — UENUM(BlueprintType)의 필수 조건</span>
 <span class="hljs-meta">UENUM(BlueprintType)</span>
 <span class="hljs-keyword">enum class</span> <span class="hljs-type">ERecordSource</span> : <span class="hljs-type">uint8</span> { Timer, Stopwatch, Quest, Manual };
 
@@ -690,11 +694,14 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <span class="hljs-keyword">struct</span> <span class="hljs-type">FStatBonus</span>
 {
     <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-comment">// EditAnywhere = 에디터에서 값 편집 허용, BlueprintReadOnly = BP에서 읽기만(쓰기 금지)</span>
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span> <span class="hljs-type">EMemberStat</span> Stat = <span class="hljs-type">EMemberStat</span>::FocusTime;
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span> <span class="hljs-type">float</span> Value = <span class="hljs-number">0.f</span>;
 };
 
 <span class="hljs-comment">// ── 통합 아카이브 기록 1건 (08 §05-1 · 11) ──</span>
+<span class="hljs-comment">// 인자 없는 UPROPERTY() = 에디터 노출은 안 하지만 직렬화(SaveGame 저장)·GC 추적은 됨.</span>
+<span class="hljs-comment">// 저장 전용 데이터라 편집 지정자가 필요 없다.</span>
 <span class="hljs-meta">USTRUCT(BlueprintType)</span>
 <span class="hljs-keyword">struct</span> <span class="hljs-type">FArchiveRecord</span>
 {
@@ -726,6 +733,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 };
 
 <span class="hljs-comment">// ── DataTable 행 구조체 7종 (08 §04 — 값은 CSV/에디터에서) ──</span>
+<span class="hljs-comment">// FTableRowBase를 상속해야 이 구조체를 DataTable의 "행 타입"으로 지정할 수 있다.</span>
 <span class="hljs-meta">USTRUCT(BlueprintType)</span>
 <span class="hljs-keyword">struct</span> <span class="hljs-type">FGuildMemberRow</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">FTableRowBase</span>
 {
@@ -899,12 +907,16 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <span class="hljs-meta">#include</span> <span class="hljs-string">"Engine/DeveloperSettings.h"</span>
 <span class="hljs-meta">#include</span> <span class="hljs-string">"RecordTalesSettings.generated.h"</span>
 
+<span class="hljs-comment">// Config=Game → DefaultGame.ini에 저장, DefaultConfig → 기본 ini에 기록,</span>
+<span class="hljs-comment">// DisplayName → Project Settings 페이지에 표시될 이름. UDeveloperSettings 파생이라</span>
+<span class="hljs-comment">// Project Settings ▸ Game 에 자동으로 페이지가 생긴다.</span>
 <span class="hljs-meta">UCLASS(Config=Game, DefaultConfig, meta=(DisplayName="Record Tales"))</span>
 <span class="hljs-keyword">class</span> RECORDTALES_API <span class="hljs-type">URecordTalesSettings</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UDeveloperSettings</span>
 {
     <span class="hljs-meta">GENERATED_BODY()</span>
 <span class="hljs-keyword">public</span>:
     <span class="hljs-comment">// ── 경제 ──</span>
+    <span class="hljs-comment">// Config 지정자 = 이 값을 .ini에 읽고 쓴다(재컴파일 없이 기획 조정 가능). Category = 설정 페이지 그룹</span>
     <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category="Economy")</span> <span class="hljs-type">int32</span> StartingGold = <span class="hljs-number">5000</span>;
     <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category="Economy")</span> <span class="hljs-type">float</span> GoldTickInterval = <span class="hljs-number">6.f</span>;   <span class="hljs-comment">// 진행 중 6초마다</span>
     <span class="hljs-meta">UPROPERTY(Config, EditAnywhere, Category="Economy")</span> <span class="hljs-type">int32</span> GoldTickAmount = <span class="hljs-number">10</span>;
@@ -955,12 +967,15 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <span class="hljs-meta">#include</span> <span class="hljs-string">"Guild/GuildTypes.h"</span>
 <span class="hljs-meta">#include</span> <span class="hljs-string">"RecordTalesSaveGame.generated.h"</span>
 
+<span class="hljs-comment">// USaveGame 상속 = 이 클래스가 SaveGameToSlot/LoadGameFromSlot의 대상이 된다.</span>
+<span class="hljs-comment">// 아래 필드는 전부 UPROPERTY()라야 직렬화 대상에 포함(빠뜨리면 저장 후 값이 사라짐).</span>
 <span class="hljs-meta">UCLASS()</span>
 <span class="hljs-keyword">class</span> RECORDTALES_API <span class="hljs-type">URecordTalesSaveGame</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">USaveGame</span>
 {
     <span class="hljs-meta">GENERATED_BODY()</span>
 <span class="hljs-keyword">public</span>:
     <span class="hljs-comment">// ── 마이그레이션 대비 ──</span>
+    <span class="hljs-comment">// 세이브 스키마 버전. 로드 시 이 값으로 구버전을 판별해 마이그레이션 여부 결정</span>
     <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">int32</span> SaveVersion = <span class="hljs-number">2</span>;   <span class="hljs-comment">// v2 = 통합 기록 ID (11)</span>
 
     <span class="hljs-comment">// ── 기록 (03 · 11) — 주인: RecordSubsystem ──</span>
@@ -1025,12 +1040,15 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 {
     <span class="hljs-meta">GENERATED_BODY()</span>
 <span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// 엔진이 GameInstance 생성 직후 1회 호출 — 앱 시작점. 여기서 세이브를 준비</span>
     <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Init</span>() <span class="hljs-keyword">override</span>;
 
     <span class="hljs-comment">// 디스크 왕복은 이 두 함수로만 — 서브시스템은 요청만 한다 (12 지도)</span>
+    <span class="hljs-comment">// BlueprintCallable = BP에서 호출 가능(부수효과 있는 함수)</span>
     <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Save")</span>
     <span class="hljs-keyword">void</span> <span class="hljs-title">SaveNow</span>();
 
+    <span class="hljs-comment">// BlueprintPure = 상태를 안 바꾸는 순수 조회 함수(BP에서 실행핀 없이 값만 반환)</span>
     <span class="hljs-meta">UFUNCTION(BlueprintPure, Category = "Save")</span>
     <span class="hljs-type">URecordTalesSaveGame</span>* <span class="hljs-title">GetSave</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> CurrentSave; }
 
@@ -1169,7 +1187,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>RecordTales 개발 문서 · 13 Phase 1 구현 명세 v1.0</span>
+  <span>RecordTales 개발 문서 · 13 Phase 1 구현 명세 v1.1</span>
   <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.5 · Template 02-B</span>
 </footer>
 

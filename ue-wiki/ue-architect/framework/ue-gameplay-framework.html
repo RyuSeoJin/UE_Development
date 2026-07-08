@@ -8,6 +8,8 @@
      CHANGELOG — ue-gameplay-framework.html
      언리얼 게임플레이 프레임워크 구조 문서 (02-A 아키텍처 패턴).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.1 · 2026-07-08
+       - (보강) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
      v1.0 · 2026-07-03
        - (추가) 최초 작성. 게임플레이 프레임워크 전체 구조(설계 철학·클래스 맵·
          소유/복제 관계), 10대 클래스 깊은 설계 분석(GameInstance·GameMode·
@@ -643,14 +645,16 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <div class="codeblock-panel active" data-lang="h"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
 <span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
 <span class="hljs-meta">#include <span class="hljs-string">"GameFramework/GameModeBase.h"</span></span>
-<span class="hljs-meta">#include <span class="hljs-string">"MyGameMode.generated.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"MyGameMode.generated.h"</span></span>   <span class="hljs-comment">// UHT(언리얼 헤더 툴)가 자동 생성하는 리플렉션 코드 — 반드시 include 목록의 맨 마지막이어야 컴파일됨</span>
 
+<span class="hljs-comment">// UCLASS(): 이 클래스를 언리얼 리플렉션 시스템에 등록 — 에디터·블루프린트·GC(가비지 컬렉터)가 인식하는 전제 조건</span>
 <span class="hljs-meta">UCLASS()</span>
-<span class="hljs-keyword">class</span> <span class="hljs-title class_">AMyGameMode</span> : <span class="hljs-keyword">public</span> <span class="hljs-title class_">AGameModeBase</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">AMyGameMode</span> : <span class="hljs-keyword">public</span> <span class="hljs-title class_">AGameModeBase</span>   <span class="hljs-comment">// AGameModeBase 상속 → 서버에만 존재하는 규칙 클래스가 됨</span>
 {
-    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">GENERATED_BODY()</span>   <span class="hljs-comment">// 리플렉션용 보일러플레이트가 이 자리에 삽입됨 — UCLASS()와 항상 한 쌍</span>
 
 <span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// 생성자 — CDO(클래스 기본값 템플릿) 생성 시에도 호출되므로 '기본값 지정'만 하고 게임 로직은 금지</span>
     <span class="hljs-built_in">AMyGameMode</span>();
 
     <span class="hljs-comment">// 플레이어 접속 완료 시 호출 — 팀 배정, 환영 처리 등</span>
@@ -664,16 +668,19 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <span class="hljs-built_in">AMyGameMode</span>::<span class="hljs-built_in">AMyGameMode</span>()
 {
     <span class="hljs-comment">// 이 게임에서 사용할 클래스를 지정</span>
-    GameStateClass       = <span class="hljs-built_in">AMyGameState</span>::StaticClass();
-    PlayerControllerClass = <span class="hljs-built_in">AMyPlayerController</span>::StaticClass();
-    DefaultPawnClass     = <span class="hljs-built_in">AMyCharacter</span>::StaticClass();
+    <span class="hljs-comment">// StaticClass(): 해당 클래스의 UClass(타입 정보)를 반환 — 엔진은 이 정보로 실제 인스턴스를 스폰함</span>
+    GameStateClass       = <span class="hljs-built_in">AMyGameState</span>::StaticClass();   <span class="hljs-comment">// 레벨 로드 시 GameMode가 이 클래스로 GameState를 자동 생성</span>
+    PlayerControllerClass = <span class="hljs-built_in">AMyPlayerController</span>::StaticClass();   <span class="hljs-comment">// 플레이어 접속(Login) 시 이 클래스로 컨트롤러 스폰</span>
+    DefaultPawnClass     = <span class="hljs-built_in">AMyCharacter</span>::StaticClass();   <span class="hljs-comment">// RestartPlayer 시 이 클래스로 폰(캐릭터) 스폰</span>
 }
 
+<span class="hljs-comment">// PostLogin: 접속이 완전히 승인된 직후 서버에서 호출 — 이 시점부터 PlayerState 접근이 안전함</span>
 <span class="hljs-type">void</span> <span class="hljs-title class_">AMyGameMode</span>::<span class="hljs-title function_">PostLogin</span>(<span class="hljs-built_in">APlayerController</span>* NewPlayer)
 {
-    <span class="hljs-built_in">Super</span>::PostLogin(NewPlayer);
+    <span class="hljs-built_in">Super</span>::PostLogin(NewPlayer);   <span class="hljs-comment">// 부모 처리 필수 — 기본 폰 스폰·시작 처리가 여기서 진행됨. 생략하면 폰이 스폰되지 않음</span>
 
     <span class="hljs-comment">// 여기에 팀 배정, 환영 메시지 등 초기 셋업</span>
+    <span class="hljs-comment">// GetPlayerName()은 FString 반환 — 서식 문자열 %s에 넘기려면 앞에 *(TCHAR* 변환)가 필수</span>
     <span class="hljs-built_in">UE_LOG</span>(LogTemp, Log, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"Player joined: %s"</span>),
         *NewPlayer-&gt;GetPlayerState&lt;<span class="hljs-built_in">APlayerState</span>&gt;()-&gt;GetPlayerName());
 }</pre></div>
@@ -698,24 +705,30 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
 <span class="hljs-keyword">public</span>:
     <span class="hljs-comment">// 모든 클라이언트에 복제되는 팀 점수</span>
+    <span class="hljs-comment">// Replicated: 서버에서 값이 바뀌면 엔진이 자동으로 전 클라이언트에 전송</span>
+    <span class="hljs-comment">// BlueprintReadOnly: 블루프린트에서는 읽기만 허용 — 클라이언트 측 임의 수정(치팅) 차단</span>
+    <span class="hljs-comment">// UPROPERTY 자체는 이 변수를 리플렉션·GC 추적 대상으로 만듦</span>
     <span class="hljs-meta">UPROPERTY(Replicated, BlueprintReadOnly, Category = <span class="hljs-string">"Score"</span>)</span>
     <span class="hljs-type">int32</span> TeamScore;
 
     <span class="hljs-comment">// 복제할 프로퍼티 목록을 엔진에 알려주는 함수</span>
+    <span class="hljs-comment">// Replicated 지정자를 하나라도 쓰면 반드시 override — 구현이 없으면 링크 에러 발생</span>
     <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title function_">GetLifetimeReplicatedProps</span>(
         <span class="hljs-built_in">TArray</span>&lt;<span class="hljs-built_in">FLifetimeProperty</span>&gt;&amp; OutLifetimeProps) <span class="hljs-keyword">const</span> <span class="hljs-keyword">override</span>;
 
     <span class="hljs-comment">// 서버에서 호출: 점수 추가</span>
+    <span class="hljs-comment">// UFUNCTION(BlueprintCallable): 블루프린트 그래프에서 노드로 호출할 수 있게 노출</span>
     <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = <span class="hljs-string">"Score"</span>)</span>
     <span class="hljs-type">void</span> <span class="hljs-title function_">AddTeamScore</span>(<span class="hljs-type">int32</span> Amount);
 };</pre></div>
       <div class="codeblock-panel" data-lang="cpp"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"MyGameState.h"</span></span>
-<span class="hljs-meta">#include <span class="hljs-string">"Net/UnrealNetwork.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Net/UnrealNetwork.h"</span></span>   <span class="hljs-comment">// DOREPLIFETIME 매크로가 정의된 헤더 — 복제 구현부(.cpp)에 필수</span>
 
+<span class="hljs-comment">// 엔진이 복제 시스템 초기화 시 1회 호출 — 여기 등록된 프로퍼티만 네트워크로 전송됨</span>
 <span class="hljs-type">void</span> <span class="hljs-title class_">AMyGameState</span>::<span class="hljs-title function_">GetLifetimeReplicatedProps</span>(
     <span class="hljs-built_in">TArray</span>&lt;<span class="hljs-built_in">FLifetimeProperty</span>&gt;&amp; OutLifetimeProps) <span class="hljs-keyword">const</span>
 {
-    <span class="hljs-built_in">Super</span>::GetLifetimeReplicatedProps(OutLifetimeProps);
+    <span class="hljs-built_in">Super</span>::GetLifetimeReplicatedProps(OutLifetimeProps);   <span class="hljs-comment">// 부모(PlayerArray 등)가 등록한 복제 목록 유지 — 생략하면 부모 프로퍼티 복제가 끊김</span>
     <span class="hljs-comment">// TeamScore를 모든 클라이언트에 복제하도록 등록</span>
     <span class="hljs-built_in">DOREPLIFETIME</span>(<span class="hljs-built_in">AMyGameState</span>, TeamScore);
 }
@@ -723,9 +736,10 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <span class="hljs-type">void</span> <span class="hljs-title class_">AMyGameState</span>::<span class="hljs-title function_">AddTeamScore</span>(<span class="hljs-type">int32</span> Amount)
 {
     <span class="hljs-comment">// Authority(서버)에서만 수정 → Replicated로 자동 전파</span>
+    <span class="hljs-comment">// 이 체크가 없으면 클라이언트가 로컬에서만 값을 바꿔 서버와 어긋나고, 다음 복제 때 덮어써짐</span>
     <span class="hljs-keyword">if</span> (HasAuthority())
     {
-        TeamScore += Amount;
+        TeamScore += Amount;   <span class="hljs-comment">// 서버 값 변경 → 엔진이 자동으로 전 클라이언트에 새 값 전송</span>
     }
 }</pre></div>
     </div>
@@ -747,23 +761,26 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 {
     <span class="hljs-meta">GENERATED_BODY()</span>
 
-<span class="hljs-keyword">protected</span>:
+<span class="hljs-keyword">protected</span>:   <span class="hljs-comment">// 엔진 콜백은 외부에서 직접 호출할 일이 없으므로 protected로 은닉</span>
+    <span class="hljs-comment">// BeginPlay: 액터가 월드에 완전히 배치된 후 최초 1회 엔진이 호출 — 생성자와 달리 월드 접근이 안전</span>
     <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title function_">BeginPlay</span>() <span class="hljs-keyword">override</span>;
 
     <span class="hljs-comment">// Enhanced Input을 사용한 입력 설정</span>
+    <span class="hljs-comment">// SetupInputComponent: 엔진이 InputComponent를 생성한 직후 호출 — 입력 바인딩은 반드시 이 안에서</span>
     <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title function_">SetupInputComponent</span>() <span class="hljs-keyword">override</span>;
 };</pre></div>
       <div class="codeblock-panel" data-lang="cpp"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"MyPlayerController.h"</span></span>
 
 <span class="hljs-type">void</span> <span class="hljs-title class_">AMyPlayerController</span>::<span class="hljs-title function_">BeginPlay</span>()
 {
-    <span class="hljs-built_in">Super</span>::BeginPlay();
+    <span class="hljs-built_in">Super</span>::BeginPlay();   <span class="hljs-comment">// 부모의 초기화 선행 — override한 엔진 콜백에서는 항상 첫 줄에서 Super 호출이 관례</span>
     <span class="hljs-comment">// 마우스 커서 표시, UI 모드 설정 등</span>
+    <span class="hljs-comment">// 예: bShowMouseCursor = true; SetInputMode(FInputModeGameAndUI());</span>
 }
 
 <span class="hljs-type">void</span> <span class="hljs-title class_">AMyPlayerController</span>::<span class="hljs-title function_">SetupInputComponent</span>()
 {
-    <span class="hljs-built_in">Super</span>::SetupInputComponent();
+    <span class="hljs-built_in">Super</span>::SetupInputComponent();   <span class="hljs-comment">// 부모가 InputComponent 기본 셋업을 수행 — 생략하면 바인딩 대상이 준비되지 않음</span>
     <span class="hljs-comment">// Enhanced Input 바인딩을 여기에 설정</span>
     <span class="hljs-comment">// InputComponent-&gt;BindAction(...);</span>
 }</pre></div>
@@ -789,17 +806,21 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <span class="hljs-keyword">public</span>:
     <span class="hljs-built_in">AMyCharacter</span>();
 
+    <span class="hljs-comment">// EditAnywhere: 에디터에서 클래스 기본값·레벨에 배치된 인스턴스 양쪽 모두 수정 가능 (기획자가 밸런스 조정)</span>
+    <span class="hljs-comment">// BlueprintReadWrite: 블루프린트에서 읽기·쓰기 모두 허용</span>
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = <span class="hljs-string">"Stats"</span>)</span>
-    <span class="hljs-type">float</span> MaxHealth = <span class="hljs-number">100.0f</span>;
+    <span class="hljs-type">float</span> MaxHealth = <span class="hljs-number">100.0f</span>;   <span class="hljs-comment">// 기본값 필수 — 초기화 없이 두면 쓰레기 값으로 시작해 체력 계산이 전부 깨질 수 있음</span>
 
+    <span class="hljs-comment">// VisibleAnywhere: 에디터에서 보이지만 수정 불가 — 런타임 계산값이라 손으로 고칠 이유가 없음</span>
     <span class="hljs-meta">UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = <span class="hljs-string">"Stats"</span>)</span>
-    <span class="hljs-type">float</span> CurrentHealth;
+    <span class="hljs-type">float</span> CurrentHealth;   <span class="hljs-comment">// 초기화는 BeginPlay에서 — 에디터에서 조정된 MaxHealth를 반영하기 위해 (아래 .cpp 참조)</span>
 
+    <span class="hljs-comment">// BlueprintCallable: 블루프린트 그래프에서 노드로 호출 가능</span>
     <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = <span class="hljs-string">"Combat"</span>)</span>
     <span class="hljs-type">void</span> <span class="hljs-title function_">ApplyDamage</span>(<span class="hljs-type">float</span> Amount);
 
 <span class="hljs-keyword">protected</span>:
-    <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title function_">BeginPlay</span>() <span class="hljs-keyword">override</span>;
+    <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title function_">BeginPlay</span>() <span class="hljs-keyword">override</span>;   <span class="hljs-comment">// 스폰 완료 후 첫 틱 전에 엔진이 1회 호출</span>
 };</pre></div>
       <div class="codeblock-panel" data-lang="cpp"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"MyCharacter.h"</span></span>
 
@@ -807,21 +828,22 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 {
     <span class="hljs-comment">// CharacterMovementComponent는 ACharacter가 자동 생성</span>
     <span class="hljs-comment">// 여기서 이동 속도 등을 조정</span>
-    GetCharacterMovement()-&gt;MaxWalkSpeed = <span class="hljs-number">600.0f</span>;
+    GetCharacterMovement()-&gt;MaxWalkSpeed = <span class="hljs-number">600.0f</span>;   <span class="hljs-comment">// 단위: cm/s (언리얼 기본 단위는 센티미터) → 600 = 초당 6m</span>
 }
 
 <span class="hljs-type">void</span> <span class="hljs-title class_">AMyCharacter</span>::<span class="hljs-title function_">BeginPlay</span>()
 {
     <span class="hljs-built_in">Super</span>::BeginPlay();
+    <span class="hljs-comment">// 생성자가 아닌 BeginPlay에서 초기화 — 에디터/블루프린트에서 바꾼 MaxHealth 값이 적용된 뒤에 복사되므로</span>
     CurrentHealth = MaxHealth;
 }
 
 <span class="hljs-type">void</span> <span class="hljs-title class_">AMyCharacter</span>::<span class="hljs-title function_">ApplyDamage</span>(<span class="hljs-type">float</span> Amount)
 {
-    CurrentHealth -= Amount;
-    <span class="hljs-keyword">if</span> (CurrentHealth &lt;= <span class="hljs-number">0.0f</span>)
+    CurrentHealth -= Amount;   <span class="hljs-comment">// 1) 피해 적용</span>
+    <span class="hljs-keyword">if</span> (CurrentHealth &lt;= <span class="hljs-number">0.0f</span>)   <span class="hljs-comment">// 2) 사망 판정</span>
     {
-        CurrentHealth = <span class="hljs-number">0.0f</span>;
+        CurrentHealth = <span class="hljs-number">0.0f</span>;   <span class="hljs-comment">// 3) 음수 방지 클램프 — UI 체력바가 음수로 그려지는 것을 막음</span>
         <span class="hljs-comment">// 사망 처리: Controller에 알림 → 리스폰 요청 등</span>
     }
 }</pre></div>

@@ -7,6 +7,8 @@
 <!-- ============================================================
      CHANGELOG — 03-archive-system.html
      아카이브 시스템 설계 문서. 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.4 · 2026-07-08
+       - (변경) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
      v1.3 · 2026-07-06
        - (추가) 캘린더 섹션에 "퀘스트 상태 타임라인 표기 규칙" 신설(id="term-status-timeline") —
          날짜 D별 표기 구간: 진행 예정(생성일~시작일 전, 마스터 단위) · 진행 중 · 완료(완료일까지) ·
@@ -497,9 +499,10 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <button class="codeblock-copy" type="button">복사</button>
       </div>
       <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 기록 출처 — 필터 축 ①. 캘린더 도트 색도 여기서 파생. (구 EFocusMode 대체)</span>
-<span class="hljs-meta">UENUM(BlueprintType)</span>
-<span class="hljs-keyword">enum class</span> <span class="hljs-title class_">ERecordSource</span> : <span class="hljs-type">uint8</span>
+<span class="hljs-meta">UENUM(BlueprintType)</span>   <span class="hljs-comment">// BlueprintType: 이 열거형을 블루프린트 변수·함수 인자 타입으로 노출</span>
+<span class="hljs-keyword">enum class</span> <span class="hljs-title class_">ERecordSource</span> : <span class="hljs-type">uint8</span>   <span class="hljs-comment">// uint8 기반 필수 — UENUM(BlueprintType)은 1바이트 열거형만 지원</span>
 {
+    <span class="hljs-comment">// UMETA(DisplayName): 에디터·블루프린트 UI에 표시되는 이름 지정 (코드 식별자와 분리)</span>
     Timer      <span class="hljs-meta">UMETA(DisplayName = "타이머")</span>,
     Stopwatch  <span class="hljs-meta">UMETA(DisplayName = "스톱워치")</span>,
     Quest      <span class="hljs-meta">UMETA(DisplayName = "퀘스트")</span>,
@@ -507,24 +510,24 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 };
 
 <span class="hljs-comment">// 통합 아카이브 기록 (요약 — 전체 정의·필드별 근거는 11번 문서가 단일 소스)</span>
-<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>   <span class="hljs-comment">// 리플렉션 대상 구조체 — SaveGame 직렬화와 블루프린트 사용의 전제 조건</span>
 <span class="hljs-keyword">struct</span> <span class="hljs-title class_">FArchiveRecord</span>
 {
-    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">GENERATED_BODY()</span>   <span class="hljs-comment">// UHT(언리얼 헤더 툴)가 만든 리플렉션 코드가 삽입되는 자리 — USTRUCT 본문 첫 줄에 필수</span>
 
     <span class="hljs-comment">// 통합 기록 ID "YYYYMMDD+5자리" — 정렬·식별 전용, 불변</span>
-    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span>   <span class="hljs-comment">// UPROPERTY가 있어야 SaveGame 직렬화 대상이 됨. ReadOnly: 발급 후 불변이므로 BP 쓰기 차단</span>
     <span class="hljs-type">FString</span> Id;
 
     <span class="hljs-comment">// 필터 축 3종: 출처 · 카테고리 · 사건 발생 시각</span>
-    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span>   <span class="hljs-comment">// 출처는 저장 순간 확정 후 불변 — ReadOnly로 사후 변경을 차단</span>
     <span class="hljs-type">ERecordSource</span> Source;
 
-    <span class="hljs-meta">UPROPERTY(BlueprintReadWrite)</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadWrite)</span>   <span class="hljs-comment">// ReadWrite: 사용자가 나중에 분류를 바꿀 수 있어야 하므로 BP 쓰기 허용</span>
     <span class="hljs-type">FString</span> Category;
 
     <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span>
-    <span class="hljs-type">FDateTime</span> CreatedAt;
+    <span class="hljs-type">FDateTime</span> CreatedAt;   <span class="hljs-comment">// SaveRecord가 저장 순간 확정 — 기간 필터·시각 표시의 유일한 시간 소스</span>
 
     <span class="hljs-comment">// 내용물</span>
     <span class="hljs-meta">UPROPERTY(BlueprintReadWrite)</span>
@@ -534,7 +537,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-type">FString</span> Title;              <span class="hljs-comment">// 퀘스트 제목 스냅샷 / 직접 작성 제목</span>
 
     <span class="hljs-meta">UPROPERTY(BlueprintReadWrite)</span>
-    <span class="hljs-type">FString</span> Notes;
+    <span class="hljs-type">FString</span> Notes;   <span class="hljs-comment">// 선택 입력 메모 — 빈 문자열 허용(입력 강제 없음)</span>
 
     <span class="hljs-comment">// 퀘스트 전용 (Source == Quest)</span>
     <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span>
@@ -571,16 +574,16 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <span class="tag">void</span> AddCategory(<span class="val">FString</span> Name, <span class="val">FLinearColor</span> Color)
 {
     <span class="cm">// 1. 중복 검사</span>
-    <span class="tag">if</span> (Categories.Contains(Name)) <span class="tag">return</span>;
+    <span class="tag">if</span> (Categories.Contains(Name)) <span class="tag">return</span>;   <span class="cm">// early return: 같은 이름 재등록으로 기존 색상이 덮어써지는 사고 방지</span>
 
     <span class="cm">// 2. 이름 목록에 추가</span>
     Categories.Add(Name);
 
     <span class="cm">// 3. 색상 맵에 등록</span>
-    CatColors.Add(Name, Color);
+    CatColors.Add(Name, Color);   <span class="cm">// 이름 목록과 색상 맵은 항상 쌍으로 갱신 — 한쪽만 추가하면 색 없는 카테고리 발생</span>
 
     <span class="cm">// 4. SaveGame에 동기화</span>
-    SaveToSlot();
+    SaveToSlot();   <span class="cm">// 즉시 디스크 반영 — 빼먹으면 앱 재시작 시 새 카테고리가 사라짐</span>
 }
 
 <span class="cm">// 기본 카테고리 예시:</span>
@@ -816,15 +819,15 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <button class="codeblock-copy" type="button">복사</button>
       </div>
       <!-- .h 패널 -->
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>   <span class="hljs-comment">// 이 헤더를 한 번만 include하도록 보장 — 중복 정의 컴파일 에러 방지</span>
 
-<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
-<span class="hljs-meta">#include <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span></span>
-<span class="hljs-meta">#include <span class="hljs-string">"RecordTypes.h"</span></span>
-<span class="hljs-meta">#include <span class="hljs-string">"RecordSubsystem.generated.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>   <span class="hljs-comment">// FString·TArray·TMap 등 UE 핵심 타입 모음</span>
+<span class="hljs-meta">#include <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span></span>   <span class="hljs-comment">// 부모 클래스 UGameInstanceSubsystem 선언</span>
+<span class="hljs-meta">#include <span class="hljs-string">"RecordTypes.h"</span></span>   <span class="hljs-comment">// FArchiveRecord·ERecordSource 정의 (앞의 RecordTypes.h 참고)</span>
+<span class="hljs-meta">#include <span class="hljs-string">"RecordSubsystem.generated.h"</span></span>   <span class="hljs-comment">// UHT 생성 헤더 — 반드시 마지막 include (뒤에 오는 선언은 생성 코드가 알 수 없음)</span>
 
 <span class="hljs-comment">/** 기간 필터 열거형 */</span>
-<span class="hljs-meta">UENUM(BlueprintType)</span>
+<span class="hljs-meta">UENUM(BlueprintType)</span>   <span class="hljs-comment">// 필터 UI(드롭다운) 블루프린트에서 그대로 쓸 수 있게 노출</span>
 <span class="hljs-keyword">enum class</span> <span class="hljs-title class_">EPeriodFilter</span> : <span class="hljs-type">uint8</span>
 {
     Daily    <span class="hljs-meta">UMETA(DisplayName = "일별")</span>,

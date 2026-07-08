@@ -8,6 +8,11 @@
      CHANGELOG — ue-savegame.html
      유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿 · data/).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.1 · 2026-07-08
+       - (추가) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
+         — 05 스켈레톤 MySaveGame.h / 소유자 .cpp 두 탭: 매크로·상속의 의미,
+           호출 시점, 초기값·nullptr 방어·동기 저장의 이유 중심 한국어 주석 추가
+           (코드 줄·기존 주석·본문은 변경 없음)
      v1.0 · 2026-07-07
        - 신규 생성. USaveGame 슬롯 모델·UPROPERTY 직렬화 규칙·지원 타입·
          저장/로드 왕복·SaveVersion 마이그레이션 패턴을 다룸.
@@ -708,56 +713,69 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <button class="codeblock-copy" type="button">복사</button>
       </div>
       <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// MySaveGame.h — 데이터 그릇. 로직을 넣지 않는다.</span>
-<span class="hljs-meta">#pragma once</span>
-<span class="hljs-meta">#include</span> <span class="hljs-string">"GameFramework/SaveGame.h"</span>
-<span class="hljs-meta">#include</span> <span class="hljs-string">"MySaveGame.generated.h"</span>
+<span class="hljs-meta">#pragma once</span>   <span class="hljs-comment">// 같은 헤더의 중복 include 방지 — 언리얼 헤더 공통 첫 줄</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"GameFramework/SaveGame.h"</span>   <span class="hljs-comment">// 부모 클래스 USaveGame의 선언이 여기 있음</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"MySaveGame.generated.h"</span>   <span class="hljs-comment">// UHT 자동 생성 헤더 — 반드시 마지막 #include</span>
 
+<span class="hljs-comment">// UCLASS: 리플렉션 등록 — 이 등록이 있어야 아래 UPROPERTY 필드가 직렬화(저장) 대상이 됨</span>
 <span class="hljs-meta">UCLASS()</span>
-<span class="hljs-keyword">class</span> MYGAME_API <span class="hljs-type">UMySaveGame</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">USaveGame</span>
+<span class="hljs-keyword">class</span> MYGAME_API <span class="hljs-type">UMySaveGame</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">USaveGame</span>   <span class="hljs-comment">// USaveGame 상속 = 슬롯 저장 대상이 되기 위한 자격</span>
 {
-    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">GENERATED_BODY()</span>   <span class="hljs-comment">// UHT가 만든 리플렉션 코드 삽입 지점 — UCLASS 본문 필수</span>
 <span class="hljs-keyword">public</span>:
     <span class="hljs-comment">// 구조를 바꾸면 이 값을 +1 하고 로드에서 분기한다</span>
+    <span class="hljs-comment">// (= 1 초기값이 없으면 구버전 판별 기준 자체가 무너짐 — 첫 배포 버전부터 반드시 포함)</span>
     <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">int32</span> SaveVersion = <span class="hljs-number">1</span>;
 
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">int64</span> Gold = <span class="hljs-number">0</span>;
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FName</span>&gt; UnlockedIds;
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">TMap</span>&lt;<span class="hljs-type">FString</span>, <span class="hljs-type">int32</span>&gt; DailyCounters;
+    <span class="hljs-comment">// 저장할 값들 — UPROPERTY()만 붙이면 에디터 노출 없이 직렬화에만 포함됨</span>
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">int64</span> Gold = <span class="hljs-number">0</span>;   <span class="hljs-comment">// int64: int32 상한(약 21억) 초과 대비 — 저장 필드는 나중에 좁히기 어려움</span>
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FName</span>&gt; UnlockedIds;   <span class="hljs-comment">// 해금 항목 ID 목록 — 컨테이너(TArray)도 통째로 저장됨</span>
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">TMap</span>&lt;<span class="hljs-type">FString</span>, <span class="hljs-type">int32</span>&gt; DailyCounters;   <span class="hljs-comment">// 키-값 카운터 — TMap도 지원 타입</span>
 
     <span class="hljs-comment">// UPROPERTY가 없으면 이 멤버는 절대 저장되지 않는다 (조용한 무시)</span>
     <span class="hljs-comment">// int32 ThisWillBeLost;</span>
 };</pre></div>
       <div class="codeblock-panel"><pre class="hljs"><span class="hljs-comment">// MyGameInstance.cpp — 왕복은 소유자 한 곳에서만</span>
-<span class="hljs-meta">#include</span> <span class="hljs-string">"Kismet/GameplayStatics.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"Kismet/GameplayStatics.h"</span>   <span class="hljs-comment">// SaveGameToSlot 등 저장/로드 정적 함수가 여기 있음</span>
 
+<span class="hljs-comment">// 슬롯 이름은 상수 한 곳에서만 — 문자열을 여기저기 직접 쓰면 오타 하나로 슬롯이 갈라짐</span>
 <span class="hljs-keyword">static</span> <span class="hljs-keyword">const</span> <span class="hljs-type">TCHAR</span>* kSlot = <span class="hljs-string">TEXT("MySlot")</span>;
 
+<span class="hljs-comment">// 게임 시작 시 1회 호출(예: GameInstance::Init에서) —</span>
+<span class="hljs-comment">// 흐름: 1) 슬롯 파일 존재 확인 → 2) 로드+캐스팅+마이그레이션 / 3) 없으면 새 객체 생성</span>
 <span class="hljs-keyword">void</span> <span class="hljs-type">UMyGameInstance</span>::<span class="hljs-title">LoadOrCreate</span>()
 {
-    <span class="hljs-keyword">if</span> (<span class="hljs-type">UGameplayStatics</span>::<span class="hljs-title">DoesSaveGameExist</span>(kSlot, <span class="hljs-number">0</span>))
+    <span class="hljs-keyword">if</span> (<span class="hljs-type">UGameplayStatics</span>::<span class="hljs-title">DoesSaveGameExist</span>(kSlot, <span class="hljs-number">0</span>))   <span class="hljs-comment">// 1) .sav 파일 존재 확인 — 두 번째 인자 UserIndex는 PC 단일 사용자면 0 고정</span>
     {
+        <span class="hljs-comment">// 2) LoadGameFromSlot의 반환 타입은 부모(USaveGame*) — 내 타입으로 캐스팅 필수.</span>
+        <span class="hljs-comment">//    파일이 손상되었거나 다른 클래스로 저장된 경우 Cast가 nullptr를 반환</span>
         CurrentSave = <span class="hljs-title">Cast</span>&lt;<span class="hljs-type">UMySaveGame</span>&gt;(
             <span class="hljs-type">UGameplayStatics</span>::<span class="hljs-title">LoadGameFromSlot</span>(kSlot, <span class="hljs-number">0</span>));
         <span class="hljs-title">MigrateIfNeeded</span>(CurrentSave);   <span class="hljs-comment">// 버전 분기</span>
     }
     <span class="hljs-keyword">else</span>
     {
+        <span class="hljs-comment">// 3) 첫 실행 — 메모리에만 빈 세이브 객체를 만든다 (이 시점엔 디스크에 아무것도 없음)</span>
         CurrentSave = <span class="hljs-title">Cast</span>&lt;<span class="hljs-type">UMySaveGame</span>&gt;(
             <span class="hljs-type">UGameplayStatics</span>::<span class="hljs-title">CreateSaveGameObject</span>(<span class="hljs-type">UMySaveGame</span>::<span class="hljs-title">StaticClass</span>()));
         <span class="hljs-comment">// 첫 실행 기본값은 여기서 채운다 (Settings 상수 권장)</span>
     }
 }
 
+<span class="hljs-comment">// 값이 바뀔 때마다 호출("변경 즉시 저장" 정책) — 저장 시점을 이 함수 하나로 모은다</span>
 <span class="hljs-keyword">void</span> <span class="hljs-type">UMyGameInstance</span>::<span class="hljs-title">SaveNow</span>()
 {
-    <span class="hljs-keyword">if</span> (!CurrentSave) <span class="hljs-keyword">return</span>;
+    <span class="hljs-keyword">if</span> (!CurrentSave) <span class="hljs-keyword">return</span>;   <span class="hljs-comment">// LoadOrCreate 전에 불리면 nullptr — 이 방어가 없으면 아래에서 크래시</span>
+    <span class="hljs-comment">// 객체의 UPROPERTY 필드 전부를 .sav 파일로 직렬화 — 동기 호출(끝날 때까지 블로킹)</span>
     <span class="hljs-keyword">const</span> <span class="hljs-keyword">bool</span> bOk = <span class="hljs-type">UGameplayStatics</span>::<span class="hljs-title">SaveGameToSlot</span>(CurrentSave, kSlot, <span class="hljs-number">0</span>);
-    <span class="hljs-keyword">if</span> (!bOk) { <span class="hljs-comment">/* 로그 — 디스크 부족/권한 등 */</span> }
+    <span class="hljs-keyword">if</span> (!bOk) { <span class="hljs-comment">/* 로그 — 디스크 부족/권한 등 */</span> }   <span class="hljs-comment">// 실패해도 예외가 없으므로 반환값 확인이 유일한 감지 수단</span>
 }
 
+<span class="hljs-comment">// 로드 직후 1회 호출 — 구버전 세이브를 최신 구조로 끌어올린다.</span>
+<span class="hljs-comment">// 이후 코드는 항상 최신 구조만 상대하면 되므로 분기가 여기 한 곳에 격리됨</span>
 <span class="hljs-keyword">void</span> <span class="hljs-type">UMyGameInstance</span>::<span class="hljs-title">MigrateIfNeeded</span>(<span class="hljs-type">UMySaveGame</span>* S)
 {
-    <span class="hljs-keyword">if</span> (S-&gt;SaveVersion &lt; <span class="hljs-number">2</span>)
+    <span class="hljs-keyword">if</span> (S-&gt;SaveVersion &lt; <span class="hljs-number">2</span>)   <span class="hljs-comment">// 버전 비교로 구버전만 분기 — 최신 세이브는 그대로 통과</span>
     {
         <span class="hljs-comment">// 예: v1의 int32 골드를 v2의 int64 필드로 이전</span>
         <span class="hljs-comment">// S-&gt;Gold = S-&gt;OldGold_DEPRECATED;</span>
@@ -782,7 +800,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>UE 아키텍처 문서 · SaveGame v1.0</span>
+  <span>UE 아키텍처 문서 · SaveGame v1.1</span>
   <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.5</span>
 </footer>
 

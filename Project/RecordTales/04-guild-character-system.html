@@ -7,6 +7,8 @@
 <!-- ============================================================
      CHANGELOG — 04-guild-character-system.html
      길드 & 캐릭터 시스템 설계 문서. 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.2 · 2026-07-08
+       - (추가) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
      v1.1 · 2026-07-02
        - (추가) 08 — 데이터 설계 섹션: 프로토타입 v14(TestFile/RecordTales.html) 실측 기준 —
          v14 % 스탯 모델로 캐릭터 12명·시너지 7종 실측표 등재, RowName 참조 저장 구조·가챠 수치·중복 보유 정책 이슈.
@@ -444,12 +446,16 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <button class="codeblock-tab tab-h active" type="button">GuildTypes.h &mdash; Row</button>
         <button class="codeblock-copy" type="button">복사</button>
       </div>
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">USTRUCT(BlueprintType)</span>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// USTRUCT(BlueprintType): 이 구조체를 언리얼 리플렉션 시스템에 등록하는 매크로.</span>
+<span class="hljs-comment">// BlueprintType을 붙이면 블루프린트에서도 변수 타입으로 쓸 수 있게 노출된다.</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-comment">// FTableRowBase 상속: DataTable의 행(Row) 타입으로 쓰기 위한 필수 조건 — 상속이 없으면 에디터에서 DataTable 생성 시 이 구조체가 목록에 나타나지 않는다</span>
 <span class="hljs-keyword">struct</span> <span class="hljs-title class_">FGuildMemberRow</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">FTableRowBase</span>
 {
-    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">GENERATED_BODY()</span>   <span class="hljs-comment">// UHT(언리얼 헤더 툴)가 리플렉션 코드를 자동 삽입하는 자리 — USTRUCT/UCLASS에는 반드시 있어야 컴파일된다</span>
 
     <span class="hljs-comment">// 고유 식별자 (예: "member_01")</span>
+    <span class="hljs-comment">// EditAnywhere: 에디터(DataTable 편집 창)에서 값 수정 가능 / BlueprintReadOnly: BP에서는 읽기만 허용 — 마스터 데이터를 런타임에 실수로 덮어쓰는 것을 방지</span>
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
     <span class="hljs-type">FString</span> Id;
 
@@ -485,13 +491,15 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <button class="codeblock-tab tab-h active" type="button">GuildTypes.h &mdash; Rarity</button>
         <button class="codeblock-copy" type="button">복사</button>
       </div>
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">UENUM(BlueprintType)</span>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// UENUM(BlueprintType): 열거형을 리플렉션에 등록해 BP·DataTable(CSV 임포트)·에디터 드롭다운에서 쓸 수 있게 한다</span>
+<span class="hljs-meta">UENUM(BlueprintType)</span>
+<span class="hljs-comment">// : uint8 — BP에 노출하는 UENUM은 uint8 기반이어야 한다는 엔진 제약. 값 순서 = 희귀도 오름차순(가챠 확률표의 열 순서와 일치)</span>
 <span class="hljs-keyword">enum class</span> <span class="hljs-title class_">EGuildRarity</span> : <span class="hljs-type">uint8</span>
 {
-    Normal     <span class="hljs-meta">UMETA(DisplayName = "Normal")</span>,
+    Normal     <span class="hljs-meta">UMETA(DisplayName = "Normal")</span>,      <span class="hljs-comment">// UMETA(DisplayName): 에디터 UI에 표시될 이름 지정 — 코드 식별자와 표시 이름을 분리</span>
     Rare       <span class="hljs-meta">UMETA(DisplayName = "Rare")</span>,
     Epic       <span class="hljs-meta">UMETA(DisplayName = "Epic")</span>,
-    Legendary  <span class="hljs-meta">UMETA(DisplayName = "Legendary")</span>
+    Legendary  <span class="hljs-meta">UMETA(DisplayName = "Legendary")</span>   <span class="hljs-comment">// 최고 등급 — 길드 레벨에 따라 출현 확률 2~10% (03 확률표 참조)</span>
 };</pre></div>
     </div>
 
@@ -501,22 +509,26 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <button class="codeblock-tab tab-h active" type="button">GuildTypes.h &mdash; Stats</button>
         <button class="codeblock-copy" type="button">복사</button>
       </div>
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">USTRUCT(BlueprintType)</span>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 길드원 스탯 묶음. FTableRowBase를 상속하지 않은 일반 USTRUCT —</span>
+<span class="hljs-comment">// 단독 DataTable 행이 아니라 FGuildMemberRow 안에 중첩(Stats 필드)되어 쓰이기 때문.</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
 <span class="hljs-keyword">struct</span> <span class="hljs-title class_">FGuildStats</span>
 {
-    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">GENERATED_BODY()</span>   <span class="hljs-comment">// 리플렉션 코드 삽입 자리 — 빠뜨리면 컴파일 에러</span>
+
+    <span class="hljs-comment">// = 0 초기화 필수 — int32 같은 기본형 멤버는 자동으로 0이 되지 않아,</span>
+    <span class="hljs-comment">// 초기화를 빼면 쓰레기 값이 UI에 그대로 표시될 수 있다 (아래 4개 모두 동일)</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-type">int32</span> ATK = <span class="hljs-number">0</span>;   <span class="hljs-comment">// 공격력</span>
 
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
-    <span class="hljs-type">int32</span> ATK = <span class="hljs-number">0</span>;
+    <span class="hljs-type">int32</span> DEF = <span class="hljs-number">0</span>;   <span class="hljs-comment">// 방어력</span>
 
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
-    <span class="hljs-type">int32</span> DEF = <span class="hljs-number">0</span>;
+    <span class="hljs-type">int32</span> SPD = <span class="hljs-number">0</span>;   <span class="hljs-comment">// 속도</span>
 
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
-    <span class="hljs-type">int32</span> SPD = <span class="hljs-number">0</span>;
-
-    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
-    <span class="hljs-type">int32</span> SPL = <span class="hljs-number">0</span>;
+    <span class="hljs-type">int32</span> SPL = <span class="hljs-number">0</span>;   <span class="hljs-comment">// 특수. 네 스탯 모두 현재는 카드 UI 표시 전용 — 실측 데이터는 % 모델로 대체됨 (08 섹션)</span>
 };</pre></div>
     </div>
 
@@ -627,10 +639,11 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <button class="codeblock-tab tab-h active" type="button">GuildTypes.h &mdash; Synergy</button>
         <button class="codeblock-copy" type="button">복사</button>
       </div>
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">USTRUCT(BlueprintType)</span>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 시너지 1건의 정의. FTableRowBase 상속 → DT_Synergies DataTable의 행 타입으로 사용</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
 <span class="hljs-keyword">struct</span> <span class="hljs-title class_">FSynergyRow</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">FTableRowBase</span>
 {
-    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">GENERATED_BODY()</span>   <span class="hljs-comment">// 리플렉션 코드 삽입 자리 (USTRUCT 필수)</span>
 
     <span class="hljs-comment">// 시너지 고유 ID (예: "synergy_fire_duo")</span>
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
@@ -642,7 +655,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
     <span class="hljs-comment">// 활성화에 필요한 길드원 ID 목록</span>
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
-    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FString</span>&gt; RequiredMemberIds;
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FString</span>&gt; RequiredMemberIds;   <span class="hljs-comment">// 전원 편성 = AND 조건 — 한 명이라도 스쿼드에 빠지면 발동하지 않는다</span>
 
     <span class="hljs-comment">// 보너스 설명 텍스트</span>
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>

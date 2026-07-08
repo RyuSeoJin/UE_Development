@@ -7,6 +7,8 @@
 <!-- ============================================================
      CHANGELOG — 10-umg-cpp-integration.html
      RecordTales UMG + C++ 구현 가이드. 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.2 · 2026-07-08
+       - (추가) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
      v1.1 · 2026-07-06
        - (변경) 전제 조건의 참고 문서 경로 갱신: ue-wiki/ue-architect/umg-cpp-framework.html
          → ue-wiki/ue-architect/ui/umg-cpp-framework.html (ue-architect 카테고리 폴더 도입, DOC-TRACKS.md v1.4)
@@ -343,7 +345,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
 <!-- HERO -->
 <section class="hero">
-  <div class="hero-eyebrow">RecordTales · v1.0 · UMG + C++ Implementation Guide</div>
+  <div class="hero-eyebrow">RecordTales · v1.1 · UMG + C++ Implementation Guide</div>
   <h1>RecordTales<br><span>UMG + C++ 구현 가이드</span></h1>
   <p class="hero-sub">RecordTales의 7개 서브시스템을 UMG 위젯으로 연결하는 실제 구현 절차입니다. UIManagerSubsystem의 패널/모달 관리 로직부터 개별 위젯의 C++ 클래스·Designer 레이아웃·델리게이트 바인딩까지, 따라 하면 UI가 완성됩니다. UMG 기초 지식은 「UMG + C++ 연동 프레임워크」 문서를 전제합니다.</p>
   <div class="hero-meta">
@@ -520,9 +522,11 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 {
     <span class="hljs-meta">GENERATED_BODY()</span>
 <span class="hljs-keyword">protected</span>:
+    <span class="hljs-comment">// 위젯이 뷰포트에 추가되는 순간 엔진이 자동 호출 — 여기서 서브시스템을 캐싱</span>
     <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title">NativeConstruct</span>() <span class="hljs-keyword">override</span>;
 
     <span class="hljs-comment">// 서브시스템 캐시 — 모든 위젯에서 사용 가능</span>
+    <span class="hljs-comment">// UPROPERTY()로 선언해야 GC가 이 포인터를 추적 → 참조가 살아 있는 동안 수거 안 됨</span>
     <span class="hljs-meta">UPROPERTY()</span>
     <span class="hljs-type">UFocusSubsystem</span>* FocusSub;
     <span class="hljs-meta">UPROPERTY()</span>
@@ -553,7 +557,9 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 {
     <span class="hljs-title class_">Super</span>::<span class="hljs-title">NativeConstruct</span>();
 
+    <span class="hljs-comment">// GameInstance는 레벨이 바뀌어도 유지 → 여기 붙은 서브시스템도 세션 내내 유효</span>
     <span class="hljs-type">UGameInstance</span>* GI = <span class="hljs-title">GetGameInstance</span>();
+    <span class="hljs-comment">// 7개 서브시스템을 한 번만 찾아 캐싱 — 자식 위젯은 매번 조회하지 않고 이 참조를 재사용</span>
     FocusSub   = GI-&gt;<span class="hljs-title">GetSubsystem</span>&lt;<span class="hljs-type">UFocusSubsystem</span>&gt;();
     EconomySub = GI-&gt;<span class="hljs-title">GetSubsystem</span>&lt;<span class="hljs-type">UEconomySubsystem</span>&gt;();
     QuestSub   = GI-&gt;<span class="hljs-title">GetSubsystem</span>&lt;<span class="hljs-type">UQuestSubsystem</span>&gt;();
@@ -619,11 +625,13 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-type">UTextBlock</span>* TXT_XPEarned;            <span class="hljs-comment">// 선택: XP 표시</span>
 
 <span class="hljs-keyword">protected</span>:
-    <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title">NativeConstruct</span>() <span class="hljs-keyword">override</span>;
-    <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title">NativeDestruct</span>() <span class="hljs-keyword">override</span>;
+    <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title">NativeConstruct</span>() <span class="hljs-keyword">override</span>;   <span class="hljs-comment">// 뷰포트 추가 시 1회 — 버튼·델리게이트 바인딩</span>
+    <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title">NativeDestruct</span>() <span class="hljs-keyword">override</span>;    <span class="hljs-comment">// 뷰포트 제거 시 1회 — 바인딩 해제(짝 맞추기)</span>
+    <span class="hljs-comment">// 매 프레임 호출 — DeltaTime은 지난 프레임과의 간격(초). 타이머 표시 갱신용</span>
     <span class="hljs-keyword">virtual</span> <span class="hljs-type">void</span> <span class="hljs-title">NativeTick</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FGeometry</span>&amp; MyGeometry, <span class="hljs-type">float</span> InDeltaTime) <span class="hljs-keyword">override</span>;
 
 <span class="hljs-keyword">private</span>:
+    <span class="hljs-comment">// 버튼 OnClicked에 바인딩하려면 UFUNCTION() 필수 — 동적 델리게이트가 이름으로 함수를 찾음</span>
     <span class="hljs-meta">UFUNCTION()</span>
     <span class="hljs-type">void</span> <span class="hljs-title">OnStartClicked</span>();
     <span class="hljs-meta">UFUNCTION()</span>
@@ -666,6 +674,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
 <span class="hljs-type">void</span> <span class="hljs-title class_">UFocusPanelWidget</span>::<span class="hljs-title">NativeDestruct</span>()
 {
+    <span class="hljs-comment">// 바인딩을 해제하지 않으면 위젯이 사라진 뒤에도 델리게이트가 죽은 this를 호출 → 크래시</span>
     <span class="hljs-keyword">if</span> (FocusSub) FocusSub-&gt;OnStateChanged.<span class="hljs-title">RemoveAll</span>(<span class="hljs-keyword">this</span>);
     <span class="hljs-keyword">if</span> (EconomySub) EconomySub-&gt;OnGoldChanged.<span class="hljs-title">RemoveAll</span>(<span class="hljs-keyword">this</span>);
     BTN_Start-&gt;OnClicked.<span class="hljs-title">RemoveAll</span>(<span class="hljs-keyword">this</span>);
@@ -677,6 +686,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <span class="hljs-type">void</span> <span class="hljs-title class_">UFocusPanelWidget</span>::<span class="hljs-title">NativeTick</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FGeometry</span>&amp; MyGeometry, <span class="hljs-type">float</span> InDeltaTime)
 {
     <span class="hljs-title class_">Super</span>::<span class="hljs-title">NativeTick</span>(MyGeometry, InDeltaTime);
+    <span class="hljs-comment">// 집중/휴식 중일 때만 매 프레임 갱신 — 대기·완료 상태에서는 표시가 고정이라 불필요</span>
     <span class="hljs-keyword">if</span> (FocusSub-&gt;<span class="hljs-title">GetCurrentState</span>() == EFocusState::Focusing ||
         FocusSub-&gt;<span class="hljs-title">GetCurrentState</span>() == EFocusState::Resting)
     {
@@ -702,6 +712,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
 <span class="hljs-type">void</span> <span class="hljs-title class_">UFocusPanelWidget</span>::<span class="hljs-title">HandleStateChanged</span>(<span class="hljs-type">EFocusState</span> NewState)
 {
+    <span class="hljs-comment">// 상태별로 버튼 노출을 전환. Collapsed는 자리까지 차지 안 함(Hidden은 자리 유지)</span>
     <span class="hljs-keyword">switch</span> (NewState)
     {
     <span class="hljs-keyword">case</span> EFocusState::Idle:
@@ -738,13 +749,16 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
 <span class="hljs-type">void</span> <span class="hljs-title class_">UFocusPanelWidget</span>::<span class="hljs-title">UpdateTimerDisplay</span>()
 {
-    <span class="hljs-type">float</span> Remaining = FocusSub-&gt;<span class="hljs-title">GetRemainingTime</span>();
+    <span class="hljs-type">float</span> Remaining = FocusSub-&gt;<span class="hljs-title">GetRemainingTime</span>();   <span class="hljs-comment">// 남은 시간(초)</span>
+    <span class="hljs-comment">// 초 단위를 분:초로 분해 — 60으로 나눈 몫이 분, 나머지가 초</span>
     <span class="hljs-type">int32</span> Minutes = <span class="hljs-type">FMath</span>::<span class="hljs-title">FloorToInt</span>(Remaining / <span class="hljs-number">60.f</span>);
     <span class="hljs-type">int32</span> Seconds = <span class="hljs-type">FMath</span>::<span class="hljs-title">FloorToInt</span>(<span class="hljs-type">FMath</span>::<span class="hljs-title">Fmod</span>(Remaining, <span class="hljs-number">60.f</span>));
+    <span class="hljs-comment">// %02d = 2자리 제로 패딩 → "05:09"처럼 항상 두 자리로 표시</span>
     TXT_TimerDisplay-&gt;<span class="hljs-title">SetText</span>(<span class="hljs-type">FText</span>::<span class="hljs-title">FromString</span>(
         <span class="hljs-type">FString</span>::<span class="hljs-title">Printf</span>(<span class="hljs-title">TEXT</span>(<span class="hljs-string">"%02d:%02d"</span>), Minutes, Seconds)));
 
     <span class="hljs-type">float</span> Total = FocusSub-&gt;<span class="hljs-title">GetTotalDuration</span>();
+    <span class="hljs-comment">// 0으로 나누기 방지. SetPercent 인자는 0~1 비율 → 진행 바 채움 정도</span>
     <span class="hljs-keyword">if</span> (Total &gt; <span class="hljs-number">0</span>) PB_Timer-&gt;<span class="hljs-title">SetPercent</span>(Remaining / Total);
 }</pre>
     </div>
@@ -848,6 +862,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">meta=(BindWidget)</span>)</span>
     <span class="hljs-type">UComboBoxString</span>* CB_Filter;  <span class="hljs-comment">// 상태 필터 (전체/진행중/완료)</span>
 
+    <span class="hljs-comment">// 목록 아이템으로 찍어낼 WBP 클래스 — EditDefaultsOnly라 에디터에서 WBP_QuestEntry 지정</span>
     <span class="hljs-meta">UPROPERTY(<span class="hljs-keyword">EditDefaultsOnly</span>)</span>
     <span class="hljs-type">TSubclassOf</span>&lt;<span class="hljs-type">UQuestEntryWidget</span>&gt; QuestEntryClass;
 
@@ -1140,7 +1155,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
 <!-- FOOTER -->
 <footer>
-  <span>RecordTales · 10 UMG + C++ 구현 가이드 v1.0</span>
+  <span>RecordTales · 10 UMG + C++ 구현 가이드 v1.1</span>
   <span>Master v1.3 · Template 02-B</span>
 </footer>
 

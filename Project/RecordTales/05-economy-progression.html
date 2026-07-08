@@ -7,6 +7,8 @@
 <!-- ============================================================
      CHANGELOG — 05-economy-progression.html
      경제 & 진행도 시스템 설계 문서. 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.2 · 2026-07-08
+       - (변경) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
      v1.1 · 2026-07-02
        - (추가) 08 — 데이터 설계 섹션: 프로토타입 v14(TestFile/RecordTales.html) 실측 기준 —
          DT_GuildLevels Lv1~20 전표·해금 17종 비용표·낱개 상수 실측값. 본문 초판 수치와의 차이 명시.
@@ -502,34 +504,41 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <button class="codeblock-tab tab-h active" type="button">EconomyTypes.h &mdash; Unlock</button>
         <button class="codeblock-copy" type="button">복사</button>
       </div>
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">UENUM(BlueprintType)</span>
-<span class="hljs-keyword">enum class</span> <span class="hljs-title class_">EUnlockType</span> : <span class="hljs-type">uint8</span>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 해금 항목의 대분류. UENUM(BlueprintType)을 붙이면 블루프린트에서도 변수·핀 타입으로 쓸 수 있다</span>
+<span class="hljs-meta">UENUM(BlueprintType)</span>
+<span class="hljs-keyword">enum class</span> <span class="hljs-title class_">EUnlockType</span> : <span class="hljs-type">uint8</span>   <span class="hljs-comment">// 블루프린트 노출 enum은 uint8 기반이어야 함 (엔진 제약)</span>
 {
-    Feature    <span class="hljs-meta">UMETA(DisplayName = "Feature")</span>,
-    Background <span class="hljs-meta">UMETA(DisplayName = "Background")</span>,
-    Music      <span class="hljs-meta">UMETA(DisplayName = "Music")</span>
+    Feature    <span class="hljs-meta">UMETA(DisplayName = "Feature")</span>,   <span class="hljs-comment">// 기능 해금 — 프리셋 슬롯·편성 슬롯·스톱워치 보너스 등</span>
+    Background <span class="hljs-meta">UMETA(DisplayName = "Background")</span>,   <span class="hljs-comment">// 배경 테마 해금 (bg1~bg8)</span>
+    Music      <span class="hljs-meta">UMETA(DisplayName = "Music")</span>   <span class="hljs-comment">// BGM 해금 (music1~music6). UMETA는 에디터에 보일 표시 이름 지정</span>
 };
 
+<span class="hljs-comment">// 해금 아이템 1개 = DataTable의 행(Row) 1개.</span>
+<span class="hljs-comment">// FTableRowBase를 상속해야 에디터에서 DataTable 행 구조체로 선택할 수 있다</span>
 <span class="hljs-meta">USTRUCT(BlueprintType)</span>
 <span class="hljs-keyword">struct</span> <span class="hljs-title class_">FUnlockItemRow</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">FTableRowBase</span>
 {
-    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">GENERATED_BODY()</span>   <span class="hljs-comment">// 리플렉션 코드를 자동 생성하는 매크로 — USTRUCT 본문 첫 줄에 필수</span>
+
+    <span class="hljs-comment">// EditAnywhere: 에디터(DataTable 편집기)에서 값 입력 가능</span>
+    <span class="hljs-comment">// BlueprintReadOnly: 블루프린트에서 읽기만 허용 — 런타임에 실수로 덮어쓰는 것을 방지</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
+    <span class="hljs-type">FString</span> Id;   <span class="hljs-comment">// 해금 항목 고유 ID (예: "preset2") — 저장·조회의 키로 사용</span>
 
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
-    <span class="hljs-type">FString</span> Id;
+    <span class="hljs-type">EUnlockType</span> Type;   <span class="hljs-comment">// 대분류 (Feature/Background/Music) — 상점 UI의 탭 분류에 사용</span>
 
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
-    <span class="hljs-type">EUnlockType</span> Type;
+    <span class="hljs-type">FString</span> DisplayName;   <span class="hljs-comment">// UI에 표시할 한글 이름 (예: "프리셋 2")</span>
 
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
-    <span class="hljs-type">FString</span> DisplayName;
+    <span class="hljs-type">int32</span> Cost;   <span class="hljs-comment">// 구매 비용. 단위: Gold (범위: 3,000 ~ 60,000)</span>
 
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
-    <span class="hljs-type">int32</span> Cost;
+    <span class="hljs-type">FString</span> Description;   <span class="hljs-comment">// 상점 UI에 표시할 설명 문구</span>
 
-    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
-    <span class="hljs-type">FString</span> Description;
-
+    <span class="hljs-comment">// false 초기화 필수 — USTRUCT의 bool을 초기화하지 않으면 쓰레기값이 들어가</span>
+    <span class="hljs-comment">// 구매하지 않은 항목이 '이미 해금됨'으로 보일 수 있다</span>
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadOnly)</span>
     <span class="hljs-type">bool</span> bUnlocked = <span class="hljs-literal">false</span>;
 };</pre></div>
@@ -593,19 +602,22 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
 
 <span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
-<span class="hljs-meta">#include <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span></span>
-<span class="hljs-meta">#include <span class="hljs-string">"EconomySubsystem.generated.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span></span>   <span class="hljs-comment">// 부모 클래스 UGameInstanceSubsystem 정의</span>
+<span class="hljs-meta">#include <span class="hljs-string">"EconomySubsystem.generated.h"</span></span>   <span class="hljs-comment">// 리플렉션 생성 코드 — include 목록 맨 마지막에 있어야 컴파일됨</span>
 
 <span class="hljs-comment">/** Gold/XP 적립, 레벨업, 해금을 관리하는 GameInstanceSubsystem */</span>
+<span class="hljs-comment">// UCLASS()가 있어야 언리얼 리플렉션에 등록되고, 엔진이 이 서브시스템을 자동 생성·관리한다</span>
 <span class="hljs-meta">UCLASS()</span>
-<span class="hljs-keyword">class</span> RECORDTALES_API <span class="hljs-title class_">UEconomySubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
+<span class="hljs-keyword">class</span> RECORDTALES_API <span class="hljs-title class_">UEconomySubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>   <span class="hljs-comment">// GameInstance와 수명 동일 — 앱 실행 내내 1개만 존재</span>
 {
-    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">GENERATED_BODY()</span>   <span class="hljs-comment">// 리플렉션 코드 자동 생성 — UCLASS 본문 첫 줄에 필수</span>
 
 <span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// 엔진이 GameInstance 생성 직후 자동으로 1회 호출 (직접 호출하지 않음)</span>
     <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection) <span class="hljs-keyword">override</span>;
 
     <span class="hljs-comment">/** Gold 추가 (음수 = 차감) */</span>
+    <span class="hljs-comment">// BlueprintCallable: 블루프린트에서 실행 핀이 있는 노드로 호출 가능</span>
     <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Economy")</span>
     <span class="hljs-keyword">void</span> <span class="hljs-title function_">AddGold</span>(<span class="hljs-type">int32</span> Amount);
 
@@ -615,13 +627,14 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
     <span class="hljs-comment">/** 레벨업 시도 (XP + Gold 충분하면 레벨업) */</span>
     <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Economy")</span>
-    <span class="hljs-keyword">bool</span> <span class="hljs-title function_">TryLevelUp</span>();
+    <span class="hljs-keyword">bool</span> <span class="hljs-title function_">TryLevelUp</span>();   <span class="hljs-comment">// 반환값: 성공 여부 — UI가 실패 시 부족 자원을 표시하는 데 사용</span>
 
     <span class="hljs-comment">/** 해금 아이템 구매 */</span>
     <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Economy")</span>
     <span class="hljs-keyword">bool</span> <span class="hljs-title function_">PurchaseUnlock</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; UnlockId);
 
     <span class="hljs-comment">/** 현재 레벨에서 필요한 XP */</span>
+    <span class="hljs-comment">// BlueprintPure: 상태를 바꾸지 않는 조회 함수 — 블루프린트에서 실행 핀 없는 초록 노드로 노출</span>
     <span class="hljs-meta">UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Economy")</span>
     <span class="hljs-type">int32</span> <span class="hljs-title function_">GetRequiredXP</span>(<span class="hljs-type">int32</span> Level) <span class="hljs-keyword">const</span>;
 
@@ -642,10 +655,11 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-type">int32</span> <span class="hljs-title function_">GetGuildLevel</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> GuildLevel; }
 
 <span class="hljs-keyword">private</span>:
-    <span class="hljs-type">int32</span> Gold = <span class="hljs-number">0</span>;
-    <span class="hljs-type">int32</span> GuildXp = <span class="hljs-number">0</span>;
-    <span class="hljs-type">int32</span> GuildTotalXp = <span class="hljs-number">0</span>;
-    <span class="hljs-type">int32</span> GuildLevel = <span class="hljs-number">1</span>;
+    <span class="hljs-comment">// 멤버 초기화 필수 — C++ 원시 타입은 자동으로 0이 되지 않아, 초기화를 빼면 쓰레기값으로 시작한다</span>
+    <span class="hljs-type">int32</span> Gold = <span class="hljs-number">0</span>;   <span class="hljs-comment">// 보유 Gold (0 이상 유지 — AddGold에서 보장)</span>
+    <span class="hljs-type">int32</span> GuildXp = <span class="hljs-number">0</span>;   <span class="hljs-comment">// 현재 레벨 구간에서 모은 XP — 레벨업 시 요구량만큼 차감됨</span>
+    <span class="hljs-type">int32</span> GuildTotalXp = <span class="hljs-number">0</span>;   <span class="hljs-comment">// 누적 총 XP — 차감 없음, 통계·업적용</span>
+    <span class="hljs-type">int32</span> GuildLevel = <span class="hljs-number">1</span>;   <span class="hljs-comment">// 길드 레벨. 1부터 시작 (범위: 1~99, TryLevelUp에서 상한 검사)</span>
 
     <span class="hljs-comment">/** 해금된 아이템 ID 목록 */</span>
     <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FString</span>&gt; UnlockedIds;
@@ -656,9 +670,10 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"EconomySubsystem.h"</span></span>
 <span class="hljs-meta">#include <span class="hljs-string">"Math/UnrealMathUtility.h"</span></span>
 
+<span class="hljs-comment">// 엔진이 GameInstance 생성 직후 자동 호출 — 게임 데이터 초기화의 진입점</span>
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">UEconomySubsystem</span>::<span class="hljs-title function_">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection)
 {
-    <span class="hljs-type">Super</span>::<span class="hljs-title function_">Initialize</span>(Collection);
+    <span class="hljs-type">Super</span>::<span class="hljs-title function_">Initialize</span>(Collection);   <span class="hljs-comment">// 부모 초기화 먼저 호출 — 생략하면 서브시스템 등록 절차가 누락됨</span>
 
     <span class="hljs-comment">// 칭호 매핑 초기화 (레벨 하한 → 칭호)</span>
     TitleMap.<span class="hljs-title function_">Add</span>(<span class="hljs-number">1</span>,  <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"견습 길드마스터"</span>));
@@ -672,34 +687,39 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">UEconomySubsystem</span>::<span class="hljs-title function_">AddGold</span>(<span class="hljs-type">int32</span> Amount)
 {
+    <span class="hljs-comment">// Max(0, …)로 잔액이 음수로 내려가는 것을 차단 — Amount가 음수(차감)로 들어와도 안전</span>
     Gold = <span class="hljs-built_in">FMath</span>::<span class="hljs-title function_">Max</span>(<span class="hljs-number">0</span>, Gold + Amount);
     <span class="hljs-comment">// TODO: SaveGame 동기화 + UI 갱신 이벤트</span>
 }
 
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">UEconomySubsystem</span>::<span class="hljs-title function_">AddXP</span>(<span class="hljs-type">int32</span> Amount)
 {
-    GuildXp += Amount;
-    GuildTotalXp += Amount;
+    GuildXp += Amount;   <span class="hljs-comment">// 레벨업 재화로 쓰이는 XP — 레벨업 시 차감됨</span>
+    GuildTotalXp += Amount;   <span class="hljs-comment">// 누적 통계용 — 두 값을 분리해야 레벨업 후에도 총 획득량 추적 가능</span>
     <span class="hljs-comment">// TODO: SaveGame 동기화 + UI 갱신 이벤트</span>
 }
 
 <span class="hljs-keyword">bool</span> <span class="hljs-title class_">UEconomySubsystem</span>::<span class="hljs-title function_">TryLevelUp</span>()
 {
-    <span class="hljs-keyword">if</span> (GuildLevel &gt;= <span class="hljs-number">99</span>) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+    <span class="hljs-keyword">if</span> (GuildLevel &gt;= <span class="hljs-number">99</span>) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;   <span class="hljs-comment">// 1) 최대 레벨 도달 시 즉시 실패 — 무한 성장 방지</span>
 
+    <span class="hljs-comment">// 2) 현재 레벨 기준 요구량 조회 — 레벨이 오를수록 요구량 증가</span>
     <span class="hljs-keyword">const</span> <span class="hljs-type">int32</span> ReqXP   = <span class="hljs-title function_">GetRequiredXP</span>(GuildLevel);
     <span class="hljs-keyword">const</span> <span class="hljs-type">int32</span> ReqGold = <span class="hljs-title function_">GetRequiredGold</span>(GuildLevel);
 
+    <span class="hljs-comment">// 3) XP와 Gold를 동시에 검사 — 하나라도 부족하면 아무것도 차감하지 않고 실패</span>
     <span class="hljs-keyword">if</span> (GuildXp &lt; ReqXP || Gold &lt; ReqGold)
     {
         <span class="hljs-comment">// 자원 부족 — UI에서 부족 자원을 빨간색 표시</span>
         <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
     }
 
+    <span class="hljs-comment">// 4) 검사를 통과한 뒤에만 차감 — 검사·차감 순서가 바뀌면 자원만 잃는 버그 발생</span>
     <span class="hljs-comment">// 차감</span>
     GuildXp -= ReqXP;
     Gold    -= ReqGold;
 
+    <span class="hljs-comment">// 5) 레벨 상승 — 남은 GuildXp는 다음 레벨 구간으로 이월됨</span>
     <span class="hljs-comment">// 레벨업</span>
     GuildLevel++;
 

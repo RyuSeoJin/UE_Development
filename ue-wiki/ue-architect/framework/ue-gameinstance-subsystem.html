@@ -8,6 +8,8 @@
      CHANGELOG — ue-gameinstance-subsystem.html
      유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.3 · 2026-07-08
+       - (보강) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
      v1.2 · 2026-07-02
        - (변경) 마스터 CSS <link> 상대참조 → <style> inline (마스터 v1.3 스냅샷) — 단독 열람 보장, 마스터 개정에 따른 사후 변형 방지 (DOC-TRACKS v1.3 정책)
      v1.1 · 2026-07-02
@@ -543,10 +545,11 @@ UObject
 
 <span class="hljs-comment">// 게임 전체에서 점수를 관리하는 전역 서비스.</span>
 <span class="hljs-comment">// UGameInstanceSubsystem 상속 = 게임 시작~종료 동안 자동으로 1개 유지.</span>
+<span class="hljs-comment">// UCLASS(): 리플렉션 시스템 등록 — 엔진이 이 클래스를 자동 발견해 인스턴스화하는 전제 조건</span>
 <span class="hljs-meta">UCLASS()</span>
-<span class="hljs-keyword">class</span> MYGAME_API <span class="hljs-type">UScoreSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
+<span class="hljs-keyword">class</span> MYGAME_API <span class="hljs-type">UScoreSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>   <span class="hljs-comment">// MYGAME_API: 모듈(DLL) 외부에 클래스를 노출하는 매크로 — 자기 모듈 이름으로 교체</span>
 {
-    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">GENERATED_BODY()</span>   <span class="hljs-comment">// 리플렉션용 보일러플레이트가 삽입되는 자리 — UCLASS()와 한 쌍</span>
 
 <span class="hljs-keyword">public</span>:
     <span class="hljs-comment">// 생성 직후 1회. 월드는 아직 없을 수 있음(04 섹션 참고).</span>
@@ -559,10 +562,12 @@ UObject
     <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = <span class="hljs-string">"Score"</span>)</span>
     <span class="hljs-type">void</span> <span class="hljs-title">AddScore</span>(<span class="hljs-type">int32</span> Amount);
 
+    <span class="hljs-comment">// BlueprintPure: 실행 핀 없는 '읽기 전용' 노드로 노출 — 상태를 바꾸지 않으므로 const와 짝을 이룸</span>
     <span class="hljs-meta">UFUNCTION(BlueprintPure, Category = <span class="hljs-string">"Score"</span>)</span>
     <span class="hljs-type">int32</span> <span class="hljs-title">GetScore</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> CurrentScore; }
 
-<span class="hljs-keyword">private</span>:
+<span class="hljs-keyword">private</span>:   <span class="hljs-comment">// 점수는 AddScore/GetScore를 통해서만 접근 — 외부의 임의 수정 차단</span>
+    <span class="hljs-comment">// 지정자 없는 UPROPERTY()라도 리플렉션에 등록되어 값이 안전하게 관리됨 (UObject 포인터라면 GC 추적까지)</span>
     <span class="hljs-meta">UPROPERTY()</span>
     <span class="hljs-type">int32</span> CurrentScore = <span class="hljs-number">0</span>;   <span class="hljs-comment">// 레벨이 바뀌어도 유지되는 값</span>
 };</pre></div>
@@ -571,8 +576,8 @@ UObject
 <span class="hljs-type">void</span> <span class="hljs-type">UScoreSubsystem</span>::<span class="hljs-title">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection)
 {
     <span class="hljs-title">Super</span>::<span class="hljs-title">Initialize</span>(Collection);   <span class="hljs-comment">// 부모 호출을 잊지 마세요</span>
-    CurrentScore = <span class="hljs-number">0</span>;
-    <span class="hljs-meta">UE_LOG(LogTemp, Log, TEXT(<span class="hljs-string">"ScoreSubsystem ready"</span>));</span>
+    CurrentScore = <span class="hljs-number">0</span>;   <span class="hljs-comment">// 헤더의 기본값과 중복이지만, 초기화 시점을 명시해 의도를 드러냄</span>
+    <span class="hljs-meta">UE_LOG(LogTemp, Log, TEXT(<span class="hljs-string">"ScoreSubsystem ready"</span>));</span>   <span class="hljs-comment">// 에디터 Output Log에서 생성 시점을 눈으로 확인하는 용도</span>
 }
 
 <span class="hljs-type">void</span> <span class="hljs-type">UScoreSubsystem</span>::<span class="hljs-title">Deinitialize</span>()
@@ -583,7 +588,8 @@ UObject
 
 <span class="hljs-type">void</span> <span class="hljs-type">UScoreSubsystem</span>::<span class="hljs-title">AddScore</span>(<span class="hljs-type">int32</span> Amount)
 {
-    CurrentScore += Amount;
+    <span class="hljs-comment">// Subsystem이 GameInstance 수명을 따르므로 레벨이 바뀌어도 누적값이 유지됨</span>
+    CurrentScore += Amount;   <span class="hljs-comment">// 음수 방지·상한선 등 검증 로직을 넣는다면 이 지점이 확장 위치</span>
 }</pre></div>
     </div>
 

@@ -8,6 +8,8 @@
      CHANGELOG — ue-cpp-programming-structure.html
      언리얼 C++ 프로그래밍의 전체 구조를 설명하는 아키텍처 문서(템플릿 A).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     v2.3 · 2026-07-08
+       - (추가) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
      v2.2 · 2026-07-02
        - (변경) 마스터 CSS <link> 상대참조 → <style> inline (마스터 v1.3 스냅샷) — 단독 열람 보장, 마스터 개정에 따른 사후 변형 방지 (DOC-TRACKS v1.3 정책)
      v2.1 · 2026-07-02
@@ -534,7 +536,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <h3>올바른 헤더 구조 예시</h3>
     <div class="snip">
       <div class="snip-head"><div class="code-dot" style="background:var(--ue-header)"></div>MyCharacter.h &mdash; 올바른 헤더 구조</div>
-      <pre><span class="hljs-meta">#pragma once</span>
+      <pre><span class="hljs-meta">#pragma once</span>   <span class="hljs-comment">// 같은 헤더가 중복 포함되는 것을 방지 — 모든 헤더 첫 줄 관례</span>
 
 <span class="hljs-comment">// 일반 헤더를 먼저 포함</span>
 <span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
@@ -542,13 +544,14 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <span class="hljs-comment">// .generated.h는 반드시 마지막!</span>
 <span class="hljs-meta">#include <span class="hljs-string">"MyCharacter.generated.h"</span></span>
 
+<span class="hljs-comment">// MYGAME_API: 다른 모듈에서도 이 클래스를 쓸 수 있게 내보내는(export) 매크로 — 모듈명_API 형식</span>
 <span class="hljs-meta">UCLASS()</span>
 <span class="hljs-keyword">class</span> MYGAME_API <span class="hljs-title class_">AMyCharacter</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">ACharacter</span>
 {
     <span class="hljs-meta">GENERATED_BODY()</span>  <span class="hljs-comment">// 반드시 첫 줄!</span>
 
 <span class="hljs-keyword">public</span>:
-    <span class="hljs-title function_">AMyCharacter</span>();
+    <span class="hljs-title function_">AMyCharacter</span>();   <span class="hljs-comment">// 생성자 — 기본값 설정 전용 (CDO에 기록됨)</span>
 };</pre>
     </div>
   </div>
@@ -733,7 +736,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-meta">GENERATED_BODY()</span>   <span class="hljs-comment">// 구조체에도 필수</span>
 
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
-    <span class="hljs-type">FString</span> ItemName;
+    <span class="hljs-type">FString</span> ItemName;   <span class="hljs-comment">// FString은 생성자가 빈 문자열로 초기화해 주므로 초기값 생략 가능</span>
 
     <span class="hljs-comment">// 값 타입은 초기값 필수 — 없으면 쓰레기 값이 들어간다</span>
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
@@ -779,21 +782,23 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-meta">GENERATED_BODY()</span>          <span class="hljs-comment">// 리플렉션 코드 자동 삽입 — 클래스 본문 첫 줄</span>
 
 <span class="hljs-keyword">public</span>:
-    <span class="hljs-title function_">AMyCharacter</span>();
+    <span class="hljs-title function_">AMyCharacter</span>();   <span class="hljs-comment">// 생성자 — CDO 기본값 설정 전용 (월드 접근 금지)</span>
 
     <span class="hljs-comment">// UPROPERTY: 에디터+BP에서 편집 가능한 변수</span>
+    <span class="hljs-comment">// (매크로가 없으면 에디터에 안 보이고, UObject 포인터라면 GC 추적도 안 됨)</span>
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")</span>
-    <span class="hljs-type">float</span> MaxHealth = <span class="hljs-number">100.0f</span>;
+    <span class="hljs-type">float</span> MaxHealth = <span class="hljs-number">100.0f</span>;   <span class="hljs-comment">// 값 타입은 선언과 동시에 초기화 — 쓰레기 값 방지</span>
 
     <span class="hljs-comment">// UPROPERTY: BP에서 읽기만 가능한 변수</span>
     <span class="hljs-meta">UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats")</span>
-    <span class="hljs-type">float</span> CurrentHealth;
+    <span class="hljs-type">float</span> CurrentHealth;   <span class="hljs-comment">// 초기값은 생성자에서 MaxHealth로 설정 (.cpp 참조)</span>
 
     <span class="hljs-comment">// UFUNCTION: BP에서 호출 가능한 함수</span>
     <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Combat")</span>
     <span class="hljs-keyword">void</span> <span class="hljs-title function_">TakeDamage</span>(<span class="hljs-type">float</span> DamageAmount);
 
 <span class="hljs-keyword">protected</span>:
+    <span class="hljs-comment">// 액터가 월드에 스폰되어 게임에 참여한 직후, 첫 틱 전에 엔진이 1회 호출</span>
     <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">BeginPlay</span>() <span class="hljs-keyword">override</span>;
 };</pre></div>
       <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"MyCharacter.h"</span></span>
@@ -812,10 +817,10 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">AMyCharacter</span>::<span class="hljs-title function_">TakeDamage</span>(<span class="hljs-type">float</span> DamageAmount)
 {
-    CurrentHealth -= DamageAmount;
-    <span class="hljs-keyword">if</span> (CurrentHealth &lt;= <span class="hljs-number">0.0f</span>)
+    CurrentHealth -= DamageAmount;   <span class="hljs-comment">// 1) 받은 데미지만큼 체력 차감</span>
+    <span class="hljs-keyword">if</span> (CurrentHealth &lt;= <span class="hljs-number">0.0f</span>)       <span class="hljs-comment">// 2) 0 이하로 떨어졌는지 확인</span>
     {
-        CurrentHealth = <span class="hljs-number">0.0f</span>;
+        CurrentHealth = <span class="hljs-number">0.0f</span>;        <span class="hljs-comment">// 3) 음수 체력 방지 — UI/BP가 음수를 받으면 오작동 여지</span>
         <span class="hljs-comment">// 사망 처리 로직을 여기에 추가</span>
     }
 }</pre></div>
@@ -1196,25 +1201,30 @@ GEngine-&gt;<span class="hljs-title function_">AddOnScreenDebugMessage</span>(-<
     float, DamageAmount       <span class="hljs-comment">// 두 번째 파라미터</span>
 );</span>
 
+<span class="hljs-comment">// BlueprintSpawnableComponent: BP 에디터의 "컴포넌트 추가" 목록에 노출 — 없으면 BP에서 부착 불가</span>
 <span class="hljs-meta">UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))</span>
 <span class="hljs-keyword">class</span> MYGAME_API <span class="hljs-title class_">UHealthComponent</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UActorComponent</span>
 {
-    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">GENERATED_BODY()</span>   <span class="hljs-comment">// 리플렉션 코드 삽입 지점 — 클래스 본문 첫 줄 필수</span>
 
 <span class="hljs-keyword">public</span>:
     <span class="hljs-title function_">UHealthComponent</span>();
 
     <span class="hljs-comment">// 블루프린트에서 바인딩 가능한 이벤트</span>
+    <span class="hljs-comment">// (BlueprintAssignable은 멀티캐스트 델리게이트 전용 지정자)</span>
     <span class="hljs-meta">UPROPERTY(BlueprintAssignable, Category = "Health")</span>
     <span class="hljs-type">FOnHealthChanged</span> OnHealthChanged;
 
+    <span class="hljs-comment">// 데미지 입구를 함수 하나로 통일 — 외부에서 CurrentHealth를 직접 만지지 못하게 함</span>
     <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Health")</span>
     <span class="hljs-keyword">void</span> <span class="hljs-title function_">ApplyDamage</span>(<span class="hljs-type">float</span> DamageAmount);
 
 <span class="hljs-keyword">private</span>:
+    <span class="hljs-comment">// EditDefaultsOnly: BP 기본값만 편집 가능 — 레벨의 개별 인스턴스에서 실수로 바꾸는 것 방지</span>
     <span class="hljs-meta">UPROPERTY(EditDefaultsOnly, Category = "Health")</span>
     <span class="hljs-type">float</span> MaxHealth = <span class="hljs-number">100.0f</span>;
 
+    <span class="hljs-comment">// 런타임 전용 값 — UObject 포인터가 아닌 float이라 GC와 무관, 에디터 노출도 불필요해 UPROPERTY 생략</span>
     <span class="hljs-type">float</span> CurrentHealth;
 };</pre></div>
       <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"HealthComponent.h"</span></span>
@@ -1355,15 +1365,16 @@ OnHealthChanged.<span class="hljs-title function_">Broadcast</span>(CurrentHealt
 
 <span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
 <span class="hljs-meta">#include <span class="hljs-string">"GameFramework/GameModeBase.h"</span></span>
-<span class="hljs-meta">#include <span class="hljs-string">"MyGameMode.generated.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"MyGameMode.generated.h"</span></span>   <span class="hljs-comment">// UHT 생성 파일 — 반드시 마지막 #include</span>
 
+<span class="hljs-comment">// 게임 규칙 담당 클래스 — 멀티플레이 시 서버에만 존재 (클라이언트에서 접근하면 nullptr)</span>
 <span class="hljs-meta">UCLASS()</span>
 <span class="hljs-keyword">class</span> MYGAME_API <span class="hljs-title class_">AMyGameMode</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">AGameModeBase</span>
 {
-    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">GENERATED_BODY()</span>   <span class="hljs-comment">// 리플렉션 코드 삽입 지점 — 클래스 본문 첫 줄 필수</span>
 
 <span class="hljs-keyword">public</span>:
-    <span class="hljs-title function_">AMyGameMode</span>();
+    <span class="hljs-title function_">AMyGameMode</span>();   <span class="hljs-comment">// 생성자에서 DefaultPawnClass를 지정 (.cpp 탭 참조)</span>
 };</pre></div>
       <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"MyGameMode.h"</span></span>
 <span class="hljs-meta">#include <span class="hljs-string">"MyCharacter.h"</span></span>
@@ -1412,6 +1423,7 @@ OnHealthChanged.<span class="hljs-title function_">Broadcast</span>(CurrentHealt
     <span class="hljs-meta">UPROPERTY(VisibleAnywhere, Category = "Camera")</span>
     <span class="hljs-type">USpringArmComponent</span>* SpringArm;
 
+    <span class="hljs-comment">// VisibleAnywhere: 디테일 패널에 보이되 포인터 교체는 불가 — 컴포넌트 포인터의 표준 지정자</span>
     <span class="hljs-meta">UPROPERTY(VisibleAnywhere, Category = "Camera")</span>
     <span class="hljs-type">UCameraComponent</span>* Camera;
 
@@ -1449,7 +1461,7 @@ OnHealthChanged.<span class="hljs-title function_">Broadcast</span>(CurrentHealt
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">AMyCharacter</span>::<span class="hljs-title function_">SetupPlayerInputComponent</span>(
     <span class="hljs-type">UInputComponent</span>* PlayerInputComponent)
 {
-    <span class="hljs-type">Super</span>::<span class="hljs-title function_">SetupPlayerInputComponent</span>(PlayerInputComponent);
+    <span class="hljs-type">Super</span>::<span class="hljs-title function_">SetupPlayerInputComponent</span>(PlayerInputComponent);   <span class="hljs-comment">// 부모 클래스의 바인딩 처리를 먼저 실행 — 누락 시 기본 입력이 깨질 수 있음</span>
 
     <span class="hljs-comment">// "MoveForward" 축 입력을 MoveForward 함수에 바인딩</span>
     <span class="hljs-comment">// (Project Settings &gt; Input &gt; Axis Mappings 에서 축을 등록해야 동작)</span>
@@ -1573,7 +1585,7 @@ OnHealthChanged.<span class="hljs-title function_">Broadcast</span>(CurrentHealt
 </div>
 
 <footer>
-  <span>UE C++ 프로그래밍 완전 구조 가이드 &middot; v2.2</span>
+  <span>UE C++ 프로그래밍 완전 구조 가이드 &middot; v2.3</span>
   <span>디자인: Dark / Indigo Minimal / Editorial / Master v1.3</span>
 </footer>
 

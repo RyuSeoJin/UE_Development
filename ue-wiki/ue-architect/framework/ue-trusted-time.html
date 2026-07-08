@@ -8,6 +8,8 @@
      CHANGELOG — ue-trusted-time.html
      유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿 · framework/).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.1 · 2026-07-08
+       - (보강) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
      v1.0 · 2026-07-07
        - 신규 생성. 로컬 시계 조작(치트) 위협 모델 3종, Steam 서버 시간
          (GetServerRealTime) 기반 신뢰 시간, 오프셋 범위 검증 + 신뢰 경과시간
@@ -737,9 +739,10 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       </div>
       <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
 <span class="hljs-meta">#include</span> <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span>
-<span class="hljs-meta">#include</span> <span class="hljs-string">"TrustedTimeSubsystem.generated.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"TrustedTimeSubsystem.generated.h"</span>   <span class="hljs-comment">// UHT 생성 리플렉션 코드 — 반드시 마지막 #include</span>
 
 <span class="hljs-comment">// 롤오버 승인 요청의 판정 결과 — 플로차트(§04)의 출구 4개와 1:1</span>
+<span class="hljs-comment">// UENUM(BlueprintType): 이 열거형을 블루프린트 변수·비교 노드에서 쓸 수 있게 노출 — uint8 기반 지정이 필수 조건</span>
 <span class="hljs-meta">UENUM(BlueprintType)</span>
 <span class="hljs-keyword">enum class</span> <span class="hljs-type">ERolloverVerdict</span> : <span class="hljs-type">uint8</span>
 {
@@ -749,10 +752,11 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     HoldSuspicious <span class="hljs-comment">// 오프셋 이탈 — 실행하되 보상 보류</span>
 };
 
+<span class="hljs-comment">// UCLASS(): 리플렉션 등록 — 엔진이 이 Subsystem을 자동 발견·생성 / GameInstanceSubsystem 상속 = 앱 수명 내내 1개 유지</span>
 <span class="hljs-meta">UCLASS()</span>
-<span class="hljs-keyword">class</span> MYGAME_API <span class="hljs-type">UTrustedTimeSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
+<span class="hljs-keyword">class</span> MYGAME_API <span class="hljs-type">UTrustedTimeSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>   <span class="hljs-comment">// MYGAME_API: 모듈 외부 노출 매크로 — 자기 모듈 이름으로 교체</span>
 {
-    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">GENERATED_BODY()</span>   <span class="hljs-comment">// 리플렉션 보일러플레이트 삽입 자리 — UCLASS()와 한 쌍</span>
 <span class="hljs-keyword">public</span>:
     <span class="hljs-comment">// 신뢰 UTC. 성공 시 true — 오프라인이면 false (그때 로컬을 쓸지는 호출자가 아님,</span>
     <span class="hljs-comment">// 이 클래스의 판정 함수가 결정한다. 시간 판정 창구는 여기 하나뿐.</span>
@@ -772,6 +776,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 };</pre></div>
       <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include</span> <span class="hljs-string">"TrustedTimeSubsystem.h"</span>
 <span class="hljs-comment">// Steamworks 직접 호출 — Build.cs의 Steamworks 서드파티 의존이 전제</span>
+<span class="hljs-comment">// THIRD_PARTY_INCLUDES_START/END: 외부 SDK 헤더의 컴파일 경고를 엔진이 억제하도록 감싸는 매크로 쌍</span>
 <span class="hljs-meta">THIRD_PARTY_INCLUDES_START</span>
 <span class="hljs-meta">#include</span> <span class="hljs-string">&lt;steam/steam_api.h&gt;</span>
 <span class="hljs-meta">THIRD_PARTY_INCLUDES_END</span>
@@ -782,16 +787,16 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-comment">// 오프라인 모드·스팀 미실행이면 null — 그것이 곧 "신뢰 시계 없음" 신호다.</span>
     <span class="hljs-keyword">if</span> (<span class="hljs-title">SteamUtils</span>() == <span class="hljs-literal">nullptr</span>) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
 
-    <span class="hljs-keyword">const</span> <span class="hljs-type">uint32</span> UnixUtc = <span class="hljs-title">SteamUtils</span>()-&gt;<span class="hljs-title">GetServerRealTime</span>();
-    OutUtc = <span class="hljs-type">FDateTime</span>::<span class="hljs-title">FromUnixTimestamp</span>((<span class="hljs-type">int64</span>)UnixUtc);
-    <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+    <span class="hljs-keyword">const</span> <span class="hljs-type">uint32</span> UnixUtc = <span class="hljs-title">SteamUtils</span>()-&gt;<span class="hljs-title">GetServerRealTime</span>();   <span class="hljs-comment">// Valve 서버의 현재 UTC를 유닉스 초로 반환 — 로컬 시계 설정과 무관한 값</span>
+    OutUtc = <span class="hljs-type">FDateTime</span>::<span class="hljs-title">FromUnixTimestamp</span>((<span class="hljs-type">int64</span>)UnixUtc);   <span class="hljs-comment">// 유닉스 초 → FDateTime 변환. 인자가 int64라서 명시 캐스팅 필요</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;   <span class="hljs-comment">// true = OutUtc가 신뢰할 수 있는 시각으로 채워졌음을 보장</span>
 }
 
 <span class="hljs-type">ERolloverVerdict</span> <span class="hljs-type">UTrustedTimeSubsystem</span>::<span class="hljs-title">ApproveRollover</span>()
 {
     <span class="hljs-comment">// Q1 — 사용자의 "오늘"은 로컬로 계산한다 (시간대 반영, FDateTime 문서)</span>
-    <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span> TodayKey = <span class="hljs-type">FDateTime</span>::<span class="hljs-title">Now</span>().<span class="hljs-title">ToString</span>(<span class="hljs-string">TEXT("%Y%m%d")</span>);
-    <span class="hljs-keyword">if</span> (TodayKey == LastLocalDateKey) <span class="hljs-keyword">return</span> <span class="hljs-type">ERolloverVerdict</span>::NotYet;
+    <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span> TodayKey = <span class="hljs-type">FDateTime</span>::<span class="hljs-title">Now</span>().<span class="hljs-title">ToString</span>(<span class="hljs-string">TEXT("%Y%m%d")</span>);   <span class="hljs-comment">// 예: "20260708" — 날짜만 비교하기 위한 키 문자열</span>
+    <span class="hljs-keyword">if</span> (TodayKey == LastLocalDateKey) <span class="hljs-keyword">return</span> <span class="hljs-type">ERolloverVerdict</span>::NotYet;   <span class="hljs-comment">// 마지막 승인과 같은 날짜 = 아직 넘어가지 않음 — 이후 검사 불필요</span>
 
     <span class="hljs-comment">// Q2 — 신뢰 시계 확보 시도</span>
     <span class="hljs-type">FDateTime</span> TrustedUtc;
@@ -802,8 +807,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     }
 
     <span class="hljs-comment">// Q3 — 규칙 ①: 오프셋이 시간대 물리 한계를 벗어나면 조작 확정</span>
-    <span class="hljs-keyword">const</span> <span class="hljs-type">FTimespan</span> Offset = <span class="hljs-type">FDateTime</span>::<span class="hljs-title">Now</span>() - TrustedUtc;
-    <span class="hljs-keyword">if</span> (<span class="hljs-type">FMath</span>::<span class="hljs-title">Abs</span>(Offset.<span class="hljs-title">GetTotalHours</span>()) &gt; MaxOffsetHours)
+    <span class="hljs-keyword">const</span> <span class="hljs-type">FTimespan</span> Offset = <span class="hljs-type">FDateTime</span>::<span class="hljs-title">Now</span>() - TrustedUtc;   <span class="hljs-comment">// 로컬 현재시각 − 서버 UTC = 시간대 차이 + (있다면) 조작량</span>
+    <span class="hljs-keyword">if</span> (<span class="hljs-type">FMath</span>::<span class="hljs-title">Abs</span>(Offset.<span class="hljs-title">GetTotalHours</span>()) &gt; MaxOffsetHours)   <span class="hljs-comment">// Abs: 동·서 어느 방향의 이탈이든 잡음 — 지구 시간대는 ±14h가 물리 한계</span>
     {
         LastLocalDateKey = TodayKey;
         <span class="hljs-keyword">return</span> <span class="hljs-type">ERolloverVerdict</span>::HoldSuspicious;

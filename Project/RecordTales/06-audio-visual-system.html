@@ -3,10 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>06 · 오디오 & 비주얼 시스템 — RecordTales v1.1</title>
+<title>06 · 오디오 & 비주얼 시스템 — RecordTales v1.2</title>
 <!-- ============================================================
      CHANGELOG — 06-audio-visual-system.html
      오디오 & 비주얼 시스템 설계 문서. 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.2 · 2026-07-08
+       - (추가) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
      v1.1 · 2026-07-02
        - (추가) 08 — 데이터 설계 섹션: 프로토타입 v14(TestFile/RecordTales.html) 실측 기준 —
          곡 6·앰비언트 5·배경 9 실측표(비용 통합), trackIdx 인덱스 연결 제거 결정.
@@ -407,7 +409,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">RecordTales &middot; v1.1 &middot; Audio &amp; Visual</div>
+  <div class="hero-eyebrow">RecordTales &middot; v1.2 &middot; Audio &amp; Visual</div>
   <h1>오디오 &amp; 비주얼<br><span>앰비언트 &middot; 뮤직 &middot; 배경 테마</span></h1>
   <p class="hero-sub">
     환경 음향 5종 믹싱, BGM 플레이어, 배경 테마 교체를 관리하는 오디오&middot;비주얼 시스템입니다. 해금 시스템과 연동하여 콘텐츠를 점진적으로 개방합니다.
@@ -611,6 +613,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <span class="hljs-meta">#include <span class="hljs-string">"AudioSubsystem.generated.h"</span></span>
 
 <span class="hljs-comment">// 앰비언트 사운드 5종 식별자</span>
+<span class="hljs-comment">// UENUM(BlueprintType): 이 열거형을 블루프린트에서도 변수/핀으로 쓸 수 있게 노출. uint8 기반이라야 BlueprintType 가능</span>
 <span class="hljs-meta">UENUM(BlueprintType)</span>
 <span class="hljs-keyword">enum class</span> <span class="hljs-title class_">EAmbientType</span> : <span class="hljs-type">uint8</span>
 {
@@ -621,18 +624,21 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     Ocean
 };
 
+<span class="hljs-comment">// UGameInstanceSubsystem 상속: GameInstance와 수명을 함께함 → 게임 실행 내내(레벨이 바뀌어도) 살아있는 전역 서비스</span>
 <span class="hljs-meta">UCLASS()</span>
 <span class="hljs-keyword">class</span> RECORDTALES_API <span class="hljs-title class_">UAudioSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
 {
     <span class="hljs-meta">GENERATED_BODY()</span>
 
 <span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// Initialize/Deinitialize: 우리가 부르지 않는다. 엔진이 서브시스템 생성 직후 Initialize를, 소멸 직전 Deinitialize를 자동 호출</span>
     <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection) <span class="hljs-keyword">override</span>;
     <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">Deinitialize</span>() <span class="hljs-keyword">override</span>;
 
     <span class="hljs-comment">// ── 앰비언트 ──</span>
+    <span class="hljs-comment">// BlueprintCallable: 이 함수를 블루프린트 그래프에서 노드로 호출 가능. Category: 노드 검색 시 "Audio|Ambient" 하위로 분류</span>
     <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Audio|Ambient")</span>
-    <span class="hljs-keyword">void</span> <span class="hljs-title function_">SetAmbientVolume</span>(<span class="hljs-type">EAmbientType</span> Type, <span class="hljs-type">float</span> Volume);
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">SetAmbientVolume</span>(<span class="hljs-type">EAmbientType</span> Type, <span class="hljs-type">float</span> Volume);   <span class="hljs-comment">// Volume 범위 0.0~1.0 (구현부에서 Clamp)</span>
 
     <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Audio|Ambient")</span>
     <span class="hljs-keyword">void</span> <span class="hljs-title function_">ToggleAmbient</span>(<span class="hljs-type">bool</span> bEnable);
@@ -659,27 +665,31 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
 <span class="hljs-keyword">private</span>:
     <span class="hljs-comment">// 앰비언트</span>
+    <span class="hljs-comment">// 타입 → 재생 컴포넌트 매핑. 아래 SetAmbientVolume에서 Find로 해당 타입 컴포넌트를 꺼내 볼륨 적용</span>
     <span class="hljs-type">TMap</span>&lt;<span class="hljs-type">EAmbientType</span>, <span class="hljs-type">UAudioComponent</span>*&gt; AmbientComponents;
-    <span class="hljs-type">TMap</span>&lt;<span class="hljs-type">EAmbientType</span>, <span class="hljs-type">float</span>&gt; AmbientVolumes;
-    <span class="hljs-type">bool</span> bAmbientEnabled = <span class="hljs-literal">true</span>;
+    <span class="hljs-type">TMap</span>&lt;<span class="hljs-type">EAmbientType</span>, <span class="hljs-type">float</span>&gt; AmbientVolumes;   <span class="hljs-comment">// 타입별 볼륨 0.0~1.0 보관 (토글 껐다 켤 때 원래 볼륨 복원용)</span>
+    <span class="hljs-type">bool</span> bAmbientEnabled = <span class="hljs-literal">true</span>;   <span class="hljs-comment">// 글로벌 토글. 초기값 true여야 첫 볼륨 설정 시 곧바로 재생됨</span>
 
     <span class="hljs-comment">// 뮤직</span>
+    <span class="hljs-comment">// UPROPERTY(): GC(가비지 컬렉터)가 이 UObject 포인터를 "살아있는 참조"로 추적하게 한다.</span>
+    <span class="hljs-comment">// 이게 없으면 GC가 MusicComponent를 회수해버려 재생 중 nullptr 접근 크래시가 난다.</span>
     <span class="hljs-meta">UPROPERTY()</span>
-    <span class="hljs-type">UAudioComponent</span>* MusicComponent = <span class="hljs-literal">nullptr</span>;
-    <span class="hljs-type">int32</span> CurrentTrackIndex = <span class="hljs-number">0</span>;
-    <span class="hljs-type">bool</span> bPlaying = <span class="hljs-literal">false</span>;
-    <span class="hljs-type">float</span> MusicVolume = <span class="hljs-number">1.0</span>f;
+    <span class="hljs-type">UAudioComponent</span>* MusicComponent = <span class="hljs-literal">nullptr</span>;   <span class="hljs-comment">// nullptr 초기화 필수 — 미초기화 시 첫 접근이 미정의 동작</span>
+    <span class="hljs-type">int32</span> CurrentTrackIndex = <span class="hljs-number">0</span>;   <span class="hljs-comment">// 0부터 시작 (트랙 배열 첫 곡)</span>
+    <span class="hljs-type">bool</span> bPlaying = <span class="hljs-literal">false</span>;   <span class="hljs-comment">// 시작 시엔 정지 상태</span>
+    <span class="hljs-type">float</span> MusicVolume = <span class="hljs-number">1.0</span>f;   <span class="hljs-comment">// 1.0 = 최대. 앰비언트 볼륨과 독립</span>
 
     <span class="hljs-comment">// 배경</span>
-    <span class="hljs-type">FString</span> CurrentBgId;
+    <span class="hljs-type">FString</span> CurrentBgId;   <span class="hljs-comment">// 현재 배경 ID. SaveGame에 저장되어 다음 실행에 복원</span>
 };</pre></div>
       <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"AudioSubsystem.h"</span></span>
 <span class="hljs-meta">#include <span class="hljs-string">"Components/AudioComponent.h"</span></span>
 <span class="hljs-meta">#include <span class="hljs-string">"Kismet/GameplayStatics.h"</span></span>
 
+<span class="hljs-comment">// 엔진이 GameInstance 시작 시 이 서브시스템을 만들면서 자동 호출한다 (직접 호출 금지)</span>
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">UAudioSubsystem</span>::<span class="hljs-title function_">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection)
 {
-    <span class="hljs-type">Super</span>::<span class="hljs-title function_">Initialize</span>(Collection);
+    <span class="hljs-type">Super</span>::<span class="hljs-title function_">Initialize</span>(Collection);   <span class="hljs-comment">// 부모 초기화 먼저 — 빠뜨리면 기반 세팅이 안 돼 오작동</span>
 
     <span class="hljs-comment">// 앰비언트 5종에 대해 UAudioComponent를 생성합니다.</span>
     <span class="hljs-comment">// 실제 구현에서는 SoundWave 에셋을 로드하여 각 컴포넌트에 연결합니다.</span>
@@ -692,7 +702,9 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     AmbientVolumes.<span class="hljs-title function_">Add</span>(Type, Volume);
 
     <span class="hljs-comment">// 해당 타입의 AudioComponent를 찾아 볼륨 적용</span>
+    <span class="hljs-comment">// TMap::Find는 값의 "포인터"를 돌려준다 → 여기선 값 자체가 포인터라 이중 포인터(**). 없으면 nullptr</span>
     <span class="hljs-type">UAudioComponent</span>** Found = AmbientComponents.<span class="hljs-title function_">Find</span>(Type);
+    <span class="hljs-comment">// Found(키 존재) + *Found(컴포넌트 유효) 둘 다 확인해야 안전 — 생략하면 크래시 위험</span>
     <span class="hljs-keyword">if</span> (Found &amp;&amp; *Found)
     {
         (*Found)-&gt;<span class="hljs-title function_">SetVolumeMultiplier</span>(Volume);
@@ -711,21 +723,23 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">UAudioSubsystem</span>::<span class="hljs-title function_">ToggleAmbient</span>(<span class="hljs-type">bool</span> bEnable)
 {
-    bAmbientEnabled = bEnable;
+    bAmbientEnabled = bEnable;   <span class="hljs-comment">// 상태 먼저 저장 → 이후 볼륨 변경 시 이 값을 참조</span>
 
+    <span class="hljs-comment">// 5개 앰비언트 컴포넌트를 순회하며 일괄 재생/정지</span>
     <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span>&amp; Pair : AmbientComponents)
     {
-        <span class="hljs-keyword">if</span> (Pair.Value)
+        <span class="hljs-keyword">if</span> (Pair.Value)   <span class="hljs-comment">// 컴포넌트가 유효할 때만 (nullptr 접근 방지)</span>
         {
             <span class="hljs-keyword">if</span> (bEnable)
             {
+                <span class="hljs-comment">// 켤 때: 볼륨이 0보다 큰 사운드만 재생 (음소거된 건 그대로 둠)</span>
                 <span class="hljs-type">float</span>* Vol = AmbientVolumes.<span class="hljs-title function_">Find</span>(Pair.Key);
                 <span class="hljs-keyword">if</span> (Vol &amp;&amp; *Vol &gt; <span class="hljs-number">0.0</span>f)
                     Pair.Value-&gt;<span class="hljs-title function_">Play</span>();
             }
             <span class="hljs-keyword">else</span>
             {
-                Pair.Value-&gt;<span class="hljs-title function_">Stop</span>();
+                Pair.Value-&gt;<span class="hljs-title function_">Stop</span>();   <span class="hljs-comment">// 끌 때: 전부 정지 (볼륨 값은 TMap에 보존되어 다시 켜면 복원)</span>
             }
         }
     }
@@ -837,7 +851,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>RecordTales &middot; 06 Audio &amp; Visual System &middot; v1.1</span>
+  <span>RecordTales &middot; 06 Audio &amp; Visual System &middot; v1.2</span>
   <span>디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.2</span>
 </footer>
 

@@ -8,6 +8,8 @@
      CHANGELOG — ue-state-machine.html
      유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.3 · 2026-07-08
+       - (보강) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
      v1.2 · 2026-07-02
        - (변경) 마스터 CSS <link> 상대참조 → <style> inline (마스터 v1.3 스냅샷) — 단독 열람 보장, 마스터 개정에 따른 사후 변형 방지 (DOC-TRACKS v1.3 정책)
      v1.1 · 2026-07-02
@@ -537,6 +539,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <span class="hljs-meta">#include <span class="hljs-string">"TimerMachine.generated.h"</span></span>  <span class="hljs-comment">// 반드시 마지막 #include</span>
 
 <span class="hljs-comment">// 상태: 의미 있는 국면만 열거. bool 조합 대신 이것 하나가 진실.</span>
+<span class="hljs-comment">// UENUM(BlueprintType): 블루프린트 변수·Switch 노드에서 사용 가능하게 노출 — uint8 기반 지정이 필수 조건</span>
 <span class="hljs-meta">UENUM(BlueprintType)</span>
 <span class="hljs-keyword">enum class</span> <span class="hljs-type">ETimerState</span> : <span class="hljs-type">uint8</span>
 {
@@ -547,12 +550,14 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 };
 
 <span class="hljs-comment">// 상태 변경 방송: UI 등이 구독 (State, OldState)</span>
+<span class="hljs-comment">// TwoParams = 인자 2개짜리 동적 멀티캐스트 델리게이트 — (타입, 이름) 쌍을 인자 수만큼 나열하는 형식</span>
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTimerStateChanged, <span class="hljs-type">ETimerState</span>, NewState, <span class="hljs-type">ETimerState</span>, OldState);
 
+<span class="hljs-comment">// UCLASS(): 리플렉션 등록 — GC 추적·블루프린트 노출의 전제 조건</span>
 <span class="hljs-meta">UCLASS()</span>
-<span class="hljs-keyword">class</span> MYGAME_API <span class="hljs-type">UTimerMachine</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UObject</span>
+<span class="hljs-keyword">class</span> MYGAME_API <span class="hljs-type">UTimerMachine</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UObject</span>   <span class="hljs-comment">// UObject 상속 — 월드 배치·Tick이 필요 없는 순수 로직이라 액터보다 가벼움</span>
 {
-    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">GENERATED_BODY()</span>   <span class="hljs-comment">// 리플렉션 보일러플레이트 삽입 자리 — UCLASS()와 한 쌍</span>
 
 <span class="hljs-keyword">public</span>:
     <span class="hljs-comment">// 이벤트 = 전이 요청. 허용 여부는 내부 가드가 판단.</span>
@@ -560,9 +565,11 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTimerStateChanged, <span class="
     <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-type">void</span> <span class="hljs-title">RequestPause</span>();
     <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-type">void</span> <span class="hljs-title">RequestFinish</span>();
 
+    <span class="hljs-comment">// BlueprintPure: 실행 핀 없는 읽기 전용 노드 — 상태 조회는 언제든 안전</span>
     <span class="hljs-meta">UFUNCTION(BlueprintPure)</span>
     <span class="hljs-type">ETimerState</span> <span class="hljs-title">GetState</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> State; }
 
+    <span class="hljs-comment">// BlueprintAssignable: BP에서 이 이벤트에 바인딩 가능 — 상태 변화를 구독하는 공식 통로</span>
     <span class="hljs-meta">UPROPERTY(BlueprintAssignable)</span>
     <span class="hljs-type">FOnTimerStateChanged</span> OnStateChanged;
 
@@ -570,8 +577,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTimerStateChanged, <span class="
     <span class="hljs-comment">// 상태 변경의 유일한 통로. 외부에서 State를 직접 못 만짐.</span>
     <span class="hljs-type">void</span> <span class="hljs-title">SetState</span>(<span class="hljs-type">ETimerState</span> NewState);
 
-    <span class="hljs-meta">UPROPERTY()</span>
-    <span class="hljs-type">ETimerState</span> State = <span class="hljs-type">ETimerState</span>::Idle;
+    <span class="hljs-meta">UPROPERTY()</span>   <span class="hljs-comment">// 지정자 없는 UPROPERTY라도 리플렉션에 등록 — 에디터 디버깅·직렬화 대상이 됨</span>
+    <span class="hljs-type">ETimerState</span> State = <span class="hljs-type">ETimerState</span>::Idle;   <span class="hljs-comment">// 초기 상태를 Idle로 명시 — 초기화 누락 시 쓰레기 값 상태로 시작하는 사고 방지</span>
 };</pre></div>
       <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"TimerMachine.h"</span></span>
 
@@ -593,6 +600,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTimerStateChanged, <span class="
 
 <span class="hljs-type">void</span> <span class="hljs-type">UTimerMachine</span>::<span class="hljs-title">RequestFinish</span>()
 {
+    <span class="hljs-comment">// 가드: Running·Paused 어느 쪽에서든 종료 가능 — Idle/Finished에서 온 요청은 조용히 무시</span>
     <span class="hljs-keyword">if</span> (State == <span class="hljs-type">ETimerState</span>::Running || State == <span class="hljs-type">ETimerState</span>::Paused)
     {
         <span class="hljs-title">SetState</span>(<span class="hljs-type">ETimerState</span>::Finished);
@@ -601,9 +609,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTimerStateChanged, <span class="
 
 <span class="hljs-type">void</span> <span class="hljs-type">UTimerMachine</span>::<span class="hljs-title">SetState</span>(<span class="hljs-type">ETimerState</span> NewState)
 {
-    <span class="hljs-keyword">if</span> (State == NewState) { <span class="hljs-keyword">return</span>; }   <span class="hljs-comment">// 같은 상태로의 전이는 무시</span>
+    <span class="hljs-keyword">if</span> (State == NewState) { <span class="hljs-keyword">return</span>; }   <span class="hljs-comment">// 같은 상태로의 전이는 무시 — 불필요한 Exit/Enter·중복 방송 방지</span>
 
-    <span class="hljs-keyword">const</span> <span class="hljs-type">ETimerState</span> OldState = State;
+    <span class="hljs-keyword">const</span> <span class="hljs-type">ETimerState</span> OldState = State;   <span class="hljs-comment">// 방송에 실어 보낼 이전 상태를 갱신 전에 백업</span>
 
     <span class="hljs-comment">// (03) Exit 처리: 이전 상태 정리 — 예: Running에서 나가면 틱 타이머 해제</span>
 

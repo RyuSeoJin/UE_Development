@@ -7,6 +7,8 @@
 <!-- ============================================================
      CHANGELOG — 01-focus-system.html
      포커스(타이머+스톱워치) 시스템 설계. 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.2 · 2026-07-08
+       - (개선) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
      v1.1 · 2026-07-02
        - (추가) 08 — 데이터 설계 섹션: 프로토타입 v14(TestFile/RecordTales.html) 실측 기준 —
          타이머 설정 저장 필드·휘발 상태 목록·보상 실측값(사이클 +15 XP, 골드 틱 6초 +10) 정리. XP_REWARDS 미배선 명시.
@@ -431,13 +433,16 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <h3>설정 구조체</h3>
     <div class="snip">
       <div class="snip-head"><span class="code-dot" style="background:var(--ue-header)"></span>FFocusSettings (USTRUCT)</div>
-      <pre><span class="hljs-meta">USTRUCT(BlueprintType)</span>
+      <pre><span class="hljs-comment">// BlueprintType: 이 구조체를 블루프린트에서도 변수 타입으로 쓸 수 있게 노출</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
 <span class="hljs-keyword">struct</span> <span class="hljs-title class_">FFocusSettings</span>
 {
-    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">GENERATED_BODY()</span>   <span class="hljs-comment">// UHT(언리얼 헤더 툴)가 생성한 리플렉션 코드가 삽입되는 자리 — 모든 USTRUCT에 필수</span>
 
+    <span class="hljs-comment">// UPROPERTY: 리플렉션에 등록 → 에디터에서 편집(EditAnywhere) + 블루프린트 읽기/쓰기(BlueprintReadWrite) 가능.</span>
+    <span class="hljs-comment">// 등록해야 SaveGame 직렬화 대상에도 포함됨 — 빠뜨리면 저장 시 이 필드만 누락됨</span>
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
-    <span class="hljs-type">float</span> FocusDuration = <span class="hljs-number">1500.f</span>;    <span class="hljs-comment">// 25분 (초)</span>
+    <span class="hljs-type">float</span> FocusDuration = <span class="hljs-number">1500.f</span>;    <span class="hljs-comment">// 25분 (초) — 초기값이 없으면 쓰레기값으로 타이머가 시작될 수 있음</span>
 
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
     <span class="hljs-type">float</span> RestDuration = <span class="hljs-number">300.f</span>;      <span class="hljs-comment">// 5분 (초)</span>
@@ -570,61 +575,69 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       </div>
 
       <!-- ===== .h 패널 ===== -->
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>   <span class="hljs-comment">// 이 헤더가 한 번만 컴파일되도록 중복 포함을 차단 (UE 헤더의 표준 첫 줄)</span>
 
-<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>
-<span class="hljs-meta">#include <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span></span>
-<span class="hljs-meta">#include <span class="hljs-string">"FocusSubsystem.generated.h"</span></span>
+<span class="hljs-meta">#include <span class="hljs-string">"CoreMinimal.h"</span></span>                          <span class="hljs-comment">// FString, TArray 등 UE 기본 타입 모음</span>
+<span class="hljs-meta">#include <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span></span>     <span class="hljs-comment">// 부모 클래스 UGameInstanceSubsystem 선언</span>
+<span class="hljs-meta">#include <span class="hljs-string">"FocusSubsystem.generated.h"</span></span>              <span class="hljs-comment">// UHT가 생성하는 리플렉션 코드 — 반드시 include 목록의 마지막이어야 컴파일됨</span>
 
 <span class="hljs-comment">// ── 타이머 상태 열거형 ──────────────────────────────</span>
+<span class="hljs-comment">// BlueprintType: 블루프린트에서도 이 열거형으로 변수 선언·비교(Switch 노드) 가능</span>
 <span class="hljs-meta">UENUM(BlueprintType)</span>
-<span class="hljs-keyword">enum class</span> <span class="hljs-title class_">EFocusState</span> : <span class="hljs-type">uint8</span>
+<span class="hljs-keyword">enum class</span> <span class="hljs-title class_">EFocusState</span> : <span class="hljs-type">uint8</span>   <span class="hljs-comment">// UENUM은 uint8 기반이어야 UPROPERTY로 쓸 수 있음 (리플렉션 제약)</span>
 {
-    Idle          <span class="hljs-meta">UMETA(DisplayName = "Idle")</span>,
-    Focusing      <span class="hljs-meta">UMETA(DisplayName = "Focusing")</span>,
-    Resting       <span class="hljs-meta">UMETA(DisplayName = "Resting")</span>,
-    LastResting   <span class="hljs-meta">UMETA(DisplayName = "LastResting")</span>,
-    Paused        <span class="hljs-meta">UMETA(DisplayName = "Paused")</span>
+    Idle          <span class="hljs-meta">UMETA(DisplayName = "Idle")</span>,          <span class="hljs-comment">// 대기 — 설정 UI 표시, 시작 버튼 대기</span>
+    Focusing      <span class="hljs-meta">UMETA(DisplayName = "Focusing")</span>,      <span class="hljs-comment">// 집중 — 카운트다운 진행, Gold 틱 활성</span>
+    Resting       <span class="hljs-meta">UMETA(DisplayName = "Resting")</span>,       <span class="hljs-comment">// 일반 휴식 — 만료되면 다음 사이클 Focusing으로</span>
+    LastResting   <span class="hljs-meta">UMETA(DisplayName = "LastResting")</span>,   <span class="hljs-comment">// 마지막 휴식 — 루틴 종료 직전, 만료 시 Idle(또는 자동 재시작)</span>
+    Paused        <span class="hljs-meta">UMETA(DisplayName = "Paused")</span>         <span class="hljs-comment">// 일시정지 — 남은 시간을 보존한 채 정지. UMETA(DisplayName)는 에디터·블루프린트에 표시될 이름</span>
 };
 
 <span class="hljs-comment">// ── 스톱워치 상태 열거형 ────────────────────────────</span>
+<span class="hljs-comment">// 타이머와 별도 상태를 두는 이유: 두 모드가 동시에 존재할 수 있고 전환 규칙이 다름</span>
 <span class="hljs-meta">UENUM(BlueprintType)</span>
 <span class="hljs-keyword">enum class</span> <span class="hljs-title class_">EStopwatchState</span> : <span class="hljs-type">uint8</span>
 {
-    Idle,
-    Running,
-    Paused
+    Idle,      <span class="hljs-comment">// 시작 전 — 경과 시간 0초</span>
+    Running,   <span class="hljs-comment">// 측정 중 — 매 프레임 DeltaTime 누적, Gold 틱 활성</span>
+    Paused     <span class="hljs-comment">// 일시정지 — 경과 시간 고정</span>
 };
 
 <span class="hljs-comment">// ── 타이머 설정 구조체 ──────────────────────────────</span>
+<span class="hljs-comment">// 설정을 개별 변수가 아닌 구조체 하나로 묶는 이유: SaveGame 저장/복원 시 통째로 복사 가능</span>
 <span class="hljs-meta">USTRUCT(BlueprintType)</span>
 <span class="hljs-keyword">struct</span> <span class="hljs-title class_">FFocusSettings</span>
 {
-    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">GENERATED_BODY()</span>   <span class="hljs-comment">// 리플렉션 코드 삽입 자리 — 빠뜨리면 컴파일 에러</span>
+
+    <span class="hljs-comment">// EditAnywhere: 에디터 디테일 패널에서 편집 가능 / BlueprintReadWrite: 블루프린트에서 읽기+쓰기 노출</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
+    <span class="hljs-type">float</span> FocusDuration = <span class="hljs-number">1500.f</span>;   <span class="hljs-comment">// 집중 시간 25분 (단위: 초, 허용 범위 1~120분)</span>
 
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
-    <span class="hljs-type">float</span> FocusDuration = <span class="hljs-number">1500.f</span>;
+    <span class="hljs-type">float</span> RestDuration = <span class="hljs-number">300.f</span>;   <span class="hljs-comment">// 일반 휴식 5분 (단위: 초, 허용 범위 1~30분)</span>
 
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
-    <span class="hljs-type">float</span> RestDuration = <span class="hljs-number">300.f</span>;
+    <span class="hljs-type">float</span> LastRestDuration = <span class="hljs-number">900.f</span>;   <span class="hljs-comment">// 마지막 휴식 15분 (단위: 초, 허용 범위 1~60분) — 루틴 마지막 사이클에서만 사용</span>
 
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
-    <span class="hljs-type">float</span> LastRestDuration = <span class="hljs-number">900.f</span>;
+    <span class="hljs-type">int32</span> RoutineCount = <span class="hljs-number">4</span>;   <span class="hljs-comment">// 반복 횟수 (범위 1~10) — 1이면 단일 모드, 2 이상이면 루틴 모드</span>
 
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
-    <span class="hljs-type">int32</span> RoutineCount = <span class="hljs-number">4</span>;
-
-    <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite)</span>
-    <span class="hljs-type">bool</span> bAutoRestart = <span class="hljs-literal">false</span>;
+    <span class="hljs-type">bool</span> bAutoRestart = <span class="hljs-literal">false</span>;   <span class="hljs-comment">// true면 LastResting 후 Idle 대신 새 세션(Focusing)으로 자동 복귀</span>
 };
 
 <span class="hljs-comment">// ── 사이클 완료 델리게이트 ──────────────────────────</span>
+<span class="hljs-comment">// DYNAMIC MULTICAST: 블루프린트에서도 바인딩 가능 + 여러 리스너(Economy/Record/UI)가 동시에 구독 가능.</span>
+<span class="hljs-comment">// 델리게이트로 알리면 FocusSubsystem이 수신자 헤더를 include하지 않아도 됨 (결합도 감소)</span>
 <span class="hljs-meta">DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
-    FOnFocusCycleCompleted, int32, CycleIndex, float, FocusDuration);</span>
+    FOnFocusCycleCompleted, int32, CycleIndex, float, FocusDuration);</span>   <span class="hljs-comment">// 파라미터: 완료된 사이클 번호(1-based), 집중 시간(초)</span>
 <span class="hljs-meta">DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
-    FOnStopwatchStopped, float, ElapsedSeconds);</span>
+    FOnStopwatchStopped, float, ElapsedSeconds);</span>   <span class="hljs-comment">// 파라미터: 스톱워치 총 경과 시간(초) — 25분 이상일 때만 브로드캐스트됨</span>
 
 <span class="hljs-comment">// ── UFocusSubsystem ─────────────────────────────────</span>
+<span class="hljs-comment">// UCLASS(): 리플렉션·GC 대상 클래스로 등록 / RECORDTALES_API: 다른 모듈에서 이 클래스를 쓸 수 있게 공개(DLL export)</span>
+<span class="hljs-comment">// UGameInstanceSubsystem 상속 → 엔진이 자동 생성/파괴, 앱 실행 내내 딱 1개 존재 (레벨 전환에도 유지 = 타이머가 끊기지 않음)</span>
 <span class="hljs-meta">UCLASS()</span>
 <span class="hljs-keyword">class</span> RECORDTALES_API <span class="hljs-title class_">UFocusSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
 {
@@ -632,60 +645,67 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
 <span class="hljs-keyword">public</span>:
     <span class="hljs-comment">// --- 초기화 ---</span>
+    <span class="hljs-comment">// GameInstance 생성 직후 엔진이 자동 호출 (게임 시작 시 1회) — 직접 호출하지 않음</span>
     <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection) <span class="hljs-keyword">override</span>;
+    <span class="hljs-comment">// 앱 종료 직전 엔진이 자동 호출 — 돌고 있는 타이머를 여기서 정리해야 안전</span>
     <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">Deinitialize</span>() <span class="hljs-keyword">override</span>;
 
     <span class="hljs-comment">// --- 타이머 제어 ---</span>
+    <span class="hljs-comment">// BlueprintCallable: UI 버튼(위젯 블루프린트)에서 직접 호출할 수 있게 노출 / Category: 노드 검색 시 분류명</span>
     <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Focus")</span>
-    <span class="hljs-keyword">void</span> <span class="hljs-title function_">StartFocus</span>();
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">StartFocus</span>();   <span class="hljs-comment">// Idle → Focusing 전환. 새 세션 시작 (사이클 카운터 리셋)</span>
 
     <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Focus")</span>
-    <span class="hljs-keyword">void</span> <span class="hljs-title function_">PauseFocus</span>();
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">PauseFocus</span>();   <span class="hljs-comment">// 남은 시간을 저장하고 타이머 해제 → Paused</span>
 
     <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Focus")</span>
-    <span class="hljs-keyword">void</span> <span class="hljs-title function_">ResumeFocus</span>();
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">ResumeFocus</span>();   <span class="hljs-comment">// Paused → 일시정지 직전 상태로 복귀 (저장한 남은 시간으로 재개)</span>
 
     <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Focus")</span>
-    <span class="hljs-keyword">void</span> <span class="hljs-title function_">StopFocus</span>();
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">StopFocus</span>();   <span class="hljs-comment">// 세션 강제 종료 → Idle. 중도 중지이므로 XP 미지급</span>
 
     <span class="hljs-comment">// --- 스톱워치 제어 ---</span>
     <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Focus")</span>
-    <span class="hljs-keyword">void</span> <span class="hljs-title function_">StartStopwatch</span>();
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">StartStopwatch</span>();   <span class="hljs-comment">// 경과 시간 0초부터 카운트업 시작</span>
 
     <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "Focus")</span>
-    <span class="hljs-keyword">void</span> <span class="hljs-title function_">StopStopwatch</span>();
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">StopStopwatch</span>();   <span class="hljs-comment">// 측정 종료. 25분 이상이면 보상 델리게이트 브로드캐스트</span>
 
     <span class="hljs-comment">// --- 상태 조회 ---</span>
+    <span class="hljs-comment">// BlueprintPure: 실행 핀 없는 읽기 전용 노드로 노출 — 상태를 바꾸지 않으므로 UI가 매 프레임 안심하고 호출 가능</span>
     <span class="hljs-meta">UFUNCTION(BlueprintPure, Category = "Focus")</span>
-    <span class="hljs-type">EFocusState</span> <span class="hljs-title function_">GetFocusState</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> CurrentState; }
+    <span class="hljs-type">EFocusState</span> <span class="hljs-title function_">GetFocusState</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> CurrentState; }   <span class="hljs-comment">// UI가 화면(설정/링/휴식)을 고르는 기준</span>
 
     <span class="hljs-meta">UFUNCTION(BlueprintPure, Category = "Focus")</span>
-    <span class="hljs-type">float</span> <span class="hljs-title function_">GetRemainingTime</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> RemainingTime; }
+    <span class="hljs-type">float</span> <span class="hljs-title function_">GetRemainingTime</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> RemainingTime; }   <span class="hljs-comment">// 남은 시간(초) — 카운트다운 링 표시용</span>
 
     <span class="hljs-meta">UFUNCTION(BlueprintPure, Category = "Focus")</span>
-    <span class="hljs-type">int32</span> <span class="hljs-title function_">GetCurrentCycle</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> CurrentCycleIndex; }
+    <span class="hljs-type">int32</span> <span class="hljs-title function_">GetCurrentCycle</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> CurrentCycleIndex; }   <span class="hljs-comment">// "3/4 사이클" 표시용</span>
 
     <span class="hljs-comment">// --- 델리게이트 ---</span>
+    <span class="hljs-comment">// BlueprintAssignable: 블루프린트에서 이벤트 바인딩 가능. UPROPERTY로 선언해야 바인딩 목록이 GC에 의해 끊기지 않음</span>
     <span class="hljs-meta">UPROPERTY(BlueprintAssignable)</span>
-    <span class="hljs-type">FOnFocusCycleCompleted</span> OnFocusCycleCompleted;
+    <span class="hljs-type">FOnFocusCycleCompleted</span> OnFocusCycleCompleted;   <span class="hljs-comment">// 사이클 완료 시 발신 — Economy(XP 지급)·Record(기록)가 구독</span>
 
     <span class="hljs-meta">UPROPERTY(BlueprintAssignable)</span>
-    <span class="hljs-type">FOnStopwatchStopped</span> OnStopwatchStopped;
+    <span class="hljs-type">FOnStopwatchStopped</span> OnStopwatchStopped;   <span class="hljs-comment">// 스톱워치 종료(25분 이상) 시 발신</span>
 
     <span class="hljs-comment">// --- 설정 ---</span>
     <span class="hljs-meta">UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Focus")</span>
-    <span class="hljs-type">FFocusSettings</span> Settings;
+    <span class="hljs-type">FFocusSettings</span> Settings;   <span class="hljs-comment">// 사용자 설정 묶음 — Idle 상태에서만 변경, SaveGame으로 영속화</span>
 
 <span class="hljs-keyword">private</span>:
-    <span class="hljs-keyword">void</span> <span class="hljs-title function_">OnTimerExpired</span>();          <span class="hljs-comment">// FTimerHandle 콜백</span>
-    <span class="hljs-keyword">void</span> <span class="hljs-title function_">TransitionTo</span>(<span class="hljs-type">EFocusState</span> NewState);
-    <span class="hljs-keyword">void</span> <span class="hljs-title function_">BeginTimerForState</span>(<span class="hljs-type">EFocusState</span> State);
+    <span class="hljs-comment">// 내부 구현 — UI가 직접 부르면 안 되는 함수들은 private으로 감춰 상태 머신의 일관성을 지킴</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">OnTimerExpired</span>();          <span class="hljs-comment">// FTimerHandle 콜백 — 설정한 시간이 만료되면 엔진이 자동 호출</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">TransitionTo</span>(<span class="hljs-type">EFocusState</span> NewState);   <span class="hljs-comment">// 상태 교체 + 그 상태의 타이머 시작을 한 함수로 묶음 (누락 방지)</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title function_">BeginTimerForState</span>(<span class="hljs-type">EFocusState</span> State);   <span class="hljs-comment">// 상태별 지속 시간을 골라 SetTimer 실행</span>
 
-    <span class="hljs-type">EFocusState</span> CurrentState = <span class="hljs-type">EFocusState</span>::Idle;
-    <span class="hljs-type">EFocusState</span> StateBeforePause = <span class="hljs-type">EFocusState</span>::Idle;
-    <span class="hljs-type">EStopwatchState</span> SWState = <span class="hljs-type">EStopwatchState</span>::Idle;
+    <span class="hljs-comment">// 아래 상태 값들은 휘발 데이터 — 저장하지 않음 (재시작 후 복원하면 실제 흐른 시간과 어긋남)</span>
+    <span class="hljs-type">EFocusState</span> CurrentState = <span class="hljs-type">EFocusState</span>::Idle;   <span class="hljs-comment">// 초기값 Idle 필수 — 미초기화 시 쓰레기값으로 잘못된 분기 진입</span>
+    <span class="hljs-type">EFocusState</span> StateBeforePause = <span class="hljs-type">EFocusState</span>::Idle;   <span class="hljs-comment">// 일시정지 직전 상태 — 재개 시 돌아갈 곳</span>
+    <span class="hljs-type">EStopwatchState</span> SWState = <span class="hljs-type">EStopwatchState</span>::Idle;   <span class="hljs-comment">// 스톱워치는 타이머와 독립 상태로 관리</span>
 
-    <span class="hljs-type">FTimerHandle</span> FocusTimerHandle;
+    <span class="hljs-type">FTimerHandle</span> FocusTimerHandle;   <span class="hljs-comment">// 엔진 타이머 식별 핸들 — SetTimer/ClearTimer가 같은 핸들을 써야 같은 타이머를 제어</span>
     <span class="hljs-type">float</span> RemainingTime = <span class="hljs-number">0.f</span>;     <span class="hljs-comment">// 일시정지 시 남은 시간 보존용</span>
     <span class="hljs-type">float</span> StopwatchElapsed = <span class="hljs-number">0.f</span>;  <span class="hljs-comment">// 스톱워치 경과 시간</span>
 
@@ -694,49 +714,59 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 };</pre></div>
 
       <!-- ===== .cpp 패널 ===== -->
-      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"FocusSubsystem.h"</span></span>
-<span class="hljs-meta">#include <span class="hljs-string">"Engine/World.h"</span></span>
-<span class="hljs-meta">#include <span class="hljs-string">"TimerManager.h"</span></span>
+      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"FocusSubsystem.h"</span></span>       <span class="hljs-comment">// 자신의 헤더 — .cpp의 첫 include가 관례 (헤더 자립성 검증)</span>
+<span class="hljs-meta">#include <span class="hljs-string">"Engine/World.h"</span></span>          <span class="hljs-comment">// GetWorld()가 돌려주는 UWorld 정의</span>
+<span class="hljs-meta">#include <span class="hljs-string">"TimerManager.h"</span></span>          <span class="hljs-comment">// FTimerManager(SetTimer/ClearTimer) 사용에 필요</span>
 
+<span class="hljs-comment">// 엔진이 GameInstance 생성 직후 자동 호출 — 게임 시작 시 1회</span>
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">UFocusSubsystem</span>::<span class="hljs-title function_">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection)
 {
-    <span class="hljs-type">Super</span>::<span class="hljs-title function_">Initialize</span>(Collection);
+    <span class="hljs-type">Super</span>::<span class="hljs-title function_">Initialize</span>(Collection);   <span class="hljs-comment">// 부모 초기화 먼저 — 생략하면 서브시스템 등록이 누락될 수 있음</span>
     <span class="hljs-comment">// TODO: SaveGame에서 Settings를 로드해 복원</span>
 }
 
+<span class="hljs-comment">// 엔진이 앱 종료 직전 자동 호출 — 리소스 정리 지점</span>
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">UFocusSubsystem</span>::<span class="hljs-title function_">Deinitialize</span>()
 {
     <span class="hljs-comment">// 진행 중인 타이머를 정리</span>
+    <span class="hljs-comment">// if 안에서 포인터 선언+체크: 종료 시점엔 World가 이미 파괴됐을 수 있어 null 체크 없이 쓰면 크래시</span>
     <span class="hljs-keyword">if</span> (<span class="hljs-type">UWorld</span>* World = <span class="hljs-title function_">GetWorld</span>())
     {
-        World-&gt;<span class="hljs-title function_">GetTimerManager</span>().<span class="hljs-title function_">ClearTimer</span>(FocusTimerHandle);
+        World-&gt;<span class="hljs-title function_">GetTimerManager</span>().<span class="hljs-title function_">ClearTimer</span>(FocusTimerHandle);   <span class="hljs-comment">// 해제하지 않으면 파괴된 객체를 향한 콜백이 남음</span>
     }
-    <span class="hljs-type">Super</span>::<span class="hljs-title function_">Deinitialize</span>();
+    <span class="hljs-type">Super</span>::<span class="hljs-title function_">Deinitialize</span>();   <span class="hljs-comment">// 정리 후 부모 호출 — Initialize와 순서가 대칭(자식 정리 → 부모 정리)</span>
 }
 
 <span class="hljs-comment">// ── 타이머 시작 ─────────────────────────────────────</span>
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">UFocusSubsystem</span>::<span class="hljs-title function_">StartFocus</span>()
 {
-    <span class="hljs-keyword">if</span> (CurrentState != <span class="hljs-type">EFocusState</span>::Idle) <span class="hljs-keyword">return</span>;
+    <span class="hljs-keyword">if</span> (CurrentState != <span class="hljs-type">EFocusState</span>::Idle) <span class="hljs-keyword">return</span>;   <span class="hljs-comment">// 가드: 이미 진행 중인 세션 위에 새 세션이 겹쳐 시작되는 것을 방지</span>
 
+    <span class="hljs-comment">// 1) 새 세션이므로 카운터 리셋 — 이전 세션 값이 남으면 보너스 XP·사이클 표시가 어긋남</span>
     CurrentCycleIndex = <span class="hljs-number">0</span>;
     ConsecutiveCount = <span class="hljs-number">0</span>;
+    <span class="hljs-comment">// 2) Focusing으로 전환 + 집중 시간 타이머 시작 (TransitionTo가 둘을 함께 처리)</span>
     <span class="hljs-title function_">TransitionTo</span>(<span class="hljs-type">EFocusState</span>::Focusing);
 }
 
 <span class="hljs-comment">// ── 일시정지 ────────────────────────────────────────</span>
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">UFocusSubsystem</span>::<span class="hljs-title function_">PauseFocus</span>()
 {
+    <span class="hljs-comment">// 가드: 시작 전(Idle)이거나 이미 일시정지면 할 일 없음 — 중복 Pause로 RemainingTime이 덮어써지는 것도 방지</span>
     <span class="hljs-keyword">if</span> (CurrentState == <span class="hljs-type">EFocusState</span>::Idle ||
         CurrentState == <span class="hljs-type">EFocusState</span>::Paused) <span class="hljs-keyword">return</span>;
 
     <span class="hljs-comment">// 남은 시간을 저장한 뒤 타이머를 해제</span>
+    <span class="hljs-comment">// FTimerManager에는 "일시정지" API가 없음 → 남은 시간 읽기 + 해제 + 재개 시 재설정으로 구현</span>
     <span class="hljs-type">UWorld</span>* World = <span class="hljs-title function_">GetWorld</span>();
-    <span class="hljs-keyword">if</span> (!World) <span class="hljs-keyword">return</span>;
+    <span class="hljs-keyword">if</span> (!World) <span class="hljs-keyword">return</span>;   <span class="hljs-comment">// null 체크 없이 쓰면 에디터 종료 시점 등 World 부재 상황에서 크래시</span>
 
+    <span class="hljs-comment">// 1) ClearTimer보다 먼저 남은 시간을 읽어야 함 — 해제 후에는 남은 시간을 알 수 없음</span>
     RemainingTime = World-&gt;<span class="hljs-title function_">GetTimerManager</span>().<span class="hljs-title function_">GetTimerRemaining</span>(FocusTimerHandle);
+    <span class="hljs-comment">// 2) 타이머 해제 — 해제하지 않으면 일시정지 중에도 만료 콜백이 발동해 상태가 멋대로 전환됨</span>
     World-&gt;<span class="hljs-title function_">GetTimerManager</span>().<span class="hljs-title function_">ClearTimer</span>(FocusTimerHandle);
 
+    <span class="hljs-comment">// 3) 재개 시 돌아갈 상태를 기억한 뒤 Paused로 — 순서가 바뀌면 Paused를 기억해 버려 복귀 불가</span>
     StateBeforePause = CurrentState;
     CurrentState = <span class="hljs-type">EFocusState</span>::Paused;
 }
@@ -744,14 +774,16 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <span class="hljs-comment">// ── 재개 ────────────────────────────────────────────</span>
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">UFocusSubsystem</span>::<span class="hljs-title function_">ResumeFocus</span>()
 {
-    <span class="hljs-keyword">if</span> (CurrentState != <span class="hljs-type">EFocusState</span>::Paused) <span class="hljs-keyword">return</span>;
+    <span class="hljs-keyword">if</span> (CurrentState != <span class="hljs-type">EFocusState</span>::Paused) <span class="hljs-keyword">return</span>;   <span class="hljs-comment">// 가드: 일시정지 상태에서만 재개 가능</span>
 
     <span class="hljs-comment">// 저장해 둔 남은 시간으로 타이머를 다시 설정</span>
-    CurrentState = StateBeforePause;
+    CurrentState = StateBeforePause;   <span class="hljs-comment">// 일시정지 직전 상태(Focusing/Resting 등)로 복귀</span>
 
     <span class="hljs-type">UWorld</span>* World = <span class="hljs-title function_">GetWorld</span>();
     <span class="hljs-keyword">if</span> (!World) <span class="hljs-keyword">return</span>;
 
+    <span class="hljs-comment">// SetTimer 인자: (핸들, 콜백 소유 객체, 콜백 함수, 대기 시간(초), 반복 여부)</span>
+    <span class="hljs-comment">// 전체 시간이 아닌 RemainingTime을 넘기는 것이 핵심 — 전체 시간을 넘기면 처음부터 다시 셈</span>
     World-&gt;<span class="hljs-title function_">GetTimerManager</span>().<span class="hljs-title function_">SetTimer</span>(
         FocusTimerHandle,
         <span class="hljs-keyword">this</span>,
@@ -764,51 +796,58 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <span class="hljs-comment">// ── 강제 중지 ───────────────────────────────────────</span>
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">UFocusSubsystem</span>::<span class="hljs-title function_">StopFocus</span>()
 {
-    <span class="hljs-keyword">if</span> (<span class="hljs-type">UWorld</span>* World = <span class="hljs-title function_">GetWorld</span>())
+    <span class="hljs-keyword">if</span> (<span class="hljs-type">UWorld</span>* World = <span class="hljs-title function_">GetWorld</span>())   <span class="hljs-comment">// null 체크: World가 없어도(종료 중 등) 아래 상태 초기화는 안전하게 진행</span>
     {
-        World-&gt;<span class="hljs-title function_">GetTimerManager</span>().<span class="hljs-title function_">ClearTimer</span>(FocusTimerHandle);
+        World-&gt;<span class="hljs-title function_">GetTimerManager</span>().<span class="hljs-title function_">ClearTimer</span>(FocusTimerHandle);   <span class="hljs-comment">// 만료 콜백이 뒤늦게 발동하지 않도록 반드시 해제</span>
     }
-    CurrentState = <span class="hljs-type">EFocusState</span>::Idle;
+    CurrentState = <span class="hljs-type">EFocusState</span>::Idle;   <span class="hljs-comment">// 어떤 상태에서든 즉시 대기 상태로 — 설정 UI가 다시 표시됨</span>
     <span class="hljs-comment">// 중도 중지: XP 미지급. Gold는 이미 틱된 만큼 유지.</span>
 }
 
 <span class="hljs-comment">// ── 스톱워치 시작 ───────────────────────────────────</span>
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">UFocusSubsystem</span>::<span class="hljs-title function_">StartStopwatch</span>()
 {
-    <span class="hljs-keyword">if</span> (SWState != <span class="hljs-type">EStopwatchState</span>::Idle) <span class="hljs-keyword">return</span>;
+    <span class="hljs-keyword">if</span> (SWState != <span class="hljs-type">EStopwatchState</span>::Idle) <span class="hljs-keyword">return</span>;   <span class="hljs-comment">// 가드: 이미 측정 중이면 무시 — 경과 시간이 0으로 리셋되는 사고 방지</span>
 
-    StopwatchElapsed = <span class="hljs-number">0.f</span>;
+    StopwatchElapsed = <span class="hljs-number">0.f</span>;   <span class="hljs-comment">// 새 측정이므로 0초부터 — 이전 측정값이 남으면 보상이 부풀려짐</span>
     SWState = <span class="hljs-type">EStopwatchState</span>::Running;
     <span class="hljs-comment">// 경과 시간은 Tick()에서 DeltaTime을 누적</span>
+    <span class="hljs-comment">// (만료 개념이 없어 FTimerHandle 콜백이 불필요 — 타이머와 구현 방식이 다른 이유)</span>
 }
 
 <span class="hljs-comment">// ── 스톱워치 중지 ───────────────────────────────────</span>
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">UFocusSubsystem</span>::<span class="hljs-title function_">StopStopwatch</span>()
 {
-    <span class="hljs-keyword">if</span> (SWState == <span class="hljs-type">EStopwatchState</span>::Idle) <span class="hljs-keyword">return</span>;
+    <span class="hljs-keyword">if</span> (SWState == <span class="hljs-type">EStopwatchState</span>::Idle) <span class="hljs-keyword">return</span>;   <span class="hljs-comment">// 가드: 시작한 적 없는데 중지 버튼이 눌린 경우</span>
 
-    SWState = <span class="hljs-type">EStopwatchState</span>::Idle;
+    SWState = <span class="hljs-type">EStopwatchState</span>::Idle;   <span class="hljs-comment">// 먼저 Idle로 바꿔 Tick 누적을 멈춘 뒤 보상을 판정</span>
 
     <span class="hljs-comment">// 25분 이상이면 보상 브로드캐스트</span>
+    <span class="hljs-comment">// 최소 시간 제한(1500초)은 "10초 켜고 끄기" 같은 보상 남용을 방지하기 위한 것</span>
     <span class="hljs-keyword">if</span> (StopwatchElapsed &gt;= <span class="hljs-number">1500.f</span>)
     {
-        OnStopwatchStopped.<span class="hljs-title function_">Broadcast</span>(StopwatchElapsed);
+        OnStopwatchStopped.<span class="hljs-title function_">Broadcast</span>(StopwatchElapsed);   <span class="hljs-comment">// 구독자(Economy·Record)에게 경과 시간 전달 — XP 계산은 수신 측 책임</span>
     }
 }
 
 <span class="hljs-comment">// ── 타이머 만료 콜백 ────────────────────────────────</span>
+<span class="hljs-comment">// SetTimer로 예약한 시간이 다 지나면 엔진(FTimerManager)이 자동 호출 — 직접 부르지 않음.</span>
+<span class="hljs-comment">// "현재 어떤 상태에서 만료됐는가"에 따라 다음 상태가 달라지는 상태 머신의 심장부</span>
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">UFocusSubsystem</span>::<span class="hljs-title function_">OnTimerExpired</span>()
 {
     <span class="hljs-keyword">switch</span> (CurrentState)
     {
-    <span class="hljs-keyword">case</span> <span class="hljs-type">EFocusState</span>::Focusing:
+    <span class="hljs-keyword">case</span> <span class="hljs-type">EFocusState</span>::Focusing:   <span class="hljs-comment">// 집중 시간이 끝까지 완주된 경우 (중도 중지는 여기 못 옴)</span>
     {
         <span class="hljs-comment">// 사이클 완료 → 보상 브로드캐스트</span>
+        <span class="hljs-comment">// 1) 카운터를 먼저 올려야 Broadcast에 "완료된" 사이클 번호(1-based)가 실림</span>
         CurrentCycleIndex++;
-        ConsecutiveCount++;
+        ConsecutiveCount++;   <span class="hljs-comment">// 연속 완료 수 — 3의 배수마다 +20 XP 보너스 판정에 사용</span>
+        <span class="hljs-comment">// 2) 구독자(Economy: +15 XP 지급, Record: 세션 기록)에게 알림 — 지급 로직을 여기 두지 않는 이유는 관심사 분리</span>
         OnFocusCycleCompleted.<span class="hljs-title function_">Broadcast</span>(CurrentCycleIndex, Settings.FocusDuration);
 
         <span class="hljs-comment">// 다음 상태 결정</span>
+        <span class="hljs-comment">// 3) 마지막 사이클이면 긴 휴식(LastResting), 아니면 일반 휴식(Resting)</span>
         <span class="hljs-keyword">if</span> (CurrentCycleIndex &gt;= Settings.RoutineCount)
         {
             <span class="hljs-title function_">TransitionTo</span>(<span class="hljs-type">EFocusState</span>::LastResting);
@@ -819,28 +858,29 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         }
         <span class="hljs-keyword">break</span>;
     }
-    <span class="hljs-keyword">case</span> <span class="hljs-type">EFocusState</span>::Resting:
+    <span class="hljs-keyword">case</span> <span class="hljs-type">EFocusState</span>::Resting:   <span class="hljs-comment">// 일반 휴식 종료 → 다음 사이클의 집중 시작</span>
         <span class="hljs-title function_">TransitionTo</span>(<span class="hljs-type">EFocusState</span>::Focusing);
         <span class="hljs-keyword">break</span>;
 
-    <span class="hljs-keyword">case</span> <span class="hljs-type">EFocusState</span>::LastResting:
+    <span class="hljs-keyword">case</span> <span class="hljs-type">EFocusState</span>::LastResting:   <span class="hljs-comment">// 마지막 휴식 종료 → 세션 종료 또는 자동 재시작</span>
         <span class="hljs-keyword">if</span> (Settings.bAutoRestart)
         {
-            CurrentCycleIndex = <span class="hljs-number">0</span>;
-            <span class="hljs-title function_">TransitionTo</span>(<span class="hljs-type">EFocusState</span>::Focusing);
+            CurrentCycleIndex = <span class="hljs-number">0</span>;   <span class="hljs-comment">// 초기화 필수 — 없으면 인덱스가 RoutineCount 이상인 채라 다음 만료 때 곧장 LastResting으로 빠지는 무한 루프</span>
+            <span class="hljs-title function_">TransitionTo</span>(<span class="hljs-type">EFocusState</span>::Focusing);   <span class="hljs-comment">// 새 세션을 자동으로 시작</span>
         }
         <span class="hljs-keyword">else</span>
         {
-            CurrentState = <span class="hljs-type">EFocusState</span>::Idle;
+            CurrentState = <span class="hljs-type">EFocusState</span>::Idle;   <span class="hljs-comment">// TransitionTo가 아닌 직접 대입 — Idle은 타이머가 필요 없기 때문</span>
         }
         <span class="hljs-keyword">break</span>;
 
-    <span class="hljs-keyword">default</span>:
+    <span class="hljs-keyword">default</span>:   <span class="hljs-comment">// Idle/Paused에서는 타이머가 돌지 않으므로 정상 흐름에선 도달하지 않음 (방어적 처리)</span>
         <span class="hljs-keyword">break</span>;
     }
 }
 
 <span class="hljs-comment">// ── 상태 전환 + 타이머 시작 ─────────────────────────</span>
+<span class="hljs-comment">// 상태 변경과 타이머 시작을 한 함수로 묶음 — 따로 부르면 "상태만 바뀌고 타이머는 안 도는" 누락 버그가 생기기 쉬움</span>
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">UFocusSubsystem</span>::<span class="hljs-title function_">TransitionTo</span>(<span class="hljs-type">EFocusState</span> NewState)
 {
     CurrentState = NewState;
@@ -849,26 +889,28 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">UFocusSubsystem</span>::<span class="hljs-title function_">BeginTimerForState</span>(<span class="hljs-type">EFocusState</span> State)
 {
+    <span class="hljs-comment">// 1) 상태에 맞는 지속 시간(초)을 설정에서 선택</span>
     <span class="hljs-type">float</span> Duration = <span class="hljs-number">0.f</span>;
     <span class="hljs-keyword">switch</span> (State)
     {
-    <span class="hljs-keyword">case</span> <span class="hljs-type">EFocusState</span>::Focusing:    Duration = Settings.FocusDuration;    <span class="hljs-keyword">break</span>;
-    <span class="hljs-keyword">case</span> <span class="hljs-type">EFocusState</span>::Resting:     Duration = Settings.RestDuration;     <span class="hljs-keyword">break</span>;
-    <span class="hljs-keyword">case</span> <span class="hljs-type">EFocusState</span>::LastResting: Duration = Settings.LastRestDuration; <span class="hljs-keyword">break</span>;
-    <span class="hljs-keyword">default</span>: <span class="hljs-keyword">return</span>;
+    <span class="hljs-keyword">case</span> <span class="hljs-type">EFocusState</span>::Focusing:    Duration = Settings.FocusDuration;    <span class="hljs-keyword">break</span>;   <span class="hljs-comment">// 기본 1500초(25분)</span>
+    <span class="hljs-keyword">case</span> <span class="hljs-type">EFocusState</span>::Resting:     Duration = Settings.RestDuration;     <span class="hljs-keyword">break</span>;   <span class="hljs-comment">// 기본 300초(5분)</span>
+    <span class="hljs-keyword">case</span> <span class="hljs-type">EFocusState</span>::LastResting: Duration = Settings.LastRestDuration; <span class="hljs-keyword">break</span>;   <span class="hljs-comment">// 기본 900초(15분)</span>
+    <span class="hljs-keyword">default</span>: <span class="hljs-keyword">return</span>;   <span class="hljs-comment">// Idle/Paused는 타이머를 돌릴 시간이 없으므로 시작하지 않음</span>
     }
 
-    RemainingTime = Duration;
+    RemainingTime = Duration;   <span class="hljs-comment">// UI의 남은 시간 표시(GetRemainingTime)를 위해 초기값 기록</span>
 
     <span class="hljs-type">UWorld</span>* World = <span class="hljs-title function_">GetWorld</span>();
-    <span class="hljs-keyword">if</span> (!World) <span class="hljs-keyword">return</span>;
+    <span class="hljs-keyword">if</span> (!World) <span class="hljs-keyword">return</span>;   <span class="hljs-comment">// World 부재 시(초기화 직후·종료 중) 크래시 방지</span>
 
+    <span class="hljs-comment">// 2) 같은 핸들에 SetTimer — 기존에 돌던 타이머가 있으면 자동으로 교체되어 중복 실행이 없음</span>
     World-&gt;<span class="hljs-title function_">GetTimerManager</span>().<span class="hljs-title function_">SetTimer</span>(
         FocusTimerHandle,
-        <span class="hljs-keyword">this</span>,
-        &amp;<span class="hljs-type">UFocusSubsystem</span>::OnTimerExpired,
-        Duration,
-        <span class="hljs-literal">false</span>
+        <span class="hljs-keyword">this</span>,                                  <span class="hljs-comment">// 콜백을 받을 객체 — 파괴되면 엔진이 콜백을 자동 무효화</span>
+        &amp;<span class="hljs-type">UFocusSubsystem</span>::OnTimerExpired,   <span class="hljs-comment">// 만료 시 호출될 멤버 함수</span>
+        Duration,                              <span class="hljs-comment">// 대기 시간(초)</span>
+        <span class="hljs-literal">false</span>                                  <span class="hljs-comment">// 반복 아님 — 만료 후 다음 타이머는 상태 머신이 결정</span>
     );
 }</pre></div>
     </div>

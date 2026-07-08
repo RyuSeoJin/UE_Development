@@ -8,6 +8,8 @@
      CHANGELOG — ue-timer-world.html
      유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿 · framework/).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.1 · 2026-07-08
+       - (보강) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
      v1.0 · 2026-07-07
        - 신규 생성. FTimerManager가 World 소속이라는 대전제, GameInstanceSubsystem의
          Initialize()에서 GetWorld()가 null인 이유(수명 타임라인), 안전한 타이머 시작
@@ -681,27 +683,31 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <span class="hljs-meta">#include</span> <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span>
 <span class="hljs-meta">#include</span> <span class="hljs-string">"CountdownSubsystem.generated.h"</span>
 
+<span class="hljs-comment">// 동적 멀티캐스트 델리게이트 타입 선언 — 여러 구독자가 붙을 수 있고, 블루프린트 바인딩까지 지원 (인자 없음)</span>
 <span class="hljs-meta">DECLARE_DYNAMIC_MULTICAST_DELEGATE</span>(FOnCountdownFinished);
 
+<span class="hljs-comment">// UCLASS(): 리플렉션 등록 — 엔진이 이 Subsystem을 자동 발견·생성하는 전제 조건</span>
 <span class="hljs-meta">UCLASS()</span>
-<span class="hljs-keyword">class</span> MYGAME_API <span class="hljs-type">UCountdownSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
+<span class="hljs-keyword">class</span> MYGAME_API <span class="hljs-type">UCountdownSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>   <span class="hljs-comment">// MYGAME_API: 모듈 외부 노출 매크로 — 자기 모듈 이름으로 교체</span>
 {
-    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">GENERATED_BODY()</span>   <span class="hljs-comment">// 리플렉션 보일러플레이트 삽입 자리 — UCLASS()와 한 쌍</span>
 <span class="hljs-keyword">public</span>:
-    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Start</span>(<span class="hljs-type">float</span> Seconds);
+    <span class="hljs-comment">// BlueprintCallable: BP에서 호출 가능. 타이머는 Initialize()가 아닌 Start()에서 걸어야 안전 (그 시점엔 World 보장)</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Start</span>(<span class="hljs-type">float</span> Seconds);   <span class="hljs-comment">// Seconds: 카운트다운 길이(초 단위)</span>
     <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Pause</span>();
     <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Resume</span>();
-    <span class="hljs-meta">UFUNCTION(BlueprintPure)</span>     <span class="hljs-type">float</span> <span class="hljs-title">GetRemaining</span>() <span class="hljs-keyword">const</span>;
+    <span class="hljs-meta">UFUNCTION(BlueprintPure)</span>     <span class="hljs-type">float</span> <span class="hljs-title">GetRemaining</span>() <span class="hljs-keyword">const</span>;   <span class="hljs-comment">// BlueprintPure: 상태를 바꾸지 않는 읽기 전용 노드 — UI 표시에 사용</span>
 
+    <span class="hljs-comment">// BlueprintAssignable: BP에서 이 이벤트에 커스텀 이벤트를 바인딩 가능 — 만료 알림 통로</span>
     <span class="hljs-meta">UPROPERTY(BlueprintAssignable)</span>
     <span class="hljs-type">FOnCountdownFinished</span> OnFinished;
 
 <span class="hljs-keyword">private</span>:
-    <span class="hljs-keyword">void</span> <span class="hljs-title">HandleExpired</span>();
+    <span class="hljs-keyword">void</span> <span class="hljs-title">HandleExpired</span>();   <span class="hljs-comment">// 만료 시 TimerManager가 호출하는 내부 콜백 — 외부에서 직접 부를 일 없으므로 private</span>
     <span class="hljs-type">FTimerHandle</span> Handle;   <span class="hljs-comment">// 예약 번호표 — 반드시 멤버로 보관</span>
 };</pre></div>
       <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include</span> <span class="hljs-string">"CountdownSubsystem.h"</span>
-<span class="hljs-meta">#include</span> <span class="hljs-string">"TimerManager.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"TimerManager.h"</span>   <span class="hljs-comment">// FTimerManager 정의 헤더 — SetTimer/PauseTimer 등을 쓰려면 .cpp에 필요</span>
 
 <span class="hljs-keyword">void</span> <span class="hljs-type">UCountdownSubsystem</span>::<span class="hljs-title">Start</span>(<span class="hljs-type">float</span> Seconds)
 {
@@ -709,6 +715,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-type">UWorld</span>* World = <span class="hljs-title">GetGameInstance</span>()-&gt;<span class="hljs-title">GetWorld</span>();
     <span class="hljs-keyword">if</span> (!World) <span class="hljs-keyword">return</span>;   <span class="hljs-comment">// 방어 — 로딩 경계에서 불리는 예외 케이스</span>
 
+    <span class="hljs-comment">// 인자 순서: 1) Handle(예약 추적용) 2) 콜백 대상 객체(this) + 멤버 함수 포인터 — 객체가 파괴되면 자동 무효화되어 안전 3) 지연 시간(초) 4) 반복 여부</span>
     World-&gt;<span class="hljs-title">GetTimerManager</span>().<span class="hljs-title">SetTimer</span>(
         Handle, <span class="hljs-keyword">this</span>, &amp;<span class="hljs-type">UCountdownSubsystem</span>::HandleExpired,
         Seconds, <span class="hljs-literal">false</span>);   <span class="hljs-comment">// false = 1회성</span>
@@ -716,6 +723,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
 <span class="hljs-keyword">void</span> <span class="hljs-type">UCountdownSubsystem</span>::<span class="hljs-title">Pause</span>()
 {
+    <span class="hljs-comment">// if문 안 초기화 구문 — World가 유효할 때만 접근 (레벨 전환 중엔 null일 수 있어 역참조 시 크래시)</span>
     <span class="hljs-keyword">if</span> (<span class="hljs-type">UWorld</span>* W = <span class="hljs-title">GetGameInstance</span>()-&gt;<span class="hljs-title">GetWorld</span>())
         W-&gt;<span class="hljs-title">GetTimerManager</span>().<span class="hljs-title">PauseTimer</span>(Handle);   <span class="hljs-comment">// 남은 시간이 언 채로 보존</span>
 }
@@ -723,16 +731,17 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <span class="hljs-keyword">void</span> <span class="hljs-type">UCountdownSubsystem</span>::<span class="hljs-title">Resume</span>()
 {
     <span class="hljs-keyword">if</span> (<span class="hljs-type">UWorld</span>* W = <span class="hljs-title">GetGameInstance</span>()-&gt;<span class="hljs-title">GetWorld</span>())
-        W-&gt;<span class="hljs-title">GetTimerManager</span>().<span class="hljs-title">UnPauseTimer</span>(Handle);
+        W-&gt;<span class="hljs-title">GetTimerManager</span>().<span class="hljs-title">UnPauseTimer</span>(Handle);   <span class="hljs-comment">// 얼려 둔 남은 시간 그대로 재개 — 직접 재계산할 필요 없음</span>
 }
 
 <span class="hljs-type">float</span> <span class="hljs-type">UCountdownSubsystem</span>::<span class="hljs-title">GetRemaining</span>() <span class="hljs-keyword">const</span>
 {
     <span class="hljs-keyword">if</span> (<span class="hljs-type">UWorld</span>* W = <span class="hljs-title">GetGameInstance</span>()-&gt;<span class="hljs-title">GetWorld</span>())
-        <span class="hljs-keyword">return</span> W-&gt;<span class="hljs-title">GetTimerManager</span>().<span class="hljs-title">GetTimerRemaining</span>(Handle);
-    <span class="hljs-keyword">return</span> <span class="hljs-number">0.f</span>;
+        <span class="hljs-keyword">return</span> W-&gt;<span class="hljs-title">GetTimerManager</span>().<span class="hljs-title">GetTimerRemaining</span>(Handle);   <span class="hljs-comment">// 남은 시간(초, float) — UI는 이 값을 읽어 그리기만 (이중 장부 방지)</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-number">0.f</span>;   <span class="hljs-comment">// World가 없는 경계 상황엔 0초 반환 — UI가 쓰레기 값을 그리지 않게 하는 안전값</span>
 }
 
+<span class="hljs-comment">// SetTimer로 예약한 시간이 만료되는 순간 TimerManager가 호출</span>
 <span class="hljs-keyword">void</span> <span class="hljs-type">UCountdownSubsystem</span>::<span class="hljs-title">HandleExpired</span>()
 {
     OnFinished.<span class="hljs-title">Broadcast</span>();   <span class="hljs-comment">// 후속 처리는 구독자(델리게이트 문서 참조)</span>

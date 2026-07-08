@@ -3,10 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>07 · UI 프레임워크 — RecordTales v1.1</title>
+<title>07 · UI 프레임워크 — RecordTales v1.2</title>
 <!-- ============================================================
      CHANGELOG — 07-ui-framework.html
      UI 프레임워크 설계 문서. 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.2 · 2026-07-08
+       - (추가) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
      v1.1 · 2026-07-02
        - (추가) 08 — 데이터 설계 섹션: 프로토타입 v14(TestFile/RecordTales.html) 실측 기준 —
          UI 상태 전수 휘발 원칙·저장 데이터 소유자 분리 원칙.
@@ -389,7 +391,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">RecordTales &middot; v1.1 &middot; UI Framework</div>
+  <div class="hero-eyebrow">RecordTales &middot; v1.2 &middot; UI Framework</div>
   <h1>UI 프레임워크<br><span>패널 &middot; 모달 &middot; HUD</span></h1>
   <p class="hero-sub">
     Focus/Quests/Archive 패널 전환, 모달 스택, 토스트 알림, 캘린더 위젯, HUD 4코너 레이아웃을 관리하는 UI 프레임워크입니다.
@@ -641,24 +643,28 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <span class="hljs-meta">#include <span class="hljs-string">"UIManagerSubsystem.generated.h"</span></span>
 
 <span class="hljs-comment">// 패널 종류</span>
+<span class="hljs-comment">// UENUM(BlueprintType): 블루프린트에서도 이 열거형을 쓸 수 있게 노출 (uint8 기반 필수)</span>
 <span class="hljs-meta">UENUM(BlueprintType)</span>
 <span class="hljs-keyword">enum class</span> <span class="hljs-title class_">EPanel</span> : <span class="hljs-type">uint8</span>
 {
-    None,
+    None,      <span class="hljs-comment">// 아무 패널도 안 열린 상태 (기본값)</span>
     Focus,
     Quests,
     Archive
 };
 
+<span class="hljs-comment">// UGameInstanceSubsystem 상속: 게임 실행 내내(레벨 전환에도) 유지되는 전역 UI 관리자</span>
 <span class="hljs-meta">UCLASS()</span>
 <span class="hljs-keyword">class</span> RECORDTALES_API <span class="hljs-title class_">UUIManagerSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
 {
     <span class="hljs-meta">GENERATED_BODY()</span>
 
 <span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// 엔진이 서브시스템 생성 직후 자동 호출 (직접 부르지 않음)</span>
     <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection) <span class="hljs-keyword">override</span>;
 
     <span class="hljs-comment">// ── 패널 ──</span>
+    <span class="hljs-comment">// BlueprintCallable: 블루프린트 그래프에서 노드로 호출 가능. Category: 노드 팔레트 분류 경로</span>
     <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "UI|Panel")</span>
     <span class="hljs-keyword">void</span> <span class="hljs-title function_">OpenPanel</span>(<span class="hljs-type">EPanel</span> Panel);
 
@@ -676,25 +682,30 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-keyword">void</span> <span class="hljs-title function_">PopAllModals</span>();
 
     <span class="hljs-comment">// ── 토스트 ──</span>
+    <span class="hljs-comment">// Duration 기본값 2.0f초 — 호출부에서 생략하면 2초 뒤 자동 사라짐</span>
     <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = "UI|Toast")</span>
     <span class="hljs-keyword">void</span> <span class="hljs-title function_">ShowToast</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Message, <span class="hljs-type">float</span> Duration = <span class="hljs-number">2.0</span>f);
 
 <span class="hljs-keyword">private</span>:
     <span class="hljs-comment">// 패널</span>
-    <span class="hljs-type">EPanel</span> CurrentPanel = <span class="hljs-type">EPanel</span>::None;
+    <span class="hljs-type">EPanel</span> CurrentPanel = <span class="hljs-type">EPanel</span>::None;   <span class="hljs-comment">// 현재 열린 패널. None으로 시작 (아무것도 안 열림)</span>
+    <span class="hljs-comment">// UPROPERTY(): GC가 이 위젯 참조를 추적하게 해 재사용 중 회수되지 않도록 보호 (없으면 크래시)</span>
     <span class="hljs-meta">UPROPERTY()</span>
-    <span class="hljs-type">UUserWidget</span>* ActivePanelWidget = <span class="hljs-literal">nullptr</span>;
+    <span class="hljs-type">UUserWidget</span>* ActivePanelWidget = <span class="hljs-literal">nullptr</span>;   <span class="hljs-comment">// nullptr 초기화 필수 — 열린 패널 없음을 의미</span>
 
     <span class="hljs-comment">// 모달 스택</span>
+    <span class="hljs-comment">// UPROPERTY(): 배열 안 모든 위젯을 GC 추적 대상으로. 마지막 원소(Last)가 최상단 모달</span>
     <span class="hljs-meta">UPROPERTY()</span>
     <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">UUserWidget</span>*&gt; ModalStack;
 
     <span class="hljs-comment">// 토스트 위젯 클래스 (에디터에서 설정)</span>
+    <span class="hljs-comment">// EditDefaultsOnly: 인스턴스가 아닌 "클래스 기본값"에서만 편집 가능 → BP 에디터에서 토스트 위젯 지정</span>
     <span class="hljs-meta">UPROPERTY(EditDefaultsOnly, Category = "UI")</span>
     <span class="hljs-type">TSubclassOf</span>&lt;<span class="hljs-type">UUserWidget</span>&gt; ToastClass;
 
-    <span class="hljs-keyword">static</span> <span class="hljs-keyword">constexpr</span> <span class="hljs-type">int32</span> PanelZOrder = <span class="hljs-number">10</span>;
-    <span class="hljs-keyword">static</span> <span class="hljs-keyword">constexpr</span> <span class="hljs-type">int32</span> ModalBaseZOrder = <span class="hljs-number">100</span>;
+    <span class="hljs-comment">// ZOrder = 화면 겹침 순서(클수록 위). 패널·모달·토스트 구간을 분리해 입력 충돌 방지</span>
+    <span class="hljs-keyword">static</span> <span class="hljs-keyword">constexpr</span> <span class="hljs-type">int32</span> PanelZOrder = <span class="hljs-number">10</span>;        <span class="hljs-comment">// 패널: HUD(0) 위</span>
+    <span class="hljs-keyword">static</span> <span class="hljs-keyword">constexpr</span> <span class="hljs-type">int32</span> ModalBaseZOrder = <span class="hljs-number">100</span>;   <span class="hljs-comment">// 모달: 100부터 스택 깊이만큼 가산</span>
 };</pre></div>
       <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include <span class="hljs-string">"UIManagerSubsystem.h"</span></span>
 <span class="hljs-meta">#include <span class="hljs-string">"Blueprint/UserWidget.h"</span></span>
@@ -707,39 +718,40 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">UUIManagerSubsystem</span>::<span class="hljs-title function_">PushModal</span>(<span class="hljs-type">TSubclassOf</span>&lt;<span class="hljs-type">UUserWidget</span>&gt; ModalClass)
 {
-    <span class="hljs-keyword">if</span> (!ModalClass) <span class="hljs-keyword">return</span>;
+    <span class="hljs-keyword">if</span> (!ModalClass) <span class="hljs-keyword">return</span>;   <span class="hljs-comment">// 클래스가 비었으면 CreateWidget이 실패하므로 조기 반환</span>
 
-    <span class="hljs-comment">// 이전 최상단 모달의 입력을 차단</span>
+    <span class="hljs-comment">// 1) 이전 최상단 모달의 입력을 차단 (뒤 모달이 클릭을 가로채지 않도록 → 진짜 모달 동작)</span>
     <span class="hljs-keyword">if</span> (ModalStack.<span class="hljs-title function_">Num</span>() &gt; <span class="hljs-number">0</span>)
     {
-        <span class="hljs-type">UUserWidget</span>* Top = ModalStack.<span class="hljs-title function_">Last</span>();
-        <span class="hljs-keyword">if</span> (<span class="hljs-built_in">IsValid</span>(Top))
+        <span class="hljs-type">UUserWidget</span>* Top = ModalStack.<span class="hljs-title function_">Last</span>();   <span class="hljs-comment">// Last = 스택 최상단(가장 최근에 연 모달)</span>
+        <span class="hljs-keyword">if</span> (<span class="hljs-built_in">IsValid</span>(Top))   <span class="hljs-comment">// GC 회수·파괴된 위젯 접근 방지</span>
             Top-&gt;<span class="hljs-title function_">SetIsEnabled</span>(<span class="hljs-literal">false</span>);
     }
 
-    <span class="hljs-comment">// 새 모달 위젯 생성</span>
+    <span class="hljs-comment">// 2) 새 모달 위젯 생성 (GetWorld의 컨텍스트에 소속시킴)</span>
     <span class="hljs-type">UUserWidget</span>* Modal = <span class="hljs-built_in">CreateWidget</span>&lt;<span class="hljs-type">UUserWidget</span>&gt;(
         <span class="hljs-title function_">GetGameInstance</span>()-&gt;<span class="hljs-title function_">GetWorld</span>(), ModalClass);
 
-    <span class="hljs-keyword">if</span> (!Modal) <span class="hljs-keyword">return</span>;
+    <span class="hljs-keyword">if</span> (!Modal) <span class="hljs-keyword">return</span>;   <span class="hljs-comment">// 생성 실패 시 스택 오염 방지</span>
 
-    <span class="hljs-comment">// 스택에 추가 후 화면에 표시</span>
+    <span class="hljs-comment">// 3) 스택에 추가 후 화면에 표시</span>
     ModalStack.<span class="hljs-title function_">Push</span>(Modal);
+    <span class="hljs-comment">// ZOrder = 100 + 스택 개수 → 나중에 쌓일수록 큰 값 = 항상 위에 그려짐</span>
     <span class="hljs-type">int32</span> ZOrder = ModalBaseZOrder + ModalStack.<span class="hljs-title function_">Num</span>();
     Modal-&gt;<span class="hljs-title function_">AddToViewport</span>(ZOrder);
 }
 
 <span class="hljs-keyword">void</span> <span class="hljs-title class_">UUIManagerSubsystem</span>::<span class="hljs-title function_">PopModal</span>()
 {
-    <span class="hljs-comment">// 빈 스택에서 Pop 시도 방지</span>
+    <span class="hljs-comment">// 빈 스택에서 Pop 시도 방지 — 가드 없으면 TArray::Pop이 빈 배열 접근으로 크래시</span>
     <span class="hljs-keyword">if</span> (ModalStack.<span class="hljs-title function_">Num</span>() == <span class="hljs-number">0</span>) <span class="hljs-keyword">return</span>;
 
-    <span class="hljs-comment">// 최상단 모달 제거</span>
+    <span class="hljs-comment">// 1) 최상단 모달을 스택에서 꺼내 화면에서 제거</span>
     <span class="hljs-type">UUserWidget</span>* Top = ModalStack.<span class="hljs-title function_">Pop</span>();
-    <span class="hljs-keyword">if</span> (<span class="hljs-built_in">IsValid</span>(Top))
+    <span class="hljs-keyword">if</span> (<span class="hljs-built_in">IsValid</span>(Top))   <span class="hljs-comment">// 이미 GC/파괴됐을 수 있어 확인 후 제거</span>
         Top-&gt;<span class="hljs-title function_">RemoveFromParent</span>();
 
-    <span class="hljs-comment">// 이전 모달 입력 복원</span>
+    <span class="hljs-comment">// 2) 아래 모달이 남았으면 그 입력을 복원 (Push에서 꺼둔 것을 되살림)</span>
     <span class="hljs-keyword">if</span> (ModalStack.<span class="hljs-title function_">Num</span>() &gt; <span class="hljs-number">0</span>)
     {
         <span class="hljs-type">UUserWidget</span>* NewTop = ModalStack.<span class="hljs-title function_">Last</span>();
@@ -833,7 +845,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>RecordTales &middot; 07 UI Framework &middot; v1.1</span>
+  <span>RecordTales &middot; 07 UI Framework &middot; v1.2</span>
   <span>디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.2</span>
 </footer>
 

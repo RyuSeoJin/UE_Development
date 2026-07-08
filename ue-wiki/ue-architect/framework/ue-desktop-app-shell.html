@@ -8,6 +8,8 @@
      CHANGELOG — ue-desktop-app-shell.html
      유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿 · framework/).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.1 · 2026-07-08
+       - (보강) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
      v1.0 · 2026-07-07
        - 신규 생성. 패키징 기본 동작(풀스크린)의 원인, GameUserSettings와 ini의
          관계, 창 모드 3종 판별, 첫 실행 창 설정 절차(DefaultGameUserSettings.ini
@@ -651,44 +653,46 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <button class="codeblock-copy" type="button">복사</button>
       </div>
       <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// MyGameInstance.cpp — 앱 셸 정책은 시작 시점에 한 번</span>
-<span class="hljs-meta">#include</span> <span class="hljs-string">"GameFramework/GameUserSettings.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"GameFramework/GameUserSettings.h"</span>   <span class="hljs-comment">// UGameUserSettings 정의 헤더 — 창 모드·해상도·FPS 상한의 단일 창구</span>
 
+<span class="hljs-comment">// Init() 등 시작 시점에서 1회 호출하는 자체 함수 — 셸 정책을 한 곳에 모음</span>
 <span class="hljs-keyword">void</span> <span class="hljs-type">UMyGameInstance</span>::<span class="hljs-title">ApplyDesktopShell</span>()
 {
-    <span class="hljs-type">UGameUserSettings</span>* S = <span class="hljs-type">GEngine</span>-&gt;<span class="hljs-title">GetGameUserSettings</span>();
-    <span class="hljs-keyword">if</span> (!S) <span class="hljs-keyword">return</span>;
+    <span class="hljs-type">UGameUserSettings</span>* S = <span class="hljs-type">GEngine</span>-&gt;<span class="hljs-title">GetGameUserSettings</span>();   <span class="hljs-comment">// GEngine: 엔진 전역 싱글턴 — 설정 객체는 엔진이 1개만 관리</span>
+    <span class="hljs-keyword">if</span> (!S) <span class="hljs-keyword">return</span>;   <span class="hljs-comment">// null 방어 — 엔진 초기화 극초반이면 아직 없을 수 있음. 체크 없이 역참조하면 크래시</span>
 
     S-&gt;<span class="hljs-title">LoadSettings</span>();   <span class="hljs-comment">// 유저 ini가 있으면 그 값을 먼저 존중</span>
 
     <span class="hljs-comment">// 정책 강제: 데스크톱 앱은 어떤 경우에도 일반 창</span>
-    S-&gt;<span class="hljs-title">SetFullscreenMode</span>(<span class="hljs-type">EWindowMode</span>::Windowed);
+    S-&gt;<span class="hljs-title">SetFullscreenMode</span>(<span class="hljs-type">EWindowMode</span>::Windowed);   <span class="hljs-comment">// LoadSettings 뒤에 강제 — 유저 ini에 풀스크린이 남아 있어도 덮어씀</span>
 
     <span class="hljs-comment">// 첫 실행(저장된 해상도 없음)일 때만 기준 크기 지정</span>
-    <span class="hljs-keyword">if</span> (S-&gt;<span class="hljs-title">GetScreenResolution</span>() == <span class="hljs-type">FIntPoint</span>::ZeroValue)
+    <span class="hljs-keyword">if</span> (S-&gt;<span class="hljs-title">GetScreenResolution</span>() == <span class="hljs-type">FIntPoint</span>::ZeroValue)   <span class="hljs-comment">// ZeroValue(0,0) = 저장된 해상도가 없다는 신호</span>
     {
-        S-&gt;<span class="hljs-title">SetScreenResolution</span>(<span class="hljs-type">FIntPoint</span>(<span class="hljs-number">1280</span>, <span class="hljs-number">800</span>));
+        S-&gt;<span class="hljs-title">SetScreenResolution</span>(<span class="hljs-type">FIntPoint</span>(<span class="hljs-number">1280</span>, <span class="hljs-number">800</span>));   <span class="hljs-comment">// 단위: 픽셀(가로×세로). 이후 실행은 유저가 조절한 크기를 존중</span>
     }
 
     <span class="hljs-comment">// 발열 억제 — 정적 UI 앱에 수백 FPS는 낭비</span>
-    S-&gt;<span class="hljs-title">SetFrameRateLimit</span>(<span class="hljs-number">60.f</span>);
+    S-&gt;<span class="hljs-title">SetFrameRateLimit</span>(<span class="hljs-number">60.f</span>);   <span class="hljs-comment">// 단위: FPS. 0은 무제한 — GPU가 쓸데없이 최대치로 돌게 됨</span>
 
     S-&gt;<span class="hljs-title">ApplySettings</span>(<span class="hljs-literal">false</span>);   <span class="hljs-comment">// false = 해상도 확인 대화 없이 즉시 적용+저장</span>
 }</pre></div>
       <div class="codeblock-panel"><pre class="hljs"><span class="hljs-comment">// MyPlayerController.cpp — 커서·입력 모드는 컨트롤러 소관</span>
 <span class="hljs-meta">#include</span> <span class="hljs-string">"MyPlayerController.h"</span>
 
+<span class="hljs-comment">// BeginPlay: 액터가 월드에 완전히 준비된 후 엔진이 1회 호출 — 커서 설정은 이 시점이 안전</span>
 <span class="hljs-keyword">void</span> <span class="hljs-type">AMyPlayerController</span>::<span class="hljs-title">BeginPlay</span>()
 {
-    <span class="hljs-type">Super</span>::<span class="hljs-title">BeginPlay</span>();
+    <span class="hljs-type">Super</span>::<span class="hljs-title">BeginPlay</span>();   <span class="hljs-comment">// 부모의 기본 초기화 선행 — override한 엔진 콜백의 관례</span>
 
-    bShowMouseCursor = <span class="hljs-literal">true</span>;
-    bEnableClickEvents = <span class="hljs-literal">true</span>;
-    bEnableMouseOverEvents = <span class="hljs-literal">true</span>;
+    bShowMouseCursor = <span class="hljs-literal">true</span>;   <span class="hljs-comment">// 기본값 false(게임용 숨김) — 데스크톱 앱은 커서가 항상 보여야 함</span>
+    bEnableClickEvents = <span class="hljs-literal">true</span>;   <span class="hljs-comment">// 액터 대상 마우스 클릭 이벤트(OnClicked) 활성화</span>
+    bEnableMouseOverEvents = <span class="hljs-literal">true</span>;   <span class="hljs-comment">// 마우스 오버/아웃 이벤트 활성화 — 호버 반응 UI의 전제</span>
 
     <span class="hljs-comment">// UI 중심 앱: 게임 입력과 UI 입력을 함께 허용 (단축키 + 위젯 클릭)</span>
-    <span class="hljs-type">FInputModeGameAndUI</span> Mode;
-    Mode.<span class="hljs-title">SetHideCursorDuringCapture</span>(<span class="hljs-literal">false</span>);
-    <span class="hljs-title">SetInputMode</span>(Mode);
+    <span class="hljs-type">FInputModeGameAndUI</span> Mode;   <span class="hljs-comment">// 대안: FInputModeUIOnly(게임 입력 차단) / FInputModeGameOnly(UI 클릭 불가)</span>
+    Mode.<span class="hljs-title">SetHideCursorDuringCapture</span>(<span class="hljs-literal">false</span>);   <span class="hljs-comment">// 드래그(마우스 캡처) 중에도 커서 유지 — 숨기면 앱이 아니라 게임처럼 느껴짐</span>
+    <span class="hljs-title">SetInputMode</span>(Mode);   <span class="hljs-comment">// 구성한 입력 모드를 실제로 적용 — 이 호출을 빠뜨리면 위 설정은 무효</span>
 }</pre></div>
     </div>
   </div>

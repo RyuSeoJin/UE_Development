@@ -8,6 +8,11 @@
      CHANGELOG — ue-toon-shading-outline.html
      유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿 · rendering/ 카테고리).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.1 · 2026-07-08
+       - (추가) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
+         — 05 스켈레톤 Outline.hlsl / CelShade.hlsl Custom 노드 코드:
+           샘플 횟수·Thickness의 효과·floor 양자화 원리 등 이유 중심
+           HLSL 주석 추가 (코드 줄·기존 주석·본문은 변경 없음)
      v1.0 · 2026-07-06
        - 신규 생성. 툰 셰이딩(셀 셰이딩) & 아웃라인 렌더링 범용 문서.
        - rendering/ 카테고리 신설 후 첫 문서 (DOC-TRACKS.md §2-1 표준 후보 목록에서 승격)
@@ -564,9 +569,10 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <span class="hljs-type">float2</span> Dir[<span class="hljs-number">4</span>] = { <span class="hljs-type">float2</span>( <span class="hljs-number">1</span>, <span class="hljs-number">0</span>), <span class="hljs-type">float2</span>(<span class="hljs-number">-1</span>, <span class="hljs-number">0</span>),   <span class="hljs-comment">// 우 · 좌</span>
                   <span class="hljs-type">float2</span>( <span class="hljs-number">0</span>, <span class="hljs-number">1</span>), <span class="hljs-type">float2</span>( <span class="hljs-number">0</span>,<span class="hljs-number">-1</span>) };  <span class="hljs-comment">// 하 · 상</span>
 
-<span class="hljs-type">float</span> MaxDiff = <span class="hljs-number">0</span>;
-<span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">4</span>; ++i)
+<span class="hljs-type">float</span> MaxDiff = <span class="hljs-number">0</span>;   <span class="hljs-comment">// 이웃과의 깊이 차 최대값 누적용 — 0에서 시작해 아래 루프에서 갱신</span>
+<span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">4</span>; ++i)   <span class="hljs-comment">// 4방향 이웃을 차례로 검사 (중심 1 + 이웃 4 = 총 5회 샘플)</span>
 {
+    <span class="hljs-comment">// 1픽셀 크기 × Thickness만큼 밀린 지점의 깊이 — Thickness가 클수록 더 먼 픽셀과 비교되어 선이 굵어짐</span>
     <span class="hljs-type">float</span> Neighbor = CalcSceneCustomDepth(UV + Dir[i] * TexelSize * Thickness);
     MaxDiff = max(MaxDiff, abs(Center - Neighbor));  <span class="hljs-comment">// 깊이 차가 가장 큰 방향을 채택</span>
 }
@@ -600,6 +606,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <span class="hljs-type">float3</span> Color = SceneTextureLookup(UV, <span class="hljs-number">14</span>, <span class="hljs-literal">false</span>).rgb;      <span class="hljs-comment">// 14 = PostProcessInput0 (완성된 화면색)</span>
 <span class="hljs-type">float</span>  Lum   = dot(Color, <span class="hljs-type">float3</span>(<span class="hljs-number">0.299</span>, <span class="hljs-number">0.587</span>, <span class="hljs-number">0.114</span>)); <span class="hljs-comment">// 휘도(사람 눈 기준 밝기)</span>
 
+<span class="hljs-comment">// floor로 연속 밝기(0~1)를 정수 단계로 끊고, (Steps-1)로 나눠 다시 0~1 범위로 정규화</span>
 <span class="hljs-type">float</span> Band = floor(Lum * Steps) / (Steps - <span class="hljs-number">1</span>);            <span class="hljs-comment">// 부드러운 밝기 → 계단 밝기</span>
 
 <span class="hljs-comment">// 원래 색에서 밝기만 계단 값으로 치환 (0 나눗셈 방지용 max)</span>
@@ -629,7 +636,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>UE 아키텍처 문서 · Toon Shading &amp; Outline v1.0</span>
+  <span>UE 아키텍처 문서 · Toon Shading &amp; Outline v1.1</span>
   <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.3</span>
 </footer>
 
