@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RecordTales × Desktop 동반자 RPG — 게임 디자인 문서 v1.0</title>
+<style>
+/* ============================================================
+   UE Design System — Master Stylesheet (inlined)
+   design-guide-ue-master.css v1.5
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Pretendard:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg: #0D0F1A;
+  --surface: #13162A;
+  --surface-2: #1A1F38;
+  --border: #252B4A;
+  --accent: #5B6EFA;
+  --accent-2: #9B6DFF;
+  --accent-3: #38D9B4;
+  --text: #E4E8FF;
+  --text-muted: #7B82A6;
+  --text-dim: #4A5080;
+  --amber: #F59E0B;
+  --pink: #E040FB;
+  --red: #F87171;
+  --ue-folder: #F59E0B;
+  --ue-bp: #5B6EFA;
+  --ue-enum: #9B6DFF;
+  --ue-mat: #FB8C5A;
+  --ue-tex: #38D9B4;
+  --ue-demo: #6BD98E;
+  --ue-gamemode: #5B6EFA;
+  --ue-gamestate: #7B9CFF;
+  --ue-controller: #38D9B4;
+  --ue-pawn: #6BD98E;
+  --ue-instance: #9B6DFF;
+  --ue-savegame: #F59E0B;
+  --ue-subsystem: #E040FB;
+  --ue-header: #38D9B4;
+  --ue-source: #FB8C5A;
+  --ue-macro: #FB8C5A;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+  font-size: 15px; line-height: 1.7; -webkit-font-smoothing: antialiased;
+}
+
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(13,15,26,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px; display: flex; align-items: center; gap: 32px; height: 52px;
+}
+.nav-logo { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em; white-space: nowrap; }
+.nav-links { display: flex; gap: 22px; flex-wrap: wrap; }
+.nav-links a { color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 500; transition: color 0.2s; }
+.nav-links a:hover { color: var(--text); }
+
+.hero { padding: 72px 48px 56px; max-width: 920px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+.hero-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: var(--accent); text-transform: uppercase; margin-bottom: 20px; }
+.hero h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 20px; }
+.hero h1 span { color: var(--accent); }
+.hero-sub { font-size: 16px; color: var(--text-muted); max-width: 660px; line-height: 1.75; }
+.hero-meta { margin-top: 28px; display: flex; gap: 10px; flex-wrap: wrap; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; border: 1px solid; }
+.badge-blue { color: var(--accent); border-color: var(--accent); background: rgba(91,110,250,0.08); }
+.badge-green { color: var(--accent-3); border-color: var(--accent-3); background: rgba(56,217,180,0.08); }
+.badge-purple { color: var(--accent-2); border-color: var(--accent-2); background: rgba(155,109,255,0.08); }
+.badge-amber { color: var(--amber); border-color: var(--amber); background: rgba(245,158,11,0.08); }
+
+.content { max-width: 920px; margin: 0 auto; padding: 0 48px 80px; }
+.section { padding: 52px 0 0; border-top: 1px solid var(--border); margin-top: 52px; }
+.section:first-child { margin-top: 0; padding-top: 48px; border-top: none; }
+.section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 12px; }
+.section h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 20px; }
+.section h3 { font-size: 15px; font-weight: 700; color: var(--text); margin: 30px 0 10px; letter-spacing: 0.01em; }
+.section p { color: var(--text-muted); margin-bottom: 14px; line-height: 1.8; }
+.section p strong { color: var(--text); font-weight: 600; }
+
+code { font-family: 'IBM Plex Mono', monospace; font-size: 0.86em; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; color: var(--accent-3); }
+
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.stat-row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 4px; }
+.stat-label { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+.callout { display: flex; gap: 12px; align-items: flex-start; border-radius: 8px; padding: 14px 16px; margin: 18px 0; border: 1px solid var(--border); background: var(--surface-2); font-size: 13.5px; line-height: 1.65; }
+.callout .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.callout p { margin: 0; color: var(--text-muted); }
+.callout p strong { color: var(--text); }
+.callout.info { border-left: 3px solid var(--accent); }
+.callout.tip  { border-left: 3px solid var(--accent-3); }
+.callout.warn { border-left: 3px solid var(--amber); }
+
+.tbl { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 13px; }
+.tbl th { background: var(--surface-2); color: var(--text-muted); font-weight: 600; font-size: 12px; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+.tbl td { padding: 10px 14px; color: var(--text-muted); border-bottom: 1px solid rgba(37,43,74,0.5); vertical-align: top; line-height: 1.55; }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl td:first-child { color: var(--text); }
+.tbl td code, .tbl th code { background: transparent; border: none; padding: 0; color: var(--accent); }
+
+.pipe-step { display: grid; grid-template-columns: 36px 1fr; gap: 0 16px; position: relative; }
+.pipe-step::before { content: ''; position: absolute; left: 17px; top: 36px; bottom: -1px; width: 2px; background: var(--border); }
+.pipe-step:last-child::before { display: none; }
+.pipe-num { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--surface-2); }
+.pipe-body { padding: 6px 0 22px; }
+.pipe-title { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+.pipe-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+.rel-map { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
+.rel-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+.rel-node { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; border-left: 3px solid var(--text-dim); }
+.rel-node .rn-name { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.rel-node .rn-role { font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.4; }
+.rel-node.n-gamemode   { border-left-color: var(--ue-gamemode); }
+.rel-node.n-instance   { border-left-color: var(--ue-instance); }
+.rel-node.n-savegame   { border-left-color: var(--ue-savegame); }
+.rel-node.n-subsystem  { border-left-color: var(--ue-subsystem); }
+.rel-node.n-controller { border-left-color: var(--ue-controller); }
+.rel-node.n-ui         { border-left-color: var(--ue-gamestate); }
+.rel-node.n-table      { border-left-color: var(--accent-3); }
+.rel-arrow { display: flex; flex-direction: column; align-items: center; color: var(--text-dim); min-width: 84px; }
+.rel-arrow .ra-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--accent); letter-spacing: 0.04em; white-space: nowrap; }
+.rel-arrow .ra-line { font-size: 15px; line-height: 1; }
+
+.pitfall { display: flex; gap: 14px; align-items: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; border-left: 3px solid var(--amber); margin: 12px 0; }
+.pitfall.tip { border-left-color: var(--accent-3); }
+.pitfall-text { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
+.pitfall-text strong { color: var(--text); }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+.compare-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
+.compare-box h4 { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+.compare-box p { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 10px; }
+
+.pills { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
+.pill { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; padding: 3px 12px; border-radius: 20px; border: 1px solid; }
+.pill.blue   { color: var(--accent);   border-color: rgba(91,110,250,0.4);  background: rgba(91,110,250,0.08); }
+.pill.purple { color: var(--accent-2); border-color: rgba(155,109,255,0.4); background: rgba(155,109,255,0.08); }
+.pill.green  { color: var(--accent-3); border-color: rgba(56,217,180,0.4);  background: rgba(56,217,180,0.08); }
+.pill.pink   { color: var(--pink);     border-color: rgba(224,64,251,0.4);  background: rgba(224,64,251,0.08); }
+.pill.amber  { color: var(--amber);    border-color: rgba(245,158,11,0.4);  background: rgba(245,158,11,0.08); }
+
+.flow-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 12px 0; }
+.flow-legend span { display: inline-flex; align-items: center; gap: 7px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); }
+.flow-legend .lk { width: 18px; height: 3px; border-radius: 2px; flex-shrink: 0; }
+.flow-legend .lk.lk-call  { background: var(--accent); }
+.flow-legend .lk.lk-event { background: var(--pink); }
+.flow-legend .lk.lk-save  { background: var(--ue-savegame); }
+.flow-legend .lk.lk-table { background: var(--accent-3); }
+
+.graph-net { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin: 16px 0; overflow-x: auto; }
+.graph-net svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.graph-net .gn-edge { stroke: var(--text-dim); stroke-opacity: 0.4; stroke-width: 1.2; fill: none; }
+.graph-net .gn-edge.lk-call  { stroke: var(--accent); stroke-opacity: 0.55; }
+.graph-net .gn-edge.lk-event { stroke: var(--pink); stroke-opacity: 0.55; stroke-dasharray: 4 4; }
+.graph-net .gn-edge.lk-save  { stroke: var(--ue-savegame); stroke-opacity: 0.5; }
+.graph-net .gn-edge.lk-table { stroke: var(--accent-3); stroke-opacity: 0.55; }
+.graph-net .gn-node { stroke-width: 1.6; }
+.graph-net .gn-node.k-subsystem { fill: rgba(224,64,251,0.16);  stroke: var(--ue-subsystem); }
+.graph-net .gn-node.k-savegame  { fill: rgba(245,158,11,0.16);  stroke: var(--ue-savegame); }
+.graph-net .gn-node.k-instance  { fill: rgba(155,109,255,0.16); stroke: var(--ue-instance); }
+.graph-net .gn-node.k-table     { fill: rgba(56,217,180,0.14);  stroke: var(--accent-3); }
+.graph-net .gn-node.k-ui        { fill: rgba(123,156,255,0.14); stroke: var(--ue-gamestate); }
+.graph-net .gn-node.k-config    { fill: rgba(107,217,142,0.14); stroke: var(--ue-demo); }
+.graph-net .gn-label { fill: var(--text-muted); font-family: 'IBM Plex Mono', monospace; font-size: 10px; text-anchor: middle; }
+.graph-net .gn-label.big { fill: var(--text); font-size: 11px; font-weight: 600; }
+
+.diagram { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin: 16px 0; overflow-x: auto; }
+.diagram svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.diagram .dg-node { fill: var(--surface-2); stroke: var(--border); stroke-width: 1.3; }
+.diagram .dg-node.k-subsystem { stroke: var(--ue-subsystem); }
+.diagram .dg-node.k-savegame  { stroke: var(--ue-savegame); }
+.diagram .dg-node.k-instance  { stroke: var(--ue-instance); }
+.diagram .dg-node.k-ui        { stroke: var(--ue-gamestate); }
+.diagram .dg-node.k-decision  { stroke: var(--accent); fill: rgba(91,110,250,0.07); }
+.diagram .dg-node.k-config    { stroke: var(--ue-demo); }
+.diagram .dg-text { fill: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; }
+.diagram .dg-sub  { fill: var(--text-muted); font-family: 'Pretendard', sans-serif; font-size: 10.5px; }
+.diagram .dg-edge { stroke: var(--text-dim); stroke-width: 1.5; fill: none; }
+.diagram .dg-edge.lk-call  { stroke: var(--accent); }
+.diagram .dg-edge.lk-event { stroke: var(--pink); stroke-dasharray: 5 4; }
+.diagram .dg-edge.lk-save  { stroke: var(--ue-savegame); }
+.diagram .dg-edge.lk-table { stroke: var(--accent-3); }
+.diagram .dg-elabel { fill: var(--text-muted); font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; }
+
+.tbl .owner { display: inline-flex; align-items: center; gap: 7px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.tbl .owner::before { content: ''; width: 9px; height: 9px; border-radius: 2px; background: var(--text-dim); flex-shrink: 0; }
+.tbl .owner.o-subsystem::before { background: var(--ue-subsystem); }
+.tbl .owner.o-savegame::before  { background: var(--ue-savegame); }
+.tbl .owner.o-instance::before  { background: var(--ue-instance); }
+.tbl .owner.o-ui::before        { background: var(--ue-gamestate); }
+.tbl .owner.o-table::before     { background: var(--accent-3); }
+
+.tree { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.9; color: var(--text-dim); white-space: pre; overflow-x: auto; }
+.tree .folder { color: var(--ue-folder); font-weight: 600; }
+.tree .note { color: var(--text-muted); }
+.tree .c-subsystem { color: var(--ue-subsystem); font-weight: 600; }
+.tree .c-savegame  { color: var(--ue-savegame); font-weight: 600; }
+.tree .c-instance  { color: var(--ue-instance); font-weight: 600; }
+.tree .c-ui        { color: var(--ue-gamestate); font-weight: 600; }
+
+footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920px; margin: 0 auto; font-size: 12px; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+
+@media (max-width: 720px) {
+  .content { padding: 0 20px 60px; }
+  .hero { padding: 48px 20px 40px; }
+  .stat-row, .stat-row-4, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .rel-row { grid-template-columns: 1fr; }
+  .rel-arrow { flex-direction: row; gap: 8px; min-width: 0; padding: 2px 0; }
+  nav { padding: 0 16px; gap: 16px; }
+  .nav-links { display: none; }
+  footer { padding: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">RECORDTALES · GDD v1.0</div>
+  <div class="nav-links">
+    <a href="#overview">게임 개요</a>
+    <a href="#loop">핵심 루프</a>
+    <a href="#buildings">건물 시스템</a>
+    <a href="#focus">업무 수행</a>
+    <a href="#exp">EXP · 레벨</a>
+    <a href="#economy">경제</a>
+    <a href="#gacha">가챠 · 캐릭터</a>
+    <a href="#sysmap">시스템 맵</a>
+    <a href="#window">창 구현</a>
+    <a href="#milestone">마일스톤</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">Game Design Document · v1.0 · 2026-07-09</div>
+  <h1>RecordTales<br><span>× Desktop 동반자 RPG</span></h1>
+  <p class="hero-sub">
+    업무 집중 기록 앱 <strong>RecordTales</strong>와 사이드뷰 아이들 RPG를 결합한 데스크톱 동반자 게임입니다.
+    현실의 작업이 게임 속 길드 건물의 성장으로 이어지고, 그 성과가 타운 전체의 번영을 만드는 선순환 루프를 목표로 합니다.
+    언리얼 엔진으로 구현하며, 화면 우측에 항상 노출되는 Always-on-Top 창 형태로 동작합니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">Unreal Engine 5</span>
+    <span class="badge badge-green">Desktop Companion</span>
+    <span class="badge badge-purple">Idle RPG</span>
+    <span class="badge badge-amber">Productivity Integrated</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- ====== 01 게임 개요 ====== -->
+  <div class="section" id="overview">
+    <div class="section-label">01 — 게임 개요</div>
+    <h2>한 줄 정의 & 핵심 수치</h2>
+    <p>
+      현실의 <strong>업무 집중 시간이 게임 내 자원(골드·경험치)으로 전환</strong>되는 데스크톱 동반자 아이들 RPG.
+      플레이어가 다른 일을 하는 동안에도 게임 창은 화면 옆에 상시 노출되며, 업무를 수행할수록 타운이 성장합니다.
+    </p>
+
+    <div class="stat-row-4" style="margin:22px 0">
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent)">2</div><div class="stat-label">건물 타입<br>길드 · 경영</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--ue-subsystem)">3</div><div class="stat-label">업무 수행 모드<br>타이머 · 스톱워치 · 할일</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent-3)">∞</div><div class="stat-label">길드 건물 카테고리<br>플레이어 직접 설정</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--ue-savegame)">2</div><div class="stat-label">EXP 트랙<br>플레이어 레벨 · 건물 레벨</div></div>
+    </div>
+
+    <table class="tbl">
+      <tr><th style="width:22%">항목</th><th>내용</th></tr>
+      <tr><td>장르</td><td>데스크톱 동반자 · 아이들 RPG · 생산성 통합</td></tr>
+      <tr><td>플랫폼</td><td>Windows (향후 macOS 확장 고려)</td></tr>
+      <tr><td>엔진</td><td>Unreal Engine 5 · C++ 기반 · Windows API 활용</td></tr>
+      <tr><td>창 형태</td><td>Always-on-Top · 투명 배경 · 세로형 슬림 윈도우 (약 400×900)</td></tr>
+      <tr><td>레퍼런스</td><td>Crusaders Quest: Hero Town (화면 옆 상주 형태)</td></tr>
+      <tr><td>핵심 동기 구조</td><td>일해야 게임이 자라고, 게임이 자라면 일이 더 보람 있어진다</td></tr>
+    </table>
+
+    <div class="callout info"><span class="ic">🎯</span><p><strong>설계 철학</strong> — 게임은 현실 업무의 "기록지"입니다. 쌓인 길드 건물 레벨은 내가 그 분야에서 얼마나 노력했는지를 시각적으로 보여주는 포트폴리오이기도 합니다.</p></div>
+  </div>
+
+  <!-- ====== 02 핵심 루프 ====== -->
+  <div class="section" id="loop">
+    <div class="section-label">02 — 핵심 루프</div>
+    <h2>게임의 중심 순환 구조</h2>
+    <p>모든 시스템은 아래 5단계 루프로 연결됩니다. 루프의 시작은 항상 <strong>현실의 업무 수행</strong>입니다.</p>
+
+    <div class="pipe-step">
+      <div class="pipe-num">1</div>
+      <div class="pipe-body">
+        <div class="pipe-title">업무 수행 (현실)</div>
+        <div class="pipe-desc">플레이어가 길드 건물에서 타이머·스톱워치를 시작하거나 오늘 할 일을 완료한다. 집중하는 동안 게임 창에는 사이드뷰 전투 애니메이션이 재생된다. <span class="badge badge-blue" style="font-size:11px">능동적 행동</span></div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">2</div>
+      <div class="pipe-body">
+        <div class="pipe-title">골드 + EXP 획득</div>
+        <div class="pipe-desc">업무 시간에 비례해 해당 길드 건물에 골드와 건물 EXP가 적립된다. 집중 세션 중에는 경영 건물의 패시브 골드 획득량도 배율 증가한다. <span class="badge badge-green" style="font-size:11px">두 가지 동시 적립</span></div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">3</div>
+      <div class="pipe-body">
+        <div class="pipe-title">골드로 캐릭터 가챠</div>
+        <div class="pipe-desc">적립된 골드를 소비해 캐릭터를 뽑는다. 플레이어 레벨(전체 길드 건물 레벨 합산)에 따라 고등급 캐릭터 출현 확률이 달라진다. <span class="badge badge-purple" style="font-size:11px">레벨 연동 확률</span></div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">4</div>
+      <div class="pipe-body">
+        <div class="pipe-title">캐릭터를 경영 건물에 배치</div>
+        <div class="pipe-desc">획득한 캐릭터를 레스토랑·광산·농장 등 경영 건물에 배치한다. 건물은 기본 골드를 패시브로 생산하고, 캐릭터의 특성에 따라 추가 골드 보너스가 붙는다. <span class="badge badge-amber" style="font-size:11px">전략적 배치</span></div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">5</div>
+      <div class="pipe-body">
+        <div class="pipe-title">타운 확장 & 선순환</div>
+        <div class="pipe-desc">패시브 골드가 쌓이면 새 건물을 설치하거나 가챠를 추가로 돌릴 수 있다. 집중 세션 중 배율 보너스가 붙으므로, 더 일할수록 더 빠르게 성장한다. <span class="badge badge-green" style="font-size:11px">선순환 완성</span></div>
+      </div>
+    </div>
+
+    <div class="callout tip"><span class="ic">✅</span><p><strong>두 골드 흐름의 공존</strong> — 능동(길드 업무 수행)과 패시브(경영 건물)가 독립적으로 골드를 생산하되, 집중 세션 중에는 두 흐름 모두 배율이 올라갑니다. 일하지 않아도 타운은 돌아가지만, 일할수록 압도적으로 빠릅니다.</p></div>
+  </div>
+
+  <!-- ====== 03 건물 시스템 ====== -->
+  <div class="section" id="buildings">
+    <div class="section-label">03 — 건물 시스템</div>
+    <h2>두 가지 건물 타입</h2>
+    <p>건물은 <strong>길드 건물(업무 기반)</strong>과 <strong>경영 건물(아이들 기반)</strong> 두 종류로 나뉩니다. 두 시스템의 연결 고리는 <strong>골드</strong>와 <strong>캐릭터</strong>뿐이며, 나머지는 독립적으로 동작합니다.</p>
+
+    <h3>길드 건물 (Guild Building)</h3>
+    <div class="grid-2" style="margin:16px 0">
+      <div class="compare-box">
+        <h4 style="color:var(--accent)">역할</h4>
+        <p>현실 업무 카테고리를 대표하는 건물. 플레이어가 이름과 카테고리를 직접 설정하며, 아카이브(RecordTales)의 기록 단위와 연결됩니다.</p>
+        <div class="pills">
+          <span class="pill blue">플레이어 설정 카테고리</span>
+          <span class="pill blue">아카이브 연동</span>
+        </div>
+      </div>
+      <div class="compare-box">
+        <h4 style="color:var(--accent-3)">수행 시 보상</h4>
+        <p>타이머·스톱워치·할 일 완료 → 해당 건물에 EXP + 골드 적립. 집중 중에는 골드 획득 배율 증가.</p>
+        <div class="pills">
+          <span class="pill green">골드 (능동)</span>
+          <span class="pill green">건물 EXP</span>
+          <span class="pill amber">집중 배율 ×N</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout info"><span class="ic">🏛️</span><p><strong>길드 건물 설치 예시</strong> — 플레이어가 "캐릭터 모델링" 건물을 설치하고 카테고리를 설정한 뒤, 해당 건물에서 집중 타이머를 돌리면 "캐릭터 모델링" 건물의 레벨이 오르고 골드를 획득합니다. 카테고리는 게임이 의미를 알 필요가 없습니다 — 플레이어 본인이 정의하는 것입니다.</p></div>
+
+    <h3>경영 건물 (Management Building)</h3>
+    <table class="tbl">
+      <tr><th style="width:18%">건물</th><th style="width:25%">기본 패시브 골드</th><th>캐릭터 배치 보너스 기준</th></tr>
+      <tr><td>레스토랑</td><td>시간당 일정량 자동 생산</td><td>캐릭터의 <code>생명력</code> 특성 — 음식 서비스 효율</td></tr>
+      <tr><td>광산</td><td>시간당 일정량 자동 생산</td><td>캐릭터의 <code>힘</code> 특성 — 채굴 효율</td></tr>
+      <tr><td>농장</td><td>시간당 일정량 자동 생산</td><td>캐릭터의 <code>민첩</code> 특성 — 수확 효율</td></tr>
+      <tr><td>목축장</td><td>시간당 일정량 자동 생산</td><td>캐릭터의 <code>지능</code> 특성 — 관리 효율</td></tr>
+      <tr><td>벌목장</td><td>시간당 일정량 자동 생산</td><td>캐릭터의 <code>힘</code> 특성 — 벌목 효율</td></tr>
+    </table>
+
+    <div class="callout warn"><span class="ic">⚠️</span><p><strong>경영 건물과 길드 건물은 직접 연결되지 않습니다.</strong> 길드 건물 카테고리는 플레이어가 자유롭게 설정하므로, 시스템이 의미를 해석해 경영 건물에 영향을 줄 수 없습니다. 두 시스템은 골드·캐릭터를 통해서만 간접 연결됩니다.</p></div>
+
+    <h3>건물 비교 요약</h3>
+    <table class="tbl">
+      <tr><th></th><th>길드 건물</th><th>경영 건물</th></tr>
+      <tr><td>설치 주체</td><td>플레이어 (카테고리 직접 설정)</td><td>플레이어 (건물 종류 선택)</td></tr>
+      <tr><td>골드 생산 방식</td><td>능동 (업무 수행 시)</td><td>패시브 (시간 기반 자동)</td></tr>
+      <tr><td>EXP 생산</td><td>✅ 건물 EXP + 플레이어 EXP</td><td>❌ 없음</td></tr>
+      <tr><td>캐릭터 배치</td><td>❌ 없음</td><td>✅ 특성 보너스 적용</td></tr>
+      <tr><td>집중 배율 적용</td><td>✅ 골드 배율 증가</td><td>✅ 패시브 골드 배율 증가</td></tr>
+    </table>
+  </div>
+
+  <!-- ====== 04 업무 수행 시스템 ====== -->
+  <div class="section" id="focus">
+    <div class="section-label">04 — 업무 수행 시스템</div>
+    <h2>3가지 업무 모드</h2>
+    <p>길드 건물 내에서 세 가지 방식으로 업무를 수행할 수 있습니다. 모두 RecordTales의 핵심 기능과 1:1 대응됩니다.</p>
+
+    <div class="grid-3" style="margin:16px 0">
+      <div class="compare-box">
+        <h4 style="color:var(--accent)">⏱ 타이머</h4>
+        <p>목표 시간을 설정하고 카운트다운. 종료 시 보상 지급. 중단 시 보상 없음 (긴장감 유발).</p>
+        <div class="pills"><span class="pill blue">설정 시간 기반 보상</span></div>
+      </div>
+      <div class="compare-box">
+        <h4 style="color:var(--accent-2)">⏲ 스톱워치</h4>
+        <p>자유롭게 시작·정지. 누적 시간만큼 보상. 유연한 업무 패턴에 적합.</p>
+        <div class="pills"><span class="pill purple">누적 시간 비례 보상</span></div>
+      </div>
+      <div class="compare-box">
+        <h4 style="color:var(--accent-3)">✅ 오늘 할 일</h4>
+        <p>체크리스트 형태. 항목 완료 시마다 즉시 보상. 전체 완료 시 보너스 골드.</p>
+        <div class="pills"><span class="pill green">완료 즉시 보상</span></div>
+      </div>
+    </div>
+
+    <h3>집중 세션 중 배율 보너스</h3>
+    <p>타이머 또는 스톱워치가 <strong>활성 상태인 동안</strong> 골드 획득 배율이 증가합니다. 이 배율은 길드 건물의 능동 골드와 경영 건물의 패시브 골드 모두에 적용됩니다.</p>
+
+    <table class="tbl">
+      <tr><th style="width:30%">상태</th><th style="width:35%">길드 건물 골드</th><th>경영 건물 골드</th></tr>
+      <tr><td>기본 (집중 안 함)</td><td>×1.0 (업무 수행 시)</td><td>×1.0 (패시브)</td></tr>
+      <tr><td>집중 세션 중</td><td><strong style="color:var(--accent-3)">×N (배율 증가)</strong></td><td><strong style="color:var(--accent-3)">×N (배율 증가)</strong></td></tr>
+    </table>
+
+    <div class="pitfall tip"><span style="font-size:17px">💡</span><div class="pitfall-text"><strong>배율 값(N)은 기획 조율 필요</strong> — 너무 높으면 집중 세션 외 플레이 의미가 없어집니다. 1.5~2.0x 구간에서 밸런싱을 권장합니다.</div></div>
+
+    <h3>업무 수행과 아카이브 연동</h3>
+    <p>타이머·스톱워치 종료 또는 할 일 완료 시, 플레이어는 해당 세션을 <strong>아카이브</strong>에 저장할 수 있습니다. 아카이브 기록은 RecordTales의 저장 데이터로 관리되며, 게임 내에서는 해당 건물의 레벨 히스토리로 확인할 수 있습니다.</p>
+  </div>
+
+  <!-- ====== 05 EXP & 레벨 시스템 ====== -->
+  <div class="section" id="exp">
+    <div class="section-label">05 — EXP & 레벨 시스템</div>
+    <h2>두 트랙의 경험치</h2>
+    <p>EXP는 <strong>길드 건물 레벨</strong>과 <strong>플레이어 레벨</strong> 두 트랙으로 나뉩니다. 이 구조는 현실의 "분야별 숙련도"와 "전체 작업량"을 각각 수치로 표현하기 위함입니다.</p>
+
+    <div class="diagram">
+      <svg viewBox="0 0 740 160" role="img" aria-label="EXP 구조: 건물 레벨 합산 → 플레이어 레벨">
+        <defs>
+          <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--text-dim)"/>
+          </marker>
+          <marker id="arr-call" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/>
+          </marker>
+        </defs>
+        <!-- Guild Buildings -->
+        <rect class="dg-node k-subsystem" x="20" y="20" width="150" height="40" rx="8"/>
+        <text class="dg-text" x="95" y="36" text-anchor="middle">길드 건물 A</text>
+        <text class="dg-sub" x="95" y="52" text-anchor="middle">캐릭터 모델링 Lv.12</text>
+
+        <rect class="dg-node k-subsystem" x="20" y="70" width="150" height="40" rx="8"/>
+        <text class="dg-text" x="95" y="86" text-anchor="middle">길드 건물 B</text>
+        <text class="dg-sub" x="95" y="102" text-anchor="middle">코딩 Lv.8</text>
+
+        <rect class="dg-node k-subsystem" x="20" y="120" width="150" height="36" rx="8"/>
+        <text class="dg-text" x="95" y="136" text-anchor="middle">길드 건물 C</text>
+        <text class="dg-sub" x="95" y="150" text-anchor="middle">기획 Lv.5</text>
+
+        <!-- Arrows to sum -->
+        <path class="dg-edge lk-call" d="M170,40 L290,77" marker-end="url(#arr-call)"/>
+        <path class="dg-edge lk-call" d="M170,90 L290,90" marker-end="url(#arr-call)"/>
+        <path class="dg-edge lk-call" d="M170,138 L290,103" marker-end="url(#arr-call)"/>
+
+        <!-- Sum node -->
+        <rect class="dg-node k-decision" x="290" y="65" width="130" height="50" rx="8"/>
+        <text class="dg-text" x="355" y="85" text-anchor="middle">레벨 합산</text>
+        <text class="dg-sub" x="355" y="104" text-anchor="middle">12 + 8 + 5 = 25</text>
+
+        <!-- Arrow to player level -->
+        <path class="dg-edge lk-call" d="M420,90 L490,90" marker-end="url(#arr-call)"/>
+
+        <!-- Player level node -->
+        <rect class="dg-node k-instance" x="490" y="55" width="155" height="70" rx="8"/>
+        <text class="dg-text" x="567" y="80" text-anchor="middle">플레이어 레벨</text>
+        <text class="dg-sub" x="567" y="97" text-anchor="middle">Lv.25</text>
+        <text class="dg-sub" x="567" y="114" text-anchor="middle">↓ 가챠 확률 변동</text>
+      </svg>
+    </div>
+
+    <h3>각 레벨의 의미</h3>
+    <table class="tbl">
+      <tr><th style="width:25%">레벨</th><th style="width:35%">현실적 의미</th><th>게임 내 효과</th></tr>
+      <tr><td>길드 건물 레벨</td><td>"나는 이 분야를 이만큼 했다" — 특정 분야의 실질 노력 수치</td><td>해당 건물에서 골드·EXP 획득량 증가 (레벨 업 보너스)</td></tr>
+      <tr><td>플레이어 레벨</td><td>"나는 전체적으로 이만큼 작업했다" — 총 작업량의 증거</td><td>가챠 시 고등급 캐릭터 출현 확률 변동</td></tr>
+    </table>
+
+    <h3>플레이어 레벨과 가챠 확률</h3>
+    <p>플레이어 레벨이 오를수록 더 좋은 캐릭터를 얻을 수 있습니다. 두 가지 방향을 혼합 적용합니다.</p>
+
+    <table class="tbl">
+      <tr><th style="width:25%">플레이어 레벨 구간</th><th style="width:30%">단계별 해금</th><th>점진적 확률 상승</th></tr>
+      <tr><td>Lv.1 ~ 10</td><td>일반(N) · 레어(R) 등장</td><td>기본 확률</td></tr>
+      <tr><td>Lv.11 ~ 30</td><td>에픽(SR) 해금</td><td>SR 확률 점진 상승</td></tr>
+      <tr><td>Lv.31 ~ 60</td><td>레전더리(SSR) 해금</td><td>SSR 확률 점진 상승</td></tr>
+      <tr><td>Lv.61 +</td><td>전설(UR) 해금 (미정)</td><td>SSR 이상 확률 안정화</td></tr>
+    </table>
+
+    <div class="pitfall tip"><span style="font-size:17px">💡</span><div class="pitfall-text"><strong>천장(Pity) 시스템 도입 권장</strong> — N회 이상 뽑아도 고등급이 안 나오면 보장해주는 구조. 플레이어 이탈 방지에 효과적입니다.</div></div>
+  </div>
+
+  <!-- ====== 06 경제 시스템 ====== -->
+  <div class="section" id="economy">
+    <div class="section-label">06 — 경제 시스템</div>
+    <h2>골드 수입 & 지출 구조</h2>
+
+    <h3>골드 수입 (인풋)</h3>
+    <table class="tbl">
+      <tr><th style="width:30%">수입원</th><th style="width:20%">타입</th><th>집중 배율 적용</th></tr>
+      <tr><td>길드 건물 업무 수행</td><td><span style="color:var(--accent)">능동</span></td><td>✅ 배율 증가</td></tr>
+      <tr><td>경영 건물 패시브 생산</td><td><span style="color:var(--accent-3)">패시브</span></td><td>✅ 배율 증가</td></tr>
+      <tr><td>캐릭터 특성 보너스</td><td><span style="color:var(--accent-3)">패시브</span></td><td>✅ 배율 증가 (경영 건물 포함)</td></tr>
+    </table>
+
+    <h3>골드 지출 (아웃풋)</h3>
+    <table class="tbl">
+      <tr><th style="width:30%">지출처</th><th>내용</th></tr>
+      <tr><td>캐릭터 가챠</td><td>골드를 소비해 캐릭터를 뽑음. 주요 골드 싱크.</td></tr>
+      <tr><td>경영 건물 설치</td><td>새 경영 건물 설치에 골드 필요.</td></tr>
+      <tr><td>경영 건물 업그레이드</td><td>건물 레벨 업으로 기본 패시브 골드 증가 (추후 기획 확정).</td></tr>
+    </table>
+
+    <div class="callout tip"><span class="ic">⚖️</span><p><strong>밸런싱 핵심</strong> — 패시브 수입만으로는 가챠를 빠르게 돌리기 어렵게 설계해야 합니다. "일을 많이 할수록 경제가 유리해진다"는 동기 구조를 유지하는 것이 핵심입니다.</p></div>
+  </div>
+
+  <!-- ====== 07 가챠 & 캐릭터 ====== -->
+  <div class="section" id="gacha">
+    <div class="section-label">07 — 가챠 & 캐릭터</div>
+    <h2>캐릭터 수집 & 배치 시스템</h2>
+
+    <h3>가챠 등급</h3>
+    <table class="tbl">
+      <tr><th style="width:12%">등급</th><th style="width:18%">이름</th><th style="width:25%">해금 조건</th><th>경영 건물 보너스 수준</th></tr>
+      <tr><td><span class="badge badge-blue" style="font-size:11px">N</span></td><td>일반</td><td>플레이어 Lv.1 ~</td><td>기본 수준</td></tr>
+      <tr><td><span class="badge badge-green" style="font-size:11px">R</span></td><td>레어</td><td>플레이어 Lv.1 ~</td><td>소폭 향상</td></tr>
+      <tr><td><span class="badge badge-purple" style="font-size:11px">SR</span></td><td>에픽</td><td>플레이어 Lv.11 ~</td><td>눈에 띄는 향상</td></tr>
+      <tr><td><span class="badge badge-amber" style="font-size:11px">SSR</span></td><td>레전더리</td><td>플레이어 Lv.31 ~</td><td>큰 폭 향상</td></tr>
+    </table>
+
+    <h3>캐릭터 특성 & 경영 건물 매칭</h3>
+    <p>각 캐릭터는 하나 이상의 특성(힘·민첩·지능·생명력 등)을 보유하며, 특성에 어울리는 경영 건물에 배치하면 추가 보너스를 받습니다.</p>
+
+    <table class="tbl">
+      <tr><th style="width:20%">특성</th><th style="width:30%">어울리는 경영 건물</th><th>보너스 내용</th></tr>
+      <tr><td>힘 (STR)</td><td>광산, 벌목장</td><td>시간당 골드 생산량 증가</td></tr>
+      <tr><td>민첩 (AGI)</td><td>농장</td><td>수확 속도 증가 → 골드 주기 단축</td></tr>
+      <tr><td>지능 (INT)</td><td>목축장</td><td>관리 효율 → 보너스 골드 비율 증가</td></tr>
+      <tr><td>생명력 (VIT)</td><td>레스토랑</td><td>서비스 용량 → 골드 상한 증가</td></tr>
+    </table>
+
+    <div class="callout info"><span class="ic">🧩</span><p><strong>배치 전략</strong> — 같은 골드를 가지고 있어도 어떤 캐릭터를 어느 건물에 배치하느냐에 따라 수입이 달라집니다. 이 배치 결정이 경영 건물 시스템의 핵심 재미입니다.</p></div>
+  </div>
+
+  <!-- ====== 08 시스템 의존성 맵 ====== -->
+  <div class="section" id="sysmap">
+    <div class="section-label">08 — 시스템 의존성 맵</div>
+    <h2>서브시스템 관계망</h2>
+    <p>게임의 주요 서브시스템과 데이터 흐름을 시각화합니다. 화살표는 "데이터를 보내는 방향"입니다.</p>
+
+    <div class="graph-net">
+      <svg viewBox="0 0 740 300" role="img" aria-label="RecordTales 시스템 관계망">
+        <!-- Edges (draw first, under nodes) -->
+        <!-- FocusSubsystem → GoldSubsystem -->
+        <line class="gn-edge lk-call"  x1="130" y1="80"  x2="310" y2="80"/>
+        <!-- FocusSubsystem → EXPSubsystem -->
+        <line class="gn-edge lk-call"  x1="130" y1="90"  x2="310" y2="175"/>
+        <!-- ManagementSubsystem → GoldSubsystem -->
+        <line class="gn-edge lk-call"  x1="130" y1="210" x2="310" y2="95"/>
+        <!-- FocusSubsystem → ManagementSubsystem (multiplier) -->
+        <line class="gn-edge lk-event" x1="130" y1="200" x2="75"  y2="200"/>
+        <!-- GoldSubsystem → GachaSubsystem -->
+        <line class="gn-edge lk-call"  x1="380" y1="80"  x2="490" y2="80"/>
+        <!-- EXPSubsystem → GachaSubsystem -->
+        <line class="gn-edge lk-table" x1="380" y1="180" x2="490" y2="95"/>
+        <!-- GachaSubsystem → CharacterManager -->
+        <line class="gn-edge lk-call"  x1="560" y1="80"  x2="630" y2="150"/>
+        <!-- CharacterManager → ManagementSubsystem -->
+        <line class="gn-edge lk-call"  x1="610" y1="165" x2="190" y2="215"/>
+        <!-- GoldSubsystem → SaveGame -->
+        <line class="gn-edge lk-save"  x1="340" y1="100" x2="340" y2="230"/>
+        <!-- EXPSubsystem → SaveGame -->
+        <line class="gn-edge lk-save"  x1="355" y1="200" x2="355" y2="230"/>
+        <!-- GoldSubsystem → UI -->
+        <line class="gn-edge lk-event" x1="380" y1="80"  x2="610" y2="240"/>
+        <!-- EXPSubsystem → UI -->
+        <line class="gn-edge lk-event" x1="380" y1="185" x2="620" y2="240"/>
+
+        <!-- Nodes -->
+        <!-- FocusSubsystem (center-left) -->
+        <circle class="gn-node k-subsystem" cx="130" cy="80" r="18"/>
+        <text class="gn-label big" x="130" y="48">FocusSubsystem</text>
+        <text class="gn-label" x="130" y="61">업무집중 관리</text>
+
+        <!-- ManagementSubsystem -->
+        <circle class="gn-node k-subsystem" cx="130" cy="210" r="15"/>
+        <text class="gn-label big" x="130" y="245">ManagementSub</text>
+        <text class="gn-label" x="130" y="258">경영 건물 패시브</text>
+
+        <!-- GoldSubsystem (center) -->
+        <circle class="gn-node k-subsystem" cx="345" cy="80" r="20"/>
+        <text class="gn-label big" x="345" y="48">GoldSubsystem</text>
+        <text class="gn-label" x="345" y="61">골드 수급 허브</text>
+
+        <!-- EXPSubsystem -->
+        <circle class="gn-node k-subsystem" cx="345" cy="185" r="15"/>
+        <text class="gn-label big" x="345" y="218">EXPSubsystem</text>
+        <text class="gn-label" x="345" y="230">건물+플레이어 레벨</text>
+
+        <!-- GachaSubsystem -->
+        <circle class="gn-node k-subsystem" cx="525" cy="80" r="16"/>
+        <text class="gn-label big" x="525" y="48">GachaSubsystem</text>
+        <text class="gn-label" x="525" y="61">캐릭터 뽑기</text>
+
+        <!-- CharacterManager -->
+        <circle class="gn-node k-config" cx="640" cy="155" r="14"/>
+        <text class="gn-label big" x="640" y="130">CharacterManager</text>
+        <text class="gn-label" x="640" y="143">캐릭터 소유·배치</text>
+
+        <!-- SaveGame -->
+        <circle class="gn-node k-savegame" cx="345" cy="265" r="14"/>
+        <text class="gn-label big" x="345" y="292">SaveGame</text>
+
+        <!-- UI -->
+        <circle class="gn-node k-ui" cx="630" cy="255" r="12"/>
+        <text class="gn-label big" x="630" y="281">WBP 위젯 UI</text>
+      </svg>
+      <div class="flow-legend" style="margin-bottom:0">
+        <span><span class="lk lk-call"></span>함수 호출</span>
+        <span><span class="lk lk-event"></span>델리게이트 브로드캐스트</span>
+        <span><span class="lk lk-save"></span>SaveGame 직렬화</span>
+        <span><span class="lk lk-table"></span>레벨 테이블 조회</span>
+      </div>
+    </div>
+
+    <h3>핵심 의존 관계 요약</h3>
+    <div class="rel-map">
+      <div class="rel-row">
+        <div class="rel-node n-subsystem"><div class="rn-name">FocusSubsystem</div><div class="rn-role">업무 집중 타이머·스톱워치·할일 관리</div></div>
+        <div class="rel-arrow"><span class="ra-label">골드+EXP 전달</span><span class="ra-line">→</span></div>
+        <div class="rel-node n-subsystem"><div class="rn-name">GoldSubsystem</div><div class="rn-role">전체 골드 수급 허브</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-subsystem"><div class="rn-name">GoldSubsystem</div><div class="rn-role">전체 골드 수급 허브</div></div>
+        <div class="rel-arrow"><span class="ra-label">골드 소비</span><span class="ra-line">→</span></div>
+        <div class="rel-node n-subsystem"><div class="rn-name">GachaSubsystem</div><div class="rn-role">캐릭터 뽑기 처리</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-subsystem"><div class="rn-name">EXPSubsystem</div><div class="rn-role">건물 레벨 + 플레이어 레벨 관리</div></div>
+        <div class="rel-arrow"><span class="ra-label">확률 테이블 조회</span><span class="ra-line">→</span></div>
+        <div class="rel-node n-subsystem"><div class="rn-name">GachaSubsystem</div><div class="rn-role">플레이어 레벨 기반 등급 확률 결정</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-subsystem"><div class="rn-name">GachaSubsystem</div><div class="rn-role">캐릭터 뽑기 처리</div></div>
+        <div class="rel-arrow"><span class="ra-label">캐릭터 지급</span><span class="ra-line">→</span></div>
+        <div class="rel-node n-subsystem"><div class="rn-name">ManagementSubsystem</div><div class="rn-role">경영 건물 패시브 골드 관리</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-subsystem"><div class="rn-name">GoldSubsystem · EXPSubsystem</div><div class="rn-role">핵심 수치 데이터</div></div>
+        <div class="rel-arrow"><span class="ra-label">직렬화</span><span class="ra-line">→</span></div>
+        <div class="rel-node n-savegame"><div class="rn-name">URecordTalesSaveGame</div><div class="rn-role">디스크 저장 단일 지점</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== 09 데스크톱 창 구현 ====== -->
+  <div class="section" id="window">
+    <div class="section-label">09 — 데스크톱 창 구현</div>
+    <h2>Always-on-Top · 투명 창 · 사이드뷰</h2>
+    <p>게임은 다른 앱 위에 항상 노출되는 슬림한 창으로 동작합니다. Windows API를 직접 호출해 구현합니다.</p>
+
+    <h3>창 레이아웃</h3>
+    <div class="tree">
+┌─────────────────────┐  ← Always-on-Top · 화면 우측 고정
+│  [오늘 할 일  ▲▼]  │  ← 접었다 펼 수 있는 길드 건물 패널
+│  □ 캐릭터 모델링    │
+│  □ 코드 리뷰        │
+├─────────────────────┤
+│                     │
+│   🏰 타운 사이드뷰  │  ← 히어로 자동 전투 · 타운 건물 렌더링
+│   ⚔️ 전투 중 ...   │
+│   💰 +12G  ⭐ +5XP │  ← 실시간 획득 피드백
+│                     │
+├─────────────────────┤
+│  [📁 캐릭터 모델링] │  ← 현재 선택된 길드 건물
+│  ⏱ 25:00  [시작]   │  ← 타이머 / 스톱워치
+│  [📊 아카이브]      │  ← 기록 저장 버튼
+└─────────────────────┘
+  약 400 × 900px · Windowed 모드
+    </div>
+
+    <h3>핵심 구현 코드</h3>
+    <table class="tbl">
+      <tr><th style="width:30%">기능</th><th style="width:30%">API</th><th>비고</th></tr>
+      <tr><td>항상 최상단</td><td><code>SetWindowPos(HWND_TOPMOST)</code></td><td>포커스 무관 최상단 유지</td></tr>
+      <tr><td>배경 투명화</td><td><code>WS_EX_LAYERED + SetLayeredWindowAttributes</code></td><td>배경색을 크로마키로 투명 처리</td></tr>
+      <tr><td>클릭 통과</td><td><code>WS_EX_TRANSPARENT</code></td><td>투명 영역은 클릭 통과 — 히트 테스트 별도 구현 필요</td></tr>
+      <tr><td>포커스 감지</td><td><code>FSlateApplication::OnApplicationActivationStateChanged()</code></td><td>포커스 여부로 BGM 제어</td></tr>
+    </table>
+
+    <div class="pitfall"><span style="font-size:17px">⚠️</span><div class="pitfall-text"><strong>WS_EX_TRANSPARENT 주의</strong> — 이 플래그를 설정하면 게임 UI의 클릭도 통과됩니다. 클릭 가능 영역과 통과 영역을 구분하는 <strong>커스텀 히트 테스트 로직</strong>이 반드시 필요합니다. 특히 타이머 버튼, 길드 건물 패널 등 인터랙션 영역은 명시적으로 처리해야 합니다.</div></div>
+
+    <div class="pitfall tip"><span style="font-size:17px">💡</span><div class="pitfall-text"><strong>포커스 잃을 때 BGM 처리</strong> — <code>OnApplicationActivationStateChanged(false)</code> 콜백에서 <code>AudioComponent->PauseSound()</code>를 호출하면 재생 위치가 유지된 채 음소거됩니다. <code>SetVolumeMultiplier(0)</code>보다 권장합니다.</div></div>
+
+    <h3>프로젝트 설정 (필수)</h3>
+    <table class="tbl">
+      <tr><th style="width:40%">항목</th><th>설정 값</th></tr>
+      <tr><td>Window Mode</td><td><code>Windowed</code> (전체화면 금지 — API 동작 전제)</td></tr>
+      <tr><td>Default Resolution</td><td><code>400 × 900</code></td></tr>
+      <tr><td>Use Borderless Window</td><td><code>true</code></td></tr>
+      <tr><td>Resizable</td><td><code>false</code> (고정 창 크기 권장)</td></tr>
+      <tr><td>플랫폼 분기</td><td><code>#if PLATFORM_WINDOWS</code>로 Windows API 코드 감싸기</td></tr>
+    </table>
+  </div>
+
+  <!-- ====== 10 마일스톤 ====== -->
+  <div class="section" id="milestone">
+    <div class="section-label">10 — 마일스톤</div>
+    <h2>개발 단계 & 검증 체크리스트</h2>
+
+    <table class="tbl">
+      <tr>
+        <th style="width:8%">Phase</th>
+        <th style="width:28%">마일스톤</th>
+        <th style="width:42%">완료 기준</th>
+        <th style="width:12%">상태</th>
+      </tr>
+      <tr>
+        <td>P1</td>
+        <td>데스크톱 창 기반</td>
+        <td>Always-on-Top · 투명 배경 · 클릭 통과 영역 분리가 Windows에서 동작</td>
+        <td><span style="color:var(--text-dim);font-size:12px">대기</span></td>
+      </tr>
+      <tr>
+        <td>P2</td>
+        <td>데이터 계층 구축</td>
+        <td>SaveGame · DataTable · GameInstance 저장/로드가 PIE에서 동작</td>
+        <td><span style="color:var(--text-dim);font-size:12px">대기</span></td>
+      </tr>
+      <tr>
+        <td>P3</td>
+        <td>업무 수행 시스템</td>
+        <td>타이머·스톱워치·할 일 완료 → 골드 + EXP 적립 흐름이 동작</td>
+        <td><span style="color:var(--text-dim);font-size:12px">대기</span></td>
+      </tr>
+      <tr>
+        <td>P4</td>
+        <td>경영 건물 패시브</td>
+        <td>경영 건물 설치 → 시간 기반 골드 자동 생산 확인</td>
+        <td><span style="color:var(--text-dim);font-size:12px">대기</span></td>
+      </tr>
+      <tr>
+        <td>P5</td>
+        <td>가챠 & 캐릭터 시스템</td>
+        <td>골드 소비 → 등급별 캐릭터 뽑기 → 경영 건물 배치 보너스 적용</td>
+        <td><span style="color:var(--text-dim);font-size:12px">대기</span></td>
+      </tr>
+      <tr>
+        <td>P6</td>
+        <td>사이드뷰 비주얼</td>
+        <td>타운 · 히어로 · 전투 애니메이션 · 골드/EXP 피드백 UI 완성</td>
+        <td><span style="color:var(--text-dim);font-size:12px">대기</span></td>
+      </tr>
+      <tr>
+        <td>P7</td>
+        <td>아카이브 연동</td>
+        <td>업무 완료 후 RecordTales 아카이브 저장 · 게임 내 히스토리 열람</td>
+        <td><span style="color:var(--text-dim);font-size:12px">대기</span></td>
+      </tr>
+      <tr>
+        <td>P8</td>
+        <td>빌드 · 패키징</td>
+        <td>Shipping 빌드에서 투명 창·Always-on-Top·전 시스템 정상 동작</td>
+        <td><span style="color:var(--text-dim);font-size:12px">대기</span></td>
+      </tr>
+    </table>
+
+    <h3>리스크 & 기술 부채</h3>
+    <table class="tbl">
+      <tr><th style="width:6%">ID</th><th style="width:28%">리스크</th><th style="width:12%">영향도</th><th style="width:12%">확률</th><th>완화 전략</th></tr>
+      <tr><td>R1</td><td>투명 창 + 클릭 영역 분리 복잡도</td><td><span style="color:var(--red)">높음</span></td><td>높음</td><td>P1에서 프로토타입 선행 검증. 히트 테스트 전용 유틸 클래스 분리.</td></tr>
+      <tr><td>R2</td><td>골드 밸런싱 (패시브 vs 능동 비율)</td><td>중간</td><td><span style="color:var(--red)">높음</span></td><td>DataTable로 수치 관리. 에디터에서 실시간 조정 가능하도록 설계.</td></tr>
+      <tr><td>R3</td><td>SaveGame 스키마 확장 시 하위 호환</td><td>중간</td><td>중간</td><td>버전 필드 도입, 마이그레이션 함수로 구버전 세이브 처리.</td></tr>
+      <tr><td>R4</td><td>장시간 백그라운드 실행 성능</td><td><span style="color:var(--red)">높음</span></td><td>중간</td><td>포커스 잃을 때 Tick 빈도 감소 + 렌더링 품질 Low 설정.</td></tr>
+    </table>
+
+    <div class="callout tip"><span class="ic">🚀</span><p><strong>권장 시작 순서</strong> — P1(창 기반)을 가장 먼저 검증하세요. 투명 창과 Always-on-Top이 예상대로 동작하지 않으면 이후 모든 작업의 전제가 흔들립니다. 나머지 시스템(P2~P7)은 P1 완료 후 순차 진행하되, P4(경영 건물)와 P5(가챠)는 P3(업무 수행) 완료 이후에 시작합니다.</p></div>
+  </div>
+
+</div>
+
+<footer>
+  <span>RecordTales × Desktop 동반자 RPG — GDD v1.0 · 2026-07-09</span>
+  <span>기준 디자인: Dark · Indigo Minimal · Editorial</span>
+</footer>
+
+</body>
+</html>
