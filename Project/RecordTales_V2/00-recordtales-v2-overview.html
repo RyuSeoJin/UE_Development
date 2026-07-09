@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RecordTales V2 프로젝트 개요</title>
+<!-- ============================================================
+     CHANGELOG — 00-recordtales-v2-overview.html
+     RecordTales V2 프로젝트 개요 (Track B · 02-A 아키텍처 패턴, 프로젝트 스코프).
+     작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     v0.1 · 2026-07-09
+       - 신규 생성. RecordTales V2 전체 설계 개요.
+       - 멀티 길드(하이브리드 C) · 영지/경영 경제 · 가챠 능력치 개화 · 정직한 레벨(60분=1레벨) · 소프트 삭제.
+       - 마스터 CSS v1.5 inline 스냅샷(기존 v1 개요 스타일 블록 재사용). 시스템 지도는 HTML 관계도(.rel-map).
+       - 상세 설계 원장: ~/.claude/plans/replicated-weaving-stearns.md
+     ============================================================ -->
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Pretendard:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* --- 기본 토큰 --- */
+  --bg: #0D0F1A;
+  --surface: #13162A;
+  --surface-2: #1A1F38;
+  --border: #252B4A;
+  --accent: #5B6EFA;
+  --accent-2: #9B6DFF;
+  --accent-3: #38D9B4;
+  --text: #E4E8FF;
+  --text-muted: #7B82A6;
+  --text-dim: #4A5080;
+  --amber: #F59E0B;
+  --pink: #E040FB;
+  --red: #F87171;
+
+  /* --- 에셋 타입 컬러 맵 (에셋 분석 문서 전용) --- */
+  --ue-folder: #F59E0B;
+  --ue-bp:     #5B6EFA;
+  --ue-enum:   #9B6DFF;
+  --ue-mat:    #FB8C5A;
+  --ue-tex:    #38D9B4;
+  --ue-demo:   #6BD98E;
+
+  /* --- 프레임워크 클래스 컬러 맵 (C++ 아키텍처 문서 전용, v1.1 신규) --- */
+  --ue-gamemode:   #5B6EFA;
+  --ue-gamestate:  #7B9CFF;
+  --ue-controller: #38D9B4;
+  --ue-pawn:       #6BD98E;
+  --ue-instance:   #9B6DFF;
+  --ue-savegame:   #F59E0B;
+  --ue-subsystem:  #E040FB;
+
+  /* --- 파일 타입 컬러 맵 (코드 탭·파일 태그, v1.1 신규) --- */
+  --ue-header: #38D9B4;
+  --ue-source: #FB8C5A;
+  --ue-macro:  #FB8C5A;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+  font-size: 15px; line-height: 1.7; -webkit-font-smoothing: antialiased;
+}
+
+/* NAV */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(13,15,26,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px; display: flex; align-items: center; gap: 32px; height: 52px;
+}
+.nav-logo { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em; white-space: nowrap; }
+.nav-links { display: flex; gap: 22px; flex-wrap: wrap; }
+.nav-links a { color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 500; transition: color 0.2s; }
+.nav-links a:hover { color: var(--text); }
+.nav-links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+
+/* HERO */
+.hero { padding: 72px 48px 56px; max-width: 920px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+.hero-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: var(--accent); text-transform: uppercase; margin-bottom: 20px; }
+.hero h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 20px; }
+.hero h1 span { color: var(--accent); }
+.hero-sub { font-size: 16px; color: var(--text-muted); max-width: 660px; line-height: 1.75; }
+.hero-meta { margin-top: 28px; display: flex; gap: 10px; flex-wrap: wrap; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; border: 1px solid; }
+.badge-blue { color: var(--accent); border-color: var(--accent); background: rgba(91,110,250,0.08); }
+.badge-green { color: var(--accent-3); border-color: var(--accent-3); background: rgba(56,217,180,0.08); }
+.badge-purple { color: var(--accent-2); border-color: var(--accent-2); background: rgba(155,109,255,0.08); }
+
+/* CONTENT / SECTION */
+.content { max-width: 920px; margin: 0 auto; padding: 0 48px 80px; }
+.section { padding: 52px 0 0; border-top: 1px solid var(--border); margin-top: 52px; }
+.section:first-child { margin-top: 0; padding-top: 48px; border-top: none; }
+.section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 12px; }
+.section h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 20px; }
+.section h3 { font-size: 15px; font-weight: 700; color: var(--text); margin: 30px 0 10px; letter-spacing: 0.01em; }
+.section p { color: var(--text-muted); margin-bottom: 14px; line-height: 1.8; }
+.section p strong { color: var(--text); font-weight: 600; }
+
+code { font-family: 'IBM Plex Mono', monospace; font-size: 0.86em; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; color: var(--accent-3); }
+
+/* CALLOUT */
+.callout { display: flex; gap: 12px; align-items: flex-start; border-radius: 8px; padding: 14px 16px; margin: 18px 0; border: 1px solid var(--border); background: var(--surface-2); font-size: 13.5px; line-height: 1.65; }
+.callout .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.callout p { margin: 0; color: var(--text-muted); }
+.callout p strong { color: var(--text); }
+.callout.info { border-left: 3px solid var(--accent); }
+.callout.tip  { border-left: 3px solid var(--accent-3); }
+.callout.warn { border-left: 3px solid var(--amber); }
+
+/* STAT CARDS */
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 4px; }
+.stat-label { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+.stat-row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.stat-row-4 .stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+
+/* A-CARD */
+.a-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; border-top: 2px solid var(--ue-bp); }
+.a-card .ic { font-size: 22px; margin-bottom: 10px; }
+.a-card .a-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.a-card .a-id { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--accent); margin-bottom: 8px; }
+.a-card .a-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+/* PILLS */
+.pills { display: flex; flex-wrap: wrap; gap: 7px; }
+.pill { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; padding: 3px 12px; border-radius: 20px; border: 1px solid; }
+.pill.blue { color: var(--accent); border-color: rgba(91,110,250,0.4); background: rgba(91,110,250,0.08); }
+.pill.purple { color: var(--accent-2); border-color: rgba(155,109,255,0.4); background: rgba(155,109,255,0.08); }
+.pill.green { color: var(--accent-3); border-color: rgba(56,217,180,0.4); background: rgba(56,217,180,0.08); }
+.pill.pink { color: var(--pink); border-color: rgba(224,64,251,0.4); background: rgba(224,64,251,0.08); }
+.pill.red { color: var(--red); border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.08); }
+
+/* ARCH */
+.arch { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: stretch; }
+.arch-layer { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 16px 14px; }
+.arch-arrow { display: flex; align-items: center; justify-content: center; padding: 0 8px; color: var(--text-dim); font-size: 16px; }
+.arch-tag { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 7px; color: var(--accent); }
+.arch-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.arch-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+/* TABLE */
+.tbl { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 13px; }
+.tbl th { background: var(--surface-2); color: var(--text-muted); font-weight: 600; font-size: 12px; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+.tbl td { padding: 10px 14px; color: var(--text-muted); border-bottom: 1px solid rgba(37,43,74,0.5); vertical-align: top; line-height: 1.55; }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl td:first-child { color: var(--text); }
+.tbl td code, .tbl th code { background: transparent; border: none; padding: 0; color: var(--accent); }
+.tbl .owner { display: inline-flex; align-items: center; gap: 7px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.tbl .owner::before { content: ''; width: 9px; height: 9px; border-radius: 2px; background: var(--text-dim); flex-shrink: 0; }
+.tbl .owner.o-gamemode::before   { background: var(--ue-gamemode); }
+.tbl .owner.o-gamestate::before  { background: var(--ue-gamestate); }
+.tbl .owner.o-controller::before { background: var(--ue-controller); }
+.tbl .owner.o-pawn::before       { background: var(--ue-pawn); }
+.tbl .owner.o-instance::before   { background: var(--ue-instance); }
+.tbl .owner.o-savegame::before   { background: var(--ue-savegame); }
+.tbl .owner.o-subsystem::before  { background: var(--ue-subsystem); }
+
+/* TREE */
+.tree { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.9; color: var(--text-dim); white-space: pre; overflow-x: auto; }
+.tree .folder { color: var(--ue-folder); font-weight: 600; }
+.tree .bp { color: var(--ue-bp); } .tree .enum { color: var(--ue-enum); }
+.tree .mat { color: var(--ue-mat); } .tree .tex { color: var(--ue-tex); }
+.tree .note { color: var(--text-muted); }
+.tree .c-gamemode { color: var(--ue-gamemode); font-weight: 600; }
+.tree .c-gamestate { color: var(--ue-gamestate); font-weight: 600; }
+.tree .c-controller { color: var(--ue-controller); font-weight: 600; }
+.tree .c-pawn { color: var(--ue-pawn); font-weight: 600; }
+.tree .c-instance { color: var(--ue-instance); font-weight: 600; }
+.tree .c-savegame { color: var(--ue-savegame); font-weight: 600; }
+.tree .c-subsystem { color: var(--ue-subsystem); font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); }
+.legend .dot { width: 9px; height: 9px; border-radius: 2px; }
+
+/* REL-MAP */
+.rel-map { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
+.rel-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+.rel-node {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 14px; border-left: 3px solid var(--text-dim);
+}
+.rel-node .rn-name { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.rel-node .rn-role { font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.4; }
+.rel-node.n-gamemode   { border-left-color: var(--ue-gamemode); }
+.rel-node.n-gamestate  { border-left-color: var(--ue-gamestate); }
+.rel-node.n-controller { border-left-color: var(--ue-controller); }
+.rel-node.n-pawn       { border-left-color: var(--ue-pawn); }
+.rel-node.n-instance   { border-left-color: var(--ue-instance); }
+.rel-node.n-savegame   { border-left-color: var(--ue-savegame); }
+.rel-node.n-subsystem  { border-left-color: var(--ue-subsystem); }
+.rel-arrow { display: flex; flex-direction: column; align-items: center; color: var(--text-dim); min-width: 84px; }
+.rel-arrow .ra-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--accent); letter-spacing: 0.04em; white-space: nowrap; }
+.rel-arrow .ra-line { font-size: 15px; line-height: 1; }
+
+/* PIPE-STEP */
+.pipe-step { display: grid; grid-template-columns: 36px 1fr; gap: 0 16px; position: relative; }
+.pipe-step::before { content: ''; position: absolute; left: 17px; top: 36px; bottom: -1px; width: 2px; background: var(--border); }
+.pipe-step:last-child::before { display: none; }
+.pipe-num { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--surface-2); }
+.pipe-body { padding: 6px 0 22px; }
+.pipe-title { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+.pipe-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+/* PITFALL */
+.pitfall { display: flex; gap: 14px; align-items: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; border-left: 3px solid var(--amber); margin: 14px 0; }
+.pitfall.tip { border-left-color: var(--accent-3); }
+.pitfall .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.pitfall-text { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
+.pitfall-text strong { color: var(--text); }
+
+/* GRID */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920px; margin: 0 auto; font-size: 12px; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+
+@media (max-width: 720px) {
+  .content { padding: 0 20px 60px; }
+  .hero { padding: 48px 20px 40px; }
+  .stat-row, .stat-row-4, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .arch { grid-template-columns: 1fr; }
+  .arch-arrow { transform: rotate(90deg); padding: 4px 0; }
+  .rel-row { grid-template-columns: 1fr; text-align: left; }
+  .rel-arrow { flex-direction: row; gap: 8px; min-width: 0; padding: 2px 0; }
+  .rel-arrow .ra-line { transform: rotate(90deg); }
+  nav { padding: 0 16px; gap: 16px; }
+  .nav-links { display: none; }
+  footer { padding: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">RECORDTALES V2 &middot; OVERVIEW</div>
+  <div class="nav-links">
+    <a href="#overview">개요</a>
+    <a href="#system-map">시스템맵</a>
+    <a href="#glossary">핵심어휘</a>
+    <a href="#scope">계정vs길드</a>
+    <a href="#data">데이터</a>
+    <a href="#phase">제작순서</a>
+    <a href="#docs">문서안내</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">RecordTales V2 &middot; v0.1 &middot; Overview</div>
+  <h1>RecordTales V2<br><span>프로젝트 개요</span></h1>
+  <p class="hero-sub">
+    집중 관리 + <strong>멀티 길드</strong> + <strong>영지 경영 게임화</strong>를 언리얼 엔진으로 구현하는 재설계(V2)의 전체 그림입니다. 이 문서는 각 시스템이 어떻게 맞물리는지, 핵심 어휘가 무엇인지를 먼저 잡아 이후 상세 문서의 토대를 만듭니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">멀티 길드 하이브리드 C</span>
+    <span class="badge badge-green">정직한 레벨 (60분=1레벨)</span>
+    <span class="badge badge-purple">영지 · 경영 · 가챠</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- ===== 01 RecordTales V2란? ===== -->
+  <div class="section" id="overview">
+    <div class="section-label">01 — RecordTales V2란?</div>
+    <h2>무엇을 만드나</h2>
+    <p>
+      <strong>RecordTales</strong>는 <strong>포모도로(Pomodoro, 25분 집중 + 5분 휴식)</strong> 기반 집중 관리에 <strong>게임화(Gamification)</strong>를 결합한 생산성 앱입니다. V2는 이 앱을 크게 재설계합니다. 사용자는 집중 타이머·스톱워치로 작업하고 퀘스트(할 일)를 수행하며, 그 활동으로 <strong>레벨</strong>을 올리고 <strong>Gold</strong>를 벌어 <strong>가챠(캐릭터 뽑기)</strong>와 <strong>영지 경영</strong>을 즐깁니다.
+    </p>
+    <p>
+      V2의 두 축은 이렇습니다. 첫째, <strong>정직한 레벨</strong> — 레벨은 오직 실제 집중 시간으로만 오릅니다(<strong>60분 = 1레벨</strong>). 캐릭터나 Gold로는 못 올려, 레벨이 곧 "내가 그 분야에 투자한 시간"의 거울이 됩니다. 둘째, <strong>멀티 길드</strong> — 활동 도메인마다(예: 그림·운동·공부) 별도의 길드를 두어 분야별로 깔끔하게 나눠 기록·성장합니다.
+    </p>
+
+    <h3>한눈에 보는 숫자</h3>
+    <div class="stat-row" style="margin-bottom:14px">
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent)">60분</div><div class="stat-label">= 1레벨 (정직한 레벨)</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--ue-mat)">2</div><div class="stat-label">Phase (기록 → 게임)</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent-3)">N</div><div class="stat-label">멀티 길드 (무제한)</div></div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-card"><div class="stat-num" style="color:var(--ue-savegame)">2</div><div class="stat-label">자원 (Gold · 조각)</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent-2)">4</div><div class="stat-label">능력치 슬롯 (개화)</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--ue-subsystem)">2</div><div class="stat-label">경영 건물 (골드 · 거래소)</div></div>
+    </div>
+
+    <div class="callout info" style="margin-top:22px">
+      <span class="ic">&#x1F9ED;</span>
+      <p><strong>이 문서는 전체 그림을 잡는 개요입니다.</strong> 각 시스템의 상세(경영 건물 산출 공식, 가챠 데이터 테이블, 아카이브 기록 ID 등)는 개별 설계 문서를 참조하세요. 문서 목록은 마지막 섹션과 프로젝트 허브에서 확인할 수 있습니다.</p>
+    </div>
+  </div>
+
+  <!-- ===== 02 시스템 지도 ===== -->
+  <div class="section" id="system-map">
+    <div class="section-label">02 — 시스템 지도</div>
+    <h2>큰 순환: 활동 → 성장 → 게임</h2>
+    <p>
+      아래는 각 시스템이 <strong>무엇을 주고받는지</strong>를 보여주는 관계도입니다. 화살표는 데이터가 흐르는 방향입니다. 핵심 순환은 <strong>"실제 활동으로 레벨·Gold를 얻고 → Gold로 캐릭터를 뽑아 → 영지 경영 건물에 배치해 다시 Gold·조각을 번다"</strong>입니다.
+    </p>
+
+    <div class="rel-map">
+      <div class="rel-row">
+        <div class="rel-node n-subsystem"><div class="rn-name">UFocusSubsystem</div><div class="rn-role">집중/스톱워치 시간</div></div>
+        <div class="rel-arrow"><span class="ra-label">집중 시간 → XP(레벨)+Gold</span><span class="ra-line">&rarr;</span></div>
+        <div class="rel-node n-subsystem" style="border-left-color:var(--accent)"><div class="rn-name">UEconomySubsystem</div><div class="rn-role">계정 XP · Gold</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-subsystem" style="border-left-color:var(--ue-demo)"><div class="rn-name">UQuestSubsystem</div><div class="rn-role">할 일(퀘스트)</div></div>
+        <div class="rel-arrow"><span class="ra-label">퀘스트 완료 → Gold (XP 없음)</span><span class="ra-line">&rarr;</span></div>
+        <div class="rel-node n-subsystem" style="border-left-color:var(--accent)"><div class="rn-name">UEconomySubsystem</div><div class="rn-role">Gold 지급</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-subsystem"><div class="rn-name">UFocusSubsystem</div><div class="rn-role">세션 완료</div></div>
+        <div class="rel-arrow"><span class="ra-label">활동 → 아카이브 기록(길드 태그)</span><span class="ra-line">&rarr;</span></div>
+        <div class="rel-node n-subsystem" style="border-left-color:var(--accent-3)"><div class="rn-name">URecordSubsystem</div><div class="rn-role">기록 저장 (길드별)</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-subsystem" style="border-left-color:var(--accent)"><div class="rn-name">UEconomySubsystem</div><div class="rn-role">Gold + 계정 XP</div></div>
+        <div class="rel-arrow"><span class="ra-label">Gold 소비 + 계정 XP로 확률 결정</span><span class="ra-line">&rarr;</span></div>
+        <div class="rel-node n-subsystem" style="border-left-color:var(--ue-mat)"><div class="rn-name">UGachaSubsystem</div><div class="rn-role">캐릭터 뽑기</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-subsystem" style="border-left-color:var(--ue-mat)"><div class="rn-name">UGachaSubsystem</div><div class="rn-role">뽑은 캐릭터</div></div>
+        <div class="rel-arrow"><span class="ra-label">캐릭터 → 계정 로스터</span><span class="ra-line">&rarr;</span></div>
+        <div class="rel-node n-subsystem" style="border-left-color:var(--ue-gamestate)"><div class="rn-name">UEstateSubsystem</div><div class="rn-role">영지 · 경영 건물</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-subsystem" style="border-left-color:var(--ue-gamestate)"><div class="rn-name">UEstateSubsystem</div><div class="rn-role">캐릭터 배치 → 산출</div></div>
+        <div class="rel-arrow"><span class="ra-label">건물 산출 → Gold · 조각</span><span class="ra-line">&rarr;</span></div>
+        <div class="rel-node n-subsystem" style="border-left-color:var(--accent)"><div class="rn-name">UEconomySubsystem</div><div class="rn-role">자원 순환</div></div>
+      </div>
+    </div>
+
+    <div class="callout tip" style="margin-top:18px">
+      <span class="ic">&#x1F4A1;</span>
+      <p><strong>집중이 게임을 돌린다:</strong> 영지 경영 건물은 <strong>집중 중일 때 산출이 N배</strong>가 됩니다. 즉 "게임(경영)을 최대로 돌리려면 실제로 집중해야" 하도록 설계되어, 게임 요소가 생산성을 방해하지 않고 오히려 유도합니다.</p>
+    </div>
+  </div>
+
+  <!-- ===== 03 핵심 개념 · 어휘 ===== -->
+  <div class="section" id="glossary">
+    <div class="section-label">03 — 핵심 개념 · 어휘</div>
+    <h2>먼저 알아둘 용어</h2>
+    <p>V2에서 반복 등장하는 핵심 용어를 여기서 한 번씩 풀어둡니다. 이후 문서들은 이 정의를 재사용합니다.</p>
+
+    <table class="tbl">
+      <tr><th>용어</th><th>정의</th></tr>
+      <tr><td><strong>멀티 길드</strong></td><td>활동 도메인마다 두는 길드. <strong>계정 공유</strong>(로스터·Gold·조각·가챠·영지) + <strong>길드별</strong>(아카이브·레벨·카테고리)로 나뉘는 하이브리드 구조.</td></tr>
+      <tr><td><strong>정직한 레벨</strong></td><td>실제 집중 시간으로만 오르는 길드 레벨(<strong>60분=1레벨</strong>). 캐릭터·Gold로 못 올림. 레벨 = 투자 시간의 거울.</td></tr>
+      <tr><td><strong>계정 XP</strong></td><td>모든 길드의 활동 시간을 합산한 값. <strong>가챠 등급 출현 확률</strong>을 결정.</td></tr>
+      <tr><td><strong>영지(Estate)</strong></td><td>계정 단위의 홈 화면. 경영 건물을 배치·관리하는 공간(모든 길드 공유).</td></tr>
+      <tr><td><strong>골드 건물</strong></td><td>캐릭터를 배치하면 그 능력치로 <strong>Gold</strong>를 산출하는 경영 건물.</td></tr>
+      <tr><td><strong>기억 거래소</strong></td><td>캐릭터를 <strong>분해</strong>해 <strong>조각</strong>을 얻는 건물(배치·상시 산출 없음).</td></tr>
+      <tr><td><strong>능력치 개화</strong></td><td>캐릭터의 능력치 슬롯(최대 4)이 열리는 것. <strong>캐릭터 등급</strong>이 개화 슬롯 수와 뜨는 능력치 등급을 결정.</td></tr>
+      <tr><td><strong>조각(Shard)</strong></td><td>분해로 얻는 강화 재료. 능력치 <strong>단계</strong>를 올리는 데 씀.</td></tr>
+      <tr><td><strong>소프트 삭제 · 휴지통</strong></td><td>길드·기록을 삭제해도 데이터를 남겨 <strong>휴지통에서 복원</strong> 가능. 완전 삭제는 별도(로컬 저장).</td></tr>
+    </table>
+
+    <div class="callout info" style="margin-top:18px">
+      <span class="ic">&#x1F9ED;</span>
+      <p><strong>등급이 둘 있습니다.</strong> "캐릭터 등급"(뽑을 때 롤됨 — 개화 수·능력치 등급을 결정)과 "능력치 등급"(각 능력치 자체의 등급 — 효과 크기를 결정)은 서로 다른 개념입니다. 상세는 가챠 설계 문서를 참조하세요.</p>
+    </div>
+  </div>
+
+  <!-- ===== 04 계정 공유 vs 길드별 ===== -->
+  <div class="section" id="scope">
+    <div class="section-label">04 — 계정 공유 vs 길드별</div>
+    <h2>무엇이 어디에 속하나</h2>
+    <p>멀티 길드의 핵심은 "무엇을 공유하고 무엇을 나누느냐"입니다. 수집·경제는 계정 하나로 깊게 유지하고, 정체성·기록은 길드마다 나눕니다.</p>
+
+    <table class="tbl">
+      <tr><th>계층</th><th>속하는 것</th><th>이유</th></tr>
+      <tr>
+        <td><span class="owner o-subsystem">계정 공유</span></td>
+        <td>캐릭터 로스터 · Gold · 조각 · 가챠 확률 · <strong>영지(경영 건물)</strong></td>
+        <td>수집·경제를 길드마다 쪼개면 얕아짐. 한 번 뽑아 여러 길드에서 활용.</td>
+      </tr>
+      <tr>
+        <td><span class="owner o-savegame">길드별</span></td>
+        <td>아카이브(기록) · 레벨 · 카테고리</td>
+        <td>도메인마다 독립된 성장·정체성. "내 그림 길드 Lv40"처럼 분야별로 읽힘.</td>
+      </tr>
+    </table>
+
+    <div class="callout tip" style="margin-top:18px">
+      <span class="ic">&#x1F4A1;</span>
+      <p><strong>기록 구조는 Guild &rarr; Category 2단</strong>입니다. 각 길드가 자기 카테고리 세트를 가집니다(예: 그림 길드 = 캐릭터/배경/프롭). 아카이브는 계정 단위 통합 원장에 저장되며, 각 기록이 (길드 &rarr; 카테고리 &rarr; 소스)로 태그됩니다.</p>
+    </div>
+  </div>
+
+  <!-- ===== 05 데이터 큰 그림 ===== -->
+  <div class="section" id="data">
+    <div class="section-label">05 — 데이터 큰 그림</div>
+    <h2>밸런스는 표에, 소유물은 세이브에</h2>
+    <p>
+      V2의 데이터는 두 갈래입니다. <strong>정적 DataTable</strong>(손으로 채우는 밸런스 데이터)과 <strong>런타임 SaveGame</strong>(플레이 중 생기는 내 소유물). 값은 표에서 조회하고, 세이브에는 "내가 뽑아 정해진 것"만 담아 저장을 가볍게 유지합니다. 상세 스키마는 데이터 설계 문서를 참조하세요.
+    </p>
+
+    <div class="tree"><span class="note">// 정적 DataTable — 밸런스 (손으로 채움)</span>
+DT_Character_Rarity_Ability_Open_Chance   <span class="note">&larr; 등급 → 개화 슬롯 수 확률</span>
+DT_Character_Rarity_Ability_Select_Chance <span class="note">&larr; 등급 → 능력치 등급 분포</span>
+DT_Ability_Type                           <span class="note">&larr; 능력치 종류(효과×등급)</span>
+DT_Ability_Step                           <span class="note">&larr; 단계별 값·뜰확률·강화비용</span>
+DT_Character                              <span class="note">&larr; 캐릭터 정체성</span>
+DT_Gacha_Rate_ByLevel                     <span class="note">&larr; 계정 레벨 → 캐릭터 등급</span>
+DT_Building / DT_Building_Upgrade          <span class="note">&larr; 건물 정체성 · 레벨별 산출</span>
+
+<span class="note">// 런타임 SaveGame — 인스턴스 (계정 단위)</span>
+FOwnedCharacter { InstanceId, CharacterId, Rarity, Abilities[≤4] }
+FBuildingState  { BuildingId, Level, DeployedInstanceIds, LastCollectTime }
+FEconomyState   { Gold, Shards }</div>
+
+    <div class="callout info" style="margin-top:14px">
+      <span class="ic">&#x1F9ED;</span>
+      <p><strong>능력치는 "현재 단계"만 저장</strong>합니다. 효과값·강화 비용은 <code>DT_Ability_Step</code>에서 조회하므로, 수치 튜닝은 표만 고치면 되고 세이브는 건드리지 않습니다.</p>
+    </div>
+  </div>
+
+  <!-- ===== 06 제작 순서 ===== -->
+  <div class="section" id="phase">
+    <div class="section-label">06 — 제작 순서</div>
+    <h2>기록 먼저, 게임은 그 위에</h2>
+    <p>게임(가챠·영지)은 기록·집중 본체 위에 얹혀 돌아갑니다(가챠 확률은 활동 XP에서, 건물은 활동 결과로 산출). 그래서 제작도 두 단계로 나눕니다.</p>
+
+    <div class="pipe-step">
+      <div class="pipe-num">1</div>
+      <div class="pipe-body">
+        <div class="pipe-title">Phase 1 — 기록 · 집중 본체 (게임 없음)</div>
+        <div class="pipe-desc">집중/스톱워치/퀘스트 · 정직한 레벨(60분=1레벨) · 멀티 길드 생성 · 아카이브(기록·복원) · 홈 "오늘 할 일" · Gold 기본 획득. 이것만으로도 "정직하게 기록하는 생산성 앱"이 완성됩니다.</div>
+      </div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">2</div>
+      <div class="pipe-body">
+        <div class="pipe-title">Phase 2 — 게임 레이어</div>
+        <div class="pipe-desc">가챠(캐릭터·능력치 개화·조각 강화) · 영지 경영 건물(배치·산출·업그레이드) · 자원 순환. 수집·경영의 재미를 Phase 1 위에 얹습니다.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 07 문서 안내 ===== -->
+  <div class="section" id="docs">
+    <div class="section-label">07 — 문서 안내</div>
+    <h2>V2 설계 문서 세트</h2>
+    <p>V2 설계는 아래 문서들로 나뉩니다(생성 진행 중). 문서 간 이동은 <strong>프로젝트 허브</strong>가 담당하므로, 본문에는 문서 간 링크를 두지 않습니다.</p>
+
+    <table class="tbl">
+      <tr><th>문서</th><th>다루는 것</th></tr>
+      <tr><td>00 프로젝트 개요</td><td>이 문서 — 전체 지도·어휘</td></tr>
+      <tr><td>멀티 길드 아키텍처</td><td>계정/길드 분리, 서브시스템, 데이터 흐름</td></tr>
+      <tr><td>영지 · 경영 건물 경제</td><td>골드 건물·기억 거래소, 산출 공식, 유휴 캡</td></tr>
+      <tr><td>가챠 · 능력치 개화 · 조각</td><td>뽑기 흐름, DataTable 모델, 강화</td></tr>
+      <tr><td>정직한 경제 · 레벨</td><td>60분=1레벨, 자원 흐름, 해금</td></tr>
+      <tr><td>아카이브 · 기록 ID · 소프트 삭제</td><td>통합 원장, 기록 ID, 휴지통</td></tr>
+      <tr><td>데이터 설계 (DataTable · SaveGame)</td><td>표·세이브 스키마 상세</td></tr>
+    </table>
+  </div>
+
+</div>
+
+<footer>
+  <span>RecordTales V2 &middot; 프로젝트 개요 v0.1</span>
+  <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.5</span>
+</footer>
+
+</body>
+</html>
