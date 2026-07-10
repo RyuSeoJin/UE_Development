@@ -4,7 +4,12 @@
       "WebFetch(domain:dev.epicgames.com)",
       "Bash(python3 -c ' *)",
       "Bash(python3 -)",
-      "WebSearch"
+      "WebSearch",
+      "mcp__visualize__read_me",
+      "mcp__visualize__show_widget",
+      "Bash(sed -n '/<nav>/,/<\\\\/nav>/p' ue-state-machine.html)",
+      "Bash(sed -n '/<div class=\"hero\">/,/^<\\\\/div>/p' ue-state-machine.html)",
+      "Bash(python3 \"/private/tmp/claude-501/-Users-dane-jeong-Documents------UE-Development/0adedf28-2d38-48fc-9664-ddcda9578b5c/scratchpad/add_start_blocks.py\")"
     ]
   }
 }

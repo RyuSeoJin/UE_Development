@@ -8,6 +8,13 @@
      CHANGELOG — 01-multi-guild-architecture.html
      RecordTales V2 멀티 길드 아키텍처 (Track B · 02-A 아키텍처 패턴).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     v0.3 · 2026-07-10
+       - (변경) 작업 시작하기 블록의 코드 외 작업에 ③ 추가 — 세이브↔서브시스템 로드·저장
+         타이밍은 위키 'Subsystem ↔ SaveGame 연동' 문서의 패턴 적용 (신규 배선도 문서 연계)
+     v0.2 · 2026-07-10
+       - (추가) 05 스켈레톤 섹션 첫머리에 "🚀 이 문서로 작업 시작하기" 블록 —
+         전제 조건 · 만들 파일 표(클래스·부모·생성 방법) · 코드 외 작업 · 컴파일 주의.
+         (사용자 피드백: 착수 방법·코드 외 작업 누락 보완, 공통 절차는 위키 C++ 워크플로우 문서 참조)
      v0.1 · 2026-07-09
        - 신규 생성. 하이브리드 C(계정 공유 + 길드별) 구조·서브시스템·데이터 흐름·스켈레톤.
        - 마스터 CSS v1.5 전체 inline 스냅샷. 관계도는 HTML 컴포넌트(.rel-map).
@@ -723,6 +730,19 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   <div class="section" id="skeleton">
     <div class="section-label">05 — 스켈레톤</div>
     <h2>뼈대 코드</h2>
+
+    <h3>🚀 이 문서로 작업 시작하기</h3>
+    <div class="callout info"><span class="ic">🧭</span><p><strong>전제 조건</strong> — 00 개요의 공통 전제(C++ 프로젝트·IDE) 충족. 이 문서가 <strong>착수 순서 1번</strong>입니다 — 다른 시스템(02·03·04)이 여기서 만드는 세이브 구조·서브시스템에 의존하므로 가장 먼저 만듭니다. 클래스 생성·컴파일의 공통 절차는 위키 『C++ 클래스 생성 · 빌드 워크플로우』(core-cpp)를 따릅니다.</p></div>
+    <table class="tbl">
+      <tr><th>만들 파일 (위저드 순서대로)</th><th>부모 클래스 (위저드 검색어)</th><th>비고</th></tr>
+      <tr><td><code>RecordTalesTypes.h</code></td><td><strong>None</strong> (빈 헤더)</td><td><code>FGuildData</code> 등 공용 USTRUCT의 집 — 여러 클래스가 공유하므로 별도 헤더</td></tr>
+      <tr><td><code>RecordTalesSaveGame.h/.cpp</code></td><td><code>SaveGame</code></td><td>계정 세이브(최상위 공유 + 길드 배열)</td></tr>
+      <tr><td><code>GuildSubsystem.h/.cpp</code></td><td><code>GameInstanceSubsystem</code></td><td>길드 전환·현재 길드 관리의 단일 창구</td></tr>
+      <tr><td><code>RecordSubsystem.h/.cpp</code> · <code>EconomySubsystem.h/.cpp</code> · <code>GachaSubsystem.h/.cpp</code> · <code>EstateSubsystem.h/.cpp</code></td><td><code>GameInstanceSubsystem</code></td><td>골격만 먼저(빈 클래스) — 본문은 각 담당 문서(02·04)에서 채움</td></tr>
+    </table>
+    <div class="callout tip"><span class="ic">💡</span><p><strong>코드 외 작업</strong> — ① Subsystem들은 <strong>엔진 등록 불필요</strong>(GameInstance 수명에 자동 생성·소멸) ② SaveGame도 애셋·설정 등록 없음(코드의 슬롯 이름으로 저장/로드) → <strong>이 문서 범위에선 에디터 작업이 없습니다.</strong> 검증은 PIE에서 <code>UE_LOG</code>로 Initialize 호출 확인부터. ③ <strong>세이브와 서브시스템을 잇는 로드·저장 타이밍</strong>(Initialize 로드 → 변경 즉시 저장 → Deinitialize 보험, InitializeDependency 순서 보장)은 위키 『Subsystem ↔ SaveGame 연동』(framework/) 문서의 패턴을 그대로 적용하세요.</p></div>
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>컴파일 주의</strong> — 여기서 만드는 것은 전부 <strong>새 클래스·헤더</strong>이므로 Live Coding 대상이 아닙니다. 클래스를 다 만든 뒤 <strong>에디터를 끄고 IDE에서 빌드 → 재실행</strong>이 안전합니다(상세: 위키 C++ 워크플로우 04).</div></div>
+
     <p>핵심 구조의 뼈대입니다(세부 구현 아님). <strong>길드별 데이터</strong>는 세이브 안의 배열 원소로, <strong>계정 공유</strong>는 세이브 최상위에 둡니다.</p>
 
     <h3>FGuildData — 길드 하나의 데이터 (per-guild)</h3>

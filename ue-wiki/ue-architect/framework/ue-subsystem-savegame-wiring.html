@@ -3,30 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>타이머와 World — 시간 콜백은 누구 소속인가 · UE 아키텍처</title>
+<title>Subsystem ↔ SaveGame 연동 — 로드·저장 타이밍 패턴 · UE 아키텍처</title>
 <!-- ============================================================
-     CHANGELOG — ue-timer-world.html
-     유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿 · framework/).
+     CHANGELOG — ue-subsystem-savegame-wiring.html
+     유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-B 템플릿 · framework/).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
-     v1.2 · 2026-07-10
-       - (추가) 코드 섹션 첫머리 "🚀 이 문서로 작업 시작하기" 블록 — 전제 · 만들 파일 표 ·
-         코드 외 작업 · 컴파일 주의 (플레이북 v3.9 작성 원칙 소급 적용)
-     v1.1 · 2026-07-08
-       - (보강) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
-     v1.0 · 2026-07-07
-       - 신규 생성. FTimerManager가 World 소속이라는 대전제, GameInstanceSubsystem의
-         Initialize()에서 GetWorld()가 null인 이유(수명 타임라인), 안전한 타이머 시작
-         위치 결정표, 일시정지/남은 시간 보존 패턴을 다룸.
-       - 수명 타임라인 다이어그램(.diagram SVG + Mermaid 소스 병기, STEP 7 v3.7)
-       - 마스터 CSS v1.5 inline 스냅샷, hljs 구워넣기, 탭/복사 inline JS
-       - 용어 앵커: term-timer-manager · term-timer-handle · term-world-lifetime
+     v1.0 · 2026-07-10
+       - 신규 생성. "조각(SaveGame·Subsystem) 문서는 있는데 배선도가 없다"는 사용자
+         피드백으로 기획 — 누가 언제 로드하고, 언제 저장을 부르는지의 연동 패턴 중앙 문서.
+       - 완전한 예제 5탭(AccountSaveGame/SaveSubsystem .h·.cpp/EconomySubsystem .h·.cpp)
+         + InitializeDependency(초기화 순서 보장)·GC 보호·변경 즉시 저장 원칙.
+       - 마스터 v1.6 스냅샷 inline. 🚀 작업 시작하기 블록 포함(플레이북 v3.9).
+       - 중앙 용어집 앵커: term-save-on-change · term-initialize-dependency
      ============================================================ -->
 <style>
 /* ============================================================
    UE Design System — Master Stylesheet
    (design-guide-ue-master.css)
    언리얼 에셋 분석 · 아키텍처 설계 문서 공통 토대
-   v1.5  (Dark · Indigo Minimal · Editorial)
+   v1.6  (Dark · Indigo Minimal · Editorial)
 
    사용법
    - 가이드 문서(master-visual / design-template의 01 / 02)는 <link>로 이 파일을 참조.
@@ -34,6 +29,18 @@
      단일 파일로 배포한다. (오프라인 무결성 유지)
 
    변경 이력 (CHANGELOG) — 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+   v1.6 · 2026-07-10
+     - (추가) 블루프린트 에디터 관례색 토큰(--bp-*) — 캔버스/노드/제목 바 5종(이벤트·
+       함수 호출·순수 함수·흐름 제어·캐스트)/핀 타입 8종(Exec·Bool·Float·Int·
+       String·Vector·Object·Class). UE 에디터의 의미색이므로 .bp-graph 내부 전용.
+     - (추가) .bp-graph — 블루프린트 노드 그래프 컨테이너(UE 에디터 재현, 구워넣은 SVG).
+       SVG 내부 클래스: .bpn-body/.bpn-name/.bpn-sub/.bpn-icon/.bpn-chip/.bpn-chip-text
+       (노드) · .bpp-exec(실행 핀 ▷)/.bpp-pin(데이터 핀 ● + t-* 타입, .off=미연결)/
+       .bpp-label(핀 라벨) · .bpw(와이어: .exec 또는 t-* 타입) · .bpg-caption(캡션)
+     - 규칙: .diagram과 동일 철학 — 생성 시점 SVG 구워넣기(런타임 렌더링 금지).
+       제목 바 그라데이션·격자 패턴은 SVG <defs> 표준 블록(bpg-*)을 각 SVG에 포함.
+     - 사유: 사용자 요청 "구현 방법에 블루프린트 노드 포함 + 에디터와 동일한 디자인"
+       (블루프린트 인터페이스 문서, Case B 승인)
    v1.5 · 2026-07-07
      - (추가) .diagram — 구워넣은 SVG 다이어그램 컨테이너(Mermaid 스타일 플로차트).
        SVG 내부 클래스: .dg-node(+k-* 종류 변형)/.dg-text/.dg-sub/.dg-edge(+lk-* 연결 변형)/.dg-elabel
@@ -118,6 +125,28 @@
   --ue-header: #38D9B4;      /* .h  헤더(선언)   */
   --ue-source: #FB8C5A;      /* .cpp 소스(구현)  */
   --ue-macro:  #FB8C5A;      /* UCLASS / UPROPERTY / UFUNCTION 등 리플렉션 매크로 */
+
+  /* --- 블루프린트 에디터 관례색 (.bp-graph 전용, v1.6 신규) ---
+     UE 블루프린트 에디터의 노드·핀 색 관례를 그대로 재현하는 의미색.
+     인디고 팔레트와 성격이 다르므로 .bp-graph SVG 내부에서만 사용한다
+     (본문 UI·다른 컴포넌트에 유출 금지). */
+  --bp-canvas:  #26282A;     /* 그래프 에디터 캔버스 배경                          */
+  --bp-grid:    #2B2D2F;     /* 캔버스 격자선(소, 16px)                            */
+  --bp-grid-2:  #1D1F21;     /* 캔버스 격자선(대, 80px)                            */
+  --bp-node:    #17181A;     /* 노드 본체                                          */
+  --bp-event:   #A03232;     /* 제목 바 — 이벤트(빨강)                             */
+  --bp-call:    #2E6FB4;     /* 제목 바 — 함수 호출·인터페이스 메시지(파랑)        */
+  --bp-pure:    #3F9142;     /* 제목 바 — 순수 함수(초록, 실행 핀 없음)            */
+  --bp-flow:    #787878;     /* 제목 바 — 흐름 제어 Branch/Sequence 등(회색)       */
+  --bp-cast:    #38808F;     /* 제목 바 — 캐스트(청록)                             */
+  --bp-exec:    #E2E2E2;     /* 실행 핀 ▷ · 실행 와이어(흰색)                      */
+  --bp-bool:    #A31515;     /* Boolean 핀(적갈색)                                 */
+  --bp-float:   #9FE838;     /* Float 핀(연두)                                     */
+  --bp-int:     #26E0A8;     /* Integer 핀(청록)                                   */
+  --bp-string:  #F535C8;     /* String 핀(자홍)                                    */
+  --bp-vector:  #F6C21C;     /* Vector 핀(노랑)                                    */
+  --bp-object:  #0A84FF;     /* Object 참조 핀(파랑)                               */
+  --bp-class:   #8A5CD6;     /* Class·Interface 참조 핀(보라)                      */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -533,6 +562,56 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .graph-net .gn-label { fill: var(--text-muted); font-family: 'IBM Plex Mono', monospace; font-size: 10px; text-anchor: middle; }
 .graph-net .gn-label.big { fill: var(--text); font-size: 11px; font-weight: 600; }
 
+/* ============================================================
+   BP-GRAPH — 블루프린트 노드 그래프 (UE 에디터 재현)  [v1.6 신규]
+   블루프린트 에디터의 노드·핀·와이어를 생성 시점 SVG로 구워넣는다
+   (.diagram과 동일 철학 — 런타임 렌더링 스크립트 금지).
+
+   사용 규칙
+   - 제목 바 그라데이션(bpg-event/call/pure/flow/cast)·격자 패턴(bpg-grid/grid80)·
+     그림자(bpg-shadow)는 SVG <defs> 표준 블록을 각 SVG에 포함해 쓴다
+     (master-visual 09 데모의 defs를 그대로 복사). 제목 바 fill은
+     CSS가 아니라 fill="url(#bpg-…)" 속성으로 지정한다(그라데이션이 CSS 클래스에
+     덮이지 않게 하기 위함).
+   - 노드 종류(제목 바 색): 이벤트=빨강 · 함수 호출/인터페이스 메시지=파랑 ·
+     순수 함수=초록(실행 핀 없음) · 흐름 제어=회색 · 캐스트=청록.
+   - 핀: 실행 핀 ▷(.bpp-exec) · 데이터 핀 ●(.bpp-pin + t-* 타입 색).
+     미연결 핀은 .off(외곽선만). 와이어(.bpw)는 실행=.exec(흰색·굵게),
+     데이터=핀과 같은 t-* 색.
+   - 변수 Get/Set 캡슐: .bpn-body에 rx=15 + 좌측 타입 색 스트립(rect)로 표현.
+   ============================================================ */
+.bp-graph { background: var(--bp-canvas); border: 1px solid var(--border); border-radius: 10px; margin: 16px 0; overflow-x: auto; }
+.bp-graph svg { display: block; max-width: 100%; height: auto; margin: 0 auto; min-width: 560px; }
+.bp-graph .bpn-body { fill: var(--bp-node); fill-opacity: 0.97; stroke: #050505; }
+.bp-graph .bpn-name { fill: #F4F4F4; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; font-weight: 600; }
+.bp-graph .bpn-sub  { fill: #B9D2EA; font-family: 'Pretendard', 'Noto Sans KR', sans-serif; font-size: 8.5px; }
+.bp-graph .bpn-icon { fill: #EDEDED; font-size: 11px; }
+.bp-graph .bpn-chip { fill: #101113; stroke: #3A3C40; }
+.bp-graph .bpn-chip-text { fill: #D8D8D8; font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; }
+.bp-graph .bpp-exec { fill: var(--bp-exec); }
+.bp-graph .bpp-pin { stroke-width: 1.6; }
+.bp-graph .bpp-pin.t-bool   { fill: var(--bp-bool);   stroke: var(--bp-bool); }
+.bp-graph .bpp-pin.t-float  { fill: var(--bp-float);  stroke: var(--bp-float); }
+.bp-graph .bpp-pin.t-int    { fill: var(--bp-int);    stroke: var(--bp-int); }
+.bp-graph .bpp-pin.t-string { fill: var(--bp-string); stroke: var(--bp-string); }
+.bp-graph .bpp-pin.t-vector { fill: var(--bp-vector); stroke: var(--bp-vector); }
+.bp-graph .bpp-pin.t-object { fill: var(--bp-object); stroke: var(--bp-object); }
+.bp-graph .bpp-pin.t-class  { fill: var(--bp-class);  stroke: var(--bp-class); }
+/* 미연결 핀 — 외곽선만 (t-* 뒤에 선언해 fill을 이긴다) */
+.bp-graph .bpp-pin.off  { fill: none; }
+.bp-graph .bpp-exec.off { fill: none; stroke: var(--bp-exec); stroke-width: 1.4; }
+.bp-graph .bpp-label { fill: #C9C9C9; font-family: 'IBM Plex Mono', monospace; font-size: 10px; }
+.bp-graph .bpw { fill: none; stroke-width: 1.8; }
+.bp-graph .bpw.exec     { stroke: var(--bp-exec); stroke-width: 2.2; }
+.bp-graph .bpw.t-bool   { stroke: var(--bp-bool); }
+.bp-graph .bpw.t-float  { stroke: var(--bp-float); }
+.bp-graph .bpw.t-int    { stroke: var(--bp-int); }
+.bp-graph .bpw.t-string { stroke: var(--bp-string); }
+.bp-graph .bpw.t-vector { stroke: var(--bp-vector); }
+.bp-graph .bpw.t-object { stroke: var(--bp-object); }
+.bp-graph .bpw.t-class  { stroke: var(--bp-class); }
+.bp-graph .bpg-caption { fill: #8B8F94; font-family: 'Pretendard', 'Noto Sans KR', sans-serif; font-size: 12px; }
+
 @media (max-width: 720px) {
   .content { padding: 0 20px 60px; }
   .hero { padding: 48px 20px 40px; }
@@ -556,33 +635,31 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   footer { padding: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-
 </style>
 </head>
 <body>
 
 <nav>
-  <div class="nav-logo">UE WIKI · TIMER &amp; WORLD</div>
+  <div class="nav-logo">UE WIKI · SAVE WIRING</div>
   <div class="nav-links">
     <a href="#concept">개념</a>
-    <a href="#relation">관계</a>
-    <a href="#responsibility">책임</a>
-    <a href="#flow">흐름</a>
-    <a href="#skeleton">스켈레톤</a>
-    <a href="#extend">확장</a>
+    <a href="#design">설계 결정</a>
+    <a href="#flow">연동 흐름</a>
+    <a href="#impl">구현</a>
+    <a href="#verify">검증 · 함정</a>
   </div>
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">UE Architecture · Type ① · 02-A</div>
-  <h1>타이머와 World<br><span>시간 콜백은 누구 소속인가</span></h1>
+  <div class="hero-eyebrow">UE Architecture · Type ① · 02-B</div>
+  <h1>Subsystem ↔ SaveGame 연동<br><span>로드 · 저장 타이밍 패턴</span></h1>
   <p class="hero-sub">
-    "N초 뒤에 이 함수를 불러줘"를 담당하는 <strong><code>FTimerManager</code></strong>는 전역 서비스가 아니라 <strong>World의 부품</strong>입니다. 이 한 문장을 모르면 "Subsystem <code>Initialize()</code>에서 타이머를 걸었는데 <code>GetWorld()</code>가 null"이라는, 초보자가 가장 오래 헤매는 벽에 부딪힙니다. 이 문서는 그 벽의 원인(수명 타임라인)과 안전한 우회로를 다룹니다.
+    SaveGame 문서와 Subsystem 문서를 각각 읽어도 남는 질문 — <strong>"그래서 게임이 켜질 때 누가 로드하고, 값이 바뀔 때 누가 저장을 부르지?"</strong> 이 문서는 그 <strong>배선도</strong>입니다. EconomySubsystem(골드)을 예제로, 시작 → 변경 → 종료의 세 시점에 무슨 코드가 어디서 불리는지를 완전한 예제로 잇습니다.
   </p>
   <div class="hero-meta">
-    <span class="badge badge-blue">엔진 자체 기능</span>
-    <span class="badge badge-green">UE4 / UE5 공통</span>
-    <span class="badge badge-purple">C++ 중심</span>
+    <span class="badge badge-blue">시스템 연동 패턴</span>
+    <span class="badge badge-green">UE5 · 싱글플레이/로컬</span>
+    <span class="badge badge-purple">SaveGame + GameInstanceSubsystem</span>
   </div>
 </div>
 
@@ -590,193 +667,311 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
   <!-- 01 개념 -->
   <div class="section" id="concept">
-    <div class="section-label">01 — 개념 · 역할</div>
-    <h2>타이머는 예약, 핸들은 예약 번호표</h2>
-    <p>매 프레임 <code>Tick</code>에서 시간을 직접 빼는 대신, 엔진에 "예약"을 겁니다: <em>"5초 뒤에(또는 5초마다) 이 함수를 호출해줘."</em> 예약을 받는 곳이 <code>FTimerManager</code>, 예약증이 <code>FTimerHandle</code>입니다.</p>
-    <h3 id="term-timer-manager">핵심 용어</h3>
-    <div class="callout info"><span class="ic">📖</span><p>
-      <strong>World</strong> — 레벨(맵)이 로드되어 실행 중인 무대. 액터·시간·물리가 전부 World 위에서 돕니다. <strong>레벨을 이동하면 이전 World는 파괴됩니다.</strong><br><br>
-      <strong>FTimerManager</strong> — World가 소유한 예약 접수처. World의 시간(일시정지·시간 배속의 영향을 받는 시간)을 기준으로 만료를 판정합니다. <code>GetWorld()-&gt;GetTimerManager()</code>로 접근합니다.<br><br>
-      <strong id="term-timer-handle">FTimerHandle</strong> — 예약 번호표. 예약을 취소(<code>ClearTimer</code>)·조회(<code>GetTimerRemaining</code>)·일시정지(<code>PauseTimer</code>)하려면 이 핸들이 필요하므로 <strong>멤버 변수로 보관</strong>합니다.<br><br>
-      <strong id="term-world-lifetime">수명(Lifetime)</strong> — 객체가 태어나서 죽기까지의 구간. GameInstance(앱 전체) ⊃ World(레벨 하나) 관계라서, <strong>GameInstance가 살아 있어도 World는 아직 없거나 이미 죽었을 수 있습니다.</strong> 이 어긋남이 이 문서의 주제입니다.
-    </p></div>
-  </div>
+    <div class="section-label">01 — 개념</div>
+    <h2>상자와 일꾼 — 역할부터 가르기</h2>
+    <p>가장 흔한 오해는 <strong>"Subsystem을 SaveGame에 저장한다"</strong>입니다. 아닙니다 — 둘은 저장하고/되는 관계가 아니라 <strong>일꾼과 상자</strong>의 관계입니다.</p>
 
-  <!-- 02 관계 -->
-  <div class="section" id="relation">
-    <div class="section-label">02 — 수명 관계</div>
-    <h2>왜 Initialize()에서 GetWorld()가 null인가</h2>
-    <p>앱이 켜질 때의 순서를 시간축으로 보면 답이 보입니다. <strong>GameInstance와 그 Subsystem들은 World가 만들어지기 전에 초기화됩니다.</strong></p>
-
-    <div class="diagram">
-      <svg viewBox="0 0 700 250" role="img" aria-label="GameInstance와 World의 수명 타임라인">
-        <defs>
-          <marker id="dgt-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-            <path d="M0,0 L10,5 L0,10 z" fill="var(--text-dim)"/>
-          </marker>
-        </defs>
-        <path class="dg-edge" d="M30,40 L690,40" marker-end="url(#dgt-arrow)"/>
-        <text class="dg-elabel" x="640" y="30">시간 →</text>
-        <rect class="dg-node k-instance" x="30" y="60" width="640" height="44" rx="8"/>
-        <text class="dg-text" x="350" y="87" text-anchor="middle">GameInstance + Subsystems — 앱이 켜진 순간부터 꺼질 때까지</text>
-        <rect class="dg-node k-decision" x="30" y="118" width="150" height="36" rx="8"/>
-        <text class="dg-text" x="105" y="140" text-anchor="middle">Initialize() 시점</text>
-        <rect class="dg-node" x="215" y="118" width="215" height="36" rx="8"/>
-        <text class="dg-text" x="322" y="140" text-anchor="middle">World A (첫 레벨)</text>
-        <rect class="dg-node" x="470" y="118" width="200" height="36" rx="8"/>
-        <text class="dg-text" x="570" y="140" text-anchor="middle">World B (레벨 이동 후)</text>
-        <path class="dg-edge lk-event" d="M105,154 L105,190"/>
-        <text class="dg-elabel" x="30" y="210">여기서 GetWorld() = null</text>
-        <text class="dg-elabel" x="30" y="226">→ SetTimer 불가</text>
-        <path class="dg-edge lk-save" d="M430,136 L466,136" marker-end="url(#dgt-arrow)"/>
-        <text class="dg-elabel" x="330" y="210">World가 바뀌면 A의 타이머는 전부 소멸</text>
-        <text class="dg-elabel" x="330" y="226">(TimerManager가 World 소속이므로)</text>
-      </svg>
-    </div>
-
-    <div class="codeblock">
-      <div class="codeblock-bar">
-        <button class="codeblock-tab tab-h active" type="button">lifetime.mmd</button>
-        <button class="codeblock-copy" type="button">복사</button>
+    <div class="grid-2">
+      <div class="compare-box">
+        <h4 style="color:var(--ue-savegame)">📦 SaveGame = 상자</h4>
+        <p><strong>UPROPERTY 필드만 있는 데이터 덩어리</strong>입니다. 로직이 없고, 스스로 아무것도 하지 않습니다. 디스크에 통째로 직렬화되는 것은 이 상자뿐입니다.</p>
+        <div class="pills"><span class="pill blue">Gold</span><span class="pill blue">보유 목록</span><span class="pill blue">SaveVersion</span></div>
       </div>
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-keyword">flowchart</span> LR
-    GI[GameInstance 생성] --&gt; INIT[Subsystem Initialize — World 없음!]
-    INIT --&gt; WA[World A 로드 + BeginPlay]
-    WA --&gt; WB[레벨 이동 → World A 파괴, World B 생성]
-    WA -. World A의 타이머 전부 소멸 .-&gt; WB</pre></div>
+      <div class="compare-box">
+        <h4 style="color:var(--ue-subsystem)">🔧 Subsystem = 일꾼</h4>
+        <p><strong>로직과 런타임 상태를 가진 살아있는 서비스</strong>입니다. 디스크에 저장되지 않으며, 시작할 때 상자에서 값을 꺼내 오고 값이 바뀌면 상자에 다시 넣습니다.</p>
+        <div class="pills"><span class="pill purple">AddGold()</span><span class="pill purple">검증 로직</span><span class="pill purple">델리게이트 방송</span></div>
+      </div>
     </div>
+
+    <p>따라서 "연동"이란 딱 세 가지 시점의 규칙입니다: <strong>① 시작할 때 상자를 열어 읽기 ② 값이 바뀔 때 상자에 쓰고 디스크에 반영 ③ 끝날 때 보험 저장.</strong> 이 셋만 정확하면 나머지는 각 문서(SaveGame·Subsystem)가 이미 다룬 내용입니다.</p>
+
+    <div class="callout info" id="term-save-on-change"><span class="ic">📌</span><p><strong>핵심 용어</strong> — <strong>변경 즉시 저장(Save-on-Change)</strong>: 값을 바꾸는 함수가 그 자리에서 저장까지 부르는 전략. 크래시·강제 종료에도 데이터가 살아남는다. / <strong>저장 주인(Save Owner)</strong>: SaveGame 객체를 보유하고 로드·저장을 전담하는 단 하나의 Subsystem — 이 문서에선 <code>USaveSubsystem</code>. / <span id="term-initialize-dependency"><strong>InitializeDependency</strong>: Subsystem끼리는 초기화 순서가 보장되지 않으므로, "나보다 먼저 켜져야 하는 Subsystem"을 <code>Collection.InitializeDependency&lt;T&gt;()</code>로 명시해 순서를 강제하는 장치</span>.</p></div>
   </div>
 
-  <!-- 03 책임 -->
-  <div class="section" id="responsibility">
-    <div class="section-label">03 — 어디서 걸어야 안전한가</div>
-    <h2>타이머 시작 위치 결정표</h2>
+  <!-- 02 설계 결정 -->
+  <div class="section" id="design">
+    <div class="section-label">02 — 설계 결정</div>
+    <h2>주인은 하나, 저장은 즉시</h2>
+
     <table class="tbl">
-      <tr><th>내가 있는 곳</th><th>안전한 시작 시점</th><th>이유</th></tr>
-      <tr><td><span class="owner o-pawn">Actor / Component</span></td><td><code>BeginPlay()</code> 이후</td><td>BeginPlay = "World에 배치 완료" 신호. <code>GetWorld()</code>가 항상 유효</td></tr>
-      <tr><td><span class="owner o-controller">UMG 위젯</span></td><td><code>NativeConstruct()</code> 이후</td><td>화면에 붙은 위젯은 World를 가짐. 파괴 시 <code>ClearTimer</code> 필수</td></tr>
-      <tr><td><span class="owner o-subsystem">GameInstanceSubsystem</span></td><td><strong><code>Initialize()</code> ✗</strong> → 사용자 입력/게임 시작 등 <strong>첫 호출 시점</strong>에</td><td>Initialize 시점엔 World가 없음. "타이머 시작" 함수(예: <code>StartXxx()</code>)가 불릴 때는 World가 있으므로 그때 걸기</td></tr>
-      <tr><td><span class="owner o-instance">항상 돌아야 하는 전역 틱</span></td><td><code>FTSTicker</code> (World 무관)</td><td>레벨 이동에도 살아남아야 하는 백그라운드 갱신은 World 타이머가 아니라 엔진 티커 사용(§06)</td></tr>
+      <tr><th>데이터 / 기능</th><th>배치</th><th>왜 여기인가</th></tr>
+      <tr><td>SaveGame 객체 보유 · 로드 · <code>SaveGameToSlot</code> 호출 · 슬롯 이름</td><td><span class="owner o-savegame">USaveSubsystem (저장 주인)</span></td><td>상자가 여러 곳에 있으면 슬롯 난립·서로 덮어쓰기 사고. <strong>디스크를 만지는 코드는 한 곳</strong>이어야 디버깅이 됨</td></tr>
+      <tr><td>도메인 필드(Gold 등) 읽기 · 쓰기 · 검증 로직</td><td><span class="owner o-subsystem">각 도메인 Subsystem (Economy 등)</span></td><td>"골드가 음수면 안 된다"는 Economy의 지식 — 상자는 규칙을 모름</td></tr>
+      <tr><td>저장 트리거 (언제 저장하나)</td><td><span class="owner o-subsystem">값을 바꾸는 함수 자신</span></td><td>변경과 저장이 한 함수에 있으면 "저장 깜빡함" 자체가 불가능해짐</td></tr>
+      <tr><td>보험 저장</td><td><span class="owner o-savegame">USaveSubsystem::Deinitialize</span></td><td>정상 종료 시 마지막 안전망 — 단, 이것에 의존하지 않음(아래 비교표)</td></tr>
     </table>
-    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>판별 한 줄</strong> — "이 타이머는 레벨이 바뀌어도 계속 가야 하나?" 아니오 → World 타이머(위 셋). 예 → 설계를 다시 보거나(대부분 만료 시각을 저장해 두고 재계산하면 충분) FTSTicker.</div></div>
+
+    <h3>저장 전략 비교 — 왜 "변경 즉시"인가</h3>
+    <table class="tbl">
+      <tr><th>전략</th><th>장점</th><th>치명적 약점</th><th>판정</th></tr>
+      <tr><td><strong>변경 즉시 저장</strong></td><td>크래시·강제 종료에도 데이터 생존. "저장 안 됨" 버그 원천 차단</td><td>변경이 초당 수십 번이면 디스크 부담 (→ 05의 더티 플래그 보완)</td><td><strong>✅ 채택 (기본값)</strong></td></tr>
+      <tr><td>주기 저장 (N초마다)</td><td>디스크 부담 예측 가능</td><td>마지막 N초 유실. 타이머 관리 코드 추가</td><td>변경이 매우 잦은 게임에서만</td></tr>
+      <tr><td>종료 시에만 저장</td><td>구현 최소</td><td><strong>크래시·강제 종료 = 세션 전체 유실.</strong> 데스크톱 앱에서 최악</td><td>❌ 단독 사용 금지 — 보험으로만</td></tr>
+    </table>
+
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>도메인 Subsystem이 값을 복사해 들고 있지 않게 하세요.</strong> Economy가 <code>CachedGold</code> 사본을 두면 상자와 사본이 어긋나는 순간부터 지옥입니다. 원칙: <strong>진실은 상자에 하나</strong> — Economy는 상자 필드를 직접 읽고 씁니다(예제 코드가 이 방식).</div></div>
   </div>
 
-  <!-- 04 흐름 -->
+  <!-- 03 연동 흐름 -->
   <div class="section" id="flow">
-    <div class="section-label">04 — 사용 흐름</div>
-    <h2>걸기 · 멈추기 · 남은 시간 보존</h2>
-    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">걸기 — SetTimer</div><div class="pipe-desc"><code>GetWorld()-&gt;GetTimerManager().SetTimer(Handle, this, &amp;클래스::OnExpired, 5.f, false)</code>. 마지막 인자 <code>true</code>면 5초마다 반복. 전제: World 유효. 결과: Handle이 유효한 예약을 가리킴.</div></div></div>
-    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">일시정지 / 재개</div><div class="pipe-desc"><code>PauseTimer(Handle)</code> / <code>UnPauseTimer(Handle)</code> — 남은 시간이 그대로 얼었다 녹습니다. 대부분의 "일시정지" 요구는 이 두 줄로 끝나며, 남은 시간을 직접 계산할 필요가 없습니다.</div></div></div>
-    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">조회 — 남은 시간 표시</div><div class="pipe-desc"><code>GetTimerRemaining(Handle)</code>이 초 단위 float를 돌려줍니다. UI 카운트다운은 이 값을 읽어 그리기만 하면 됩니다(별도 카운트 변수를 두지 않기 — 이중 장부 방지).</div></div></div>
-    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">끄기 — ClearTimer</div><div class="pipe-desc"><code>ClearTimer(Handle)</code> — 예약 취소 + 핸들 무효화. 소유 객체가 파괴되기 전(위젯 <code>NativeDestruct</code> 등)에 반드시 호출합니다.</div></div></div>
+    <div class="section-label">03 — 연동 흐름</div>
+    <h2>세 시점, 다섯 단계</h2>
+
+    <div class="arch">
+      <div class="arch-layer"><div class="arch-tag">시작</div><div class="arch-title">상자 열기 (로드)</div><div class="arch-desc">SaveSubsystem.Initialize</div></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-layer"><div class="arch-tag">진행 중</div><div class="arch-title">변경 즉시 저장</div><div class="arch-desc">AddGold() 마지막 줄</div></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-layer"><div class="arch-tag">종료</div><div class="arch-title">보험 저장</div><div class="arch-desc">Deinitialize</div></div>
+    </div>
+
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">엔진이 GameInstance를 만든다</div><div class="pipe-desc">게임 실행(또는 PIE 시작) 시 자동. 이때 모든 GameInstanceSubsystem의 <code>Initialize()</code>가 <strong>순서 보장 없이</strong> 불립니다 — 그래서 2·3단계의 순서 장치가 필요합니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">저장 주인이 상자를 연다</div><div class="pipe-desc"><code>USaveSubsystem::Initialize</code>: <code>DoesSaveGameExist</code>? → 있으면 <code>LoadGameFromSlot</code> + 캐스트, <strong>없으면(첫 실행) <code>CreateSaveGameObject</code>로 새 상자</strong>. <strong>결과: 이 시점 이후 <code>GetSave()</code>는 항상 유효한 상자를 돌려줌.</strong></div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">도메인 일꾼이 주인에게 연결한다</div><div class="pipe-desc"><code>UEconomySubsystem::Initialize</code> 첫 줄에서 <code>Collection.InitializeDependency&lt;USaveSubsystem&gt;()</code> — "저장 주인 먼저 켜라"를 엔진에 강제한 뒤 참조를 캐시. <strong>이 한 줄이 없으면 실행 순서 복불복으로 nullptr 크래시가 간헐 발생합니다.</strong></div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">값이 바뀔 때마다: 쓰고 → 저장</div><div class="pipe-desc"><code>AddGold(100)</code> = ① 검증 ② 상자 필드 갱신(<code>Save-&gt;Gold += …</code>) ③ <code>SaveSub-&gt;RequestSave()</code> ④ 델리게이트 방송(UI 갱신용). <strong>변경과 저장이 한 함수 안</strong> — 다른 어디서도 저장을 신경 쓸 필요가 없어집니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">5</div><div class="pipe-body"><div class="pipe-title">종료: 보험 저장</div><div class="pipe-desc">GameInstance가 닫힐 때 <code>USaveSubsystem::Deinitialize</code>가 자동 호출 → 마지막 <code>RequestSave()</code>. 4단계가 본선이므로 이건 <strong>안전망</strong>입니다(크래시 시엔 안 불리지만, 4단계 덕분에 잃는 게 없음).</div></div></div>
   </div>
 
-  <!-- 05 스켈레톤 -->
-  <div class="section" id="skeleton">
-    <div class="section-label">05 — 구현 스켈레톤</div>
-    <h2>Subsystem에서 안전하게 타이머 걸기</h2>
+  <!-- 04 구현 -->
+  <div class="section" id="impl">
+    <div class="section-label">04 — 구현</div>
+    <h2>완전한 예제 — 골드 하나를 끝까지 잇기</h2>
 
     <h3>🚀 이 문서로 작업 시작하기</h3>
-    <div class="callout info"><span class="ic">🧭</span><p><strong>전제 조건</strong> — 단독 실습 가능합니다. 위저드·Build.cs·컴파일의 공통 절차는 위키 『C++ 클래스 생성 · 빌드 워크플로우』(core-cpp)를 따릅니다.</p></div>
+    <div class="callout info"><span class="ic">🧭</span><p><strong>전제 조건</strong> — SaveGame 문서(data/)와 GameInstanceSubsystem 문서(framework/)의 개념을 읽었다고 가정합니다(각 조각의 상세는 그쪽 담당). 위저드·컴파일 공통 절차는 위키 『C++ 클래스 생성 · 빌드 워크플로우』(core-cpp)를 따릅니다.</p></div>
     <table class="tbl">
-      <tr><th>만들 파일 / 작업 대상</th><th>부모 클래스 (위저드 검색어)</th><th>비고</th></tr>
-      <tr><td><code>CountdownSubsystem.h/.cpp</code></td><td><code>GameInstanceSubsystem</code></td><td>타이머 핸들 보관·재예약 창구</td></tr>
+      <tr><th>만들 파일</th><th>부모 클래스 (위저드 검색어)</th><th>비고</th></tr>
+      <tr><td><code>AccountSaveGame.h</code></td><td><code>SaveGame</code></td><td>상자 — 필드만 (cpp는 비어 있어도 됨)</td></tr>
+      <tr><td><code>SaveSubsystem.h/.cpp</code></td><td><code>GameInstanceSubsystem</code></td><td>저장 주인 — 로드·저장 전담</td></tr>
+      <tr><td><code>EconomySubsystem.h/.cpp</code></td><td><code>GameInstanceSubsystem</code></td><td>도메인 일꾼 예제 — 이미 있으면 본문만 채움</td></tr>
     </table>
-    <div class="callout tip"><span class="ic">💡</span><p><strong>코드 외 작업</strong> — 없음(자동 등록). 검증 포인트: 레벨을 이동해 보며 <strong>"World가 바뀌면 타이머가 소멸한다"</strong>를 직접 재현해 보는 것이 이 문서의 핵심 학습입니다(본문 검증 절차).</p></div>
-    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>컴파일 주의</strong> — 새 클래스=재빌드, 콜백 본문=Live Coding.</div></div>
-    <p>핵심은 <strong>Initialize가 아니라 Start 함수에서 건다</strong>는 것 — 그 시점엔 World가 반드시 있습니다.</p>
+    <div class="callout tip"><span class="ic">💡</span><p><strong>코드 외 작업</strong> — 없음(Subsystem 자동 등록·SaveGame 무등록). 완료 확인: PIE에서 골드 추가 → 프로젝트 폴더 <code>Saved/SaveGames/Account.sav</code> 생성 → PIE 재시작 후 값 유지.</p></div>
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>컴파일 주의</strong> — 전부 새 클래스이므로 에디터 종료 → IDE 빌드 코스. 이후 <code>AddGold</code> 로직 다듬기는 Live Coding, <strong>상자에 필드를 추가하면 다시 재빌드</strong>입니다.</div></div>
+
     <div class="codeblock">
       <div class="codeblock-bar">
-        <button class="codeblock-tab tab-h active" type="button">CountdownSubsystem.h</button>
-        <button class="codeblock-tab tab-cpp" type="button">CountdownSubsystem.cpp</button>
+        <button class="codeblock-tab tab-h active" type="button">AccountSaveGame.h</button>
+        <button class="codeblock-tab tab-h" type="button">SaveSubsystem.h</button>
+        <button class="codeblock-tab tab-cpp" type="button">SaveSubsystem.cpp</button>
+        <button class="codeblock-tab tab-h" type="button">EconomySubsystem.h</button>
+        <button class="codeblock-tab tab-cpp" type="button">EconomySubsystem.cpp</button>
         <button class="codeblock-copy" type="button">복사</button>
       </div>
       <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
-<span class="hljs-meta">#include</span> <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span>
-<span class="hljs-meta">#include</span> <span class="hljs-string">"CountdownSubsystem.generated.h"</span>
 
-<span class="hljs-comment">// 동적 멀티캐스트 델리게이트 타입 선언 — 여러 구독자가 붙을 수 있고, 블루프린트 바인딩까지 지원 (인자 없음)</span>
-<span class="hljs-meta">DECLARE_DYNAMIC_MULTICAST_DELEGATE</span>(FOnCountdownFinished);
+<span class="hljs-meta">#include</span> <span class="hljs-string">"CoreMinimal.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"GameFramework/SaveGame.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"AccountSaveGame.generated.h"</span>
 
-<span class="hljs-comment">// UCLASS(): 리플렉션 등록 — 엔진이 이 Subsystem을 자동 발견·생성하는 전제 조건</span>
+<span class="hljs-comment">// 상자 — 디스크에 남을 필드만 담는다. 로직 금지(함수를 넣고 싶어지면 설계 신호 위반).</span>
+<span class="hljs-comment">// UPROPERTY가 붙은 멤버만 직렬화된다 — 빼먹으면 "저장했는데 안 남는" 1순위 원인.</span>
 <span class="hljs-meta">UCLASS()</span>
-<span class="hljs-keyword">class</span> MYGAME_API <span class="hljs-type">UCountdownSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>   <span class="hljs-comment">// MYGAME_API: 모듈 외부 노출 매크로 — 자기 모듈 이름으로 교체</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UAccountSaveGame</span> : <span class="hljs-keyword">public</span> <span class="hljs-title class_">USaveGame</span>
 {
-    <span class="hljs-meta">GENERATED_BODY()</span>   <span class="hljs-comment">// 리플렉션 보일러플레이트 삽입 자리 — UCLASS()와 한 쌍</span>
-<span class="hljs-keyword">public</span>:
-    <span class="hljs-comment">// BlueprintCallable: BP에서 호출 가능. 타이머는 Initialize()가 아닌 Start()에서 걸어야 안전 (그 시점엔 World 보장)</span>
-    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Start</span>(<span class="hljs-type">float</span> Seconds);   <span class="hljs-comment">// Seconds: 카운트다운 길이(초 단위)</span>
-    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Pause</span>();
-    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Resume</span>();
-    <span class="hljs-meta">UFUNCTION(BlueprintPure)</span>     <span class="hljs-type">float</span> <span class="hljs-title">GetRemaining</span>() <span class="hljs-keyword">const</span>;   <span class="hljs-comment">// BlueprintPure: 상태를 바꾸지 않는 읽기 전용 노드 — UI 표시에 사용</span>
+	<span class="hljs-meta">GENERATED_BODY</span>()
 
-    <span class="hljs-comment">// BlueprintAssignable: BP에서 이 이벤트에 커스텀 이벤트를 바인딩 가능 — 만료 알림 통로</span>
-    <span class="hljs-meta">UPROPERTY(BlueprintAssignable)</span>
-    <span class="hljs-type">FOnCountdownFinished</span> OnFinished;
+<span class="hljs-keyword">public</span>:
+	<span class="hljs-comment">// --- Economy 구역 ---</span>
+	<span class="hljs-meta">UPROPERTY()</span>
+	<span class="hljs-type">int64</span> Gold = <span class="hljs-number">0</span>;                <span class="hljs-comment">// 초기값 = 첫 실행(새 상자)의 기본값이 된다</span>
+
+	<span class="hljs-comment">// --- 다른 도메인 구역이 여기 늘어난다 (수집·길드 등) ---</span>
+
+	<span class="hljs-comment">// 상자 구조를 바꿀 때 구버전 파일을 구분하기 위한 버전 표식 (SaveGame 문서의 마이그레이션 참조)</span>
+	<span class="hljs-meta">UPROPERTY()</span>
+	<span class="hljs-type">int32</span> SaveVersion = <span class="hljs-number">1</span>;
+};</pre></div>
+      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+
+<span class="hljs-meta">#include</span> <span class="hljs-string">"CoreMinimal.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"SaveSubsystem.generated.h"</span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UAccountSaveGame</span>;   <span class="hljs-comment">// 전방 선언 — 헤더 의존 최소화(빌드 시간)</span>
+
+<span class="hljs-comment">// 저장 주인 — SaveGame 객체를 보유하고 디스크를 만지는 "유일한" 클래스.</span>
+<span class="hljs-comment">// 다른 Subsystem은 GetSave()로 상자를 빌려 읽고 쓸 뿐, 직접 Load/Save를 부르지 않는다.</span>
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">USaveSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-title class_">UGameInstanceSubsystem</span>
+{
+	<span class="hljs-meta">GENERATED_BODY</span>()
+
+<span class="hljs-keyword">public</span>:
+	<span class="hljs-comment">// 엔진 호출 시점: GameInstance 생성 직후(게임 시작·PIE 시작) — 여기서 상자를 연다</span>
+	<span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Initialize</span>(FSubsystemCollectionBase&amp; Collection) <span class="hljs-keyword">override</span>;
+	<span class="hljs-comment">// 엔진 호출 시점: GameInstance 종료(정상 종료) — 보험 저장</span>
+	<span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Deinitialize</span>() <span class="hljs-keyword">override</span>;
+
+	<span class="hljs-comment">// 도메인 Subsystem들이 상자를 빌리는 창구 — Initialize 이후 항상 유효</span>
+	UAccountSaveGame* <span class="hljs-title">GetSave</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> Current; }
+
+	<span class="hljs-comment">// 디스크 반영 요청 — 값을 바꾼 쪽이 마지막에 부른다 (변경 즉시 저장)</span>
+	<span class="hljs-keyword">void</span> <span class="hljs-title">RequestSave</span>();
 
 <span class="hljs-keyword">private</span>:
-    <span class="hljs-keyword">void</span> <span class="hljs-title">HandleExpired</span>();   <span class="hljs-comment">// 만료 시 TimerManager가 호출하는 내부 콜백 — 외부에서 직접 부를 일 없으므로 private</span>
-    <span class="hljs-type">FTimerHandle</span> Handle;   <span class="hljs-comment">// 예약 번호표 — 반드시 멤버로 보관</span>
+	<span class="hljs-comment">// UPROPERTY 필수! — 없으면 GC가 상자를 수거해 "갑자기 저장이 안 되는" 유령 버그가 된다</span>
+	<span class="hljs-meta">UPROPERTY()</span>
+	TObjectPtr&lt;UAccountSaveGame&gt; Current = <span class="hljs-literal">nullptr</span>;
+
+	<span class="hljs-comment">// 슬롯 이름은 상수 한 곳에 — 오타로 인한 "다른 슬롯에 저장" 사고 방지</span>
+	<span class="hljs-keyword">static</span> <span class="hljs-keyword">const</span> FString SlotName;
 };</pre></div>
-      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include</span> <span class="hljs-string">"CountdownSubsystem.h"</span>
-<span class="hljs-meta">#include</span> <span class="hljs-string">"TimerManager.h"</span>   <span class="hljs-comment">// FTimerManager 정의 헤더 — SetTimer/PauseTimer 등을 쓰려면 .cpp에 필요</span>
+      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include</span> <span class="hljs-string">"SaveSubsystem.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"AccountSaveGame.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"Kismet/GameplayStatics.h"</span>   <span class="hljs-comment">// LoadGameFromSlot / SaveGameToSlot 제공</span>
 
-<span class="hljs-keyword">void</span> <span class="hljs-type">UCountdownSubsystem</span>::<span class="hljs-title">Start</span>(<span class="hljs-type">float</span> Seconds)
+<span class="hljs-keyword">const</span> FString USaveSubsystem::SlotName = <span class="hljs-string">TEXT(<span class="hljs-string">"Account"</span>)</span>;   <span class="hljs-comment">// 결과 파일: Saved/SaveGames/Account.sav</span>
+
+<span class="hljs-keyword">void</span> USaveSubsystem::<span class="hljs-title">Initialize</span>(FSubsystemCollectionBase&amp; Collection)
 {
-    <span class="hljs-comment">// Initialize()가 아니라 여기서 건다 — 사용자가 부르는 시점엔 World가 있다.</span>
-    <span class="hljs-type">UWorld</span>* World = <span class="hljs-title">GetGameInstance</span>()-&gt;<span class="hljs-title">GetWorld</span>();
-    <span class="hljs-keyword">if</span> (!World) <span class="hljs-keyword">return</span>;   <span class="hljs-comment">// 방어 — 로딩 경계에서 불리는 예외 케이스</span>
+	Super::<span class="hljs-title">Initialize</span>(Collection);
 
-    <span class="hljs-comment">// 인자 순서: 1) Handle(예약 추적용) 2) 콜백 대상 객체(this) + 멤버 함수 포인터 — 객체가 파괴되면 자동 무효화되어 안전 3) 지연 시간(초) 4) 반복 여부</span>
-    World-&gt;<span class="hljs-title">GetTimerManager</span>().<span class="hljs-title">SetTimer</span>(
-        Handle, <span class="hljs-keyword">this</span>, &amp;<span class="hljs-type">UCountdownSubsystem</span>::HandleExpired,
-        Seconds, <span class="hljs-literal">false</span>);   <span class="hljs-comment">// false = 1회성</span>
+	<span class="hljs-comment">// 1) 기존 세이브가 있으면 로드 — UserIndex 0 = 로컬 단일 사용자</span>
+	<span class="hljs-keyword">if</span> (UGameplayStatics::<span class="hljs-title">DoesSaveGameExist</span>(SlotName, <span class="hljs-number">0</span>))
+	{
+		<span class="hljs-comment">// LoadGameFromSlot은 부모 타입(USaveGame*)을 돌려주므로 우리 상자 타입으로 캐스트</span>
+		Current = <span class="hljs-title">Cast</span>&lt;UAccountSaveGame&gt;(UGameplayStatics::<span class="hljs-title">LoadGameFromSlot</span>(SlotName, <span class="hljs-number">0</span>));
+	}
+
+	<span class="hljs-comment">// 2) 없거나(첫 실행) 캐스트 실패(파일 손상·타입 변경) → 새 상자 생성</span>
+	<span class="hljs-comment">//    이 분기 덕분에 GetSave()는 "항상 유효"가 보장된다</span>
+	<span class="hljs-keyword">if</span> (!Current)
+	{
+		Current = <span class="hljs-title">Cast</span>&lt;UAccountSaveGame&gt;(
+			UGameplayStatics::<span class="hljs-title">CreateSaveGameObject</span>(UAccountSaveGame::StaticClass()));
+		<span class="hljs-built_in">UE_LOG</span>(LogTemp, Log, <span class="hljs-string">TEXT(<span class="hljs-string">"세이브 없음 — 새 상자 생성 (첫 실행)"</span>)</span>);
+	}
 }
 
-<span class="hljs-keyword">void</span> <span class="hljs-type">UCountdownSubsystem</span>::<span class="hljs-title">Pause</span>()
+<span class="hljs-keyword">void</span> USaveSubsystem::<span class="hljs-title">RequestSave</span>()
 {
-    <span class="hljs-comment">// if문 안 초기화 구문 — World가 유효할 때만 접근 (레벨 전환 중엔 null일 수 있어 역참조 시 크래시)</span>
-    <span class="hljs-keyword">if</span> (<span class="hljs-type">UWorld</span>* W = <span class="hljs-title">GetGameInstance</span>()-&gt;<span class="hljs-title">GetWorld</span>())
-        W-&gt;<span class="hljs-title">GetTimerManager</span>().<span class="hljs-title">PauseTimer</span>(Handle);   <span class="hljs-comment">// 남은 시간이 언 채로 보존</span>
+	<span class="hljs-comment">// 상자가 없으면 저장할 것도 없다 — Initialize 전에 불리는 비정상 경로 방어</span>
+	<span class="hljs-keyword">if</span> (!Current) { <span class="hljs-keyword">return</span>; }
+
+	<span class="hljs-comment">// 동기 저장 — 상자가 작을 땐 충분. 커지면 SaveGameToSlot 대신 Async 버전으로 교체 지점</span>
+	UGameplayStatics::<span class="hljs-title">SaveGameToSlot</span>(Current, SlotName, <span class="hljs-number">0</span>);
 }
 
-<span class="hljs-keyword">void</span> <span class="hljs-type">UCountdownSubsystem</span>::<span class="hljs-title">Resume</span>()
+<span class="hljs-keyword">void</span> USaveSubsystem::<span class="hljs-title">Deinitialize</span>()
 {
-    <span class="hljs-keyword">if</span> (<span class="hljs-type">UWorld</span>* W = <span class="hljs-title">GetGameInstance</span>()-&gt;<span class="hljs-title">GetWorld</span>())
-        W-&gt;<span class="hljs-title">GetTimerManager</span>().<span class="hljs-title">UnPauseTimer</span>(Handle);   <span class="hljs-comment">// 얼려 둔 남은 시간 그대로 재개 — 직접 재계산할 필요 없음</span>
+	<span class="hljs-comment">// 보험 저장 — 본선은 각 도메인의 변경 즉시 저장(4단계). 크래시 시엔 안 불린다는 걸 전제</span>
+	<span class="hljs-title">RequestSave</span>();
+	Super::<span class="hljs-title">Deinitialize</span>();
+}</pre></div>
+      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+
+<span class="hljs-meta">#include</span> <span class="hljs-string">"CoreMinimal.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"EconomySubsystem.generated.h"</span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">USaveSubsystem</span>;
+
+<span class="hljs-comment">// 골드 변경을 UI 등에 통지하는 방송 (새 골드 값 1개를 실어 보냄)</span>
+<span class="hljs-function">DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGoldChanged, <span class="hljs-type">int64</span>, NewGold);</span>
+
+<span class="hljs-comment">// 도메인 일꾼 — 골드의 규칙(검증·증감)을 알고, 진실은 상자(SaveGame)에만 둔다.</span>
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">UEconomySubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-title class_">UGameInstanceSubsystem</span>
+{
+	<span class="hljs-meta">GENERATED_BODY</span>()
+
+<span class="hljs-keyword">public</span>:
+	<span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Initialize</span>(FSubsystemCollectionBase&amp; Collection) <span class="hljs-keyword">override</span>;
+
+	<span class="hljs-comment">// BlueprintCallable: UI(BP)에서 직접 부를 수 있게 — 획득/소비의 유일한 통로</span>
+	<span class="hljs-meta">UFUNCTION(BlueprintCallable, Category = <span class="hljs-string">"Economy"</span>)</span>
+	<span class="hljs-keyword">bool</span> <span class="hljs-title">AddGold</span>(<span class="hljs-type">int64</span> Delta);      <span class="hljs-comment">// 반환: 성공 여부 (잔액 부족 시 false)</span>
+
+	<span class="hljs-meta">UFUNCTION(BlueprintPure, Category = <span class="hljs-string">"Economy"</span>)</span>
+	<span class="hljs-type">int64</span> <span class="hljs-title">GetGold</span>() <span class="hljs-keyword">const</span>;          <span class="hljs-comment">// 읽기는 항상 상자에서 — 사본 없음</span>
+
+	<span class="hljs-comment">// UI가 구독하는 방송 — BlueprintAssignable로 BP 바인딩 허용</span>
+	<span class="hljs-meta">UPROPERTY(BlueprintAssignable, Category = <span class="hljs-string">"Economy"</span>)</span>
+	FOnGoldChanged OnGoldChanged;
+
+<span class="hljs-keyword">private</span>:
+	<span class="hljs-comment">// 저장 주인 참조 — Initialize에서 채워지며 이후 항상 유효 (순서는 InitializeDependency가 보장)</span>
+	<span class="hljs-meta">UPROPERTY()</span>
+	TObjectPtr&lt;USaveSubsystem&gt; SaveSub = <span class="hljs-literal">nullptr</span>;
+};</pre></div>
+      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include</span> <span class="hljs-string">"EconomySubsystem.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"SaveSubsystem.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"AccountSaveGame.h"</span>
+
+<span class="hljs-keyword">void</span> UEconomySubsystem::<span class="hljs-title">Initialize</span>(FSubsystemCollectionBase&amp; Collection)
+{
+	<span class="hljs-comment">// ★ 이 문서의 가장 중요한 한 줄 ★</span>
+	<span class="hljs-comment">// Subsystem 초기화 순서는 기본적으로 복불복 — 이 호출이 "SaveSubsystem을 먼저</span>
+	<span class="hljs-comment">// 켠 뒤 나를 켜라"를 엔진에 강제한다. 없으면 아래 GetSubsystem이 간헐적 nullptr.</span>
+	Collection.<span class="hljs-title">InitializeDependency</span>&lt;USaveSubsystem&gt;();
+	Super::<span class="hljs-title">Initialize</span>(Collection);
+
+	<span class="hljs-comment">// 저장 주인 참조 캐시 — 위 줄 덕분에 이 시점에 반드시 존재한다</span>
+	SaveSub = <span class="hljs-title">GetGameInstance</span>()-&gt;<span class="hljs-title">GetSubsystem</span>&lt;USaveSubsystem&gt;();
 }
 
-<span class="hljs-type">float</span> <span class="hljs-type">UCountdownSubsystem</span>::<span class="hljs-title">GetRemaining</span>() <span class="hljs-keyword">const</span>
+<span class="hljs-keyword">bool</span> UEconomySubsystem::<span class="hljs-title">AddGold</span>(<span class="hljs-type">int64</span> Delta)
 {
-    <span class="hljs-keyword">if</span> (<span class="hljs-type">UWorld</span>* W = <span class="hljs-title">GetGameInstance</span>()-&gt;<span class="hljs-title">GetWorld</span>())
-        <span class="hljs-keyword">return</span> W-&gt;<span class="hljs-title">GetTimerManager</span>().<span class="hljs-title">GetTimerRemaining</span>(Handle);   <span class="hljs-comment">// 남은 시간(초, float) — UI는 이 값을 읽어 그리기만 (이중 장부 방지)</span>
-    <span class="hljs-keyword">return</span> <span class="hljs-number">0.f</span>;   <span class="hljs-comment">// World가 없는 경계 상황엔 0초 반환 — UI가 쓰레기 값을 그리지 않게 하는 안전값</span>
+	UAccountSaveGame* Save = SaveSub-&gt;<span class="hljs-title">GetSave</span>();
+
+	<span class="hljs-comment">// 1) 검증 — 도메인 규칙은 일꾼의 몫 (소비 결과가 음수면 거절)</span>
+	<span class="hljs-keyword">if</span> (Save-&gt;Gold + Delta &lt; <span class="hljs-number">0</span>)
+	{
+		<span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+	}
+
+	<span class="hljs-comment">// 2) 상자 필드 갱신 — 진실은 상자에 하나, 사본을 만들지 않는다</span>
+	Save-&gt;Gold += Delta;
+
+	<span class="hljs-comment">// 3) 변경 즉시 저장 — 이 함수가 끝나는 순간 디스크에도 반영 완료</span>
+	SaveSub-&gt;<span class="hljs-title">RequestSave</span>();
+
+	<span class="hljs-comment">// 4) 방송 — UI는 이 방송을 구독해 표시만 갱신 (델리게이트 문서의 원칙)</span>
+	OnGoldChanged.<span class="hljs-title">Broadcast</span>(Save-&gt;Gold);
+	<span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
 }
 
-<span class="hljs-comment">// SetTimer로 예약한 시간이 만료되는 순간 TimerManager가 호출</span>
-<span class="hljs-keyword">void</span> <span class="hljs-type">UCountdownSubsystem</span>::<span class="hljs-title">HandleExpired</span>()
+<span class="hljs-type">int64</span> UEconomySubsystem::<span class="hljs-title">GetGold</span>() <span class="hljs-keyword">const</span>
 {
-    OnFinished.<span class="hljs-title">Broadcast</span>();   <span class="hljs-comment">// 후속 처리는 구독자(델리게이트 문서 참조)</span>
+	<span class="hljs-comment">// 읽기도 상자에서 직접 — Economy에는 골드 사본이 존재하지 않는다</span>
+	<span class="hljs-keyword">return</span> SaveSub-&gt;<span class="hljs-title">GetSave</span>()-&gt;Gold;
 }</pre></div>
     </div>
+
+    <div class="callout info"><span class="ic">🧭</span><p><strong>새 도메인을 잇는 법</strong> — 이 패턴이 자리 잡으면 확장은 기계적입니다: ① 상자에 구역 필드 추가 ② 도메인 Subsystem 생성 + <code>InitializeDependency</code> 한 줄 ③ 변경 함수 = 검증 → 상자 갱신 → <code>RequestSave</code> → 방송. Gacha·Guild 등 어떤 도메인이든 같은 4박자입니다.</p></div>
   </div>
 
-  <!-- 06 확장 -->
-  <div class="section" id="extend">
-    <div class="section-label">06 — 확장 &amp; 주의</div>
-    <h2>시간이 꼬이는 지점들</h2>
-    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>① Initialize()에서 SetTimer</strong> — 이 문서의 주제. <code>GetWorld()</code>가 null이라 크래시하거나(체크 없이 역참조) 조용히 무시됩니다. 타이머는 "시작 요청 함수" 안에서 거세요.</div></div>
-    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>② 레벨 이동 = 타이머 전멸</strong> — TimerManager가 World 소속이므로 World가 죽으면 예약도 함께 사라집니다. 레벨을 넘나드는 게임이라면 "만료 시각(FDateTime)을 저장해 두고 새 World에서 남은 시간을 재계산"하는 방식이 정석입니다.</div></div>
-    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>③ 람다 캡처 수명</strong> — <code>SetTimer(Handle, [this](){...}, ...)</code> 식의 람다는 <code>this</code>가 먼저 죽으면 위험합니다. 멤버 함수 바인딩(자동 무효화됨)을 기본으로 하고, 람다가 꼭 필요하면 <code>FTimerDelegate::CreateWeakLambda(this, ...)</code>를 쓰세요.</div></div>
-    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>④ 게임 일시정지의 영향</strong> — World 타이머는 게임 일시정지(<code>SetGamePaused</code>)와 시간 배속의 영향을 받습니다. "실제 벽시계 기준"이 필요하면 타이머가 아니라 <code>FDateTime</code> 비교로 판정하세요(위키 FDateTime 문서).</div></div>
-    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>FTSTicker</strong> — World와 무관하게 매 틱 불리는 엔진 레벨 티커. 레벨 이동에도 살아남아야 하는 얇은 배경 갱신(초당 1회 폴링 등)에만 제한적으로 사용하고, 게임 로직 타이머는 World 타이머를 유지하세요.</div></div>
+  <!-- 05 검증 & 함정 -->
+  <div class="section" id="verify">
+    <div class="section-label">05 — 검증 &amp; 함정</div>
+    <h2>순서대로 확인하고, 막히면 표에서 찾기</h2>
+
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">첫 실행 확인</div><div class="pipe-desc">PIE 시작 → Output Log에 <strong>"세이브 없음 — 새 상자 생성"</strong>이 찍히면 로드 경로 정상.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">저장 확인</div><div class="pipe-desc">BP나 콘솔에서 <code>AddGold(100)</code> 호출 → 프로젝트 폴더 <code>Saved/SaveGames/Account.sav</code> 파일이 생겼는지 확인.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">복원 확인 (핵심)</div><div class="pipe-desc">PIE 종료 → 다시 시작 → <code>GetGold()</code>가 <strong>100</strong>이면 연동 완성. "새 상자 생성" 로그가 다시 찍히면 안 됩니다(찍히면 아래 표 ③④).</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">강제 종료 내성 확인</div><div class="pipe-desc">골드 변경 직후 에디터를 강제 종료해도 값이 남아 있어야 진짜 완성 — 변경 즉시 저장의 존재 이유.</div></div></div>
+
+    <h3>증상 → 원인 체크리스트</h3>
+    <table class="tbl">
+      <tr><th>증상</th><th>원인 (가능성 순)</th><th>확인 위치</th></tr>
+      <tr><td>재실행하면 값이 <strong>초기값으로 리셋</strong></td><td>① 상자 필드에 <code>UPROPERTY()</code> 누락(직렬화 제외됨) ② <code>RequestSave</code> 호출 누락</td><td>AccountSaveGame.h · AddGold 3)</td></tr>
+      <tr><td><strong>간헐적으로</strong> 시작 크래시 (nullptr)</td><td><code>InitializeDependency</code> 누락 — Economy가 SaveSubsystem보다 먼저 켜진 날만 죽음</td><td>EconomySubsystem.cpp ★ 줄</td></tr>
+      <tr><td>한참 플레이하다 <strong>갑자기 저장이 안 됨</strong></td><td>상자 멤버가 <code>UPROPERTY()</code> 없는 원시 포인터 → GC가 상자를 수거</td><td>SaveSubsystem.h의 Current</td></tr>
+      <tr><td>매번 "새 상자 생성" 로그</td><td>① 슬롯 이름 불일치(저장 A/로드 B) ② 상자 클래스를 바꿔 캐스트 실패</td><td>SlotName 상수 · Initialize 2)</td></tr>
+      <tr><td>UI 숫자가 안 바뀜 (값은 저장됨)</td><td>방송(Broadcast) 누락 또는 UI가 바인딩 안 함 — 저장 문제가 아님</td><td>AddGold 4) · 델리게이트 문서</td></tr>
+      <tr><td>저장이 너무 잦아 프레임 히치</td><td>초당 수십 회 변경에 매번 동기 저장</td><td>아래 Pitfall(더티 플래그)</td></tr>
+    </table>
+
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>변경이 아주 잦다면 — 더티 플래그 보완</strong> · <code>RequestSave</code>가 즉시 저장하는 대신 <code>bDirty = true</code>만 세우고, 0.5~1초 타이머가 플래그를 확인해 저장하게 바꾸면 폭주를 흡수합니다(타이머는 타이머와 World 문서 참조). 골드·기록처럼 분당 몇 번 수준이면 이 문서의 즉시 저장으로 충분합니다.</div></div>
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>PIE 두 개를 동시에 띄우지 마세요</strong> — 같은 슬롯 파일을 두 프로세스가 쓰면 마지막에 닫힌 쪽이 이깁니다. 멀티 테스트가 필요하면 슬롯 이름에 접미사를 붙이는 개발용 분기를 두세요.</div></div>
   </div>
 
 </div>
 
 <footer>
-  <span>UE 아키텍처 문서 · 타이머와 World v1.2</span>
-  <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.5</span>
+  <span>UE 아키텍처 문서 · Subsystem ↔ SaveGame Wiring v1.0</span>
+  <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.6</span>
 </footer>
 
 <script>
@@ -823,6 +1018,5 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   }
 })();
 </script>
-
 </body>
 </html>

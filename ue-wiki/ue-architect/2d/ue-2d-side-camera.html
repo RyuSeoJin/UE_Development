@@ -1,3 +1,22 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2D 사이드뷰 카메라 — 드래그·키보드 좌우 이동 · UE 아키텍처</title>
+<!-- ============================================================
+     CHANGELOG — ue-2d-side-camera.html
+     유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-B 템플릿 · 2d/ 신규 카테고리 첫 문서).
+     작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.0 · 2026-07-10
+       - 신규 생성. 2D 사이드뷰 카메라(드래그 + A/D 좌우 이동) 구현 명세.
+       - 마스터 v1.6 스냅샷 inline. 블루프린트 중심(C++ 탭 없음 — 02-B 코드 섹션을
+         bp-graph 노드 그래프 4건으로 대체, 사용자 요청: 재시도용 절차·체크리스트).
+       - 블루프린트 노드 그래프 4건(.bp-graph): ① Mapping Context 등록 ② A/D 이동
+         ③ 드래그 토글 ④ Tick 픽셀→월드 환산 이동
+       - 중앙 용어집 앵커: term-orthographic · term-enhanced-input
+     ============================================================ -->
+<style>
 /* ============================================================
    UE Design System — Master Stylesheet
    (design-guide-ue-master.css)
@@ -616,3 +635,537 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   footer { padding: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">UE WIKI · 2D SIDE CAMERA</div>
+  <div class="nav-links">
+    <a href="#req">요구사항</a>
+    <a href="#design">설계 결정</a>
+    <a href="#setup">준비</a>
+    <a href="#impl">구현</a>
+    <a href="#register">등록</a>
+    <a href="#verify">검증 · 체크리스트</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">UE Architecture · Type ① · 02-B</div>
+  <h1>2D 사이드뷰 카메라<br><span>드래그 · 키보드 좌우 이동</span></h1>
+  <p class="hero-sub">
+    2D 사이드뷰 월드를 바라보는 카메라를 <strong>화면 드래그 또는 A/D 키로 좌우로만</strong> 움직이게 만듭니다. 카메라 전용 Pawn · 직교 투영 · Enhanced Input · 픽셀→월드 환산까지, <strong>한 번 실패한 뒤 재시도하는 독자</strong>를 기준으로 각 단계의 "끝나면 확인되어야 할 상태"와 실패 시 체크리스트를 함께 담았습니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">카메라 · 입력</span>
+    <span class="badge badge-green">UE5 · Enhanced Input</span>
+    <span class="badge badge-purple">Blueprint 전용 (C++ 불필요)</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- 01 요구사항 & 시작 전 정리 -->
+  <div class="section" id="req">
+    <div class="section-label">01 — 요구사항 &amp; 시작 전 정리</div>
+    <h2>무엇을 만들고, 무엇을 알고 시작하나</h2>
+
+    <table class="tbl">
+      <tr><th>항목</th><th>요구</th></tr>
+      <tr><td>시점</td><td>2D 사이드뷰 — 카메라가 옆에서 월드를 바라봄</td></tr>
+      <tr><td>입력 ①</td><td><code>A</code>/<code>D</code> 키로 좌우 이동</td></tr>
+      <tr><td>입력 ②</td><td>마우스 왼쪽 버튼 드래그로 좌우 이동 (화면을 "잡아 끄는" 느낌)</td></tr>
+      <tr><td>제약</td><td>이동은 <strong>좌우 1개 축만</strong>. 맵 경계 밖으로 나가지 않게 범위 제한</td></tr>
+    </table>
+
+    <h3>함정 ① — 축 관례: "Z축이 없다"가 아니라 "Y가 깊이"다</h3>
+    <p>UE에서 <strong>Z는 위쪽</strong>입니다. 2D 사이드뷰의 표준 관례(Paper2D 포함)는 화면을 <strong>X-Z 평면</strong>에 놓고 카메라가 <strong>Y축에서</strong> 바라보는 것입니다. "X,Y만 쓰고 Z를 없앤" 배치는 UE 관례와 어긋나 카메라 방향·중력·스프라이트 정렬이 전부 꼬입니다 — 원인 불명으로 실패했다면 이것부터 의심하세요.</p>
+    <table class="tbl">
+      <tr><th>축</th><th>2D 사이드뷰에서의 역할</th><th>이 문서에서</th></tr>
+      <tr><td><code>X</code></td><td>좌우 (화면 가로)</td><td><strong>카메라가 움직이는 유일한 축</strong></td></tr>
+      <tr><td><code>Z</code></td><td>상하 (화면 세로)</td><td>고정</td></tr>
+      <tr><td><code>Y</code></td><td>깊이 (화면 안쪽)</td><td>카메라가 <code>Y=-1000</code>쯤에서 <strong>+Y 방향</strong>을 바라봄 (회전 Yaw 90°)</td></tr>
+    </table>
+
+    <h3 id="term-orthographic">함정 ② — 카메라는 직교(Orthographic)로</h3>
+    <p><strong>직교 카메라</strong>는 원근(멀수록 작게)이 없는 평행 투영 카메라입니다. <strong>Ortho Width</strong> 하나가 "화면에 보이는 월드의 가로 폭"을 결정하므로, 뒤에서 만들 드래그의 픽셀→월드 환산이 <strong>상수 곱셈 한 번</strong>으로 끝납니다. 원근(Perspective) 카메라는 거리마다 배율이 달라져 드래그 이동량 계산이 복잡해지고 2D 스프라이트에 원근 왜곡도 생깁니다 — "드래그 속도가 이상했다"면 십중팔구 원근 카메라 때문입니다.</p>
+
+    <div class="callout info"><span class="ic">📌</span><p><strong>핵심 용어</strong> — <strong>직교 카메라(Orthographic)</strong>: 원근 없는 평행 투영. Ortho Width = 화면에 담기는 월드 가로 폭. / <strong>Pawn</strong>: 컨트롤러가 빙의(Possess)해 조종하는 대상 — 이 문서에선 카메라 자체가 Pawn. / <strong>픽셀→월드 환산</strong>: 마우스가 움직인 화면 픽셀을 월드 거리로 바꾸는 계산(<code>ΔX × OrthoWidth ÷ 뷰포트 가로</code>).</p></div>
+  </div>
+
+  <!-- 02 설계 결정 -->
+  <div class="section" id="design">
+    <div class="section-label">02 — 설계 결정</div>
+    <h2>책임을 어디에 둘 것인가</h2>
+    <p>가장 중요한 결정: <strong>캐릭터에 카메라를 붙이는 게 아니라, 카메라 자체를 조종 대상(Pawn)으로</strong> 만듭니다. 이 카메라는 따라다닐 주인공이 없고 입력으로 직접 움직이는 독립 개체이기 때문입니다.</p>
+
+    <table class="tbl">
+      <tr><th>데이터 / 기능</th><th>배치</th><th>왜 여기인가</th></tr>
+      <tr><td>카메라·이동 로직·<code>bDragging</code>·환산 계산</td><td><span class="owner o-pawn">BP_CameraPawn</span></td><td>카메라가 곧 조종 대상. 입력을 받아 움직이는 주체가 상태와 로직을 소유</td></tr>
+      <tr><td>마우스 커서 표시·클릭 이벤트 허용</td><td><span class="owner o-controller">PlayerController</span></td><td>입력 장치 정책(커서를 보일지)은 "조종하는 쪽"의 소관 — Pawn이 바뀌어도 유지</td></tr>
+      <tr><td>시작 시 어떤 Pawn을 줄지 (Default Pawn)</td><td><span class="owner o-gamemode">GameMode</span></td><td>"이 레벨의 규칙"이므로 GameMode가 지정 (테스트용으론 Pawn의 Auto Possess도 가능)</td></tr>
+      <tr><td>이동 속도·경계값 <code>MinX</code>/<code>MaxX</code></td><td><span class="owner o-pawn">BP_CameraPawn 변수</span> (Instance Editable)</td><td>레벨마다 다른 값 — 레벨에 배치된 인스턴스에서 조정. 프로젝트가 커지면 DeveloperSettings로 승격 여지</td></tr>
+    </table>
+
+    <div class="grid-2">
+      <div class="compare-box">
+        <h4 style="color:var(--accent-3)">채택 — 직교 + 전용 Pawn</h4>
+        <p>환산이 상수 1개(<code>OrthoWidth ÷ 뷰포트X</code>), 왜곡 없음, 캐릭터와 독립적으로 카메라 연출 가능.</p>
+        <div class="pills"><span class="pill green">계산 단순</span><span class="pill green">2D 왜곡 없음</span><span class="pill green">독립 제어</span></div>
+      </div>
+      <div class="compare-box">
+        <h4 style="color:var(--red)">기각 — 원근 + 캐릭터 부착</h4>
+        <p>거리별 배율 계산 필요, 스프라이트 원근 왜곡, 캐릭터 없는 화면(메뉴·맵 뷰)에서 카메라를 못 씀.</p>
+        <div class="pills"><span class="pill red">환산 복잡</span><span class="pill red">왜곡</span><span class="pill red">종속</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 03 준비 -->
+  <div class="section" id="setup">
+    <div class="section-label">03 — 준비 (애셋 · 컴포넌트 · 변수)</div>
+    <h2>구현 전에 만들어 둘 것들</h2>
+
+    <h3>단계 A — BP_CameraPawn 만들기</h3>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">Pawn 블루프린트 생성</div><div class="pipe-desc">Content Browser 우클릭 → <strong>Blueprint Class → Pawn</strong> 선택, 이름 <code>BP_CameraPawn</code>. (Character가 아닙니다 — 중력·캡슐이 필요 없습니다.)</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">Camera Component 추가 · 직교 설정</div><div class="pipe-desc">Components 패널 <strong>+ Add → Camera</strong>. Details에서 <strong>Projection Mode = Orthographic</strong>, <strong>Ortho Width = 2048</strong>(보이길 원하는 월드 가로 폭 — 나중에 조정). <strong>결과 확인: 뷰포트 미리보기가 평면적으로 보입니다.</strong></div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">Floating Pawn Movement 추가</div><div class="pipe-desc">Components 패널 <strong>+ Add → Floating Pawn Movement</strong>. <strong>이 컴포넌트가 없으면 <code>Add Movement Input</code>이 조용히 아무 일도 하지 않습니다</strong> — "키는 눌리는데 안 움직임"의 최다 원인. Max Speed는 기본값으로 시작.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">변수 4개 추가</div><div class="pipe-desc">My Blueprint ▸ Variables ＋: <code>bDragging</code>(Boolean, 기본 false) · <code>MinX</code>/<code>MaxX</code>(Float, <strong>Instance Editable 체크</strong> — 레벨에서 눈 아이콘으로 조정) · 필요 시 <code>MoveSpeed</code>(Float). 컴파일·저장.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">5</div><div class="pipe-body"><div class="pipe-title">레벨에 배치 · 방향 맞추기</div><div class="pipe-desc">Pawn을 레벨에 놓고 위치 <code>Y = -1000</code>, 회전 <strong>Yaw = 90°</strong>(+Y 방향을 바라보게). 스프라이트/배경이 X-Z 평면에 있다는 전제입니다(01 축 표). <strong>결과 확인: 선택 후 우클릭 Pilot(조종)으로 보면 화면이 정면으로 보입니다.</strong></div></div></div>
+
+    <h3 id="term-enhanced-input">단계 B — Enhanced Input 애셋 만들기</h3>
+    <p><strong>Enhanced Input</strong>은 UE5의 입력 시스템입니다: 키를 코드에 직접 묶지 않고 <strong>Input Action(IA — "무엇을 한다")</strong>과 <strong>Input Mapping Context(IMC — "어떤 키가 그 행동을 발동하나")</strong> 애셋으로 분리합니다. IMC는 <strong>런타임에 등록해야만 작동</strong>합니다(구현 그래프 ①).</p>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">Input Action 생성</div><div class="pipe-desc">Content Browser 우클릭 → <strong>Input → Input Action</strong>, 이름 <code>IA_MoveCamera</code>. 열어서 <strong>Value Type = Axis1D (float)</strong> — A/D가 -1.0 ~ +1.0 한 축을 공유하게 합니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">Input Mapping Context 생성 · 키 매핑</div><div class="pipe-desc">우클릭 → <strong>Input → Input Mapping Context</strong>, 이름 <code>IMC_Camera</code>. 열어서 Mappings ＋ → <code>IA_MoveCamera</code> 선택 후 키 2개 등록: <strong><code>D</code></strong>는 그대로, <strong><code>A</code></strong>는 키 항목 아래 <strong>Modifiers ＋ → Negate</strong> 추가(값을 -1로 뒤집음). <strong>결과 확인: IA 하나에 D(+1)·A(-1) 두 매핑이 보입니다.</strong></div></div></div>
+  </div>
+
+  <!-- 04 구현 -->
+  <div class="section" id="impl">
+    <div class="section-label">04 — 구현 (블루프린트 노드 그래프)</div>
+    <h2>BP_CameraPawn 이벤트 그래프 — 4개 묶음</h2>
+    <p>아래 그래프 4건을 <strong>모두 BP_CameraPawn의 이벤트 그래프</strong>에 만듭니다. 노드 색·핀 모양은 실제 에디터와 동일한 규칙입니다.</p>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--bp-event)"></span>이벤트</span>
+      <span><span class="dot" style="background:var(--bp-call)"></span>함수 호출</span>
+      <span><span class="dot" style="background:var(--bp-pure)"></span>순수 함수</span>
+      <span><span class="dot" style="background:var(--bp-flow)"></span>흐름 제어</span>
+      <span><span class="dot" style="background:var(--bp-exec)"></span>실행 핀 ▷</span>
+      <span><span class="dot" style="background:var(--bp-bool)"></span>Bool</span>
+      <span><span class="dot" style="background:var(--bp-float)"></span>Float</span>
+      <span><span class="dot" style="background:var(--bp-vector)"></span>Vector</span>
+      <span><span class="dot" style="background:var(--bp-object)"></span>Object</span>
+    </div>
+
+    <h3>그래프 ① — Mapping Context 등록 (BeginPlay)</h3>
+    <p><strong>이 등록을 빼먹으면 Enhanced Input 이벤트가 전부 무시됩니다</strong> — 재시도 시 반드시 먼저 확인할 지점. <code>Get Player Controller → Get Enhanced Input Local Player Subsystem → Add Mapping Context</code> 순서로 연결하고 Mapping Context 핀에 <code>IMC_Camera</code>를 지정합니다.</p>
+    <div class="bp-graph">
+      <svg viewBox="0 0 880 300" role="img" aria-label="BeginPlay에서 Enhanced Input 서브시스템에 IMC_Camera를 등록">
+        <defs>
+          <pattern id="bpg-grid" width="16" height="16" patternUnits="userSpaceOnUse">
+            <path d="M16 0H0V16" fill="none" style="stroke:var(--bp-grid)" stroke-width="1"/>
+          </pattern>
+          <pattern id="bpg-grid80" width="80" height="80" patternUnits="userSpaceOnUse">
+            <rect width="80" height="80" fill="url(#bpg-grid)"/>
+            <path d="M80 0H0V80" fill="none" style="stroke:var(--bp-grid-2)" stroke-width="1.4"/>
+          </pattern>
+          <linearGradient id="bpg-event" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" style="stop-color:var(--bp-event)" stop-opacity="0.95"/>
+            <stop offset="1" style="stop-color:var(--bp-event)" stop-opacity="0.12"/>
+          </linearGradient>
+          <linearGradient id="bpg-call" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" style="stop-color:var(--bp-call)" stop-opacity="0.95"/>
+            <stop offset="1" style="stop-color:var(--bp-call)" stop-opacity="0.12"/>
+          </linearGradient>
+          <linearGradient id="bpg-pure" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" style="stop-color:var(--bp-pure)" stop-opacity="0.95"/>
+            <stop offset="1" style="stop-color:var(--bp-pure)" stop-opacity="0.12"/>
+          </linearGradient>
+          <linearGradient id="bpg-flow" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" style="stop-color:var(--bp-flow)" stop-opacity="0.95"/>
+            <stop offset="1" style="stop-color:var(--bp-flow)" stop-opacity="0.12"/>
+          </linearGradient>
+          <linearGradient id="bpg-cast" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" style="stop-color:var(--bp-cast)" stop-opacity="0.95"/>
+            <stop offset="1" style="stop-color:var(--bp-cast)" stop-opacity="0.12"/>
+          </linearGradient>
+          <filter id="bpg-shadow" x="-20%" y="-20%" width="140%" height="150%">
+            <feDropShadow dx="0" dy="2.5" stdDeviation="3" flood-color="#000" flood-opacity="0.55"/>
+          </filter>
+        </defs>
+
+        <rect width="880" height="300" style="fill:var(--bp-canvas)"/>
+        <rect width="880" height="300" fill="url(#bpg-grid80)"/>
+
+        <!-- 와이어 -->
+        <path class="bpw exec" d="M216,100 C400,100 450,96 596,96"/>
+        <path class="bpw t-object" d="M235,240 C270,240 270,234 305,234"/>
+        <path class="bpw t-object" d="M565,234 C610,234 560,124 595,124"/>
+
+        <!-- Event BeginPlay -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="40" y="60" width="180" height="60" rx="6"/>
+          <path d="M40,84 v-18 a6,6 0 0 1 6,-6 h168 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-event)"/>
+          <text class="bpn-icon" x="52" y="77">◆</text>
+          <text class="bpn-name" x="66" y="77">Event BeginPlay</text>
+          <path class="bpp-exec" d="M202,94 h7 l7,6 -7,6 h-7 z"/>
+        </g>
+
+        <!-- Get Player Controller (순수) -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="40" y="200" width="200" height="64" rx="6"/>
+          <path d="M40,224 v-18 a6,6 0 0 1 6,-6 h188 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-pure)"/>
+          <text class="bpn-icon" x="52" y="217" font-style="italic">ƒ</text>
+          <text class="bpn-name" x="66" y="217">Get Player Controller</text>
+          <circle class="bpp-pin t-object" cx="229" cy="240" r="5"/>
+        </g>
+
+        <!-- Enhanced Input Subsystem (순수) -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="300" y="180" width="270" height="84" rx="6"/>
+          <path d="M300,210 v-24 a6,6 0 0 1 6,-6 h258 a6,6 0 0 1 6,6 v24 z" fill="url(#bpg-pure)"/>
+          <text class="bpn-icon" x="312" y="198" font-style="italic">ƒ</text>
+          <text class="bpn-name" x="326" y="196">Enhanced Input Subsystem</text>
+          <text class="bpn-sub" x="326" y="207">Get Enhanced Input Local Player Subsystem</text>
+          <circle class="bpp-pin t-object" cx="311" cy="234" r="5"/>
+          <text class="bpp-label" x="323" y="238">Player Controller</text>
+          <circle class="bpp-pin t-object" cx="559" cy="234" r="5"/>
+        </g>
+
+        <!-- Add Mapping Context -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="590" y="48" width="280" height="140" rx="6"/>
+          <path d="M590,72 v-18 a6,6 0 0 1 6,-6 h268 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-call)"/>
+          <text class="bpn-icon" x="602" y="65" font-style="italic">ƒ</text>
+          <text class="bpn-name" x="616" y="65">Add Mapping Context</text>
+          <path class="bpp-exec" d="M596,90 h7 l7,6 -7,6 h-7 z"/>
+          <path class="bpp-exec off" d="M850,90 h7 l7,6 -7,6 h-7 z"/>
+          <circle class="bpp-pin t-object" cx="601" cy="124" r="5"/>
+          <text class="bpp-label" x="613" y="128">Target</text>
+          <circle class="bpp-pin t-object off" cx="601" cy="150" r="5"/>
+          <text class="bpp-label" x="613" y="154">Mapping Context</text>
+          <rect class="bpn-chip" x="720" y="142" width="110" height="16" rx="3"/>
+          <text class="bpn-chip-text" x="775" y="153" text-anchor="middle">IMC_Camera</text>
+          <circle class="bpp-pin t-int off" cx="601" cy="176" r="5"/>
+          <text class="bpp-label" x="613" y="180">Priority</text>
+          <rect class="bpn-chip" x="720" y="168" width="40" height="16" rx="3"/>
+          <text class="bpn-chip-text" x="740" y="179" text-anchor="middle">0</text>
+        </g>
+
+        <text class="bpg-caption" x="40" y="34">그래프 ① — BeginPlay에서 IMC_Camera 등록 (이걸 빼먹으면 Enhanced Input 전체가 침묵)</text>
+      </svg>
+    </div>
+
+    <h3>그래프 ② — A/D 키 이동</h3>
+    <p>그래프 빈 곳 우클릭 → <code>IA_MoveCamera</code> 검색 → <strong>EnhancedInputAction IA_MoveCamera</strong> 이벤트 선택. Triggered 실행 핀을 <code>Add Movement Input</code>에 잇고, <strong>World Direction = (1, 0, 0)</strong>(X축), <strong>Scale Value ← Action Value</strong>를 연결합니다. D는 +1, A는 Negate 덕분에 -1이 들어와 한 그래프로 양방향이 처리됩니다. 실제 이동은 Floating Pawn Movement가 수행합니다.</p>
+    <div class="bp-graph">
+      <svg viewBox="0 0 700 260" role="img" aria-label="IA_MoveCamera 이벤트가 Add Movement Input을 실행">
+        <rect width="700" height="260" style="fill:var(--bp-canvas)"/>
+        <rect width="700" height="260" fill="url(#bpg-grid80)"/>
+
+        <path class="bpw exec" d="M286,112 C340,112 380,102 436,102"/>
+        <path class="bpw t-float" d="M285,138 C340,138 380,176 435,176"/>
+
+        <!-- EnhancedInputAction IA_MoveCamera -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="40" y="60" width="250" height="96" rx="6"/>
+          <path d="M40,90 v-24 a6,6 0 0 1 6,-6 h238 a6,6 0 0 1 6,6 v24 z" fill="url(#bpg-event)"/>
+          <text class="bpn-icon" x="52" y="78">◆</text>
+          <text class="bpn-name" x="66" y="76">IA_MoveCamera</text>
+          <text class="bpn-sub" x="66" y="87">EnhancedInputAction · Axis1D</text>
+          <path class="bpp-exec" d="M272,106 h7 l7,6 -7,6 h-7 z"/>
+          <text class="bpp-label" x="266" y="116" text-anchor="end">Triggered</text>
+          <circle class="bpp-pin t-float" cx="279" cy="138" r="5"/>
+          <text class="bpp-label" x="267" y="142" text-anchor="end">Action Value</text>
+        </g>
+
+        <!-- Add Movement Input -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="430" y="60" width="230" height="132" rx="6"/>
+          <path d="M430,84 v-18 a6,6 0 0 1 6,-6 h218 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-call)"/>
+          <text class="bpn-icon" x="442" y="77" font-style="italic">ƒ</text>
+          <text class="bpn-name" x="456" y="77">Add Movement Input</text>
+          <path class="bpp-exec" d="M436,96 h7 l7,6 -7,6 h-7 z"/>
+          <path class="bpp-exec off" d="M640,96 h7 l7,6 -7,6 h-7 z"/>
+          <circle class="bpp-pin t-object off" cx="441" cy="124" r="5"/>
+          <text class="bpp-label" x="453" y="128">Target (self)</text>
+          <circle class="bpp-pin t-vector off" cx="441" cy="150" r="5"/>
+          <text class="bpp-label" x="453" y="154">World Direction</text>
+          <rect class="bpn-chip" x="555" y="142" width="90" height="16" rx="3"/>
+          <text class="bpn-chip-text" x="600" y="153" text-anchor="middle">(1, 0, 0)</text>
+          <circle class="bpp-pin t-float" cx="441" cy="176" r="5"/>
+          <text class="bpp-label" x="453" y="180">Scale Value</text>
+        </g>
+
+        <text class="bpg-caption" x="40" y="34">그래프 ② — A/D 이동 (A는 IMC의 Negate 모디파이어가 -1로 뒤집음)</text>
+      </svg>
+    </div>
+
+    <h3>그래프 ③ — 드래그 시작 / 종료</h3>
+    <p>우클릭 → <strong>Left Mouse Button</strong> 키 이벤트 추가. Pressed에서 <code>bDragging = true</code>, Released에서 <code>false</code>. 이 이벤트가 아예 안 들어오면 05 등록 섹션의 PlayerController 설정(커서·클릭 이벤트)이 빠진 것입니다.</p>
+    <div class="bp-graph">
+      <svg viewBox="0 0 880 290" role="img" aria-label="마우스 왼쪽 버튼으로 bDragging을 켜고 끔">
+        <rect width="880" height="290" style="fill:var(--bp-canvas)"/>
+        <rect width="880" height="290" fill="url(#bpg-grid80)"/>
+
+        <path class="bpw exec" d="M236,104 C330,104 340,84 436,84"/>
+        <path class="bpw exec" d="M236,134 C330,134 340,206 436,206"/>
+
+        <!-- Left Mouse Button -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="40" y="60" width="200" height="100" rx="6"/>
+          <path d="M40,84 v-18 a6,6 0 0 1 6,-6 h188 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-event)"/>
+          <text class="bpn-icon" x="52" y="77">◆</text>
+          <text class="bpn-name" x="66" y="77">Left Mouse Button</text>
+          <path class="bpp-exec" d="M222,98 h7 l7,6 -7,6 h-7 z"/>
+          <text class="bpp-label" x="216" y="108" text-anchor="end">Pressed</text>
+          <path class="bpp-exec" d="M222,128 h7 l7,6 -7,6 h-7 z"/>
+          <text class="bpp-label" x="216" y="138" text-anchor="end">Released</text>
+        </g>
+
+        <!-- SET bDragging = true -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="430" y="48" width="210" height="80" rx="6"/>
+          <path d="M430,72 v-18 a6,6 0 0 1 6,-6 h198 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-call)"/>
+          <text class="bpn-name" x="442" y="65">SET bDragging</text>
+          <path class="bpp-exec" d="M436,78 h7 l7,6 -7,6 h-7 z"/>
+          <path class="bpp-exec off" d="M620,78 h7 l7,6 -7,6 h-7 z"/>
+          <circle class="bpp-pin t-bool off" cx="441" cy="110" r="5"/>
+          <text class="bpp-label" x="453" y="114">bDragging</text>
+          <rect class="bpn-chip" x="555" y="102" width="60" height="16" rx="3"/>
+          <text class="bpn-chip-text" x="585" y="113" text-anchor="middle">☑ true</text>
+        </g>
+
+        <!-- SET bDragging = false -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="430" y="170" width="210" height="80" rx="6"/>
+          <path d="M430,194 v-18 a6,6 0 0 1 6,-6 h198 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-call)"/>
+          <text class="bpn-name" x="442" y="187">SET bDragging</text>
+          <path class="bpp-exec" d="M436,200 h7 l7,6 -7,6 h-7 z"/>
+          <path class="bpp-exec off" d="M620,200 h7 l7,6 -7,6 h-7 z"/>
+          <circle class="bpp-pin t-bool off" cx="441" cy="232" r="5"/>
+          <text class="bpp-label" x="453" y="236">bDragging</text>
+          <rect class="bpn-chip" x="555" y="224" width="60" height="16" rx="3"/>
+          <text class="bpn-chip-text" x="585" y="235" text-anchor="middle">☐ false</text>
+        </g>
+
+        <text class="bpg-caption" x="40" y="34">그래프 ③ — 드래그 상태 토글 (Pressed → true / Released → false)</text>
+      </svg>
+    </div>
+
+    <h3>그래프 ④ — Tick에서 픽셀→월드 환산 이동</h3>
+    <p>드래그 중일 때만(Branch) 마우스 이동량을 읽어 월드 이동으로 바꿉니다. 공식은 하나입니다:</p>
+    <div class="callout tip"><span class="ic">🧮</span><p><strong>이동량 = 마우스 ΔX × (OrthoWidth ÷ 뷰포트 가로 픽셀) × −1</strong> — 직교라서 배율이 상수입니다. <strong>× −1</strong>이 "화면을 잡아 끄는" 방향을 만듭니다: 오른쪽으로 끌면 세상이 오른쪽으로 따라오도록 카메라는 왼쪽으로 이동. 이걸 빼먹으면 드래그가 반대로 움직입니다.</p></div>
+    <div class="bp-graph">
+      <svg viewBox="0 0 960 560" role="img" aria-label="Tick에서 드래그 중이면 마우스 델타를 월드 이동량으로 환산해 카메라를 옮김">
+        <rect width="960" height="560" style="fill:var(--bp-canvas)"/>
+        <rect width="960" height="560" fill="url(#bpg-grid80)"/>
+
+        <!-- 와이어 -->
+        <path class="bpw exec" d="M206,96 C240,96 240,96 272,96"/>
+        <path class="bpw exec" d="M414,96 C450,96 450,96 482,96"/>
+        <path class="bpw exec" d="M684,96 C715,96 715,96 742,96"/>
+        <path class="bpw t-bool" d="M206,215 C240,215 245,126 275,126"/>
+        <path class="bpw t-float" d="M685,124 C760,124 240,340 315,340"/>
+        <path class="bpw t-float" d="M192,435 C250,435 260,362 315,362"/>
+        <path class="bpw t-float" d="M435,340 C460,340 465,340 495,340"/>
+        <path class="bpw t-float" d="M225,340 C300,430 420,430 495,362"/>
+        <path class="bpw t-float" d="M605,340 C635,340 645,340 675,340"/>
+        <path class="bpw t-float" d="M805,340 C840,340 640,470 675,470"/>
+        <path class="bpw t-vector" d="M855,470 C920,470 700,124 745,124"/>
+
+        <!-- Event Tick -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="40" y="60" width="170" height="84" rx="6"/>
+          <path d="M40,84 v-18 a6,6 0 0 1 6,-6 h158 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-event)"/>
+          <text class="bpn-icon" x="52" y="77">◆</text>
+          <text class="bpn-name" x="66" y="77">Event Tick</text>
+          <path class="bpp-exec" d="M192,90 h7 l7,6 -7,6 h-7 z"/>
+          <circle class="bpp-pin t-float off" cx="199" cy="124" r="5"/>
+          <text class="bpp-label" x="187" y="128" text-anchor="end">Delta Seconds</text>
+        </g>
+
+        <!-- Branch -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="270" y="60" width="150" height="84" rx="6"/>
+          <path d="M270,84 v-18 a6,6 0 0 1 6,-6 h138 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-flow)"/>
+          <text class="bpn-icon" x="282" y="77">⑂</text>
+          <text class="bpn-name" x="296" y="77">Branch</text>
+          <path class="bpp-exec" d="M276,90 h7 l7,6 -7,6 h-7 z"/>
+          <circle class="bpp-pin t-bool" cx="281" cy="126" r="5"/>
+          <text class="bpp-label" x="293" y="130">Condition</text>
+          <path class="bpp-exec" d="M400,90 h7 l7,6 -7,6 h-7 z"/>
+          <text class="bpp-label" x="394" y="100" text-anchor="end">True</text>
+          <path class="bpp-exec off" d="M400,114 h7 l7,6 -7,6 h-7 z"/>
+          <text class="bpp-label" x="394" y="124" text-anchor="end">False</text>
+        </g>
+
+        <!-- Get Input Mouse Delta -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="480" y="48" width="210" height="110" rx="6"/>
+          <path d="M480,72 v-18 a6,6 0 0 1 6,-6 h198 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-call)"/>
+          <text class="bpn-icon" x="492" y="65" font-style="italic">ƒ</text>
+          <text class="bpn-name" x="506" y="65">Get Input Mouse Delta</text>
+          <path class="bpp-exec" d="M486,90 h7 l7,6 -7,6 h-7 z"/>
+          <path class="bpp-exec" d="M670,90 h7 l7,6 -7,6 h-7 z"/>
+          <circle class="bpp-pin t-object off" cx="491" cy="124" r="5"/>
+          <text class="bpp-label" x="503" y="128">Target (PC)</text>
+          <circle class="bpp-pin t-float" cx="679" cy="124" r="5"/>
+          <text class="bpp-label" x="667" y="128" text-anchor="end">Delta X</text>
+          <circle class="bpp-pin t-float off" cx="679" cy="150" r="5"/>
+          <text class="bpp-label" x="667" y="154" text-anchor="end">Delta Y</text>
+        </g>
+
+        <!-- Add Actor World Offset -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="740" y="48" width="200" height="110" rx="6"/>
+          <path d="M740,72 v-18 a6,6 0 0 1 6,-6 h188 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-call)"/>
+          <text class="bpn-icon" x="752" y="65" font-style="italic">ƒ</text>
+          <text class="bpn-name" x="766" y="65">AddActorWorldOffset</text>
+          <path class="bpp-exec" d="M746,90 h7 l7,6 -7,6 h-7 z"/>
+          <path class="bpp-exec off" d="M920,90 h7 l7,6 -7,6 h-7 z"/>
+          <circle class="bpp-pin t-vector" cx="751" cy="124" r="5"/>
+          <text class="bpp-label" x="763" y="128">Delta Location</text>
+          <circle class="bpp-pin t-bool off" cx="751" cy="150" r="5"/>
+          <text class="bpp-label" x="763" y="154">Sweep</text>
+        </g>
+
+        <!-- bDragging (변수 Get) -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="60" y="200" width="150" height="30" rx="15"/>
+          <rect x="60" y="200" width="6" height="30" rx="3" style="fill:var(--bp-bool)"/>
+          <text class="bpn-name" x="80" y="219">bDragging</text>
+          <circle class="bpp-pin t-bool" cx="196" cy="215" r="5"/>
+        </g>
+
+        <!-- Get Viewport Size (순수) -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="40" y="300" width="190" height="76" rx="6"/>
+          <path d="M40,324 v-18 a6,6 0 0 1 6,-6 h178 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-pure)"/>
+          <text class="bpn-icon" x="52" y="317" font-style="italic">ƒ</text>
+          <text class="bpn-name" x="66" y="317">Get Viewport Size</text>
+          <circle class="bpp-pin t-float" cx="219" cy="340" r="5"/>
+          <text class="bpp-label" x="207" y="344" text-anchor="end">Size X</text>
+          <circle class="bpp-pin t-float off" cx="219" cy="364" r="5"/>
+          <text class="bpp-label" x="207" y="368" text-anchor="end">Size Y</text>
+        </g>
+
+        <!-- Ortho Width (변수 Get) -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="40" y="420" width="146" height="30" rx="15"/>
+          <rect x="40" y="420" width="6" height="30" rx="3" style="fill:var(--bp-float)"/>
+          <text class="bpn-name" x="60" y="439">Ortho Width</text>
+          <circle class="bpp-pin t-float" cx="172" cy="435" r="5"/>
+        </g>
+
+        <!-- Multiply (ΔX × OrthoWidth) -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="310" y="300" width="130" height="86" rx="6"/>
+          <path d="M310,324 v-18 a6,6 0 0 1 6,-6 h118 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-pure)"/>
+          <text class="bpn-name" x="322" y="317">Multiply ×</text>
+          <circle class="bpp-pin t-float" cx="321" cy="340" r="5"/>
+          <text class="bpp-label" x="333" y="344">A</text>
+          <circle class="bpp-pin t-float" cx="321" cy="362" r="5"/>
+          <text class="bpp-label" x="333" y="366">B</text>
+          <circle class="bpp-pin t-float" cx="429" cy="340" r="5"/>
+        </g>
+
+        <!-- Divide (÷ Viewport X) -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="490" y="300" width="130" height="86" rx="6"/>
+          <path d="M490,324 v-18 a6,6 0 0 1 6,-6 h118 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-pure)"/>
+          <text class="bpn-name" x="502" y="317">Divide ÷</text>
+          <circle class="bpp-pin t-float" cx="501" cy="340" r="5"/>
+          <text class="bpp-label" x="513" y="344">A</text>
+          <circle class="bpp-pin t-float" cx="501" cy="362" r="5"/>
+          <text class="bpp-label" x="513" y="366">B</text>
+          <circle class="bpp-pin t-float" cx="609" cy="340" r="5"/>
+        </g>
+
+        <!-- Multiply (× -1) -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="670" y="300" width="130" height="86" rx="6"/>
+          <path d="M670,324 v-18 a6,6 0 0 1 6,-6 h118 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-pure)"/>
+          <text class="bpn-name" x="682" y="317">Multiply ×</text>
+          <circle class="bpp-pin t-float" cx="681" cy="340" r="5"/>
+          <text class="bpp-label" x="693" y="344">A</text>
+          <circle class="bpp-pin t-float off" cx="681" cy="362" r="5"/>
+          <text class="bpp-label" x="693" y="366">B</text>
+          <rect class="bpn-chip" x="720" y="354" width="50" height="16" rx="3"/>
+          <text class="bpn-chip-text" x="745" y="365" text-anchor="middle">-1.0</text>
+          <circle class="bpp-pin t-float" cx="789" cy="340" r="5"/>
+        </g>
+
+        <!-- Make Vector (순수) -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="670" y="430" width="190" height="100" rx="6"/>
+          <path d="M670,454 v-18 a6,6 0 0 1 6,-6 h178 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-pure)"/>
+          <text class="bpn-icon" x="682" y="447" font-style="italic">ƒ</text>
+          <text class="bpn-name" x="696" y="447">Make Vector</text>
+          <circle class="bpp-pin t-float" cx="681" cy="470" r="5"/>
+          <text class="bpp-label" x="693" y="474">X</text>
+          <circle class="bpp-pin t-float off" cx="681" cy="492" r="5"/>
+          <text class="bpp-label" x="693" y="496">Y</text>
+          <rect class="bpn-chip" x="710" y="484" width="42" height="16" rx="3"/>
+          <text class="bpn-chip-text" x="731" y="495" text-anchor="middle">0.0</text>
+          <circle class="bpp-pin t-float off" cx="681" cy="514" r="5"/>
+          <text class="bpp-label" x="693" y="518">Z</text>
+          <rect class="bpn-chip" x="710" y="506" width="42" height="16" rx="3"/>
+          <text class="bpn-chip-text" x="731" y="517" text-anchor="middle">0.0</text>
+          <circle class="bpp-pin t-vector" cx="849" cy="470" r="5"/>
+        </g>
+
+        <text class="bpg-caption" x="40" y="34">그래프 ④ — Tick 이동: 이동량 = ΔX × (OrthoWidth ÷ Viewport X) × −1 → X만 채운 벡터로 AddActorWorldOffset</text>
+      </svg>
+    </div>
+    <div class="callout info"><span class="ic">🧭</span><p><strong>Ortho Width 변수 채우기</strong> — BeginPlay에서 <code>Camera(컴포넌트) → Get Ortho Width</code>를 읽어 변수 <code>Ortho Width</code>에 한 번 저장해 두면 그래프 ④가 위처럼 단순해집니다. <code>Get Input Mouse Delta</code>의 Target에는 <code>Get Player Controller</code>를 연결하세요(그래프 ①의 순수 노드 재사용).</p></div>
+
+    <h3>마무리 — 경계 제한 (클램프)</h3>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">이동 직후 X를 자르기</div><div class="pipe-desc">그래프 ④의 <code>AddActorWorldOffset</code> 실행 핀 뒤에: <code>GetActorLocation → Break Vector</code>로 X를 꺼내 <code>Clamp (Float)</code>(Min = <code>MinX</code>, Max = <code>MaxX</code> 변수) → <code>Make Vector</code>(Y·Z는 Break에서 그대로) → <code>SetActorLocation</code>. 그래프 ②의 키 이동은 Floating Pawn Movement가 옮기므로, 같은 클램프를 Tick 마지막에 한 번 더 두면 두 입력 모두 잡힙니다.</div></div></div>
+  </div>
+
+  <!-- 05 등록 -->
+  <div class="section" id="register">
+    <div class="section-label">05 — 등록 (엔진에 연결)</div>
+    <h2>여기까지 하고도 안 되면, 대부분 이 섹션이 빠진 것</h2>
+
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">Pawn을 플레이어에게 주기</div><div class="pipe-desc">방법 A(권장): GameMode 블루프린트의 Class Defaults ▸ <strong>Default Pawn Class = BP_CameraPawn</strong>, World Settings ▸ GameMode Override에 그 GameMode 지정. 방법 B(빠른 테스트): 레벨에 배치한 BP_CameraPawn 선택 → Details ▸ Pawn ▸ <strong>Auto Possess Player = Player 0</strong>. <strong>전제: 방법 B를 쓰면 GameMode가 스폰하는 기본 폰과 겹치지 않는지 확인(Default Pawn Class = None 권장).</strong></div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">PlayerController에서 마우스 허용</div><div class="pipe-desc">BP_PlayerController를 만들어(또는 기존 것) Class Defaults에서 <strong>Show Mouse Cursor ✓ · Enable Click Events ✓</strong> 체크 → GameMode의 <strong>Player Controller Class</strong>로 지정. <strong>이 체크가 없으면 그래프 ③의 마우스 이벤트가 아예 발생하지 않습니다.</strong></div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">Input Mode 확인</div><div class="pipe-desc">UI를 띄우며 <code>Set Input Mode UI Only</code>를 호출한 적이 있다면 게임 입력이 전부 막힙니다. 기본은 <code>Game Only</code>, UI와 병행하려면 <code>Set Input Mode Game and UI</code>를 쓰세요.</div></div></div>
+  </div>
+
+  <!-- 06 검증 & 체크리스트 -->
+  <div class="section" id="verify">
+    <div class="section-label">06 — 검증 &amp; 트러블슈팅</div>
+    <h2>순서대로 확인하고, 막히면 표에서 찾기</h2>
+
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">빙의 확인</div><div class="pipe-desc">PIE(플레이) 시작 → 화면이 <strong>배치해 둔 카메라 시점</strong>으로 보이면 통과. 엉뚱한 곳(원점 하늘 등)이면 1단계 등록(Default Pawn/Auto Possess) 실패.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">키 이동 확인</div><div class="pipe-desc">A/D를 눌러 좌우로 움직이면 통과. 안 되면 아래 표의 ①②③ 순서로.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">드래그 확인</div><div class="pipe-desc">커서가 보이고, 왼쪽 버튼을 누른 채 끌면 화면이 <strong>끄는 방향으로 따라오면</strong> 통과. 반대로 가면 −1 곱을 빼먹은 것.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">경계 확인</div><div class="pipe-desc">맵 끝까지 이동해 MinX/MaxX 밖으로 나가지 않으면 완료.</div></div></div>
+
+    <h3>증상 → 원인 체크리스트</h3>
+    <table class="tbl">
+      <tr><th>증상</th><th>원인 (가능성 순)</th><th>확인 위치</th></tr>
+      <tr><td>A/D 눌러도 <strong>안 움직임</strong></td><td>① Floating Pawn Movement 없음 ② Possess 안 됨 ③ Mapping Context 미등록</td><td>03-A-3 · 05-1 · 그래프 ①</td></tr>
+      <tr><td>Enhanced Input <strong>이벤트 자체가 안 옴</strong> (Print 테스트 무반응)</td><td>Add Mapping Context 미실행 — BeginPlay 그래프 누락/미컴파일</td><td>그래프 ①</td></tr>
+      <tr><td><strong>마우스 클릭이 안 잡힘</strong></td><td>① Show Mouse Cursor·Enable Click Events 꺼짐 ② Input Mode가 UI Only</td><td>05-2 · 05-3</td></tr>
+      <tr><td>드래그가 <strong>반대로</strong> 움직임</td><td>× −1 누락</td><td>그래프 ④</td></tr>
+      <tr><td>드래그 <strong>속도가 이상함</strong> (너무 빠르거나 느림)</td><td>① 픽셀→월드 환산 없이 델타를 그대로 사용 ② 원근 카메라 사용 중</td><td>그래프 ④ · 01 함정 ②</td></tr>
+      <tr><td>카메라가 <strong>엉뚱한 방향</strong>을 봄 / 화면이 비스듬함</td><td>① 축 관례 어긋남(X-Z 평면 아님) ② Pawn 회전 Yaw 90° 아님 ③ Use Controller Rotation 계열 체크됨</td><td>01 함정 ① · 03-A-5</td></tr>
+      <tr><td>위아래로도 움직여버림</td><td>World Direction이 (1,0,0)이 아니거나 Make Vector의 Y·Z에 값이 들어감</td><td>그래프 ② · ④</td></tr>
+    </table>
+
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>디버깅 최단 루트</strong> — 각 그래프의 이벤트 직후에 <code>Print String</code>을 하나씩 꽂으면 "입력이 들어오는가(이벤트) vs 들어오는데 안 움직이는가(이동계)"가 즉시 갈립니다. 이벤트가 안 찍히면 등록(05)·Mapping Context(그래프 ①) 문제, 찍히는데 안 움직이면 Movement 컴포넌트·환산(그래프 ④) 문제입니다.</div></div>
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>다음 확장</strong> — 드래그에 관성(놓은 뒤 감속 이동), 마우스 휠로 Ortho Width 줌, 카메라 흔들림 방지용 보간(<code>FInterp To</code>)을 얹을 수 있습니다. 모두 이 문서의 구조(전용 Pawn + Tick 환산) 위에 그대로 쌓입니다.</div></div>
+  </div>
+
+</div>
+
+<footer>
+  <span>UE 아키텍처 문서 · 2D Side Camera v1.0</span>
+  <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.6</span>
+</footer>
+
+</body>
+</html>

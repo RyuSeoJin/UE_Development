@@ -8,6 +8,9 @@
      CHANGELOG — ue-datatable.html
      유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.6 · 2026-07-10
+       - (추가) 코드 섹션 첫머리 "🚀 이 문서로 작업 시작하기" 블록 — 전제 · 만들 파일 표 ·
+         코드 외 작업 · 컴파일 주의 (플레이북 v3.9 작성 원칙 소급 적용)
      v1.5 · 2026-07-08
        - (추가) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
          — 05 스켈레톤 ItemRow.h / ItemQuery.cpp 두 탭: 매크로·지정자 의미,
@@ -637,6 +640,16 @@ potion_hp,체력 물약,0,</pre></div>
   <div class="section" id="skeleton">
     <div class="section-label">05 — 구현 스켈레톤</div>
     <h2>행 구조체 정의와 조회 코드</h2>
+
+    <h3>🚀 이 문서로 작업 시작하기</h3>
+    <div class="callout info"><span class="ic">🧭</span><p><strong>전제 조건</strong> — 단독 실습 가능합니다. 위저드·Build.cs·컴파일의 공통 절차는 위키 『C++ 클래스 생성 · 빌드 워크플로우』(core-cpp)를 따릅니다.</p></div>
+    <table class="tbl">
+      <tr><th>만들 파일 / 작업 대상</th><th>부모 클래스 (위저드 검색어)</th><th>비고</th></tr>
+      <tr><td><code>ItemRow.h</code></td><td><strong>None</strong> (빈 헤더)</td><td><code>FTableRowBase</code> 상속 USTRUCT — 테이블의 열 정의</td></tr>
+      <tr><td><code>조회 코드</code></td><td>새 파일 없음</td><td>사용하는 클래스 .cpp에 <code>FindRow</code> 추가</td></tr>
+    </table>
+    <div class="callout tip"><span class="ic">💡</span><p><strong>코드 외 작업</strong> — <strong>이 문서의 본체입니다</strong> — 재빌드 후 ① Content Browser 우클릭 ▸ Miscellaneous ▸ <strong>Data Table</strong> ▸ <code>FItemRow</code> 선택 → <code>DT_Items</code> 생성(권장 위치 <code>Content/Data/</code>) ② 행 직접 입력 또는 문서의 CSV 탭을 우클릭 ▸ Import로 반입.</p></div>
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>컴파일 주의</strong> — 행 구조체 필드 변경은 재빌드 + <strong>기존 DT 애셋을 열어 열 구성이 따라왔는지 재확인</strong>(구조체를 먼저 컴파일해야 위저드 목록에 나타남).</div></div>
     <p><code>MYGAME_API</code>는 자기 모듈 이름으로 바꾸세요 — 무엇이고 이름이 어떻게 정해지는지는 코드 아래 <strong>"스켈레톤 해부"</strong>에서 설명합니다. 조회 예시는 임의 액터 클래스 안의 함수로 작성했습니다.</p>
 
     <div class="codeblock">
@@ -778,7 +791,7 @@ potion_hp,체력 물약,0,</pre></div>
 </div>
 
 <footer>
-  <span>UE 아키텍처 문서 · DataTable v1.5</span>
+  <span>UE 아키텍처 문서 · DataTable v1.6</span>
   <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.3</span>
 </footer>
 

@@ -8,6 +8,10 @@
      CHANGELOG — 00-recordtales-v2-overview.html
      RecordTales V2 프로젝트 개요 (Track B · 02-A 아키텍처 패턴, 프로젝트 스코프).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     v0.2 · 2026-07-10
+       - (추가) 06 제작 순서 섹션에 "🚀 작업 시작하기" 블록 — 공통 전제(엔진·IDE·C++ 프로젝트),
+         착수 문서 순서(01→03→02→04), 공통 절차는 위키 'C++ 클래스 생성 · 빌드 워크플로우' 참조.
+         (사용자 피드백: 착수 방법·코드 외 작업 누락 보완)
      v0.1 · 2026-07-09
        - 신규 생성. RecordTales V2 전체 설계 개요.
        - 멀티 길드(하이브리드 C) · 영지/경영 경제 · 가챠 능력치 개화 · 정직한 레벨(60분=1레벨) · 소프트 삭제.
@@ -422,6 +426,18 @@ FEconomyState   { Gold, Shards }</div>
   <div class="section" id="phase">
     <div class="section-label">06 — 제작 순서</div>
     <h2>기록 먼저, 게임은 그 위에</h2>
+
+    <h3>🚀 작업 시작하기 (프로젝트 공통 전제)</h3>
+    <div class="callout info"><span class="ic">🧭</span><p><strong>전제 조건</strong> — ① UE5 프로젝트 생성 완료(템플릿: Blank, Blueprint여도 무방 — 첫 클래스 생성 시 자동으로 C++ 프로젝트로 전환) ② IDE 준비(Windows: Visual Studio 2022 + "Game development with C++" 워크로드 / macOS: Xcode) ③ 클래스 생성·Build.cs·컴파일(Live Coding vs 재빌드)의 <strong>공통 절차는 위키의 『C++ 클래스 생성 · 빌드 워크플로우』(core-cpp) 문서가 담당</strong>합니다 — 각 문서의 "작업 시작하기" 블록은 그 문서 고유의 파일 목록·코드 외 작업만 담습니다.</p></div>
+    <table class="tbl">
+      <tr><th>착수 순서</th><th>문서</th><th>이 문서에서 만드는 것</th></tr>
+      <tr><td>1</td><td><code>01 멀티 길드 아키텍처</code></td><td>서브시스템 골격(<code>UGuildSubsystem</code> 등) + 세이브 구조 — <strong>모든 시스템의 토대</strong></td></tr>
+      <tr><td>2</td><td><code>03 데이터 설계 지도</code></td><td>행 구조체 + <code>DT_*</code> DataTable 애셋 — 02·04가 조회할 값의 원본</td></tr>
+      <tr><td>3</td><td><code>02 영지 · 경영 경제</code></td><td>경제 서브시스템 + 건물 상태 — 03의 테이블을 조회</td></tr>
+      <tr><td>4</td><td><code>04 가챠 · 능력치 개화</code></td><td>가챠 서브시스템 — 01의 보유 구조 + 03의 확률 테이블 사용</td></tr>
+    </table>
+    <div class="callout tip"><span class="ic">💡</span><p>이 순서는 아래 Phase 구분과 별개로 <strong>"코드 의존성" 기준의 착수 순서</strong>입니다 — 뒤 문서가 앞 문서의 클래스·테이블을 참조하므로 거꾸로 시작하면 컴파일이 안 됩니다.</p></div>
+
     <p>게임(가챠·영지)은 기록·집중 본체 위에 얹혀 돌아갑니다(가챠 확률은 활동 XP에서, 건물은 활동 결과로 산출). 그래서 제작도 두 단계로 나눕니다.</p>
 
     <div class="pipe-step">

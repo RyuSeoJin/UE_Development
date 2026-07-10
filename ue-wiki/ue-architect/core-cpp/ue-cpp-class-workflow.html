@@ -3,30 +3,27 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>타이머와 World — 시간 콜백은 누구 소속인가 · UE 아키텍처</title>
+<title>C++ 클래스 생성 · 빌드 워크플로우 — 코드를 프로젝트에 넣는 법 · UE 아키텍처</title>
 <!-- ============================================================
-     CHANGELOG — ue-timer-world.html
-     유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿 · framework/).
+     CHANGELOG — ue-cpp-class-workflow.html
+     유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-B 템플릿 · core-cpp/).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
-     v1.2 · 2026-07-10
-       - (추가) 코드 섹션 첫머리 "🚀 이 문서로 작업 시작하기" 블록 — 전제 · 만들 파일 표 ·
-         코드 외 작업 · 컴파일 주의 (플레이북 v3.9 작성 원칙 소급 적용)
-     v1.1 · 2026-07-08
-       - (보강) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
-     v1.0 · 2026-07-07
-       - 신규 생성. FTimerManager가 World 소속이라는 대전제, GameInstanceSubsystem의
-         Initialize()에서 GetWorld()가 null인 이유(수명 타임라인), 안전한 타이머 시작
-         위치 결정표, 일시정지/남은 시간 보존 패턴을 다룸.
-       - 수명 타임라인 다이어그램(.diagram SVG + Mermaid 소스 병기, STEP 7 v3.7)
-       - 마스터 CSS v1.5 inline 스냅샷, hljs 구워넣기, 탭/복사 inline JS
-       - 용어 앵커: term-timer-manager · term-timer-handle · term-world-lifetime
+     v1.0 · 2026-07-10
+       - 신규 생성. 모든 C++ 문서가 전제하는 공통 착수 절차의 중앙 문서:
+         클래스 위저드 · Source 폴더/모듈 구조 · Build.cs 의존성 · Live Coding vs 재빌드 ·
+         에디터 연결(BP 자식·Project Settings) · 트러블슈팅.
+       - 배경: 기존 문서들이 "무엇을·왜"는 담았지만 "어디서부터·코드 밖 작업"이 빠져
+         착수가 어렵다는 사용자 피드백 — 반복 절차를 이 문서 1곳에 두고,
+         각 문서에는 "이 문서로 작업 시작하기" 블록을 추가(개별 문서 CHANGELOG 참조).
+       - 마스터 v1.6 스냅샷 inline.
+       - 중앙 용어집 앵커: term-live-coding · term-class-wizard
      ============================================================ -->
 <style>
 /* ============================================================
    UE Design System — Master Stylesheet
    (design-guide-ue-master.css)
    언리얼 에셋 분석 · 아키텍처 설계 문서 공통 토대
-   v1.5  (Dark · Indigo Minimal · Editorial)
+   v1.6  (Dark · Indigo Minimal · Editorial)
 
    사용법
    - 가이드 문서(master-visual / design-template의 01 / 02)는 <link>로 이 파일을 참조.
@@ -34,6 +31,18 @@
      단일 파일로 배포한다. (오프라인 무결성 유지)
 
    변경 이력 (CHANGELOG) — 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+   v1.6 · 2026-07-10
+     - (추가) 블루프린트 에디터 관례색 토큰(--bp-*) — 캔버스/노드/제목 바 5종(이벤트·
+       함수 호출·순수 함수·흐름 제어·캐스트)/핀 타입 8종(Exec·Bool·Float·Int·
+       String·Vector·Object·Class). UE 에디터의 의미색이므로 .bp-graph 내부 전용.
+     - (추가) .bp-graph — 블루프린트 노드 그래프 컨테이너(UE 에디터 재현, 구워넣은 SVG).
+       SVG 내부 클래스: .bpn-body/.bpn-name/.bpn-sub/.bpn-icon/.bpn-chip/.bpn-chip-text
+       (노드) · .bpp-exec(실행 핀 ▷)/.bpp-pin(데이터 핀 ● + t-* 타입, .off=미연결)/
+       .bpp-label(핀 라벨) · .bpw(와이어: .exec 또는 t-* 타입) · .bpg-caption(캡션)
+     - 규칙: .diagram과 동일 철학 — 생성 시점 SVG 구워넣기(런타임 렌더링 금지).
+       제목 바 그라데이션·격자 패턴은 SVG <defs> 표준 블록(bpg-*)을 각 SVG에 포함.
+     - 사유: 사용자 요청 "구현 방법에 블루프린트 노드 포함 + 에디터와 동일한 디자인"
+       (블루프린트 인터페이스 문서, Case B 승인)
    v1.5 · 2026-07-07
      - (추가) .diagram — 구워넣은 SVG 다이어그램 컨테이너(Mermaid 스타일 플로차트).
        SVG 내부 클래스: .dg-node(+k-* 종류 변형)/.dg-text/.dg-sub/.dg-edge(+lk-* 연결 변형)/.dg-elabel
@@ -118,6 +127,28 @@
   --ue-header: #38D9B4;      /* .h  헤더(선언)   */
   --ue-source: #FB8C5A;      /* .cpp 소스(구현)  */
   --ue-macro:  #FB8C5A;      /* UCLASS / UPROPERTY / UFUNCTION 등 리플렉션 매크로 */
+
+  /* --- 블루프린트 에디터 관례색 (.bp-graph 전용, v1.6 신규) ---
+     UE 블루프린트 에디터의 노드·핀 색 관례를 그대로 재현하는 의미색.
+     인디고 팔레트와 성격이 다르므로 .bp-graph SVG 내부에서만 사용한다
+     (본문 UI·다른 컴포넌트에 유출 금지). */
+  --bp-canvas:  #26282A;     /* 그래프 에디터 캔버스 배경                          */
+  --bp-grid:    #2B2D2F;     /* 캔버스 격자선(소, 16px)                            */
+  --bp-grid-2:  #1D1F21;     /* 캔버스 격자선(대, 80px)                            */
+  --bp-node:    #17181A;     /* 노드 본체                                          */
+  --bp-event:   #A03232;     /* 제목 바 — 이벤트(빨강)                             */
+  --bp-call:    #2E6FB4;     /* 제목 바 — 함수 호출·인터페이스 메시지(파랑)        */
+  --bp-pure:    #3F9142;     /* 제목 바 — 순수 함수(초록, 실행 핀 없음)            */
+  --bp-flow:    #787878;     /* 제목 바 — 흐름 제어 Branch/Sequence 등(회색)       */
+  --bp-cast:    #38808F;     /* 제목 바 — 캐스트(청록)                             */
+  --bp-exec:    #E2E2E2;     /* 실행 핀 ▷ · 실행 와이어(흰색)                      */
+  --bp-bool:    #A31515;     /* Boolean 핀(적갈색)                                 */
+  --bp-float:   #9FE838;     /* Float 핀(연두)                                     */
+  --bp-int:     #26E0A8;     /* Integer 핀(청록)                                   */
+  --bp-string:  #F535C8;     /* String 핀(자홍)                                    */
+  --bp-vector:  #F6C21C;     /* Vector 핀(노랑)                                    */
+  --bp-object:  #0A84FF;     /* Object 참조 핀(파랑)                               */
+  --bp-class:   #8A5CD6;     /* Class·Interface 참조 핀(보라)                      */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -533,6 +564,56 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .graph-net .gn-label { fill: var(--text-muted); font-family: 'IBM Plex Mono', monospace; font-size: 10px; text-anchor: middle; }
 .graph-net .gn-label.big { fill: var(--text); font-size: 11px; font-weight: 600; }
 
+/* ============================================================
+   BP-GRAPH — 블루프린트 노드 그래프 (UE 에디터 재현)  [v1.6 신규]
+   블루프린트 에디터의 노드·핀·와이어를 생성 시점 SVG로 구워넣는다
+   (.diagram과 동일 철학 — 런타임 렌더링 스크립트 금지).
+
+   사용 규칙
+   - 제목 바 그라데이션(bpg-event/call/pure/flow/cast)·격자 패턴(bpg-grid/grid80)·
+     그림자(bpg-shadow)는 SVG <defs> 표준 블록을 각 SVG에 포함해 쓴다
+     (master-visual 09 데모의 defs를 그대로 복사). 제목 바 fill은
+     CSS가 아니라 fill="url(#bpg-…)" 속성으로 지정한다(그라데이션이 CSS 클래스에
+     덮이지 않게 하기 위함).
+   - 노드 종류(제목 바 색): 이벤트=빨강 · 함수 호출/인터페이스 메시지=파랑 ·
+     순수 함수=초록(실행 핀 없음) · 흐름 제어=회색 · 캐스트=청록.
+   - 핀: 실행 핀 ▷(.bpp-exec) · 데이터 핀 ●(.bpp-pin + t-* 타입 색).
+     미연결 핀은 .off(외곽선만). 와이어(.bpw)는 실행=.exec(흰색·굵게),
+     데이터=핀과 같은 t-* 색.
+   - 변수 Get/Set 캡슐: .bpn-body에 rx=15 + 좌측 타입 색 스트립(rect)로 표현.
+   ============================================================ */
+.bp-graph { background: var(--bp-canvas); border: 1px solid var(--border); border-radius: 10px; margin: 16px 0; overflow-x: auto; }
+.bp-graph svg { display: block; max-width: 100%; height: auto; margin: 0 auto; min-width: 560px; }
+.bp-graph .bpn-body { fill: var(--bp-node); fill-opacity: 0.97; stroke: #050505; }
+.bp-graph .bpn-name { fill: #F4F4F4; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; font-weight: 600; }
+.bp-graph .bpn-sub  { fill: #B9D2EA; font-family: 'Pretendard', 'Noto Sans KR', sans-serif; font-size: 8.5px; }
+.bp-graph .bpn-icon { fill: #EDEDED; font-size: 11px; }
+.bp-graph .bpn-chip { fill: #101113; stroke: #3A3C40; }
+.bp-graph .bpn-chip-text { fill: #D8D8D8; font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; }
+.bp-graph .bpp-exec { fill: var(--bp-exec); }
+.bp-graph .bpp-pin { stroke-width: 1.6; }
+.bp-graph .bpp-pin.t-bool   { fill: var(--bp-bool);   stroke: var(--bp-bool); }
+.bp-graph .bpp-pin.t-float  { fill: var(--bp-float);  stroke: var(--bp-float); }
+.bp-graph .bpp-pin.t-int    { fill: var(--bp-int);    stroke: var(--bp-int); }
+.bp-graph .bpp-pin.t-string { fill: var(--bp-string); stroke: var(--bp-string); }
+.bp-graph .bpp-pin.t-vector { fill: var(--bp-vector); stroke: var(--bp-vector); }
+.bp-graph .bpp-pin.t-object { fill: var(--bp-object); stroke: var(--bp-object); }
+.bp-graph .bpp-pin.t-class  { fill: var(--bp-class);  stroke: var(--bp-class); }
+/* 미연결 핀 — 외곽선만 (t-* 뒤에 선언해 fill을 이긴다) */
+.bp-graph .bpp-pin.off  { fill: none; }
+.bp-graph .bpp-exec.off { fill: none; stroke: var(--bp-exec); stroke-width: 1.4; }
+.bp-graph .bpp-label { fill: #C9C9C9; font-family: 'IBM Plex Mono', monospace; font-size: 10px; }
+.bp-graph .bpw { fill: none; stroke-width: 1.8; }
+.bp-graph .bpw.exec     { stroke: var(--bp-exec); stroke-width: 2.2; }
+.bp-graph .bpw.t-bool   { stroke: var(--bp-bool); }
+.bp-graph .bpw.t-float  { stroke: var(--bp-float); }
+.bp-graph .bpw.t-int    { stroke: var(--bp-int); }
+.bp-graph .bpw.t-string { stroke: var(--bp-string); }
+.bp-graph .bpw.t-vector { stroke: var(--bp-vector); }
+.bp-graph .bpw.t-object { stroke: var(--bp-object); }
+.bp-graph .bpw.t-class  { stroke: var(--bp-class); }
+.bp-graph .bpg-caption { fill: #8B8F94; font-family: 'Pretendard', 'Noto Sans KR', sans-serif; font-size: 12px; }
+
 @media (max-width: 720px) {
   .content { padding: 0 20px 60px; }
   .hero { padding: 48px 20px 40px; }
@@ -556,227 +637,164 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   footer { padding: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-
 </style>
 </head>
 <body>
 
 <nav>
-  <div class="nav-logo">UE WIKI · TIMER &amp; WORLD</div>
+  <div class="nav-logo">UE WIKI · C++ WORKFLOW</div>
   <div class="nav-links">
-    <a href="#concept">개념</a>
-    <a href="#relation">관계</a>
-    <a href="#responsibility">책임</a>
-    <a href="#flow">흐름</a>
-    <a href="#skeleton">스켈레톤</a>
-    <a href="#extend">확장</a>
+    <a href="#req">전제</a>
+    <a href="#wizard">클래스 생성</a>
+    <a href="#module">모듈 · Build.cs</a>
+    <a href="#compile">컴파일</a>
+    <a href="#editor">에디터 연결</a>
+    <a href="#verify">문제 해결</a>
   </div>
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">UE Architecture · Type ① · 02-A</div>
-  <h1>타이머와 World<br><span>시간 콜백은 누구 소속인가</span></h1>
+  <div class="hero-eyebrow">UE Architecture · Type ① · 02-B</div>
+  <h1>C++ 클래스 생성 · 빌드<br><span>코드를 프로젝트에 넣는 법</span></h1>
   <p class="hero-sub">
-    "N초 뒤에 이 함수를 불러줘"를 담당하는 <strong><code>FTimerManager</code></strong>는 전역 서비스가 아니라 <strong>World의 부품</strong>입니다. 이 한 문장을 모르면 "Subsystem <code>Initialize()</code>에서 타이머를 걸었는데 <code>GetWorld()</code>가 null"이라는, 초보자가 가장 오래 헤매는 벽에 부딪힙니다. 이 문서는 그 벽의 원인(수명 타임라인)과 안전한 우회로를 다룹니다.
+    문서의 <code>.h</code>/<code>.cpp</code> 코드를 복사하기 <strong>전에</strong> 해야 하는 일 — 클래스 파일을 어디에 어떻게 만들고, 어떤 모듈을 추가하고, 언제 Live Coding으로 되고 언제 에디터를 꺼야 하는지. <strong>이 위키의 모든 C++ 문서가 공통으로 전제하는 반복 절차</strong>를 한 곳에 모았습니다. 각 문서의 "작업 시작하기" 블록에서 이 문서를 가리킵니다.
   </p>
   <div class="hero-meta">
-    <span class="badge badge-blue">엔진 자체 기능</span>
-    <span class="badge badge-green">UE4 / UE5 공통</span>
-    <span class="badge badge-purple">C++ 중심</span>
+    <span class="badge badge-blue">공통 워크플로우</span>
+    <span class="badge badge-green">UE5 · Windows/macOS</span>
+    <span class="badge badge-purple">모든 C++ 문서의 선행 지식</span>
   </div>
 </div>
 
 <div class="content">
 
-  <!-- 01 개념 -->
-  <div class="section" id="concept">
-    <div class="section-label">01 — 개념 · 역할</div>
-    <h2>타이머는 예약, 핸들은 예약 번호표</h2>
-    <p>매 프레임 <code>Tick</code>에서 시간을 직접 빼는 대신, 엔진에 "예약"을 겁니다: <em>"5초 뒤에(또는 5초마다) 이 함수를 호출해줘."</em> 예약을 받는 곳이 <code>FTimerManager</code>, 예약증이 <code>FTimerHandle</code>입니다.</p>
-    <h3 id="term-timer-manager">핵심 용어</h3>
-    <div class="callout info"><span class="ic">📖</span><p>
-      <strong>World</strong> — 레벨(맵)이 로드되어 실행 중인 무대. 액터·시간·물리가 전부 World 위에서 돕니다. <strong>레벨을 이동하면 이전 World는 파괴됩니다.</strong><br><br>
-      <strong>FTimerManager</strong> — World가 소유한 예약 접수처. World의 시간(일시정지·시간 배속의 영향을 받는 시간)을 기준으로 만료를 판정합니다. <code>GetWorld()-&gt;GetTimerManager()</code>로 접근합니다.<br><br>
-      <strong id="term-timer-handle">FTimerHandle</strong> — 예약 번호표. 예약을 취소(<code>ClearTimer</code>)·조회(<code>GetTimerRemaining</code>)·일시정지(<code>PauseTimer</code>)하려면 이 핸들이 필요하므로 <strong>멤버 변수로 보관</strong>합니다.<br><br>
-      <strong id="term-world-lifetime">수명(Lifetime)</strong> — 객체가 태어나서 죽기까지의 구간. GameInstance(앱 전체) ⊃ World(레벨 하나) 관계라서, <strong>GameInstance가 살아 있어도 World는 아직 없거나 이미 죽었을 수 있습니다.</strong> 이 어긋남이 이 문서의 주제입니다.
-    </p></div>
+  <!-- 01 전제 -->
+  <div class="section" id="req">
+    <div class="section-label">01 — 전제 조건</div>
+    <h2>시작 전에 갖춰야 할 것</h2>
+
+    <table class="tbl">
+      <tr><th>항목</th><th>내용</th><th>확인 방법</th></tr>
+      <tr><td>IDE (코드 편집·빌드 도구)</td><td>Windows: <strong>Visual Studio 2022</strong> + 설치 옵션에서 <strong>"Game development with C++"</strong> 워크로드 체크. macOS: <strong>Xcode</strong> (App Store). JetBrains <strong>Rider</strong>는 양쪽 모두 대안</td><td>에디터 Edit ▸ Editor Preferences ▸ Source Code에서 사용할 IDE 선택 가능</td></tr>
+      <tr><td>C++ 프로젝트 여부</td><td>프로젝트에 <code>Source/</code> 폴더가 있으면 C++ 프로젝트. <strong>블루프린트 전용 프로젝트여도 걱정 없음</strong> — 아래 클래스 위저드로 클래스를 1개 만드는 순간 자동으로 C++ 프로젝트로 전환됩니다</td><td>프로젝트 폴더에 <code>Source/</code> 존재 여부</td></tr>
+      <tr><td>디스크 여유</td><td>첫 C++ 빌드는 중간 산출물(<code>Intermediate/</code>, <code>Binaries/</code>)로 수 GB를 씁니다</td><td>—</td></tr>
+    </table>
+
+    <div class="callout info"><span class="ic">📌</span><p><strong>핵심 용어</strong> — <span id="term-class-wizard"><strong>클래스 위저드(New C++ Class)</strong>: 에디터가 부모 클래스 선택 → 파일 생성 → 프로젝트 파일 갱신까지 한 번에 해 주는 마법사. C++ 파일은 <strong>가급적 항상 이 통로로</strong> 만듭니다(손으로 만들면 프로젝트 파일 재생성이 별도로 필요)</span>. / <span id="term-live-coding"><strong>Live Coding</strong>: 에디터를 켠 채 <code>Ctrl+Alt+F11</code>로 변경된 C++를 패치해 넣는 기능 — <strong>함수 본문(.cpp) 수정에만</strong> 안전</span>. / <strong>모듈(Module)</strong>: 코드의 빌드 묶음. 남의 모듈 기능을 쓰려면 내 <code>.Build.cs</code>에 이름을 적어야 링크됩니다.</p></div>
   </div>
 
-  <!-- 02 관계 -->
-  <div class="section" id="relation">
-    <div class="section-label">02 — 수명 관계</div>
-    <h2>왜 Initialize()에서 GetWorld()가 null인가</h2>
-    <p>앱이 켜질 때의 순서를 시간축으로 보면 답이 보입니다. <strong>GameInstance와 그 Subsystem들은 World가 만들어지기 전에 초기화됩니다.</strong></p>
+  <!-- 02 클래스 생성 -->
+  <div class="section" id="wizard">
+    <div class="section-label">02 — 클래스 생성 (위저드)</div>
+    <h2>문서의 클래스를 실제 파일로 만들기</h2>
+    <p>위키 문서가 "<code>UGuildSubsystem</code> (<code>UGameInstanceSubsystem</code> 상속)을 만든다"라고 하면, 실제 절차는 아래 5단계입니다.</p>
 
-    <div class="diagram">
-      <svg viewBox="0 0 700 250" role="img" aria-label="GameInstance와 World의 수명 타임라인">
-        <defs>
-          <marker id="dgt-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-            <path d="M0,0 L10,5 L0,10 z" fill="var(--text-dim)"/>
-          </marker>
-        </defs>
-        <path class="dg-edge" d="M30,40 L690,40" marker-end="url(#dgt-arrow)"/>
-        <text class="dg-elabel" x="640" y="30">시간 →</text>
-        <rect class="dg-node k-instance" x="30" y="60" width="640" height="44" rx="8"/>
-        <text class="dg-text" x="350" y="87" text-anchor="middle">GameInstance + Subsystems — 앱이 켜진 순간부터 꺼질 때까지</text>
-        <rect class="dg-node k-decision" x="30" y="118" width="150" height="36" rx="8"/>
-        <text class="dg-text" x="105" y="140" text-anchor="middle">Initialize() 시점</text>
-        <rect class="dg-node" x="215" y="118" width="215" height="36" rx="8"/>
-        <text class="dg-text" x="322" y="140" text-anchor="middle">World A (첫 레벨)</text>
-        <rect class="dg-node" x="470" y="118" width="200" height="36" rx="8"/>
-        <text class="dg-text" x="570" y="140" text-anchor="middle">World B (레벨 이동 후)</text>
-        <path class="dg-edge lk-event" d="M105,154 L105,190"/>
-        <text class="dg-elabel" x="30" y="210">여기서 GetWorld() = null</text>
-        <text class="dg-elabel" x="30" y="226">→ SetTimer 불가</text>
-        <path class="dg-edge lk-save" d="M430,136 L466,136" marker-end="url(#dgt-arrow)"/>
-        <text class="dg-elabel" x="330" y="210">World가 바뀌면 A의 타이머는 전부 소멸</text>
-        <text class="dg-elabel" x="330" y="226">(TimerManager가 World 소속이므로)</text>
-      </svg>
-    </div>
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">위저드 열기</div><div class="pipe-desc">에디터 상단 메뉴 <strong>Tools ▸ New C++ Class…</strong> (또는 Content Browser의 C++ Classes 폴더에서 우클릭 ▸ New C++ Class).</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">부모 클래스 선택</div><div class="pipe-desc">첫 화면(Common Classes)에 없으면 상단 <strong>All Classes</strong> 탭으로 전환 → 검색창에 부모 이름 입력(예: <code>GameInstanceSubsystem</code>, <code>SaveGame</code>, <code>DeveloperSettings</code>). 문서가 지정한 부모를 그대로 검색하면 됩니다. <strong>구조체·열거형만 담을 헤더</strong>가 필요하면 부모를 <strong>None</strong>으로 선택합니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">이름 · 위치 지정</div><div class="pipe-desc">이름은 <strong>접두어 없이</strong> 입력합니다(<code>GuildSubsystem</code>이라고 치면 파일은 <code>GuildSubsystem.h/.cpp</code>, 클래스는 <code>UGuildSubsystem</code>으로 자동 생성). Public/Private 선택은 단일 모듈 프로젝트면 기본값 그대로 둡니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">Create Class → IDE 확인</div><div class="pipe-desc">생성하면 파일이 <code>Source/&lt;프로젝트이름&gt;/</code> 아래에 생기고 IDE가 자동으로 열립니다. <strong>결과 확인: .h에 UCLASS()·GENERATED_BODY()가 이미 채워진 뼈대가 보입니다.</strong></div></div></div>
+    <div class="pipe-step"><div class="pipe-num">5</div><div class="pipe-body"><div class="pipe-title">문서 코드 붙여넣기</div><div class="pipe-desc">위키 문서의 코드 탭에서 <strong>복사</strong> 버튼으로 .h/.cpp 내용을 가져와 뼈대에 맞춰 붙입니다. 이때 <strong>맨 위 <code>#include "…generated.h"</code>는 위저드가 만든 줄을 유지</strong>하고(항상 마지막 include), 클래스 선언부와 함수들을 문서 내용으로 채웁니다.</div></div></div>
+
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>파일을 IDE에서 직접 만들었다면</strong> — 언리얼은 그 파일의 존재를 모릅니다. 에디터를 끄고 <strong>프로젝트 파일 재생성</strong>(Windows: <code>.uproject</code> 우클릭 ▸ Generate Visual Studio project files / macOS: 에디터 Tools ▸ Refresh Xcode Project) 후 다시 빌드하세요. 위저드를 쓰면 이 단계가 필요 없습니다.</div></div>
+  </div>
+
+  <!-- 03 모듈 · Build.cs -->
+  <div class="section" id="module">
+    <div class="section-label">03 — 모듈 · Build.cs</div>
+    <h2>"없는 헤더" 에러의 90%는 여기서 해결</h2>
+    <p>프로젝트 코드는 <code>Source/&lt;프로젝트이름&gt;/&lt;프로젝트이름&gt;.Build.cs</code>라는 <strong>빌드 설정 파일</strong>을 가집니다. 여기의 <code>PublicDependencyModuleNames</code> 목록에 적힌 모듈만 include·링크할 수 있습니다. 문서 코드가 UMG 위젯·Enhanced Input 등을 쓰는데 해당 모듈이 목록에 없으면 <strong>"cannot open include file" 또는 링크 에러</strong>가 납니다.</p>
+
+    <table class="tbl">
+      <tr><th>문서 코드가 이걸 쓰면</th><th>추가할 모듈</th></tr>
+      <tr><td>UMG 위젯 C++ 연동 (<code>UUserWidget</code>, <code>BindWidget</code>)</td><td><code>"UMG"</code> (+ 대부분 <code>"Slate", "SlateCore"</code> 함께)</td></tr>
+      <tr><td>Enhanced Input (<code>UInputAction</code>, <code>UInputMappingContext</code>)</td><td><code>"EnhancedInput"</code></td></tr>
+      <tr><td>DeveloperSettings (<code>UDeveloperSettings</code> 상속)</td><td><code>"DeveloperSettings"</code></td></tr>
+      <tr><td>Paper2D 스프라이트</td><td><code>"Paper2D"</code></td></tr>
+      <tr><td>JSON 읽기/쓰기</td><td><code>"Json", "JsonUtilities"</code></td></tr>
+      <tr><td>기본 게임플레이 (Actor·GameMode·Subsystem·SaveGame·DataTable)</td><td>추가 불필요 — 기본 4종(<code>Core, CoreUObject, Engine, InputCore</code>)에 포함</td></tr>
+    </table>
 
     <div class="codeblock">
       <div class="codeblock-bar">
-        <button class="codeblock-tab tab-h active" type="button">lifetime.mmd</button>
+        <button class="codeblock-tab tab-cpp active" type="button">MyProject.Build.cs</button>
         <button class="codeblock-copy" type="button">복사</button>
       </div>
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-keyword">flowchart</span> LR
-    GI[GameInstance 생성] --&gt; INIT[Subsystem Initialize — World 없음!]
-    INIT --&gt; WA[World A 로드 + BeginPlay]
-    WA --&gt; WB[레벨 이동 → World A 파괴, World B 생성]
-    WA -. World A의 타이머 전부 소멸 .-&gt; WB</pre></div>
-    </div>
-  </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-keyword">using</span> UnrealBuildTool;   <span class="hljs-comment">// UBT(언리얼 빌드 도구)의 타입을 사용</span>
 
-  <!-- 03 책임 -->
-  <div class="section" id="responsibility">
-    <div class="section-label">03 — 어디서 걸어야 안전한가</div>
-    <h2>타이머 시작 위치 결정표</h2>
-    <table class="tbl">
-      <tr><th>내가 있는 곳</th><th>안전한 시작 시점</th><th>이유</th></tr>
-      <tr><td><span class="owner o-pawn">Actor / Component</span></td><td><code>BeginPlay()</code> 이후</td><td>BeginPlay = "World에 배치 완료" 신호. <code>GetWorld()</code>가 항상 유효</td></tr>
-      <tr><td><span class="owner o-controller">UMG 위젯</span></td><td><code>NativeConstruct()</code> 이후</td><td>화면에 붙은 위젯은 World를 가짐. 파괴 시 <code>ClearTimer</code> 필수</td></tr>
-      <tr><td><span class="owner o-subsystem">GameInstanceSubsystem</span></td><td><strong><code>Initialize()</code> ✗</strong> → 사용자 입력/게임 시작 등 <strong>첫 호출 시점</strong>에</td><td>Initialize 시점엔 World가 없음. "타이머 시작" 함수(예: <code>StartXxx()</code>)가 불릴 때는 World가 있으므로 그때 걸기</td></tr>
-      <tr><td><span class="owner o-instance">항상 돌아야 하는 전역 틱</span></td><td><code>FTSTicker</code> (World 무관)</td><td>레벨 이동에도 살아남아야 하는 백그라운드 갱신은 World 타이머가 아니라 엔진 티커 사용(§06)</td></tr>
-    </table>
-    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>판별 한 줄</strong> — "이 타이머는 레벨이 바뀌어도 계속 가야 하나?" 아니오 → World 타이머(위 셋). 예 → 설계를 다시 보거나(대부분 만료 시각을 저장해 두고 재계산하면 충분) FTSTicker.</div></div>
-  </div>
-
-  <!-- 04 흐름 -->
-  <div class="section" id="flow">
-    <div class="section-label">04 — 사용 흐름</div>
-    <h2>걸기 · 멈추기 · 남은 시간 보존</h2>
-    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">걸기 — SetTimer</div><div class="pipe-desc"><code>GetWorld()-&gt;GetTimerManager().SetTimer(Handle, this, &amp;클래스::OnExpired, 5.f, false)</code>. 마지막 인자 <code>true</code>면 5초마다 반복. 전제: World 유효. 결과: Handle이 유효한 예약을 가리킴.</div></div></div>
-    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">일시정지 / 재개</div><div class="pipe-desc"><code>PauseTimer(Handle)</code> / <code>UnPauseTimer(Handle)</code> — 남은 시간이 그대로 얼었다 녹습니다. 대부분의 "일시정지" 요구는 이 두 줄로 끝나며, 남은 시간을 직접 계산할 필요가 없습니다.</div></div></div>
-    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">조회 — 남은 시간 표시</div><div class="pipe-desc"><code>GetTimerRemaining(Handle)</code>이 초 단위 float를 돌려줍니다. UI 카운트다운은 이 값을 읽어 그리기만 하면 됩니다(별도 카운트 변수를 두지 않기 — 이중 장부 방지).</div></div></div>
-    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">끄기 — ClearTimer</div><div class="pipe-desc"><code>ClearTimer(Handle)</code> — 예약 취소 + 핸들 무효화. 소유 객체가 파괴되기 전(위젯 <code>NativeDestruct</code> 등)에 반드시 호출합니다.</div></div></div>
-  </div>
-
-  <!-- 05 스켈레톤 -->
-  <div class="section" id="skeleton">
-    <div class="section-label">05 — 구현 스켈레톤</div>
-    <h2>Subsystem에서 안전하게 타이머 걸기</h2>
-
-    <h3>🚀 이 문서로 작업 시작하기</h3>
-    <div class="callout info"><span class="ic">🧭</span><p><strong>전제 조건</strong> — 단독 실습 가능합니다. 위저드·Build.cs·컴파일의 공통 절차는 위키 『C++ 클래스 생성 · 빌드 워크플로우』(core-cpp)를 따릅니다.</p></div>
-    <table class="tbl">
-      <tr><th>만들 파일 / 작업 대상</th><th>부모 클래스 (위저드 검색어)</th><th>비고</th></tr>
-      <tr><td><code>CountdownSubsystem.h/.cpp</code></td><td><code>GameInstanceSubsystem</code></td><td>타이머 핸들 보관·재예약 창구</td></tr>
-    </table>
-    <div class="callout tip"><span class="ic">💡</span><p><strong>코드 외 작업</strong> — 없음(자동 등록). 검증 포인트: 레벨을 이동해 보며 <strong>"World가 바뀌면 타이머가 소멸한다"</strong>를 직접 재현해 보는 것이 이 문서의 핵심 학습입니다(본문 검증 절차).</p></div>
-    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>컴파일 주의</strong> — 새 클래스=재빌드, 콜백 본문=Live Coding.</div></div>
-    <p>핵심은 <strong>Initialize가 아니라 Start 함수에서 건다</strong>는 것 — 그 시점엔 World가 반드시 있습니다.</p>
-    <div class="codeblock">
-      <div class="codeblock-bar">
-        <button class="codeblock-tab tab-h active" type="button">CountdownSubsystem.h</button>
-        <button class="codeblock-tab tab-cpp" type="button">CountdownSubsystem.cpp</button>
-        <button class="codeblock-copy" type="button">복사</button>
-      </div>
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
-<span class="hljs-meta">#include</span> <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span>
-<span class="hljs-meta">#include</span> <span class="hljs-string">"CountdownSubsystem.generated.h"</span>
-
-<span class="hljs-comment">// 동적 멀티캐스트 델리게이트 타입 선언 — 여러 구독자가 붙을 수 있고, 블루프린트 바인딩까지 지원 (인자 없음)</span>
-<span class="hljs-meta">DECLARE_DYNAMIC_MULTICAST_DELEGATE</span>(FOnCountdownFinished);
-
-<span class="hljs-comment">// UCLASS(): 리플렉션 등록 — 엔진이 이 Subsystem을 자동 발견·생성하는 전제 조건</span>
-<span class="hljs-meta">UCLASS()</span>
-<span class="hljs-keyword">class</span> MYGAME_API <span class="hljs-type">UCountdownSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>   <span class="hljs-comment">// MYGAME_API: 모듈 외부 노출 매크로 — 자기 모듈 이름으로 교체</span>
+<span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-title class_">MyProject</span> : ModuleRules
 {
-    <span class="hljs-meta">GENERATED_BODY()</span>   <span class="hljs-comment">// 리플렉션 보일러플레이트 삽입 자리 — UCLASS()와 한 쌍</span>
-<span class="hljs-keyword">public</span>:
-    <span class="hljs-comment">// BlueprintCallable: BP에서 호출 가능. 타이머는 Initialize()가 아닌 Start()에서 걸어야 안전 (그 시점엔 World 보장)</span>
-    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Start</span>(<span class="hljs-type">float</span> Seconds);   <span class="hljs-comment">// Seconds: 카운트다운 길이(초 단위)</span>
-    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Pause</span>();
-    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Resume</span>();
-    <span class="hljs-meta">UFUNCTION(BlueprintPure)</span>     <span class="hljs-type">float</span> <span class="hljs-title">GetRemaining</span>() <span class="hljs-keyword">const</span>;   <span class="hljs-comment">// BlueprintPure: 상태를 바꾸지 않는 읽기 전용 노드 — UI 표시에 사용</span>
+	<span class="hljs-keyword">public</span> <span class="hljs-title">MyProject</span>(ReadOnlyTargetRules Target) : <span class="hljs-keyword">base</span>(Target)
+	{
+		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;   <span class="hljs-comment">// 기본값 유지 (컴파일 가속 설정)</span>
 
-    <span class="hljs-comment">// BlueprintAssignable: BP에서 이 이벤트에 커스텀 이벤트를 바인딩 가능 — 만료 알림 통로</span>
-    <span class="hljs-meta">UPROPERTY(BlueprintAssignable)</span>
-    <span class="hljs-type">FOnCountdownFinished</span> OnFinished;
-
-<span class="hljs-keyword">private</span>:
-    <span class="hljs-keyword">void</span> <span class="hljs-title">HandleExpired</span>();   <span class="hljs-comment">// 만료 시 TimerManager가 호출하는 내부 콜백 — 외부에서 직접 부를 일 없으므로 private</span>
-    <span class="hljs-type">FTimerHandle</span> Handle;   <span class="hljs-comment">// 예약 번호표 — 반드시 멤버로 보관</span>
-};</pre></div>
-      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include</span> <span class="hljs-string">"CountdownSubsystem.h"</span>
-<span class="hljs-meta">#include</span> <span class="hljs-string">"TimerManager.h"</span>   <span class="hljs-comment">// FTimerManager 정의 헤더 — SetTimer/PauseTimer 등을 쓰려면 .cpp에 필요</span>
-
-<span class="hljs-keyword">void</span> <span class="hljs-type">UCountdownSubsystem</span>::<span class="hljs-title">Start</span>(<span class="hljs-type">float</span> Seconds)
-{
-    <span class="hljs-comment">// Initialize()가 아니라 여기서 건다 — 사용자가 부르는 시점엔 World가 있다.</span>
-    <span class="hljs-type">UWorld</span>* World = <span class="hljs-title">GetGameInstance</span>()-&gt;<span class="hljs-title">GetWorld</span>();
-    <span class="hljs-keyword">if</span> (!World) <span class="hljs-keyword">return</span>;   <span class="hljs-comment">// 방어 — 로딩 경계에서 불리는 예외 케이스</span>
-
-    <span class="hljs-comment">// 인자 순서: 1) Handle(예약 추적용) 2) 콜백 대상 객체(this) + 멤버 함수 포인터 — 객체가 파괴되면 자동 무효화되어 안전 3) 지연 시간(초) 4) 반복 여부</span>
-    World-&gt;<span class="hljs-title">GetTimerManager</span>().<span class="hljs-title">SetTimer</span>(
-        Handle, <span class="hljs-keyword">this</span>, &amp;<span class="hljs-type">UCountdownSubsystem</span>::HandleExpired,
-        Seconds, <span class="hljs-literal">false</span>);   <span class="hljs-comment">// false = 1회성</span>
-}
-
-<span class="hljs-keyword">void</span> <span class="hljs-type">UCountdownSubsystem</span>::<span class="hljs-title">Pause</span>()
-{
-    <span class="hljs-comment">// if문 안 초기화 구문 — World가 유효할 때만 접근 (레벨 전환 중엔 null일 수 있어 역참조 시 크래시)</span>
-    <span class="hljs-keyword">if</span> (<span class="hljs-type">UWorld</span>* W = <span class="hljs-title">GetGameInstance</span>()-&gt;<span class="hljs-title">GetWorld</span>())
-        W-&gt;<span class="hljs-title">GetTimerManager</span>().<span class="hljs-title">PauseTimer</span>(Handle);   <span class="hljs-comment">// 남은 시간이 언 채로 보존</span>
-}
-
-<span class="hljs-keyword">void</span> <span class="hljs-type">UCountdownSubsystem</span>::<span class="hljs-title">Resume</span>()
-{
-    <span class="hljs-keyword">if</span> (<span class="hljs-type">UWorld</span>* W = <span class="hljs-title">GetGameInstance</span>()-&gt;<span class="hljs-title">GetWorld</span>())
-        W-&gt;<span class="hljs-title">GetTimerManager</span>().<span class="hljs-title">UnPauseTimer</span>(Handle);   <span class="hljs-comment">// 얼려 둔 남은 시간 그대로 재개 — 직접 재계산할 필요 없음</span>
-}
-
-<span class="hljs-type">float</span> <span class="hljs-type">UCountdownSubsystem</span>::<span class="hljs-title">GetRemaining</span>() <span class="hljs-keyword">const</span>
-{
-    <span class="hljs-keyword">if</span> (<span class="hljs-type">UWorld</span>* W = <span class="hljs-title">GetGameInstance</span>()-&gt;<span class="hljs-title">GetWorld</span>())
-        <span class="hljs-keyword">return</span> W-&gt;<span class="hljs-title">GetTimerManager</span>().<span class="hljs-title">GetTimerRemaining</span>(Handle);   <span class="hljs-comment">// 남은 시간(초, float) — UI는 이 값을 읽어 그리기만 (이중 장부 방지)</span>
-    <span class="hljs-keyword">return</span> <span class="hljs-number">0.f</span>;   <span class="hljs-comment">// World가 없는 경계 상황엔 0초 반환 — UI가 쓰레기 값을 그리지 않게 하는 안전값</span>
-}
-
-<span class="hljs-comment">// SetTimer로 예약한 시간이 만료되는 순간 TimerManager가 호출</span>
-<span class="hljs-keyword">void</span> <span class="hljs-type">UCountdownSubsystem</span>::<span class="hljs-title">HandleExpired</span>()
-{
-    OnFinished.<span class="hljs-title">Broadcast</span>();   <span class="hljs-comment">// 후속 처리는 구독자(델리게이트 문서 참조)</span>
+		<span class="hljs-comment">// 이 목록에 적힌 모듈만 #include · 링크 가능.</span>
+		<span class="hljs-comment">// 앞 4개는 위저드가 만들어 주는 기본값 — 지우지 말 것.</span>
+		<span class="hljs-comment">// 그 뒤가 문서 코드에 맞춰 "추가"하는 부분 (위 표 참조).</span>
+		PublicDependencyModuleNames.AddRange(<span class="hljs-keyword">new</span> <span class="hljs-keyword">string</span>[] {
+			<span class="hljs-string">"Core"</span>, <span class="hljs-string">"CoreUObject"</span>, <span class="hljs-string">"Engine"</span>, <span class="hljs-string">"InputCore"</span>,
+			<span class="hljs-string">"UMG"</span>, <span class="hljs-string">"Slate"</span>, <span class="hljs-string">"SlateCore"</span>,   <span class="hljs-comment">// 예: UMG C++ 연동 문서용</span>
+			<span class="hljs-string">"EnhancedInput"</span>                    <span class="hljs-comment">// 예: 2D 카메라 문서의 입력용</span>
+		});
+	}
 }</pre></div>
     </div>
+    <div class="callout tip"><span class="ic">💡</span><p><strong>Build.cs를 고쳤다면 Live Coding으로는 반영되지 않습니다</strong> — 아래 04의 "에디터 종료 → 재빌드" 경로를 타야 합니다.</p></div>
   </div>
 
-  <!-- 06 확장 -->
-  <div class="section" id="extend">
-    <div class="section-label">06 — 확장 &amp; 주의</div>
-    <h2>시간이 꼬이는 지점들</h2>
-    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>① Initialize()에서 SetTimer</strong> — 이 문서의 주제. <code>GetWorld()</code>가 null이라 크래시하거나(체크 없이 역참조) 조용히 무시됩니다. 타이머는 "시작 요청 함수" 안에서 거세요.</div></div>
-    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>② 레벨 이동 = 타이머 전멸</strong> — TimerManager가 World 소속이므로 World가 죽으면 예약도 함께 사라집니다. 레벨을 넘나드는 게임이라면 "만료 시각(FDateTime)을 저장해 두고 새 World에서 남은 시간을 재계산"하는 방식이 정석입니다.</div></div>
-    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>③ 람다 캡처 수명</strong> — <code>SetTimer(Handle, [this](){...}, ...)</code> 식의 람다는 <code>this</code>가 먼저 죽으면 위험합니다. 멤버 함수 바인딩(자동 무효화됨)을 기본으로 하고, 람다가 꼭 필요하면 <code>FTimerDelegate::CreateWeakLambda(this, ...)</code>를 쓰세요.</div></div>
-    <div class="pitfall" style="margin-bottom:12px"><span class="ic">⚠️</span><div class="pitfall-text"><strong>④ 게임 일시정지의 영향</strong> — World 타이머는 게임 일시정지(<code>SetGamePaused</code>)와 시간 배속의 영향을 받습니다. "실제 벽시계 기준"이 필요하면 타이머가 아니라 <code>FDateTime</code> 비교로 판정하세요(위키 FDateTime 문서).</div></div>
-    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>FTSTicker</strong> — World와 무관하게 매 틱 불리는 엔진 레벨 티커. 레벨 이동에도 살아남아야 하는 얇은 배경 갱신(초당 1회 폴링 등)에만 제한적으로 사용하고, 게임 로직 타이머는 World 타이머를 유지하세요.</div></div>
+  <!-- 04 컴파일 -->
+  <div class="section" id="compile">
+    <div class="section-label">04 — 컴파일 워크플로우</div>
+    <h2>무엇을 바꿨는지가 방법을 결정한다</h2>
+    <p>가장 많이 헤매는 지점입니다. 판단 기준은 단 하나 — <strong>리플렉션(UHT가 스캔하는 것)이 변했는가.</strong></p>
+
+    <table class="tbl">
+      <tr><th>바꾼 것</th><th>방법</th><th>이유</th></tr>
+      <tr><td><code>.cpp</code> 함수 <strong>본문만</strong> 수정</td><td><strong>Live Coding</strong> — 에디터 켠 채 <code>Ctrl+Alt+F11</code> (또는 에디터 우하단 ⚡ 버튼)</td><td>로직 패치는 실행 중 교체 가능</td></tr>
+      <tr><td><strong>헤더(.h) 수정</strong> — UPROPERTY/UFUNCTION 추가·변경, 멤버 추가, 시그니처 변경</td><td rowspan="3"><strong>에디터 종료 → IDE에서 빌드 → 에디터 재실행</strong><br>(VS: 솔루션에서 프로젝트 우클릭 ▸ Build / Rider·Xcode: Run 대상 빌드)</td><td rowspan="3">리플렉션 정보(.generated.h)가 다시 생성되어야 하는데, 켜진 에디터는 옛 정보를 물고 있음 — Live Coding으로 하면 <strong>겉으론 되지만 크래시·유령 값의 원인</strong></td></tr>
+      <tr><td><strong>새 클래스 추가</strong> (위저드 사용 포함)</td></tr>
+      <tr><td><code>Build.cs</code>·모듈 변경</td></tr>
+    </table>
+
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>"어제는 됐는데 오늘 이상해요"의 단골 원인</strong> — 헤더를 바꾸고 Live Coding으로 넘어간 세션입니다. 증상이 조금이라도 이상하면(값이 안 보임, 에디터 크래시, BP에 새 변수가 안 뜸) <strong>에디터를 완전히 끄고 IDE에서 다시 빌드</strong>하세요. 구버전 Hot Reload는 같은 이유로 아예 쓰지 않는 것이 현대 UE의 통념입니다.</div></div>
+    <div class="callout tip"><span class="ic">💡</span><p><strong>빌드가 성공했는지 확인하는 습관</strong>: IDE 출력 창에 <code>Build succeeded</code>(VS) 또는 <code>BUILD SUCCEEDED</code>(Xcode)가 떠야 합니다. 에러 목록의 <strong>첫 번째 에러</strong>부터 읽으세요 — 뒤따르는 수십 개는 대부분 첫 에러의 연쇄입니다.</p></div>
+  </div>
+
+  <!-- 05 에디터 연결 -->
+  <div class="section" id="editor">
+    <div class="section-label">05 — 에디터 연결 (코드 밖 작업)</div>
+    <h2>빌드 성공 후, 에디터에서 마저 할 일</h2>
+    <p>C++ 클래스는 컴파일만으로는 게임에 등장하지 않는 경우가 많습니다. 문서별 "작업 시작하기" 블록의 <strong>코드 외 작업</strong>이 가리키는 대표 패턴들입니다.</p>
+
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">클래스가 보이는지 확인</div><div class="pipe-desc">Content Browser 우상단 <strong>Settings ▸ Show C++ Classes 체크</strong> → 좌측 트리에 <strong>C++ Classes</strong> 폴더가 생기고 방금 만든 클래스가 보입니다. 안 보이면 빌드 실패이거나 에디터 재시작 전입니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">(대부분의 문서) BP 자식 클래스 만들기</div><div class="pipe-desc">C++ Classes 폴더에서 해당 클래스 <strong>우클릭 ▸ Create Blueprint class based on …</strong> → <code>BP_</code> 접두어로 저장. 디자이너가 값을 만지는 지점은 C++가 아니라 이 BP 자식입니다(문서의 UPROPERTY EditAnywhere 값들이 여기 Details에 나타남).</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">(유형별) 엔진에 등록</div><div class="pipe-desc">클래스 유형에 따라 등록 위치가 다릅니다: <strong>GameMode·PlayerController·Pawn</strong> → Project Settings ▸ Maps &amp; Modes 또는 World Settings / <strong>Subsystem</strong> → <strong>등록 불필요(자동)</strong> / <strong>DeveloperSettings</strong> → Project Settings에 자동 노출 / <strong>SaveGame</strong> → 코드에서 슬롯 이름으로 사용(등록 없음) / <strong>DataTable 행 구조체</strong> → Content Browser 우클릭 ▸ Miscellaneous ▸ <strong>Data Table</strong> ▸ 행 구조체 선택으로 <code>DT_</code> 애셋 생성.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">동작 확인 루틴</div><div class="pipe-desc">PIE 실행 → 해당 문서의 "검증" 섹션 절차 수행. 아무 반응이 없으면 <code>UE_LOG</code>/<code>Print String</code>을 진입점(BeginPlay·Initialize)에 꽂아 "코드가 불리기는 하는가"부터 가릅니다.</div></div></div>
+  </div>
+
+  <!-- 06 문제 해결 -->
+  <div class="section" id="verify">
+    <div class="section-label">06 — 트러블슈팅</div>
+    <h2>대표 에러 → 원인 → 처방</h2>
+
+    <table class="tbl">
+      <tr><th>증상 / 에러 메시지</th><th>원인</th><th>처방</th></tr>
+      <tr><td><code>cannot open include file</code> · <code>unresolved external symbol</code> (UMG·Input 등)</td><td>Build.cs에 모듈 미추가</td><td>03의 표대로 모듈 추가 → 에디터 종료 후 재빌드</td></tr>
+      <tr><td><code>…generated.h: No such file</code> 또는 generated 관련 다발 에러</td><td><code>#include "….generated.h"</code>가 <strong>마지막 include가 아님</strong>, 또는 파일명과 불일치</td><td>generated include를 include 목록 맨 아래로</td></tr>
+      <tr><td><code>GENERATED_BODY() 관련 매크로 에러</code></td><td>UCLASS/USTRUCT 아래 <code>GENERATED_BODY()</code> 누락</td><td>선언 첫 줄에 추가 (위저드 뼈대를 지우지 않았는지 확인)</td></tr>
+      <tr><td>빌드는 성공했는데 <strong>에디터에 클래스가 안 보임</strong></td><td>① Show C++ Classes 꺼짐 ② Live Coding 세션 잔재</td><td>05-1 체크 → 에디터 재시작</td></tr>
+      <tr><td>BP 자식/Details에 <strong>새 변수가 안 뜸</strong></td><td>헤더 변경을 Live Coding으로 넘김</td><td>에디터 종료 → 재빌드 (04)</td></tr>
+      <tr><td>IDE에서 만든 파일을 UE가 모름</td><td>프로젝트 파일 미갱신</td><td>02의 Pitfall — 프로젝트 파일 재생성</td></tr>
+      <tr><td>에디터가 <strong>켜지지 않음</strong> (모듈 로드 실패 팝업)</td><td>바이너리와 코드 불일치</td><td>팝업의 "다시 빌드" 수락 또는 IDE에서 빌드 후 실행. 최후엔 <code>Binaries/</code>·<code>Intermediate/</code> 삭제 후 프로젝트 파일 재생성 → 풀 빌드</td></tr>
+    </table>
+
+    <div class="callout tip"><span class="ic">💡</span><p><strong>이 문서와 각 문서의 관계</strong> — 위키·프로젝트 문서의 "🚀 이 문서로 작업 시작하기" 블록은 <strong>그 문서 고유의 것</strong>(만들 파일 목록·코드 외 작업)만 담고, 여기 있는 공통 절차(위저드·Build.cs·컴파일 규칙)는 반복하지 않습니다. 막히면 이 문서로 돌아오세요.</p></div>
   </div>
 
 </div>
 
 <footer>
-  <span>UE 아키텍처 문서 · 타이머와 World v1.2</span>
-  <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.5</span>
+  <span>UE 아키텍처 문서 · C++ Class Workflow v1.0</span>
+  <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.6</span>
 </footer>
 
 <script>
@@ -823,6 +841,5 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   }
 })();
 </script>
-
 </body>
 </html>

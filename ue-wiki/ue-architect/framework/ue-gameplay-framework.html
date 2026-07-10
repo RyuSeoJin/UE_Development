@@ -8,6 +8,9 @@
      CHANGELOG — ue-gameplay-framework.html
      언리얼 게임플레이 프레임워크 구조 문서 (02-A 아키텍처 패턴).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.2 · 2026-07-10
+       - (추가) 코드 섹션 첫머리 "🚀 이 문서로 작업 시작하기" 블록 — 전제 · 만들 파일 표 ·
+         코드 외 작업 · 컴파일 주의 (플레이북 v3.9 작성 원칙 소급 적용)
      v1.1 · 2026-07-08
        - (보강) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
      v1.0 · 2026-07-03
@@ -633,6 +636,18 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <div class="section-label">05 — 스켈레톤</div>
     <h2>커스텀 프레임워크 최소 구성 — 4파일 세트</h2>
 
+    <h3>🚀 이 문서로 작업 시작하기</h3>
+    <div class="callout info"><span class="ic">🧭</span><p><strong>전제 조건</strong> — 프레임워크 4클래스 세트를 한 번에 만드는 스켈레톤입니다. 위저드·Build.cs·컴파일의 공통 절차는 위키 『C++ 클래스 생성 · 빌드 워크플로우』(core-cpp)를 따릅니다.</p></div>
+    <table class="tbl">
+      <tr><th>만들 파일 / 작업 대상</th><th>부모 클래스 (위저드 검색어)</th><th>비고</th></tr>
+      <tr><td><code>MyGameMode.h/.cpp</code></td><td><code>GameModeBase</code></td><td>규칙·스폰(서버 전용)</td></tr>
+      <tr><td><code>MyGameState.h/.cpp</code></td><td><code>GameStateBase</code></td><td>공유 상태</td></tr>
+      <tr><td><code>MyPlayerController.h/.cpp</code></td><td><code>PlayerController</code></td><td>입력·의도</td></tr>
+      <tr><td><code>MyCharacter.h/.cpp</code></td><td><code>Character</code></td><td>조종 대상</td></tr>
+    </table>
+    <div class="callout tip"><span class="ic">💡</span><p><strong>코드 외 작업</strong> — ① GameMode(또는 그 BP 자식의 Class Defaults)에서 나머지 3클래스를 연결 ② <strong>Project Settings ▸ Maps &amp; Modes ▸ Default GameMode</strong>(레벨별은 World Settings ▸ GameMode Override) 지정 — 지정 전에는 아무것도 스폰되지 않습니다.</p></div>
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>컴파일 주의</strong> — 전부 새 클래스 → 재빌드 코스.</div></div>
+
     <p>자기만의 게임 뼈대를 만들려면 최소 4개 클래스를 커스텀해야 합니다: <strong>GameMode, GameState, PlayerController, Character</strong>. 아래는 복사해서 바로 사용할 수 있는 최소 코드입니다.</p>
 
     <h3>1. 커스텀 GameMode</h3>
@@ -941,7 +956,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>게임플레이 프레임워크 · v1.0</span>
+  <span>게임플레이 프레임워크 · v1.2</span>
   <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.3</span>
 </footer>
 

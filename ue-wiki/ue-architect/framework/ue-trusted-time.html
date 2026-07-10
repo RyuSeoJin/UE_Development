@@ -8,6 +8,9 @@
      CHANGELOG — ue-trusted-time.html
      유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿 · framework/).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.2 · 2026-07-10
+       - (추가) 코드 섹션 첫머리 "🚀 이 문서로 작업 시작하기" 블록 — 전제 · 만들 파일 표 ·
+         코드 외 작업 · 컴파일 주의 (플레이북 v3.9 작성 원칙 소급 적용)
      v1.1 · 2026-07-08
        - (보강) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
      v1.0 · 2026-07-07
@@ -730,6 +733,15 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   <div class="section" id="skeleton">
     <div class="section-label">05 — 구현 스켈레톤</div>
     <h2>TrustedTimeSubsystem + Steamworks 연결</h2>
+
+    <h3>🚀 이 문서로 작업 시작하기</h3>
+    <div class="callout info"><span class="ic">🧭</span><p><strong>전제 조건</strong> — <strong>Steamworks 연동이 전제</strong>입니다 — 스팀 클라이언트 로그인 상태에서만 서버 시간이 유효하며, 에디터/비스팀 환경은 본문의 폴백(보류) 경로로 검증합니다. 위저드·Build.cs·컴파일의 공통 절차는 위키 『C++ 클래스 생성 · 빌드 워크플로우』(core-cpp)를 따릅니다.</p></div>
+    <table class="tbl">
+      <tr><th>만들 파일 / 작업 대상</th><th>부모 클래스 (위저드 검색어)</th><th>비고</th></tr>
+      <tr><td><code>TrustedTimeSubsystem.h/.cpp</code></td><td><code>GameInstanceSubsystem</code></td><td>시간 권위자 — 시간 판정의 단일 창구</td></tr>
+    </table>
+    <div class="callout tip"><span class="ic">💡</span><p><strong>코드 외 작업</strong> — Steam 플러그인 활성화 + Build.cs 모듈·<code>DefaultEngine.ini</code> 설정(본문 해당 절차) — <strong>이 문서에서 가장 빠뜨리기 쉬운 부분</strong>입니다. 스팀 없이 PIE만 돌리면 항상 폴백 경로만 타는 것이 정상입니다.</p></div>
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>컴파일 주의</strong> — 새 클래스·Build.cs 작업 → 재빌드 코스.</div></div>
     <p><strong>전제 — 엔진 등록부터</strong>: Steamworks SDK 심볼을 쓰려면 ① <code>프로젝트.Build.cs</code>에 <code>PrivateDependencyModuleNames</code>로 <code>"OnlineSubsystem", "OnlineSubsystemSteam"</code> 추가 + <code>AddEngineThirdPartyPrivateStaticDependencies(Target, "Steamworks")</code>, ② <code>Config/DefaultEngine.ini</code>에 <code>[OnlineSubsystem] DefaultPlatformService=Steam</code>과 <code>[OnlineSubsystemSteam] bEnabled=true, SteamDevAppId=480</code>(테스트용 앱ID, 출시 시 자기 AppId로 교체)을 등록해야 합니다. 이 설정이 없으면 아래 코드는 컴파일/초기화에 실패합니다.</p>
     <div class="codeblock">
       <div class="codeblock-bar">
@@ -842,7 +854,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>UE 아키텍처 문서 · 신뢰 시간 v1.0</span>
+  <span>UE 아키텍처 문서 · 신뢰 시간 v1.2</span>
   <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.5</span>
 </footer>
 

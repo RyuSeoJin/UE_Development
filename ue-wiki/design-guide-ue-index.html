@@ -3,10 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>문서 허브 & 용어집 — UE 문서 디자인 시스템 v2.13</title>
+<title>문서 허브 & 용어집 — UE 문서 디자인 시스템 v2.18</title>
 <!-- ============================================================
      CHANGELOG — design-guide-ue-index.html
      생성 문서 인덱스 + 중앙 용어집(범용 UE 용어 전용). 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md
+     v2.18 · 2026-07-10
+       - (추가) 문서 목록 framework/에 'Subsystem ↔ SaveGame 연동 — 로드·저장 타이밍 패턴' 등록
+         (02-B · Master v1.6 — 조각 문서들을 잇는 배선도 문서)
+       - (추가) 용어집에 2개 신규 용어 (변경 즉시 저장, InitializeDependency)
+     v2.17 · 2026-07-10
+       - (추가) 문서 목록 core-cpp/에 'C++ 클래스 생성 · 빌드 워크플로우' 등록
+         (02-B · Master v1.6 — 모든 C++ 문서의 공통 착수 절차 중앙 문서)
+       - (추가) 용어집에 2개 신규 용어 (Live Coding, 클래스 위저드)
+     v2.16 · 2026-07-10
+       - (추가) 문서 목록 ui/에 '건물 클릭 계층 UI — 패널 체인 아키텍처' 등록 (02-B · Master v1.6)
+       - (추가) 용어집에 2개 신규 용어 (패널 체인, 이벤트 디스패처)
+     v2.15 · 2026-07-10
+       - (추가) 문서 목록에 '2D' 카테고리 소구획 신설 (2d/ 폴더 신규 — DOC-TRACKS.md v1.6 §2-1)
+         + '2D 사이드뷰 카메라 — 드래그·키보드 좌우 이동' 등록 (02-B · Master v1.6)
+       - (추가) 용어집에 2개 신규 용어 (직교 카메라, Enhanced Input)
+     v2.14 · 2026-07-10
+       - (추가) 문서 목록 framework/에 '블루프린트 인터페이스 — 클래스를 몰라도 말을 거는 약속' 등록
+         (02-A · Master v1.6 — bp-graph 블루프린트 노드 그래프 첫 사용 문서)
+       - (추가) 용어집에 2개 신규 용어 (블루프린트 인터페이스, 인터페이스 메시지)
      v2.13 · 2026-07-07
        - (추가) 문서 목록 ui/에 '한글 폰트 파이프라인', framework/에 '데스크톱 앱 셸' 등록
          (02-A · Master v1.5 — RecordTales 스팀 출시 대비 실무 공백 보강)
@@ -543,6 +562,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>리플렉션 매크로 — 6대 매크로와 UHT 빌드 파이프라인</code></td><td>2026-07-02</td><td><a href="./ue-architect/core-cpp/ue-reflection-macros.html" style="color:var(--accent)">열기 →</a></td></tr>
       <tr><td><code>델리게이트 — 서로 모르는 시스템을 잇는 방송</code></td><td>2026-07-07</td><td><a href="./ue-architect/core-cpp/ue-delegates.html" style="color:var(--accent)">열기 →</a></td></tr>
       <tr><td><code>FDateTime — 날짜 연산과 자정 경계</code></td><td>2026-07-07</td><td><a href="./ue-architect/core-cpp/ue-datetime.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>C++ 클래스 생성 · 빌드 워크플로우 — 코드를 프로젝트에 넣는 법</code></td><td>2026-07-10</td><td><a href="./ue-architect/core-cpp/ue-cpp-class-workflow.html" style="color:var(--accent)">열기 →</a></td></tr>
     </table>
 
     <h3>프레임워크 — 게임 구조·Subsystem·패턴 <code>framework/</code></h3>
@@ -554,6 +574,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>타이머와 World — 시간 콜백은 누구 소속인가</code></td><td>2026-07-07</td><td><a href="./ue-architect/framework/ue-timer-world.html" style="color:var(--accent)">열기 →</a></td></tr>
       <tr><td><code>신뢰 시간 — 시계 치트 방지와 Steam 서버 시간</code></td><td>2026-07-07</td><td><a href="./ue-architect/framework/ue-trusted-time.html" style="color:var(--accent)">열기 →</a></td></tr>
       <tr><td><code>데스크톱 앱 셸 — 창 모드·크기·백그라운드 동작</code></td><td>2026-07-07</td><td><a href="./ue-architect/framework/ue-desktop-app-shell.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>블루프린트 인터페이스 — 클래스를 몰라도 말을 거는 약속</code></td><td>2026-07-10</td><td><a href="./ue-architect/framework/ue-blueprint-interface.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>Subsystem ↔ SaveGame 연동 — 로드·저장 타이밍 패턴</code></td><td>2026-07-10</td><td><a href="./ue-architect/framework/ue-subsystem-savegame-wiring.html" style="color:var(--accent)">열기 →</a></td></tr>
     </table>
 
     <h3>UI — UMG·Slate·Common UI <code>ui/</code></h3>
@@ -565,6 +587,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>Slate 개요 — UMG 아래의 C++ UI 프레임워크</code></td><td>2026-07-03</td><td><a href="./ue-architect/ui/ue-slate-overview.html" style="color:var(--accent)">열기 →</a></td></tr>
       <tr><td><code>Common UI — 레이어 스택으로 설계하는 게임 UI 아키텍처</code></td><td>2026-07-03</td><td><a href="./ue-architect/ui/ue-common-ui-architecture.html" style="color:var(--accent)">열기 →</a></td></tr>
       <tr><td><code>한글 폰트 파이프라인 — UMG에서 한글이 □로 나올 때</code></td><td>2026-07-07</td><td><a href="./ue-architect/ui/ue-korean-font-pipeline.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>건물 클릭 계층 UI — 패널 체인 아키텍처</code></td><td>2026-07-10</td><td><a href="./ue-architect/ui/ue-building-panel-chain.html" style="color:var(--accent)">열기 →</a></td></tr>
     </table>
 
     <h3>데이터 — DataTable·DataAsset·Config <code>data/</code></h3>
@@ -580,6 +603,12 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <table class="tbl">
       <tr><th>문서</th><th>날짜</th><th>열기</th></tr>
       <tr><td><code>툰 셰이딩 &amp; 아웃라인 렌더링 — NPR 스타일의 원리와 UE 구현</code></td><td>2026-07-06</td><td><a href="./ue-architect/rendering/ue-toon-shading-outline.html" style="color:var(--accent)">열기 →</a></td></tr>
+    </table>
+
+    <h3>2D — Paper2D·스프라이트·직교 카메라 <code>2d/</code></h3>
+    <table class="tbl">
+      <tr><th>문서</th><th>날짜</th><th>열기</th></tr>
+      <tr><td><code>2D 사이드뷰 카메라 — 드래그·키보드 좌우 이동</code></td><td>2026-07-10</td><td><a href="./ue-architect/2d/ue-2d-side-camera.html" style="color:var(--accent)">열기 →</a></td></tr>
     </table>
 
     <h3>프로젝트 허브 (Track B)</h3>
@@ -689,6 +718,16 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>폰트 폴백 (Fallback)</code></td><td>기본 서체에 없는 문자를 <strong>다음 후보 폰트에서 찾아 그리는</strong> 체인 — 영문/한글 분담의 원리</td><td><a href="./ue-architect/ui/ue-korean-font-pipeline.html#term-font-fallback" style="color:var(--accent)">한글 폰트 →</a></td></tr>
       <tr><td><code>GameUserSettings</code></td><td>해상도·창 모드·FPS 상한을 소유하는 엔진 표준 설정 — <strong>유저별 ini</strong>에 저장(SaveGame 아님)</td><td><a href="./ue-architect/framework/ue-desktop-app-shell.html#term-gameusersettings" style="color:var(--accent)">데스크톱 셸 →</a></td></tr>
       <tr><td><code>창 모드 3종</code></td><td>Fullscreen / WindowedFullscreen / <strong>Windowed(일반 창 — 데스크톱 앱의 선택지)</strong></td><td><a href="./ue-architect/framework/ue-desktop-app-shell.html#term-window-mode" style="color:var(--accent)">데스크톱 셸 →</a></td></tr>
+      <tr><td><code>블루프린트 인터페이스 (BPI)</code></td><td>함수 <strong>시그니처만 담는 약속 애셋</strong> — 서명한 클래스라면 실제 클래스를 몰라도 같은 함수를 부를 수 있음</td><td><a href="./ue-architect/framework/ue-blueprint-interface.html#term-blueprint-interface" style="color:var(--accent)">블루프린트 인터페이스 →</a></td></tr>
+      <tr><td><code>인터페이스 메시지 (Message)</code></td><td>대상의 인터페이스 구현 여부를 엔진이 확인하고 호출하는 노드(✉) — <strong>미구현 대상은 에러 없이 조용히 무시</strong></td><td><a href="./ue-architect/framework/ue-blueprint-interface.html#term-interface-message" style="color:var(--accent)">블루프린트 인터페이스 →</a></td></tr>
+      <tr><td><code>직교 카메라 (Orthographic)</code></td><td>원근 없는 <strong>평행 투영</strong> 카메라 — Ortho Width가 화면에 담기는 월드 가로 폭을 결정 (2D의 표준)</td><td><a href="./ue-architect/2d/ue-2d-side-camera.html#term-orthographic" style="color:var(--accent)">2D 사이드뷰 카메라 →</a></td></tr>
+      <tr><td><code>Enhanced Input (IA · IMC)</code></td><td>키를 코드에 직접 묶지 않고 <strong>Input Action + Mapping Context 애셋</strong>으로 분리하는 UE5 입력 시스템 — IMC는 런타임 등록 필수</td><td><a href="./ue-architect/2d/ue-2d-side-camera.html#term-enhanced-input" style="color:var(--accent)">2D 사이드뷰 카메라 →</a></td></tr>
+      <tr><td><code>패널 체인 (Panel Chain)</code></td><td>부모→자식으로 이어지는 팝업 패널 사슬 — <strong>배열 하나(인덱스=깊이)로 매니저가 소유</strong>, 닫기·교체 규칙을 한 곳에서 보장</td><td><a href="./ue-architect/ui/ue-building-panel-chain.html#term-panel-chain" style="color:var(--accent)">패널 체인 UI →</a></td></tr>
+      <tr><td><code>이벤트 디스패처 (Event Dispatcher)</code></td><td>블루프린트의 <strong>방송 장치</strong>(멀티캐스트 델리게이트의 BP 이름) — 위젯·액터가 사건을 외치면 구독자만 반응</td><td><a href="./ue-architect/ui/ue-building-panel-chain.html#term-event-dispatcher" style="color:var(--accent)">패널 체인 UI →</a></td></tr>
+      <tr><td><code>Live Coding</code></td><td>에디터를 켠 채 변경된 C++를 패치(<code>Ctrl+Alt+F11</code>) — <strong>.cpp 본문 수정에만 안전</strong>, 헤더 변경은 에디터 종료 후 재빌드</td><td><a href="./ue-architect/core-cpp/ue-cpp-class-workflow.html#term-live-coding" style="color:var(--accent)">C++ 워크플로우 →</a></td></tr>
+      <tr><td><code>클래스 위저드 (New C++ Class)</code></td><td>부모 선택 → 파일 생성 → 프로젝트 파일 갱신까지 해 주는 에디터 마법사 — <strong>C++ 파일은 항상 이 통로로</strong></td><td><a href="./ue-architect/core-cpp/ue-cpp-class-workflow.html#term-class-wizard" style="color:var(--accent)">C++ 워크플로우 →</a></td></tr>
+      <tr><td><code>변경 즉시 저장 (Save-on-Change)</code></td><td>값을 바꾸는 함수가 <strong>그 자리에서 저장까지 부르는</strong> 전략 — 크래시·강제 종료에도 데이터 생존</td><td><a href="./ue-architect/framework/ue-subsystem-savegame-wiring.html#term-save-on-change" style="color:var(--accent)">Subsystem↔SaveGame 연동 →</a></td></tr>
+      <tr><td><code>InitializeDependency</code></td><td>Subsystem 초기화 <strong>순서를 강제</strong>하는 호출 — 없으면 참조가 간헐적 nullptr(복불복 크래시)</td><td><a href="./ue-architect/framework/ue-subsystem-savegame-wiring.html#term-initialize-dependency" style="color:var(--accent)">Subsystem↔SaveGame 연동 →</a></td></tr>
     </table>
     <div class="callout info"><span class="ic">📚</span><p><strong>용어집 이원화</strong>: 이 중앙 용어집에는 <strong>범용 UE 용어만</strong> 등록합니다. 프로젝트 고유 용어(가챠·스쿼드·마스터 레코드 등)는 각 <strong>프로젝트 허브의 용어집</strong>에서 봅니다 (예: <a href="../Project/RecordTales/recordtales-index.html#glossary" style="color:var(--accent)">RecordTales 용어집 →</a>). 배치 기준: <code>doc-process/DOC-TRACKS.md</code> §4.</p></div>
     <div class="callout tip"><span class="ic">💡</span><p>용어집은 <strong>보조 수단</strong>입니다. 각 문서는 처음 등장 용어를 자체적으로 한 번 풀어 설명하므로, 링크 없이도 문서 하나만으로 이해됩니다. 용어집은 "더 깊이 보고 싶을 때"의 지름길입니다.</p></div>

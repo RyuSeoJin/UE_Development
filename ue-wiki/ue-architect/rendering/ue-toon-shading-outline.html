@@ -8,6 +8,9 @@
      CHANGELOG — ue-toon-shading-outline.html
      유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿 · rendering/ 카테고리).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.2 · 2026-07-10
+       - (추가) 코드 섹션 첫머리 "🚀 이 문서로 작업 시작하기" 블록 — 전제 · 만들 파일 표 ·
+         코드 외 작업 · 컴파일 주의 (플레이북 v3.9 작성 원칙 소급 적용)
      v1.1 · 2026-07-08
        - (추가) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
          — 05 스켈레톤 Outline.hlsl / CelShade.hlsl Custom 노드 코드:
@@ -544,6 +547,15 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   <div class="section" id="skeleton">
     <div class="section-label">05 — 구현 절차 (스켈레톤)</div>
     <h2>세 가지 레시피 — 따라 하는 순서</h2>
+
+    <h3>🚀 이 문서로 작업 시작하기</h3>
+    <div class="callout info"><span class="ic">🧭</span><p><strong>전제 조건</strong> — C++가 없는 문서입니다 — "코드"는 머티리얼 Custom 노드에 붙여넣는 HLSL입니다. 위저드·Build.cs·컴파일의 공통 절차는 위키 『C++ 클래스 생성 · 빌드 워크플로우』(core-cpp)를 따릅니다.</p></div>
+    <table class="tbl">
+      <tr><th>만들 파일 / 작업 대상</th><th>부모 클래스 (위저드 검색어)</th><th>비고</th></tr>
+      <tr><td><code>새 C++ 파일 없음</code></td><td>—</td><td>HLSL 탭 2건을 각각 셀 셰이딩·아웃라인 머티리얼의 <strong>Custom 노드 Code 칸에 붙여넣기</strong></td></tr>
+    </table>
+    <div class="callout tip"><span class="ic">💡</span><p><strong>코드 외 작업</strong> — <strong>이 문서의 본체</strong> — ① 포스트 프로세스 머티리얼 생성(Material Domain = <code>Post Process</code>) ② Post Process Volume 배치 + Infinite Extent 체크 ③ <strong>Project Settings ▸ Rendering ▸ Custom Depth-Stencil Pass = Enabled with Stencil</strong> ④ 대상 메시의 Render CustomDepth Pass 체크(상세 절차는 본문).</p></div>
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>컴파일 주의</strong> — C++ 빌드가 없는 대신 <strong>머티리얼 저장 시 셰이더 컴파일</strong>을 기다립니다 — 우하단 컴파일 카운트가 0이 된 뒤 결과를 판정하세요.</div></div>
     <p>전제: UE5 기본 프로젝트(디퍼드 렌더링 기본값) 기준이며, 코드는 뼈대 수준입니다 — 수치(두께·문턱값·단계 수)는 자기 프로젝트에서 조정하는 것이 전제입니다.</p>
 
     <h3>레시피 A — 포스트 프로세스 아웃라인 (권장 시작점)</h3>
@@ -636,7 +648,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>UE 아키텍처 문서 · Toon Shading &amp; Outline v1.1</span>
+  <span>UE 아키텍처 문서 · Toon Shading &amp; Outline v1.2</span>
   <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.3</span>
 </footer>
 

@@ -8,6 +8,10 @@
      CHANGELOG — 03-data-design.html
      RecordTales V2 데이터 설계 지도 (Track B · 04 데이터 설계 지도 템플릿).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     v0.2 · 2026-07-10
+       - (추가) 02 테이블/파일 지도 섹션 첫머리에 "🚀 이 문서로 작업 시작하기" 블록 —
+         전제(01 선행) · 만들 파일(행 구조체 헤더) · 코드 외 작업(DT_* 애셋 생성 절차·저장 위치) · 컴파일 주의.
+         (사용자 피드백: 착수 방법·코드 외 작업 누락 보완)
      v0.1 · 2026-07-09
        - 신규 생성. 정적 DataTable 8종 + 런타임 SaveGame 3구조 + 전역 상수 배치·연결·흐름.
        - 마스터 CSS v1.5 전체 inline 스냅샷. 수명 배지(.vbadge) ROW/SAVE/RUNTIME/CONFIG.
@@ -604,6 +608,18 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   <div class="section" id="map">
     <div class="section-label">02 — 테이블/파일 지도</div>
     <h2>무엇이 어디 사는가</h2>
+
+    <h3>🚀 이 문서로 작업 시작하기</h3>
+    <div class="callout info"><span class="ic">🧭</span><p><strong>전제 조건</strong> — <strong>01 문서 완료</strong>(세이브 구조·<code>RecordTalesTypes.h</code> 존재). 이 문서는 <strong>착수 순서 2번</strong> — 02·04의 시스템이 조회할 테이블을 여기서 실물로 만듭니다. 공통 절차는 위키 『C++ 클래스 생성 · 빌드 워크플로우』.</p></div>
+    <table class="tbl">
+      <tr><th>작업</th><th>방법</th><th>비고</th></tr>
+      <tr><td>① 행 구조체 헤더 <code>RecordTalesTableRows.h</code></td><td>클래스 위저드 ▸ 부모 <strong>None</strong>(빈 헤더) → 이 문서의 행 구조체들(<code>FTableRowBase</code> 상속 USTRUCT) 작성</td><td>테이블 1종 = 행 구조체 1개</td></tr>
+      <tr><td>② 재빌드</td><td>에디터 종료 → IDE 빌드 → 재실행</td><td>새 헤더이므로 Live Coding 불가</td></tr>
+      <tr><td>③ <code>DT_*</code> 애셋 4종 생성</td><td>Content Browser에서 <code>Content/Data/</code> 폴더 생성 → 우클릭 ▸ <strong>Miscellaneous ▸ Data Table</strong> ▸ 행 구조체 선택 → 이름 <code>DT_Character</code> · <code>DT_Ability</code> · <code>DT_Gacha</code> · <code>DT_Building</code></td><td><strong>구조체를 먼저 컴파일해야 목록에 나타남</strong> — ②를 건너뛰면 선택지가 비어 있음</td></tr>
+      <tr><td>④ 행 데이터 입력</td><td>DT 애셋 더블클릭 → <strong>＋ Add</strong>로 행 추가, Row Name은 영문 키(예: <code>archer_01</code>)</td><td>대량 입력은 우클릭 ▸ Export/Import CSV 활용 가능</td></tr>
+    </table>
+    <div class="callout tip"><span class="ic">💡</span><p><strong>코드 외 작업이 곧 본체인 문서입니다</strong> — 이 문서 산출물의 절반은 코드(행 구조체)가 아니라 <strong>에디터에서 만드는 DT 애셋과 그 안의 데이터</strong>입니다. 완료 확인: 4개 DT 애셋이 <code>Content/Data/</code>에 있고, 각 애셋을 열면 이 문서의 열 구성이 그대로 보여야 합니다.</p></div>
+
     <p>카드 하나 = 저장 계층 하나입니다.</p>
 
     <div class="var-card">

@@ -8,6 +8,9 @@
      CHANGELOG — ue-gameinstance-subsystem.html
      유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.4 · 2026-07-10
+       - (추가) 코드 섹션 첫머리 "🚀 이 문서로 작업 시작하기" 블록 — 전제 · 만들 파일 표 ·
+         코드 외 작업 · 컴파일 주의 (플레이북 v3.9 작성 원칙 소급 적용)
      v1.3 · 2026-07-08
        - (보강) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
      v1.2 · 2026-07-02
@@ -529,6 +532,15 @@ UObject
   <div class="section" id="skeleton">
     <div class="section-label">05 — 구현 스켈레톤</div>
     <h2>최소 동작 코드 — 점수 서비스 예시</h2>
+
+    <h3>🚀 이 문서로 작업 시작하기</h3>
+    <div class="callout info"><span class="ic">🧭</span><p><strong>전제 조건</strong> — 단독 실습 가능합니다. 위저드·Build.cs·컴파일의 공통 절차는 위키 『C++ 클래스 생성 · 빌드 워크플로우』(core-cpp)를 따릅니다.</p></div>
+    <table class="tbl">
+      <tr><th>만들 파일 / 작업 대상</th><th>부모 클래스 (위저드 검색어)</th><th>비고</th></tr>
+      <tr><td><code>ScoreSubsystem.h/.cpp</code></td><td><code>GameInstanceSubsystem</code></td><td>수명 자동 관리 전역 서비스</td></tr>
+    </table>
+    <div class="callout tip"><span class="ic">💡</span><p><strong>코드 외 작업</strong> — 없음 — Subsystem은 <strong>자동 등록</strong>됩니다(이 구조의 장점). 확인: BP 아무 그래프에서 <code>Get ScoreSubsystem</code> 노드가 검색되면 성공.</p></div>
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>컴파일 주의</strong> — 새 클래스 생성은 재빌드, <code>AddScore</code> 등 본문 다듬기는 Live Coding.</div></div>
     <p>전제: C++ 프로젝트, 모듈 이름이 <code>MyGame</code>이라고 가정합니다(<code>MYGAME_API</code> 부분을 자기 모듈 이름으로 바꾸세요). 아래 두 파일을 <code>Source/MyGame/</code> 아래에 만들고 컴파일하면 <strong>그 외 등록 절차는 없습니다</strong> — 엔진이 클래스를 자동 발견해 인스턴스화합니다.</p>
 
     <div class="codeblock">
@@ -617,7 +629,7 @@ UObject
 </div>
 
 <footer>
-  <span>UE 아키텍처 문서 · GameInstanceSubsystem v1.2</span>
+  <span>UE 아키텍처 문서 · GameInstanceSubsystem v1.4</span>
   <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.3</span>
 </footer>
 

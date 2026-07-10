@@ -8,6 +8,9 @@
      CHANGELOG — ue-reflection-macros.html
      언리얼 리플렉션 매크로 구조 문서 (02-A 아키텍처 패턴).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.3 · 2026-07-10
+       - (추가) 코드 섹션 첫머리 "🚀 이 문서로 작업 시작하기" 블록 — 전제 · 만들 파일 표 ·
+         코드 외 작업 · 컴파일 주의 (플레이북 v3.9 작성 원칙 소급 적용)
      v1.2 · 2026-07-08
        - (추가) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
      v1.1 · 2026-07-03
@@ -892,6 +895,17 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <div class="section-label">05 — 스켈레톤</div>
     <h2>복사해서 쓸 수 있는 매크로 예제</h2>
 
+    <h3>🚀 이 문서로 작업 시작하기</h3>
+    <div class="callout info"><span class="ic">🧭</span><p><strong>전제 조건</strong> — 지정자 레퍼런스 문서입니다 — 실험은 버려도 되는 연습 클래스에서 하세요. 위저드·Build.cs·컴파일의 공통 절차는 위키 『C++ 클래스 생성 · 빌드 워크플로우』(core-cpp)를 따릅니다.</p></div>
+    <table class="tbl">
+      <tr><th>만들 파일 / 작업 대상</th><th>부모 클래스 (위저드 검색어)</th><th>비고</th></tr>
+      <tr><td><code>MyCharacter.h/.cpp</code></td><td><code>Character</code></td><td>UPROPERTY/UFUNCTION 실험대</td></tr>
+      <tr><td><code>CharacterStats.h · CharacterState.h</code></td><td><strong>None</strong> (빈 헤더)</td><td>USTRUCT·UENUM 전용 헤더</td></tr>
+      <tr><td><code>Damageable.h</code></td><td><code>Unreal Interface</code></td><td>UINTERFACE 예제</td></tr>
+    </table>
+    <div class="callout tip"><span class="ic">💡</span><p><strong>코드 외 작업</strong> — 없음 — 결과 확인은 에디터 Details 패널·BP 노드 검색에 노출되는지로 합니다.</p></div>
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>컴파일 주의</strong> — <strong>리플렉션 매크로 수정은 예외 없이 재빌드입니다</strong>(UHT가 .generated.h를 다시 만들어야 함) — 이 문서 주제 특성상 Live Coding이 통하는 작업이 거의 없습니다.</div></div>
+
     <p>각 매크로의 최소 동작 예제입니다. 모든 줄에 "왜 이렇게 쓰는지" 주석을 달았습니다.</p>
 
     <h3>UCLASS + UPROPERTY + UFUNCTION — 완전한 .h / .cpp 쌍</h3>
@@ -1121,7 +1135,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>언리얼 리플렉션 매크로 · v1.2</span>
+  <span>언리얼 리플렉션 매크로 · v1.3</span>
   <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.3</span>
 </footer>
 

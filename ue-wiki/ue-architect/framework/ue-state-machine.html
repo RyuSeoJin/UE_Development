@@ -8,6 +8,9 @@
      CHANGELOG — ue-state-machine.html
      유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.4 · 2026-07-10
+       - (추가) 코드 섹션 첫머리 "🚀 이 문서로 작업 시작하기" 블록 — 전제 · 만들 파일 표 ·
+         코드 외 작업 · 컴파일 주의 (플레이북 v3.9 작성 원칙 소급 적용)
      v1.3 · 2026-07-08
        - (보강) 예제 코드 설명 주석 보강 (플레이북 v3.8 주석 규칙 적용)
      v1.2 · 2026-07-02
@@ -525,6 +528,15 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   <div class="section" id="skeleton">
     <div class="section-label">05 — 구현 스켈레톤</div>
     <h2>enum 기반 최소 구현</h2>
+
+    <h3>🚀 이 문서로 작업 시작하기</h3>
+    <div class="callout info"><span class="ic">🧭</span><p><strong>전제 조건</strong> — 상태 머신을 담을 소유자(Subsystem·액터)가 있는 프로젝트에 적용합니다. 위저드·Build.cs·컴파일의 공통 절차는 위키 『C++ 클래스 생성 · 빌드 워크플로우』(core-cpp)를 따릅니다.</p></div>
+    <table class="tbl">
+      <tr><th>만들 파일 / 작업 대상</th><th>부모 클래스 (위저드 검색어)</th><th>비고</th></tr>
+      <tr><td><code>TimerMachine.h/.cpp</code></td><td><code>Object</code> <strong>(All Classes ▸ Object — Subsystem 아님 주의)</strong></td><td>상태 UENUM도 같은 헤더에</td></tr>
+    </table>
+    <div class="callout tip"><span class="ic">💡</span><p><strong>코드 외 작업</strong> — 없음 — 자동 등록되지 않는 일반 UObject이므로 <strong>소유자가 <code>NewObject</code>로 생성해 UPROPERTY 멤버로 보관</strong>합니다(본문 참조 — GC 추적을 위해 UPROPERTY 필수).</p></div>
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>컴파일 주의</strong> — UENUM·헤더 작업은 재빌드, 전이 로직 다듬기는 Live Coding.</div></div>
     <p>전제: C++ 클래스(액터·컴포넌트·Subsystem 어디든) 안에 넣을 수 있는 형태입니다. 모듈 이름 <code>MYGAME_API</code>는 자기 프로젝트로 바꾸세요. 핵심은 <strong>상태 변수를 private으로 숨기고, 변경은 SetState 한 곳으로만</strong> 하는 것입니다.</p>
 
     <div class="codeblock">
@@ -645,7 +657,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTimerStateChanged, <span class="
 </div>
 
 <footer>
-  <span>UE 아키텍처 문서 · State Machine v1.2</span>
+  <span>UE 아키텍처 문서 · State Machine v1.4</span>
   <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.3</span>
 </footer>
 

@@ -3,11 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>디자인 마스터 (비주얼) — UE 문서 디자인 시스템 v1.6</title>
+<title>디자인 마스터 (비주얼) — UE 문서 디자인 시스템 v1.7</title>
 <link rel="stylesheet" href="design-guide-ue-master.css">
 <!-- ============================================================
      CHANGELOG — design-guide-ue-master-visual.html
      master.css의 시각 레퍼런스. 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.7 · 2026-07-10
+       - (추가) 09 섹션: master.css v1.6 블루프린트 노드 그래프 데모
+         (.bp-graph — UE 에디터 재현 SVG: 노드 종류 5색 제목 바 · 실행/데이터 핀 ·
+         와이어 · 변수 Get 캡슐 · 드롭다운 값 상자, --bp-* 관례색 토큰 범례)
+       - (추가) bp-graph 사용 규칙 명문화: SVG <defs> 표준 블록(bpg-*) 포함,
+         제목 바는 fill="url(#bpg-…)" 속성 지정, --bp-* 색은 그래프 내부 전용
+       - (변경) 버전 표기 v1.6 → v1.7 (헤더·hero·footer), nav에 BP 노드(#v16) 링크 추가
      v1.6 · 2026-07-07
        - (추가) 08 섹션: master.css v1.5 다이어그램 컴포넌트 데모
          (.diagram — Mermaid 스타일 구워넣은 SVG, .graph-net — 옵시디언 그래프 뷰 스타일)
@@ -51,6 +58,7 @@
     <a href="#rules">규칙</a>
     <a href="#v14">데이터 설계</a>
     <a href="#v15">다이어그램</a>
+    <a href="#v16">BP 노드</a>
     <a href="../design-template/01-ue-asset-analysis.html">→ 에셋 분석</a>
     <a href="../design-template/02-ue-architecture.html">→ 아키텍처</a>
     <a href="../ue-wiki/design-guide-ue-index.html">→ 문서 허브</a>
@@ -58,7 +66,7 @@
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">Design System · v1.6 · Master Visual</div>
+  <div class="hero-eyebrow">Design System · v1.7 · Master Visual</div>
   <h1>UE 디자인<br><span>마스터</span></h1>
   <p class="hero-sub">
     모든 언리얼 문서(에셋 분석 · 아키텍처 설계)가 공유하는 디자인 마스터입니다. 컬러·타이포·레이아웃·기본 컴포넌트를 한 곳에 고정합니다. 스타일 원본은 <code>design-guide-ue-master.css</code> 한 파일이며, 이 문서는 그 시각 레퍼런스입니다.
@@ -529,10 +537,157 @@
     <div class="callout warn"><span class="ic">⚠️</span><p><strong>다이어그램 3원칙</strong> — ① SVG는 생성 시점에 구워넣기(런타임 렌더링 스크립트 금지), ② Mermaid 소스를 반드시 병기(단일 탭 <code>*.mmd</code> + 복사 버튼), ③ 같은 정보를 전도·표와 삼중으로 중복 표현하지 않기 — 관계망(조감)과 전도(주제별 상세)처럼 역할이 다를 때만 함께 씁니다.</p></div>
   </div>
 
+  <!-- 09 v1.6 블루프린트 노드 그래프 -->
+  <div class="section" id="v16">
+    <div class="section-label">09 — v1.6 블루프린트 노드 그래프</div>
+    <h2>UE 에디터 재현 노드 그래프 (.bp-graph)</h2>
+    <p>블루프린트 에디터의 <strong>노드·핀·와이어를 UE 관례색 그대로 재현</strong>하는 컴포넌트입니다. 문서에서 "블루프린트로 이렇게 조립한다"를 보여줄 때 씁니다. <code>.diagram</code>과 동일 철학 — <strong>생성 시점에 SVG로 구워넣고</strong> 런타임 렌더링 스크립트는 넣지 않습니다. UE 에디터의 의미색(<code>--bp-*</code>)은 이 컴포넌트 내부 전용이며 본문 UI에 유출하지 않습니다.</p>
+
+    <h3>노드 종류 (제목 바 색 — UE 에디터 관례)</h3>
+    <table class="tbl">
+      <tr><th>종류</th><th>제목 바</th><th>그라데이션 id</th><th>비고</th></tr>
+      <tr><td>이벤트</td><td><span style="display:inline-block;width:34px;height:12px;border-radius:3px;background:linear-gradient(90deg,var(--bp-event),rgba(160,50,50,0.12))"></span> 빨강</td><td><code>#bpg-event</code></td><td>Event BeginPlay, 인터페이스 구현 이벤트 등</td></tr>
+      <tr><td>함수 호출 · 메시지</td><td><span style="display:inline-block;width:34px;height:12px;border-radius:3px;background:linear-gradient(90deg,var(--bp-call),rgba(46,111,180,0.12))"></span> 파랑</td><td><code>#bpg-call</code></td><td>인터페이스 Message 호출 포함(✉ 아이콘 병기)</td></tr>
+      <tr><td>순수 함수</td><td><span style="display:inline-block;width:34px;height:12px;border-radius:3px;background:linear-gradient(90deg,var(--bp-pure),rgba(63,145,66,0.12))"></span> 초록</td><td><code>#bpg-pure</code></td><td>실행 핀 없음 (Does Implement Interface 등)</td></tr>
+      <tr><td>흐름 제어</td><td><span style="display:inline-block;width:34px;height:12px;border-radius:3px;background:linear-gradient(90deg,var(--bp-flow),rgba(120,120,120,0.12))"></span> 회색</td><td><code>#bpg-flow</code></td><td>Branch, Sequence, ForEach 등</td></tr>
+      <tr><td>캐스트</td><td><span style="display:inline-block;width:34px;height:12px;border-radius:3px;background:linear-gradient(90deg,var(--bp-cast),rgba(56,128,143,0.12))"></span> 청록</td><td><code>#bpg-cast</code></td><td>Cast To … 노드</td></tr>
+      <tr><td>변수 Get/Set</td><td>캡슐형 (제목 바 없음)</td><td>—</td><td><code>.bpn-body</code> rx=15 + 좌측 타입 색 스트립</td></tr>
+    </table>
+
+    <h3>핀 타입 색 (UE 규칙 그대로)</h3>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--bp-exec)"></span>Exec 실행 ▷</span>
+      <span><span class="dot" style="background:var(--bp-bool)"></span>Boolean</span>
+      <span><span class="dot" style="background:var(--bp-float)"></span>Float</span>
+      <span><span class="dot" style="background:var(--bp-int)"></span>Integer</span>
+      <span><span class="dot" style="background:var(--bp-string)"></span>String</span>
+      <span><span class="dot" style="background:var(--bp-vector)"></span>Vector</span>
+      <span><span class="dot" style="background:var(--bp-object)"></span>Object</span>
+      <span><span class="dot" style="background:var(--bp-class)"></span>Class·Interface</span>
+    </div>
+
+    <h3>Live — 인터페이스 메시지 호출 그래프</h3>
+    <div class="demo"><div class="demo-head">Live</div><div class="demo-body">
+      <div class="bp-graph" style="margin:0">
+        <svg viewBox="0 0 960 440" role="img" aria-label="블루프린트 예시: BeginPlay가 인터페이스 구현 여부를 확인한 뒤 On Interact 메시지를 호출">
+          <defs>
+            <!-- ▼ bpg-* 표준 defs 블록 — .bp-graph SVG마다 이 블록을 그대로 복사해 포함 -->
+            <pattern id="bpg-grid" width="16" height="16" patternUnits="userSpaceOnUse">
+              <path d="M16 0H0V16" fill="none" style="stroke:var(--bp-grid)" stroke-width="1"/>
+            </pattern>
+            <pattern id="bpg-grid80" width="80" height="80" patternUnits="userSpaceOnUse">
+              <rect width="80" height="80" fill="url(#bpg-grid)"/>
+              <path d="M80 0H0V80" fill="none" style="stroke:var(--bp-grid-2)" stroke-width="1.4"/>
+            </pattern>
+            <linearGradient id="bpg-event" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" style="stop-color:var(--bp-event)" stop-opacity="0.95"/>
+              <stop offset="1" style="stop-color:var(--bp-event)" stop-opacity="0.12"/>
+            </linearGradient>
+            <linearGradient id="bpg-call" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" style="stop-color:var(--bp-call)" stop-opacity="0.95"/>
+              <stop offset="1" style="stop-color:var(--bp-call)" stop-opacity="0.12"/>
+            </linearGradient>
+            <linearGradient id="bpg-pure" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" style="stop-color:var(--bp-pure)" stop-opacity="0.95"/>
+              <stop offset="1" style="stop-color:var(--bp-pure)" stop-opacity="0.12"/>
+            </linearGradient>
+            <linearGradient id="bpg-flow" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" style="stop-color:var(--bp-flow)" stop-opacity="0.95"/>
+              <stop offset="1" style="stop-color:var(--bp-flow)" stop-opacity="0.12"/>
+            </linearGradient>
+            <linearGradient id="bpg-cast" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" style="stop-color:var(--bp-cast)" stop-opacity="0.95"/>
+              <stop offset="1" style="stop-color:var(--bp-cast)" stop-opacity="0.12"/>
+            </linearGradient>
+            <filter id="bpg-shadow" x="-20%" y="-20%" width="140%" height="150%">
+              <feDropShadow dx="0" dy="2.5" stdDeviation="3" flood-color="#000" flood-opacity="0.55"/>
+            </filter>
+            <!-- ▲ bpg-* 표준 defs 블록 끝 -->
+          </defs>
+
+          <rect width="960" height="440" style="fill:var(--bp-canvas)"/>
+          <rect width="960" height="440" fill="url(#bpg-grid80)"/>
+
+          <!-- 와이어 (노드 뒤) -->
+          <path class="bpw exec" d="M216,100 C268,100 284,102 330,102"/>
+          <path class="bpw exec" d="M474,102 C528,102 574,96 630,96"/>
+          <path class="bpw t-bool" d="M545,296 C680,296 250,110 334,126"/>
+          <path class="bpw t-object" d="M228,395 C266,395 266,296 305,296"/>
+          <path class="bpw t-object" d="M228,395 C720,395 560,122 634,122"/>
+
+          <!-- 이벤트: Event BeginPlay -->
+          <g filter="url(#bpg-shadow)">
+            <rect class="bpn-body" x="40" y="60" width="180" height="60" rx="6"/>
+            <path d="M40,84 v-18 a6,6 0 0 1 6,-6 h168 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-event)"/>
+            <text class="bpn-icon" x="52" y="77">◆</text>
+            <text class="bpn-name" x="66" y="77">Event BeginPlay</text>
+            <path class="bpp-exec" d="M202,94 h7 l7,6 -7,6 h-7 z"/>
+          </g>
+
+          <!-- 흐름 제어: Branch -->
+          <g filter="url(#bpg-shadow)">
+            <rect class="bpn-body" x="330" y="60" width="150" height="84" rx="6"/>
+            <path d="M330,84 v-18 a6,6 0 0 1 6,-6 h138 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-flow)"/>
+            <text class="bpn-icon" x="342" y="77">⑂</text>
+            <text class="bpn-name" x="356" y="77">Branch</text>
+            <path class="bpp-exec" d="M336,96 h7 l7,6 -7,6 h-7 z"/>
+            <circle class="bpp-pin t-bool" cx="341" cy="126" r="5"/>
+            <text class="bpp-label" x="353" y="130">Condition</text>
+            <path class="bpp-exec" d="M460,96 h7 l7,6 -7,6 h-7 z"/>
+            <text class="bpp-label" x="454" y="106" text-anchor="end">True</text>
+            <path class="bpp-exec off" d="M460,120 h7 l7,6 -7,6 h-7 z"/>
+            <text class="bpp-label" x="454" y="130" text-anchor="end">False</text>
+          </g>
+
+          <!-- 인터페이스 메시지: On Interact (파랑 + ✉) -->
+          <g filter="url(#bpg-shadow)">
+            <rect class="bpn-body" x="630" y="48" width="270" height="96" rx="6"/>
+            <path d="M630,78 v-24 a6,6 0 0 1 6,-6 h258 a6,6 0 0 1 6,6 v24 z" fill="url(#bpg-call)"/>
+            <text class="bpn-icon" x="642" y="66">✉</text>
+            <text class="bpn-name" x="658" y="64">On Interact (Message)</text>
+            <text class="bpn-sub" x="658" y="75">Target is BPI Interact</text>
+            <path class="bpp-exec" d="M636,90 h7 l7,6 -7,6 h-7 z"/>
+            <circle class="bpp-pin t-object" cx="641" cy="122" r="5"/>
+            <text class="bpp-label" x="653" y="126">Target</text>
+            <path class="bpp-exec off" d="M880,90 h7 l7,6 -7,6 h-7 z"/>
+          </g>
+
+          <!-- 순수 함수: Does Implement Interface (초록, 실행 핀 없음) -->
+          <g filter="url(#bpg-shadow)">
+            <rect class="bpn-body" x="300" y="254" width="250" height="76" rx="6"/>
+            <path d="M300,278 v-18 a6,6 0 0 1 6,-6 h238 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-pure)"/>
+            <text class="bpn-icon" x="312" y="271" font-style="italic">ƒ</text>
+            <text class="bpn-name" x="326" y="271">Does Implement Interface</text>
+            <circle class="bpp-pin t-object" cx="311" cy="296" r="5"/>
+            <text class="bpp-label" x="323" y="300">Test Object</text>
+            <circle class="bpp-pin t-class off" cx="311" cy="316" r="5"/>
+            <text class="bpp-label" x="323" y="320">Interface</text>
+            <rect class="bpn-chip" x="390" y="308" width="112" height="16" rx="3"/>
+            <text class="bpn-chip-text" x="446" y="319" text-anchor="middle">BPI_Interact</text>
+            <circle class="bpp-pin t-bool" cx="539" cy="296" r="5"/>
+            <text class="bpp-label" x="527" y="300" text-anchor="end">Return Value</text>
+          </g>
+
+          <!-- 변수 Get: Target Actor (캡슐형) -->
+          <g filter="url(#bpg-shadow)">
+            <rect class="bpn-body" x="70" y="380" width="160" height="30" rx="15"/>
+            <rect x="70" y="380" width="6" height="30" rx="3" style="fill:var(--bp-object)"/>
+            <text class="bpn-name" x="90" y="399">Target Actor</text>
+            <circle class="bpp-pin t-object" cx="216" cy="395" r="5"/>
+          </g>
+
+          <text class="bpg-caption" x="40" y="34">Blueprint Interface — BeginPlay → 구현 여부 확인 → 인터페이스 메시지 호출</text>
+        </svg>
+      </div>
+    </div></div>
+
+    <div class="callout warn"><span class="ic">⚠️</span><p><strong>bp-graph 사용 규칙</strong> — ① SVG는 생성 시점에 구워넣기(런타임 렌더링 스크립트 금지), ② <code>bpg-*</code> 표준 defs 블록(격자 패턴·제목 그라데이션 5종·그림자)을 각 SVG에 포함, ③ 제목 바는 CSS 클래스가 아니라 <code>fill="url(#bpg-…)"</code> 속성으로 지정, ④ <code>--bp-*</code> 관례색은 이 컴포넌트 안에서만 사용(본문 UI에 유출 금지), ⑤ 미연결 핀은 <code>.off</code>(외곽선만)로 UE 에디터처럼 구분.</p></div>
+  </div>
+
 </div>
 
 <footer>
-  <span>UE 문서 디자인 시스템 · Master v1.6</span>
+  <span>UE 문서 디자인 시스템 · Master v1.7</span>
   <span>기준 디자인: Dark · Indigo Minimal · Editorial</span>
 </footer>
 

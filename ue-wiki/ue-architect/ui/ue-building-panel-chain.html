@@ -1,3 +1,24 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>건물 클릭 계층 UI — 패널 체인 아키텍처 · UE 아키텍처</title>
+<!-- ============================================================
+     CHANGELOG — ue-building-panel-chain.html
+     유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-B 템플릿 · ui/).
+     작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.0 · 2026-07-10
+       - 신규 생성. 월드 건물 클릭 → 계층 팝업(패널 체인) UI 구현 명세.
+       - 마스터 v1.6 스냅샷 inline. 블루프린트 중심(C++ 탭 없음).
+       - 블루프린트 노드 그래프 4건(.bp-graph): ① 건물 OnClicked → 컨트롤러 전달(캐스트)
+         ② 매니저 Open Panel(정리→생성→배치) ③ 배치 계산(우측 우선·좌측 폴백)
+         ④ 디스패처 방송/수신
+       - 전제 문서: 블루프린트 인터페이스(framework/) · 2D 사이드뷰 카메라(2d/) —
+         필요한 설정은 본문에서 재확인시켜 단독 열람으로도 완결
+       - 중앙 용어집 앵커: term-panel-chain · term-event-dispatcher
+     ============================================================ -->
+<style>
 /* ============================================================
    UE Design System — Master Stylesheet
    (design-guide-ue-master.css)
@@ -616,3 +637,514 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   footer { padding: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">UE WIKI · PANEL CHAIN UI</div>
+  <div class="nav-links">
+    <a href="#req">요구사항</a>
+    <a href="#design">설계 결정</a>
+    <a href="#structure">구조</a>
+    <a href="#setup">준비</a>
+    <a href="#impl">구현</a>
+    <a href="#verify">등록 · 검증</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">UE Architecture · Type ① · 02-B</div>
+  <h1>건물 클릭 계층 UI<br><span>패널 체인 아키텍처</span></h1>
+  <p class="hero-sub">
+    2D 월드의 건물을 클릭하면 요약 팝업이 뜨고, 그 버튼을 누르면 옆으로 다음 패널이, 또 그 항목을 누르면 상세 패널이 이어지는 <strong>계층형 팝업 UI</strong>를 만듭니다. 핵심 원칙은 하나 — <strong>"패널은 자식을 모른다."</strong> 체인의 소유·열기·닫기·배치는 전부 HUD 매니저 한 곳이 담당합니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">UMG · 이벤트 디스패처</span>
+    <span class="badge badge-green">UE5 · 2D/3D 공통</span>
+    <span class="badge badge-purple">Blueprint 전용 (C++ 불필요)</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- 01 요구사항 -->
+  <div class="section" id="req">
+    <div class="section-label">01 — 요구사항</div>
+    <h2>스크린샷의 흐름을 깊이(Depth)로 정의하기</h2>
+    <p>참고 화면(방치형 게임의 스킬 연구소)의 동작을 그대로 요구사항으로 옮기면, UI가 <strong>깊이 4단계의 사슬</strong>로 정리됩니다:</p>
+
+    <table class="tbl">
+      <tr><th>깊이</th><th>예시 화면</th><th>여는 조건</th><th>내용</th></tr>
+      <tr><td><strong>Depth 0</strong></td><td>월드의 건물(돌조각 조형물)</td><td>—</td><td>클릭 가능한 액터. UI가 아님</td></tr>
+      <tr><td><strong>Depth 1</strong></td><td>건물 요약 팝업 ("스킬 연구소 Lv.1")</td><td>건물 클릭</td><td>이름·레벨 + 기능 버튼 줄(업그레이드 등)</td></tr>
+      <tr><td><strong>Depth 2</strong></td><td>기능 패널 ("스킬 연구" 목록)</td><td>Depth 1의 버튼 클릭</td><td>항목(스킬 아이콘) 목록 — <strong>부모의 우측, 공간 없으면 좌측</strong></td></tr>
+      <tr><td><strong>Depth 3</strong></td><td>상세 패널 ("신속 훈련 I")</td><td>Depth 2의 항목 클릭</td><td>설명·비용·실행 버튼</td></tr>
+    </table>
+
+    <h3>체인 규칙 — 이 두 줄이 전체 동작을 정의합니다</h3>
+    <div class="callout info"><span class="ic">⛓️</span><p><strong>규칙 ①</strong> Depth N을 닫으면 <strong>N+1 이후가 전부 닫힌다</strong> (요약 팝업을 닫으면 목록·상세도 사라짐). <strong>규칙 ②</strong> Depth N에서 <strong>다른 항목</strong>을 선택하면 기존 N+1 이후를 닫고 새 체인으로 <strong>교체</strong>한다 (다른 스킬을 누르면 이전 상세가 새 상세로 바뀜).</p></div>
+
+    <div class="callout info" id="term-panel-chain"><span class="ic">📌</span><p><strong>핵심 용어</strong> — <strong>패널 체인(Panel Chain)</strong>: 부모→자식으로 이어지는 팝업 패널의 사슬. 배열 하나(<code>PanelChain</code>)로 관리하며 인덱스가 곧 깊이(Depth). / <span id="term-event-dispatcher"><strong>이벤트 디스패처(Event Dispatcher)</strong>: 블루프린트의 방송 장치(멀티캐스트 델리게이트의 BP 이름) — 위젯이 "내 버튼이 눌렸다"를 외치면, 구독해 둔 쪽(매니저)만 반응</span>. / <strong>HUD 매니저</strong>: 패널 체인을 소유한 최상위 위젯(<code>WBP_HUD</code>). 이 문서의 주인공.</p></div>
+  </div>
+
+  <!-- 02 설계 결정 -->
+  <div class="section" id="design">
+    <div class="section-label">02 — 설계 결정</div>
+    <h2>책임을 어디에 둘 것인가</h2>
+
+    <table class="tbl">
+      <tr><th>데이터 / 기능</th><th>배치</th><th>왜 여기인가</th></tr>
+      <tr><td>클릭 감지 (<code>OnClicked</code>)</td><td><span class="owner o-pawn">건물 액터 (BP_Building)</span></td><td>"내가 클릭당했다"는 액터 자신의 사건. 콜리전도 액터 소유</td></tr>
+      <tr><td>"어떤 요약 패널을 열지"</td><td><span class="owner o-pawn">건물 액터 (위젯 클래스 변수)</span></td><td>건물 종류마다 다른 정보 — 건물이 자기 패널 클래스를 들고 있으면 건물이 늘어도 매니저 무수정</td></tr>
+      <tr><td>패널 체인 배열 · 열기/닫기/교체 · 배치 계산</td><td><span class="owner">WBP_HUD (매니저)</span></td><td>체인 규칙 ①②는 <strong>전체를 보는 한 곳</strong>만 지킬 수 있음 — 분산되면 닫기 누락·중복 발생</td></tr>
+      <tr><td>패널 내용 표시 · 버튼 눌림 <strong>방송</strong></td><td><span class="owner">각 패널 위젯</span></td><td>패널은 자기 일만. 다음에 뭐가 열릴지는 몰라야 재사용·교체 가능</td></tr>
+      <tr><td>마우스 커서 · 클릭 이벤트 허용 · HUD 생성</td><td><span class="owner o-controller">PlayerController</span></td><td>입력 정책과 화면 소유는 조종자 소관 (2D 카메라 문서와 동일 설정 재사용)</td></tr>
+    </table>
+
+    <div class="grid-2">
+      <div class="compare-box">
+        <h4 style="color:var(--accent-3)">채택 — 매니저 중앙 관리 + 디스패처</h4>
+        <p>패널은 방송만, 열고 닫는 결정은 매니저만. 체인 규칙이 <strong>한 함수(Open Panel)에 모여</strong> 버그가 한 곳에서 잡힙니다.</p>
+        <div class="pills"><span class="pill green">닫기 규칙 보장</span><span class="pill green">패널 재사용</span><span class="pill green">건물 추가 무수정</span></div>
+      </div>
+      <div class="compare-box">
+        <h4 style="color:var(--red)">기각 — 패널이 자식을 직접 생성</h4>
+        <p>초록 패널이 보라 패널을 직접 스폰하면: 상위 닫기 시 하위가 남고, 패널끼리 참조가 얽혀(순환) 교체 규칙 ②를 구현할 곳이 없어집니다.</p>
+        <div class="pills"><span class="pill red">고아 패널</span><span class="pill red">순환 참조</span><span class="pill red">규칙 분산</span></div>
+      </div>
+    </div>
+
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>왜 여기선 캐스트를 써도 되나</strong> — 건물이 자기 PlayerController를 <code>Cast To BP_UIPlayerController</code>하는 것은 "상대가 항상 정확히 그 클래스"인 경우라 정당합니다(블루프린트 인터페이스 문서의 판단 기준 그대로). 반대로 건물의 <strong>종류</strong>가 늘어나는 방향은 캐스트 대신 위젯 클래스 변수/인터페이스로 열어 둡니다.</div></div>
+  </div>
+
+  <!-- 03 구조 -->
+  <div class="section" id="structure">
+    <div class="section-label">03 — 구조</div>
+    <h2>누가 누구에게 말을 거나</h2>
+
+    <div class="rel-map">
+      <div class="rel-row">
+        <div class="rel-node n-pawn"><div class="rn-name">BP_Building (돌조각)</div><div class="rn-role">클릭 감지 + 자기 요약 패널 클래스 보유</div></div>
+        <div class="rel-arrow"><span class="ra-label">OnClicked → Open Building UI</span><span class="ra-line">→</span></div>
+        <div class="rel-node n-controller"><div class="rn-name">BP_UIPlayerController</div><div class="rn-role">HUD 생성·보관, 요청을 HUD로 전달</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-controller"><div class="rn-name">WBP_HUD (매니저)</div><div class="rn-role">PanelChain 배열 소유 — 열기·닫기·교체·배치</div></div>
+        <div class="rel-arrow"><span class="ra-label">Create Widget + 배치</span><span class="ra-line">→</span></div>
+        <div class="rel-node n-gamestate"><div class="rn-name">WBP_Panel_* (Depth 1·2·3)</div><div class="rn-role">내용 표시 + 버튼 눌림 방송</div></div>
+      </div>
+      <div class="rel-row">
+        <div class="rel-node n-gamestate"><div class="rn-name">WBP_Panel_* (각 패널)</div><div class="rn-role">OnItemSelected 디스패처</div></div>
+        <div class="rel-arrow"><span class="ra-label">방송 → 매니저가 수신</span><span class="ra-line">→</span></div>
+        <div class="rel-node n-controller"><div class="rn-name">WBP_HUD (매니저)</div><div class="rn-role">Open Panel(Depth+1) 결정·실행</div></div>
+      </div>
+    </div>
+
+    <div class="arch">
+      <div class="arch-layer"><div class="arch-tag">클릭</div><div class="arch-title">건물 → 매니저</div><div class="arch-desc">Depth 1 요약 열림</div></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-layer"><div class="arch-tag">버튼</div><div class="arch-title">방송 → 매니저</div><div class="arch-desc">Depth 2 목록 (우측/좌측)</div></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-layer"><div class="arch-tag">항목</div><div class="arch-title">방송 → 매니저</div><div class="arch-desc">Depth 3 상세 (교체 규칙)</div></div>
+    </div>
+  </div>
+
+  <!-- 04 준비 -->
+  <div class="section" id="setup">
+    <div class="section-label">04 — 준비 (위젯 · 변수 · 디스패처)</div>
+    <h2>구현 전에 만들어 둘 것들</h2>
+    <p><strong>전제:</strong> 2D 사이드뷰 카메라 문서의 설정(카메라 Pawn, PlayerController의 <strong>Show Mouse Cursor·Enable Click Events</strong>)이 되어 있다고 가정합니다 — 없다면 06-2에서 재확인합니다.</p>
+
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">위젯 4종 생성</div><div class="pipe-desc">Content Browser 우클릭 → <strong>User Interface → Widget Blueprint</strong>로 4개: <code>WBP_HUD</code>(루트는 <strong>Canvas Panel</strong> — 패널들을 좌표로 배치할 도화지), <code>WBP_BuildingSummary</code>(Depth 1), <code>WBP_SkillList</code>(Depth 2), <code>WBP_SkillDetail</code>(Depth 3). 각 패널의 루트 Canvas 자식들은 원하는 대로 꾸미되, <strong>패널 최상위는 Size To Content가 아닌 고정 크기</strong>로 시작하면 배치 계산이 단순해집니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">매니저 변수·함수 뼈대</div><div class="pipe-desc"><code>WBP_HUD</code>에 변수 <code>PanelChain</code>(<strong>User Widget 배열</strong>) 추가. 함수 3개를 미리 만들어 둡니다(내용은 05에서): <code>Open Panel</code>(입력: Depth <span class="tt tt-bool">Integer</span> · Panel Class <span class="tt tt-enum">Class</span> · Anchor <span class="tt tt-bool">Widget</span>), <code>Close Chain From</code>(입력: Depth), <code>Place Next To</code>(입력: Panel · Anchor).</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">패널에 디스패처 추가</div><div class="pipe-desc">각 패널 위젯의 My Blueprint ▸ <strong>Event Dispatchers ＋</strong> → 이름 <code>OnItemSelected</code>, Details ▸ Inputs에 <code>ItemIndex</code>(Integer) 추가 — "몇 번째 항목이 눌렸다"만 외부에 알립니다. <strong>어떤 패널이 다음에 열릴지는 여기 없습니다</strong>(매니저의 결정).</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">4</div><div class="pipe-body"><div class="pipe-title">건물 액터 준비</div><div class="pipe-desc"><code>BP_Building</code>(Actor)에 Static Mesh(돌조각) 추가 + 변수 <code>SummaryPanelClass</code>(<strong>User Widget의 Class Reference</strong>, Instance Editable) — 레벨에 놓인 건물마다 다른 요약 패널을 지정할 수 있게. <strong>콜리전: 메시의 Collision Preset에서 Trace Response ▸ Visibility = Block</strong> — OnClicked는 Visibility 채널로 판정하므로 이게 없으면 클릭이 영원히 안 잡힙니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">5</div><div class="pipe-body"><div class="pipe-title">컨트롤러 준비</div><div class="pipe-desc"><code>BP_UIPlayerController</code>에 변수 <code>HUDWidget</code>(WBP_HUD 참조)과 함수 <code>Open Building UI</code>(입력: Building <span class="tt tt-bool">Actor</span>) 추가 — 내용은 "HUDWidget의 Open Panel(Depth 0 정리 후 1 열기)을 호출"뿐인 전달자입니다.</div></div></div>
+  </div>
+
+  <!-- 05 구현 -->
+  <div class="section" id="impl">
+    <div class="section-label">05 — 구현 (블루프린트 노드 그래프)</div>
+    <h2>그래프 4개로 완성</h2>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--bp-event)"></span>이벤트</span>
+      <span><span class="dot" style="background:var(--bp-call)"></span>함수 호출</span>
+      <span><span class="dot" style="background:var(--bp-pure)"></span>순수 함수</span>
+      <span><span class="dot" style="background:var(--bp-flow)"></span>흐름 제어·함수 입구</span>
+      <span><span class="dot" style="background:var(--bp-cast)"></span>캐스트</span>
+      <span><span class="dot" style="background:var(--bp-bool)"></span>Bool</span>
+      <span><span class="dot" style="background:var(--bp-int)"></span>Integer</span>
+      <span><span class="dot" style="background:var(--bp-class)"></span>Class</span>
+      <span><span class="dot" style="background:var(--bp-object)"></span>Object</span>
+    </div>
+
+    <h3>그래프 ① — 건물 클릭을 매니저에게 (BP_Building)</h3>
+    <p>메시 컴포넌트 선택 → Details 하단 Events ▸ <strong>On Clicked ＋</strong>. 자기 컨트롤러로 캐스트해(02의 "정당한 캐스트") <code>Open Building UI</code>를 부릅니다.</p>
+    <div class="bp-graph">
+      <svg viewBox="0 0 920 300" role="img" aria-label="건물 OnClicked가 컨트롤러의 Open Building UI를 호출">
+        <defs>
+          <pattern id="bpg-grid" width="16" height="16" patternUnits="userSpaceOnUse">
+            <path d="M16 0H0V16" fill="none" style="stroke:var(--bp-grid)" stroke-width="1"/>
+          </pattern>
+          <pattern id="bpg-grid80" width="80" height="80" patternUnits="userSpaceOnUse">
+            <rect width="80" height="80" fill="url(#bpg-grid)"/>
+            <path d="M80 0H0V80" fill="none" style="stroke:var(--bp-grid-2)" stroke-width="1.4"/>
+          </pattern>
+          <linearGradient id="bpg-event" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" style="stop-color:var(--bp-event)" stop-opacity="0.95"/>
+            <stop offset="1" style="stop-color:var(--bp-event)" stop-opacity="0.12"/>
+          </linearGradient>
+          <linearGradient id="bpg-call" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" style="stop-color:var(--bp-call)" stop-opacity="0.95"/>
+            <stop offset="1" style="stop-color:var(--bp-call)" stop-opacity="0.12"/>
+          </linearGradient>
+          <linearGradient id="bpg-pure" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" style="stop-color:var(--bp-pure)" stop-opacity="0.95"/>
+            <stop offset="1" style="stop-color:var(--bp-pure)" stop-opacity="0.12"/>
+          </linearGradient>
+          <linearGradient id="bpg-flow" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" style="stop-color:var(--bp-flow)" stop-opacity="0.95"/>
+            <stop offset="1" style="stop-color:var(--bp-flow)" stop-opacity="0.12"/>
+          </linearGradient>
+          <linearGradient id="bpg-cast" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" style="stop-color:var(--bp-cast)" stop-opacity="0.95"/>
+            <stop offset="1" style="stop-color:var(--bp-cast)" stop-opacity="0.12"/>
+          </linearGradient>
+          <filter id="bpg-shadow" x="-20%" y="-20%" width="140%" height="150%">
+            <feDropShadow dx="0" dy="2.5" stdDeviation="3" flood-color="#000" flood-opacity="0.55"/>
+          </filter>
+        </defs>
+
+        <rect width="920" height="300" style="fill:var(--bp-canvas)"/>
+        <rect width="920" height="300" fill="url(#bpg-grid80)"/>
+
+        <!-- 와이어 -->
+        <path class="bpw exec" d="M266,112 C300,112 300,96 336,96"/>
+        <path class="bpw exec" d="M574,96 C610,96 615,96 656,96"/>
+        <path class="bpw t-object" d="M235,250 C280,250 290,150 335,150"/>
+        <path class="bpw t-object" d="M575,150 C610,150 620,124 655,124"/>
+        <path class="bpw t-object" d="M582,245 C620,245 620,150 655,150"/>
+
+        <!-- OnClicked -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="40" y="60" width="230" height="96" rx="6"/>
+          <path d="M40,90 v-24 a6,6 0 0 1 6,-6 h218 a6,6 0 0 1 6,6 v24 z" fill="url(#bpg-event)"/>
+          <text class="bpn-icon" x="52" y="78">◆</text>
+          <text class="bpn-name" x="66" y="76">On Clicked</text>
+          <text class="bpn-sub" x="66" y="87">BuildingMesh (StaticMesh)</text>
+          <path class="bpp-exec" d="M252,106 h7 l7,6 -7,6 h-7 z"/>
+        </g>
+
+        <!-- Cast To BP_UIPlayerController -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="330" y="48" width="250" height="130" rx="6"/>
+          <path d="M330,72 v-18 a6,6 0 0 1 6,-6 h238 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-cast)"/>
+          <text class="bpn-icon" x="342" y="65">⤢</text>
+          <text class="bpn-name" x="356" y="65">Cast To BP_UIPlayerCtrl</text>
+          <path class="bpp-exec" d="M336,90 h7 l7,6 -7,6 h-7 z"/>
+          <path class="bpp-exec" d="M560,90 h7 l7,6 -7,6 h-7 z"/>
+          <circle class="bpp-pin t-object" cx="341" cy="150" r="5"/>
+          <text class="bpp-label" x="353" y="154">Object</text>
+          <path class="bpp-exec off" d="M560,114 h7 l7,6 -7,6 h-7 z"/>
+          <text class="bpp-label" x="554" y="124" text-anchor="end">Cast Failed</text>
+          <circle class="bpp-pin t-object" cx="569" cy="150" r="5"/>
+          <text class="bpp-label" x="557" y="154" text-anchor="end">As BP UI…</text>
+        </g>
+
+        <!-- Open Building UI -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="650" y="48" width="240" height="130" rx="6"/>
+          <path d="M650,72 v-18 a6,6 0 0 1 6,-6 h228 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-call)"/>
+          <text class="bpn-icon" x="662" y="65" font-style="italic">ƒ</text>
+          <text class="bpn-name" x="676" y="65">Open Building UI</text>
+          <path class="bpp-exec" d="M656,90 h7 l7,6 -7,6 h-7 z"/>
+          <path class="bpp-exec off" d="M870,90 h7 l7,6 -7,6 h-7 z"/>
+          <circle class="bpp-pin t-object" cx="661" cy="124" r="5"/>
+          <text class="bpp-label" x="673" y="128">Target</text>
+          <circle class="bpp-pin t-object" cx="661" cy="150" r="5"/>
+          <text class="bpp-label" x="673" y="154">Building</text>
+        </g>
+
+        <!-- Get Player Controller (순수) -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="40" y="210" width="200" height="64" rx="6"/>
+          <path d="M40,234 v-18 a6,6 0 0 1 6,-6 h188 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-pure)"/>
+          <text class="bpn-icon" x="52" y="227" font-style="italic">ƒ</text>
+          <text class="bpn-name" x="66" y="227">Get Player Controller</text>
+          <circle class="bpp-pin t-object" cx="229" cy="250" r="5"/>
+        </g>
+
+        <!-- Self (변수 Get 스타일) -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="470" y="230" width="106" height="30" rx="15"/>
+          <rect x="470" y="230" width="6" height="30" rx="3" style="fill:var(--bp-object)"/>
+          <text class="bpn-name" x="490" y="249">Self</text>
+          <circle class="bpp-pin t-object" cx="562" cy="245" r="5"/>
+        </g>
+
+        <text class="bpg-caption" x="40" y="34">그래프 ① — 건물(BP_Building): 클릭 → 컨트롤러로 전달. 캐스트는 "항상 우리 컨트롤러"라 정당 (02 참조)</text>
+      </svg>
+    </div>
+    <div class="callout info"><span class="ic">🧭</span><p>컨트롤러의 <code>Open Building UI</code> 내부는 한 줄입니다: <code>HUDWidget → Close Chain From(0) → Open Panel(Depth 1, Building의 SummaryPanelClass, Anchor 없음)</code>. 새 건물을 클릭하면 기존 체인 전체가 교체됩니다(규칙 ②의 Depth 0 버전).</p></div>
+
+    <h3>그래프 ② — 매니저의 Open Panel (WBP_HUD)</h3>
+    <p>체인 규칙이 전부 이 함수에 모입니다: <strong>정리 → 생성 → 배치 → 기록.</strong> <code>Close Chain From</code>과 <code>Place Next To</code>는 04-2에서 만든 접은 함수입니다(<code>Close Chain From</code> 내부: PanelChain을 뒤에서부터 돌며 Depth 이상을 <code>Remove From Parent</code> + 배열 Remove).</p>
+    <div class="bp-graph">
+      <svg viewBox="0 0 960 300" role="img" aria-label="Open Panel: 기존 체인 정리 후 위젯을 생성하고 배치">
+        <rect width="960" height="300" style="fill:var(--bp-canvas)"/>
+        <rect width="960" height="300" fill="url(#bpg-grid80)"/>
+
+        <!-- 와이어 -->
+        <path class="bpw exec" d="M246,96 C280,96 280,96 316,96"/>
+        <path class="bpw exec" d="M504,96 C540,96 540,96 576,96"/>
+        <path class="bpw exec" d="M744,96 C770,96 770,96 796,96"/>
+        <path class="bpw t-int" d="M245,124 C280,124 285,124 315,124"/>
+        <path class="bpw t-class" d="M245,150 C400,190 450,124 575,124"/>
+        <path class="bpw t-object" d="M745,124 C765,124 770,124 795,124"/>
+        <path class="bpw t-object" d="M245,176 C500,230 700,150 795,150"/>
+
+        <!-- Custom Event: Open Panel -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="40" y="48" width="210" height="140" rx="6"/>
+          <path d="M40,72 v-18 a6,6 0 0 1 6,-6 h198 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-event)"/>
+          <text class="bpn-icon" x="52" y="65">◆</text>
+          <text class="bpn-name" x="66" y="65">Open Panel</text>
+          <path class="bpp-exec" d="M232,90 h7 l7,6 -7,6 h-7 z"/>
+          <circle class="bpp-pin t-int" cx="239" cy="124" r="5"/>
+          <text class="bpp-label" x="227" y="128" text-anchor="end">Depth</text>
+          <circle class="bpp-pin t-class" cx="239" cy="150" r="5"/>
+          <text class="bpp-label" x="227" y="154" text-anchor="end">Panel Class</text>
+          <circle class="bpp-pin t-object" cx="239" cy="176" r="5"/>
+          <text class="bpp-label" x="227" y="180" text-anchor="end">Anchor</text>
+        </g>
+
+        <!-- Close Chain From -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="310" y="48" width="200" height="96" rx="6"/>
+          <path d="M310,72 v-18 a6,6 0 0 1 6,-6 h188 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-call)"/>
+          <text class="bpn-icon" x="322" y="65" font-style="italic">ƒ</text>
+          <text class="bpn-name" x="336" y="65">Close Chain From</text>
+          <path class="bpp-exec" d="M316,90 h7 l7,6 -7,6 h-7 z"/>
+          <path class="bpp-exec" d="M490,90 h7 l7,6 -7,6 h-7 z"/>
+          <circle class="bpp-pin t-int" cx="321" cy="124" r="5"/>
+          <text class="bpp-label" x="333" y="128">From Depth</text>
+        </g>
+
+        <!-- Create Widget -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="570" y="48" width="180" height="110" rx="6"/>
+          <path d="M570,72 v-18 a6,6 0 0 1 6,-6 h168 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-call)"/>
+          <text class="bpn-icon" x="582" y="65" font-style="italic">ƒ</text>
+          <text class="bpn-name" x="596" y="65">Create Widget</text>
+          <path class="bpp-exec" d="M576,90 h7 l7,6 -7,6 h-7 z"/>
+          <path class="bpp-exec" d="M730,90 h7 l7,6 -7,6 h-7 z"/>
+          <circle class="bpp-pin t-class" cx="581" cy="124" r="5"/>
+          <text class="bpp-label" x="593" y="128">Class</text>
+          <circle class="bpp-pin t-object" cx="739" cy="124" r="5"/>
+        </g>
+
+        <!-- Place Next To -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="790" y="48" width="160" height="130" rx="6"/>
+          <path d="M790,72 v-18 a6,6 0 0 1 6,-6 h148 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-call)"/>
+          <text class="bpn-icon" x="802" y="65" font-style="italic">ƒ</text>
+          <text class="bpn-name" x="816" y="65">Place Next To</text>
+          <path class="bpp-exec" d="M796,90 h7 l7,6 -7,6 h-7 z"/>
+          <path class="bpp-exec off" d="M930,90 h7 l7,6 -7,6 h-7 z"/>
+          <circle class="bpp-pin t-object" cx="801" cy="124" r="5"/>
+          <text class="bpp-label" x="813" y="128">Panel</text>
+          <circle class="bpp-pin t-object" cx="801" cy="150" r="5"/>
+          <text class="bpp-label" x="813" y="154">Anchor</text>
+        </g>
+
+        <text class="bpg-caption" x="40" y="34">그래프 ② — Open Panel: 정리(규칙 ①②) → 생성 → 배치. 끝에서 PanelChain 배열에 Add + 디스패처 바인딩(그래프 ④)</text>
+      </svg>
+    </div>
+
+    <h3>그래프 ③ — Place Next To: 우측 우선, 공간 없으면 좌측</h3>
+    <p>새 패널을 캔버스에 <code>Add Child to Canvas</code>한 뒤 위치를 정합니다. 판정식은 하나: <strong>Anchor 우측 끝 + 새 패널 폭 + 여백(16px)이 뷰포트 폭을 넘는가.</strong> Anchor가 없으면(Depth 1) 건물 위 화면 좌표나 고정 위치를 씁니다.</p>
+    <div class="bp-graph">
+      <svg viewBox="0 0 880 400" role="img" aria-label="Place Next To 함수: 우측 공간 부족 여부로 좌우 배치 분기">
+        <rect width="880" height="400" style="fill:var(--bp-canvas)"/>
+        <rect width="880" height="400" fill="url(#bpg-grid80)"/>
+
+        <!-- 와이어 -->
+        <path class="bpw exec" d="M276,100 C310,100 310,96 346,96"/>
+        <path class="bpw exec" d="M484,96 C520,96 525,72 566,72"/>
+        <path class="bpw exec" d="M484,120 C520,120 525,186 566,186"/>
+        <path class="bpw t-bool" d="M535,296 C620,296 280,126 345,126"/>
+
+        <!-- 함수 입구 -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="40" y="60" width="240" height="60" rx="6"/>
+          <path d="M40,84 v-18 a6,6 0 0 1 6,-6 h228 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-flow)"/>
+          <text class="bpn-icon" x="52" y="77">⇥</text>
+          <text class="bpn-name" x="66" y="77">Place Next To (입구)</text>
+          <path class="bpp-exec" d="M262,94 h7 l7,6 -7,6 h-7 z"/>
+        </g>
+
+        <!-- Branch -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="340" y="60" width="150" height="84" rx="6"/>
+          <path d="M340,84 v-18 a6,6 0 0 1 6,-6 h138 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-flow)"/>
+          <text class="bpn-icon" x="352" y="77">⑂</text>
+          <text class="bpn-name" x="366" y="77">Branch</text>
+          <path class="bpp-exec" d="M346,90 h7 l7,6 -7,6 h-7 z"/>
+          <circle class="bpp-pin t-bool" cx="351" cy="126" r="5"/>
+          <text class="bpp-label" x="363" y="130">Condition</text>
+          <path class="bpp-exec" d="M470,90 h7 l7,6 -7,6 h-7 z"/>
+          <text class="bpp-label" x="464" y="100" text-anchor="end">True</text>
+          <path class="bpp-exec" d="M470,114 h7 l7,6 -7,6 h-7 z"/>
+          <text class="bpp-label" x="464" y="124" text-anchor="end">False</text>
+        </g>
+
+        <!-- Set Position 좌측 -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="560" y="36" width="300" height="76" rx="6"/>
+          <path d="M560,60 v-18 a6,6 0 0 1 6,-6 h288 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-call)"/>
+          <text class="bpn-icon" x="572" y="53" font-style="italic">ƒ</text>
+          <text class="bpn-name" x="586" y="53">Set Position — 좌측 배치</text>
+          <path class="bpp-exec" d="M566,66 h7 l7,6 -7,6 h-7 z"/>
+          <path class="bpp-exec off" d="M840,66 h7 l7,6 -7,6 h-7 z"/>
+          <rect class="bpn-chip" x="600" y="86" width="220" height="16" rx="3"/>
+          <text class="bpn-chip-text" x="710" y="97" text-anchor="middle">X = AnchorX − PanelW − 16</text>
+        </g>
+
+        <!-- Set Position 우측 -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="560" y="150" width="300" height="76" rx="6"/>
+          <path d="M560,174 v-18 a6,6 0 0 1 6,-6 h288 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-call)"/>
+          <text class="bpn-icon" x="572" y="167" font-style="italic">ƒ</text>
+          <text class="bpn-name" x="586" y="167">Set Position — 우측 배치</text>
+          <path class="bpp-exec" d="M566,180 h7 l7,6 -7,6 h-7 z"/>
+          <path class="bpp-exec off" d="M840,180 h7 l7,6 -7,6 h-7 z"/>
+          <rect class="bpn-chip" x="600" y="200" width="220" height="16" rx="3"/>
+          <text class="bpn-chip-text" x="710" y="211" text-anchor="middle">X = AnchorX + AnchorW + 16</text>
+        </g>
+
+        <!-- 판정 순수 함수 -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="240" y="250" width="300" height="96" rx="6"/>
+          <path d="M240,280 v-24 a6,6 0 0 1 6,-6 h288 a6,6 0 0 1 6,6 v24 z" fill="url(#bpg-pure)"/>
+          <text class="bpn-icon" x="252" y="268" font-style="italic">ƒ</text>
+          <text class="bpn-name" x="266" y="266">우측 공간 부족?</text>
+          <text class="bpn-sub" x="266" y="277">AnchorX + AnchorW + PanelW + 16 &gt; Viewport X</text>
+          <circle class="bpp-pin t-object off" cx="251" cy="300" r="5"/>
+          <text class="bpp-label" x="263" y="304">Anchor</text>
+          <circle class="bpp-pin t-object off" cx="251" cy="322" r="5"/>
+          <text class="bpp-label" x="263" y="326">Panel</text>
+          <circle class="bpp-pin t-bool" cx="529" cy="296" r="5"/>
+        </g>
+
+        <text class="bpg-caption" x="40" y="34">그래프 ③ — 배치 판정: True(부족) → 좌측 / False → 우측. 판정식 내부는 아래 Pitfall의 Desired Size 주의 참조</text>
+      </svg>
+    </div>
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>PanelW가 0으로 나온다면</strong> — <code>Create Widget</code> 직후에는 위젯이 아직 레이아웃 계산 전이라 <code>Get Desired Size</code>가 <strong>(0, 0)</strong>을 돌려줍니다. 판정식 앞에 <code>Force Layout Prepass</code>(대상: 새 패널)를 한 번 호출해 크기를 강제로 계산시키거나, 04-1처럼 패널을 고정 크기로 만들어 상수를 쓰세요.</div></div>
+
+    <h3>그래프 ④ — 방송(패널)과 수신(매니저)</h3>
+    <p>좌측은 패널 위젯 내부(버튼 → 방송), 우측은 매니저가 <strong>Create Widget 직후</strong> 그 패널의 디스패처에 바인딩하는 부분입니다. 수신 이벤트가 <code>Open Panel(Depth+1)</code>을 다시 부르면서 체인이 이어집니다 — 같은 항목이든 다른 항목이든 <code>Close Chain From(Depth+1)</code>이 먼저 돌므로 규칙 ②가 자동으로 지켜집니다.</p>
+    <div class="bp-graph">
+      <svg viewBox="0 0 960 340" role="img" aria-label="좌: 패널 버튼이 디스패처를 방송, 우: 매니저가 바인딩해 수신">
+        <rect width="960" height="340" style="fill:var(--bp-canvas)"/>
+        <rect width="960" height="340" fill="url(#bpg-grid80)"/>
+
+        <line x1="605" y1="50" x2="605" y2="310" stroke="#4A4E54" stroke-width="1.5" stroke-dasharray="6 6"/>
+        <text class="bpg-caption" x="40" y="34">패널 위젯 쪽 (WBP_SkillList)</text>
+        <text class="bpg-caption" x="630" y="34">매니저 쪽 (WBP_HUD, Create Widget 직후)</text>
+
+        <!-- 와이어 (좌) -->
+        <path class="bpw exec" d="M266,102 C300,102 300,96 336,96"/>
+        <!-- 와이어 (우: 델리게이트 연결) -->
+        <path class="bpw t-bool" d="M640,205 C618,205 618,128 638,128"/>
+
+        <!-- Button OnClicked -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="40" y="60" width="230" height="72" rx="6"/>
+          <path d="M40,90 v-24 a6,6 0 0 1 6,-6 h218 a6,6 0 0 1 6,6 v24 z" fill="url(#bpg-event)"/>
+          <text class="bpn-icon" x="52" y="78">◆</text>
+          <text class="bpn-name" x="66" y="76">On Clicked (Btn_Skill)</text>
+          <text class="bpn-sub" x="66" y="87">Button 이벤트</text>
+          <path class="bpp-exec" d="M252,96 h7 l7,6 -7,6 h-7 z"/>
+        </g>
+
+        <!-- Call OnItemSelected -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="330" y="60" width="240" height="96" rx="6"/>
+          <path d="M330,84 v-18 a6,6 0 0 1 6,-6 h228 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-call)"/>
+          <text class="bpn-icon" x="342" y="77">✉</text>
+          <text class="bpn-name" x="356" y="77">Call On Item Selected</text>
+          <path class="bpp-exec" d="M336,90 h7 l7,6 -7,6 h-7 z"/>
+          <path class="bpp-exec off" d="M540,90 h7 l7,6 -7,6 h-7 z"/>
+          <circle class="bpp-pin t-int off" cx="341" cy="124" r="5"/>
+          <text class="bpp-label" x="353" y="128">Item Index</text>
+          <rect class="bpn-chip" x="450" y="116" width="40" height="16" rx="3"/>
+          <text class="bpn-chip-text" x="470" y="127" text-anchor="middle">0</text>
+        </g>
+
+        <!-- Bind Event -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="630" y="40" width="300" height="110" rx="6"/>
+          <path d="M630,64 v-18 a6,6 0 0 1 6,-6 h288 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-call)"/>
+          <text class="bpn-icon" x="642" y="57" font-style="italic">ƒ</text>
+          <text class="bpn-name" x="656" y="57">Bind Event to On Item Selected</text>
+          <path class="bpp-exec" d="M636,76 h7 l7,6 -7,6 h-7 z"/>
+          <path class="bpp-exec off" d="M910,76 h7 l7,6 -7,6 h-7 z"/>
+          <circle class="bpp-pin t-object off" cx="641" cy="104" r="5"/>
+          <text class="bpp-label" x="653" y="108">Target (새 패널)</text>
+          <rect x="637" y="124" width="9" height="9" rx="1" style="fill:var(--bp-bool)"/>
+          <text class="bpp-label" x="653" y="132">Event</text>
+        </g>
+
+        <!-- Custom Event: Handle Item Selected -->
+        <g filter="url(#bpg-shadow)">
+          <rect class="bpn-body" x="630" y="190" width="300" height="90" rx="6"/>
+          <path d="M630,220 v-24 a6,6 0 0 1 6,-6 h288 a6,6 0 0 1 6,6 v24 z" fill="url(#bpg-event)"/>
+          <text class="bpn-icon" x="642" y="208">◆</text>
+          <text class="bpn-name" x="656" y="206">Handle Item Selected</text>
+          <text class="bpn-sub" x="656" y="217">Custom Event → Open Panel(Depth+1) 호출</text>
+          <rect x="636" y="200" width="9" height="9" rx="1" style="fill:var(--bp-bool)"/>
+          <path class="bpp-exec" d="M896,226 h7 l7,6 -7,6 h-7 z"/>
+          <circle class="bpp-pin t-int" cx="919" cy="258" r="5"/>
+          <text class="bpp-label" x="907" y="262" text-anchor="end">Item Index</text>
+        </g>
+
+        <text class="bpg-caption" x="40" y="320">그래프 ④ — 패널은 "몇 번이 눌렸다"만 방송(✉), 다음에 뭐가 열릴지는 매니저의 수신 이벤트가 결정</text>
+      </svg>
+    </div>
+    <div class="callout info"><span class="ic">🧭</span><p><strong>바인딩 위치가 곧 아키텍처입니다</strong> — <code>Bind Event</code>는 반드시 <strong>매니저의 Open Panel 안(Create Widget 직후)</strong>에서 합니다. 패널이 스스로 매니저를 찾아 바인딩하게 만들면 "패널은 자식(그리고 부모)을 모른다" 원칙이 무너집니다. 빨간 사각 핀(델리게이트)은 Bind 노드의 Event 핀에서 드래그해 <code>Handle Item Selected</code> 커스텀 이벤트를 만들면 자동 연결됩니다.</p></div>
+  </div>
+
+  <!-- 06 등록 & 검증 -->
+  <div class="section" id="verify">
+    <div class="section-label">06 — 등록 &amp; 검증</div>
+    <h2>엔진에 연결하고, 순서대로 확인하기</h2>
+
+    <div class="pipe-step"><div class="pipe-num">1</div><div class="pipe-body"><div class="pipe-title">HUD 생성·등록</div><div class="pipe-desc"><code>BP_UIPlayerController</code>의 BeginPlay: <code>Create Widget(WBP_HUD) → SET HUDWidget → Add to Viewport</code>. GameMode의 <strong>Player Controller Class = BP_UIPlayerController</strong> 지정을 잊지 마세요 — 그래프 ①의 캐스트가 이 지정에 의존합니다.</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">2</div><div class="pipe-body"><div class="pipe-title">마우스 설정 재확인</div><div class="pipe-desc">컨트롤러 Class Defaults: <strong>Show Mouse Cursor ✓ · Enable Click Events ✓</strong> (2D 카메라 문서 05-2와 동일 — 이미 했다면 통과).</div></div></div>
+    <div class="pipe-step"><div class="pipe-num">3</div><div class="pipe-body"><div class="pipe-title">검증 시나리오</div><div class="pipe-desc">PIE에서 순서대로: ① 돌조각 클릭 → 요약(주황) ② 버튼 → 목록(초록)이 <strong>우측에</strong> ③ 건물을 화면 오른쪽 끝에 두고 반복 → 목록이 <strong>좌측에</strong> ④ 항목 클릭 → 상세(보라) ⑤ 다른 항목 클릭 → 상세가 <strong>교체</strong> ⑥ 요약 닫기 → <strong>전부 닫힘</strong>. 여섯 개가 다 되면 완성입니다.</div></div></div>
+
+    <h3>증상 → 원인 체크리스트</h3>
+    <table class="tbl">
+      <tr><th>증상</th><th>원인 (가능성 순)</th><th>확인 위치</th></tr>
+      <tr><td>건물 <strong>클릭이 안 잡힘</strong></td><td>① 메시 콜리전이 Visibility 채널 Block 아님 ② Show Mouse Cursor·Enable Click Events 꺼짐 ③ 투명한 UI가 위를 덮음</td><td>04-4 · 06-2</td></tr>
+      <tr><td>클릭은 되는데 <strong>패널이 안 뜸</strong></td><td>① 캐스트 실패 — GameMode의 Player Controller Class 미지정 ② HUDWidget 변수 비어 있음(생성 순서) ③ SummaryPanelClass 미지정</td><td>06-1 · 04-4</td></tr>
+      <tr><td>이전 패널이 <strong>남거나 중복</strong>으로 쌓임</td><td>Open Panel 앞의 Close Chain From 누락, 또는 그 내부에서 배열 Remove 누락</td><td>그래프 ②</td></tr>
+      <tr><td>패널이 <strong>(0,0)이나 엉뚱한 곳</strong>에 뜸</td><td>① Add Child to Canvas 후 Set Position 안 함 ② Desired Size가 (0,0) — Force Layout Prepass 필요</td><td>그래프 ③ + Pitfall</td></tr>
+      <tr><td><strong>좌측 폴백이 안 됨</strong> (화면 밖으로 나감)</td><td>판정식에 새 패널 폭(PanelW) 미포함 — Anchor 우측 끝만 검사</td><td>그래프 ③</td></tr>
+      <tr><td>버튼을 눌러도 <strong>다음 패널이 안 열림</strong></td><td>① Bind Event 누락(Create 직후에 해야 함) ② 디스패처 이름/시그니처 불일치 ③ 방송 노드(Call)를 안 부름</td><td>그래프 ④</td></tr>
+      <tr><td>패널 <strong>뒤의 건물이 같이 클릭됨</strong></td><td>패널 배경 위젯의 Visibility가 <code>Not Hit-Testable</code> — 클릭을 흡수해야 할 배경은 <code>Visible</code>로</td><td>04-1</td></tr>
+    </table>
+
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>다음 확장</strong> — ① Depth 1 패널을 건물 머리 위에 붙이려면 <code>Project World Location to Widget Position</code>으로 건물 위치를 화면 좌표로 변환해 Set Position. ② 패널 종류가 많아지면 "버튼 인덱스 → 다음 패널 클래스" 매핑을 <strong>DataTable</strong>로 빼서 매니저의 분기문을 데이터로 대체. ③ 열림/닫힘 애니메이션은 각 패널 위젯의 Animation으로 — 체인 로직은 그대로.</div></div>
+  </div>
+
+</div>
+
+<footer>
+  <span>UE 아키텍처 문서 · Building Panel Chain v1.0</span>
+  <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.6</span>
+</footer>
+
+</body>
+</html>
