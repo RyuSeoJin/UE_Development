@@ -53,7 +53,7 @@
    - 조립: `{ cat head; echo; echo '<style>'; cat design-guide/design-guide-ue-master.css; echo '</style>'; echo '</head>'; cat body; } > OUT.html`
    - **마스터 CSS 전체 inline**(모든 컴포넌트+hljs 포함). `<style>`은 자기 줄에 오도록 head 뒤 `echo`로 개행.
    - 컴포넌트(마스터에 있음): `.rel-map/.rel-row/.rel-node`, `.tbl`+`.owner(o-subsystem/o-savegame/o-gamestate)`, `.pipe-step`, `.callout(info/tip/warn)`, `.var-card`+`.vbadge(row/save/run/cfg)`, `.stat-row/.stat-card`, `.tree`, `.legend`, `.badge`.
-   - **코드는 hljs span 직접 구워넣기**: `<span class="hljs-meta">USTRUCT()</span>`, `hljs-keyword`(struct/class/public/const/void/for/if/return), `hljs-type`(FString/int32/TArray/커스텀), `hljs-comment`, `hljs-number`, `hljs-title`(함수명), `hljs-literal`(true/false). 의미 있는 줄에 **한국어 '왜' 주석**(v3.8). `<`·`>`·`&`는 `&lt;`·`&gt;`·`&amp;`. (탭/복사 JS 없이 단일 `<pre class="hljs">` 사용.)
+   - **코드는 hljs span 직접 구워넣기**: `<span class="hljs-meta">USTRUCT()</span>`, `hljs-keyword`(struct/class/public/const/void/for/if/return), `hljs-type`(FString/int32/TArray/커스텀), `hljs-comment`, `hljs-number`, `hljs-title`(함수명), `hljs-literal`(true/false). 의미 있는 줄에 **한국어 '왜' 주석**(v3.8). `<`·`>`·`&`는 `&lt;`·`&gt;`·`&amp;`. **코드 블록은 `.codeblock` 래핑**(2026-07-12 사용자 피드백으로 변경): `<div class="codeblock">` > `.codeblock-bar`(파일명 `.codeblock-tab tab-h|tab-cpp active` + `.codeblock-copy` 복사 버튼) > `.codeblock-panel active` > `<pre class="hljs">`. 블록이 한 파일 내용이면 단일 탭(파일명 표기), .h/.cpp 쌍이면 탭 2개+패널 2개. 문서 끝 `</body>` 직전에 탭 전환·복사 JS(v1 문서 01-focus-system.html과 동일 스니펫) 필수.
    - **문서 간 상대링크 금지**(연결은 허브 담당). 실수치는 "DataTable 튜닝" 참조로 넘김.
    - CHANGELOG를 각 파일 head 주석에.
 4. **STEP 8 — 허브 등록:** `recordtales_v2-index.html`의 `#docs` 표에서 해당 행의 상태를 `<a href="./파일.html">열기 →</a>`로 링크.

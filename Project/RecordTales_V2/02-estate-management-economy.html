@@ -8,6 +8,10 @@
      CHANGELOG — 02-estate-management-economy.html
      RecordTales V2 영지 · 경영 건물 경제 (Track B · 02-A 아키텍처 패턴).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     v0.3 · 2026-07-12
+       - (변경) 스켈레톤 <pre class="hljs"> 3건을 .codeblock(파일명 탭 + 복사 버튼)으로 래핑 —
+         RecordTalesTypes.h / EstateSubsystem.h / EstateSubsystem.cpp 단일 탭.
+         탭 전환·복사 JS 추가(v1 문서와 동일 패턴). (사용자 피드백: .h/.cpp 예제가 탭 미노출)
      v0.2 · 2026-07-10
        - (추가) 05 스켈레톤 섹션 첫머리에 "🚀 이 문서로 작업 시작하기" 블록 —
          전제(01·03 선행) · 만들 파일 표 · 코드 외 작업(DT_Building 데이터 입력) · 컴파일 주의.
@@ -716,7 +720,12 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <p>건물 상태와 산출 계산의 뼈대입니다. 실제 값은 DataTable에서 조회하므로, 여기서는 <strong>공식이 코드로 어떻게 표현되는지</strong>에 집중합니다.</p>
 
     <h3>FBuildingState — 내 건물 하나</h3>
-    <pre class="hljs"><span class="hljs-comment">// 계정 세이브의 Estate 배열 원소. 영지는 계정 단위 하나.</span>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">RecordTalesTypes.h</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 계정 세이브의 Estate 배열 원소. 영지는 계정 단위 하나.</span>
 <span class="hljs-meta">USTRUCT()</span>
 <span class="hljs-keyword">struct</span> <span class="hljs-type">FBuildingState</span>
 {
@@ -725,10 +734,16 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">int32</span>   Level = <span class="hljs-number">1</span>;               <span class="hljs-comment">// 업그레이드 레벨 → DT_Building_Upgrade(기본 산출·슬롯)</span>
     <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">int32</span>&gt; DeployedInstanceIds; <span class="hljs-comment">// 배치된 캐릭터 InstanceId(열린 슬롯 수만큼)</span>
     <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">FDateTime</span> LastCollectTime;         <span class="hljs-comment">// 유휴 누적 계산 기준(오프라인 캡)</span>
-};</pre>
+};</pre></div>
+    </div>
 
     <h3>UEstateSubsystem — 산출 계산 · 수집</h3>
-    <pre class="hljs"><span class="hljs-meta">UCLASS()</span>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">EstateSubsystem.h</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">UCLASS()</span>
 <span class="hljs-keyword">class</span> <span class="hljs-type">UEstateSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
 {
     <span class="hljs-meta">GENERATED_BODY()</span>
@@ -739,10 +754,16 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
     <span class="hljs-comment">// 유휴 누적 수집: (지금 − LastCollectTime) × 산출, 단 오프라인 캡 적용</span>
     <span class="hljs-type">int64</span> <span class="hljs-title">Collect</span>(<span class="hljs-type">FBuildingState</span>&amp; B);
-};</pre>
+};</pre></div>
+    </div>
 
     <h3>ComputeOutputPerHour — 공식의 코드 표현</h3>
-    <pre class="hljs"><span class="hljs-type">float</span> <span class="hljs-type">UEstateSubsystem</span>::<span class="hljs-title">ComputeOutputPerHour</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FBuildingState</span>&amp; B, <span class="hljs-type">bool</span> bFocusing) <span class="hljs-keyword">const</span>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-cpp active" type="button">EstateSubsystem.cpp</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-type">float</span> <span class="hljs-type">UEstateSubsystem</span>::<span class="hljs-title">ComputeOutputPerHour</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FBuildingState</span>&amp; B, <span class="hljs-type">bool</span> bFocusing) <span class="hljs-keyword">const</span>
 {
     <span class="hljs-comment">// 1) 건물 기본 산출 (레벨별) — DT_Building_Upgrade에서 조회</span>
     <span class="hljs-type">float</span> Base = <span class="hljs-title">LookupBaseOutput</span>(B.BuildingId, B.Level);
@@ -756,7 +777,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-type">float</span> StateMult = (bFocusing ? EstateFocusBaseNx : <span class="hljs-number">1.f</span>) + MultBonus;
 
     <span class="hljs-keyword">return</span> (Base + FlatSum) * StateMult;  <span class="hljs-comment">// (기본 + Σflat) × 상태 배율</span>
-}</pre>
+}</pre></div>
+    </div>
 
     <div class="callout info" style="margin-top:14px">
       <span class="ic">&#x1F9ED;</span>
@@ -787,5 +809,49 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.5</span>
 </footer>
 
+<script>
+(function () {
+  document.querySelectorAll('.codeblock').forEach(function (block) {
+    var tabs = block.querySelectorAll('.codeblock-tab');
+    var panels = block.querySelectorAll('.codeblock-panel');
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) { t.classList.remove('active'); });
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        if (panels[i]) panels[i].classList.add('active');
+      });
+    });
+    var copyBtn = block.querySelector('.codeblock-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () {
+        var pre = block.querySelector('.codeblock-panel.active pre');
+        if (!pre) return;
+        var text = pre.innerText;
+        var done = function () {
+          copyBtn.textContent = '복사됨 ✓';
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.textContent = '복사';
+            copyBtn.classList.remove('copied');
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+        } else {
+          fallbackCopy(text, done);
+        }
+      });
+    }
+  });
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+})();
+</script>
 </body>
 </html>

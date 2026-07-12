@@ -8,6 +8,10 @@
      CHANGELOG — 04-gacha-ability-awakening.html
      RecordTales V2 가챠 · 능력치 개화 (Track B · 02-A 아키텍처 패턴).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     v0.3 · 2026-07-12
+       - (변경) 스켈레톤 <pre class="hljs"> 2건을 .codeblock(파일명 탭 + 복사 버튼)으로 래핑 —
+         GachaSubsystem.cpp 단일 탭 ×2. 탭 전환·복사 JS 추가(v1 문서와 동일 패턴).
+         (사용자 피드백: .h/.cpp 예제가 탭 미노출)
      v0.2 · 2026-07-10
        - (추가) 05 스켈레톤 섹션 첫머리에 "🚀 이 문서로 작업 시작하기" 블록 —
          전제(01·03 선행) · 작업 대상 파일 표 · 코드 외 작업(DT_Character/DT_Gacha/DT_Ability 데이터) · 컴파일 주의.
@@ -693,7 +697,12 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <p>뽑기 생성과 강화의 뼈대입니다. 표 조회 함수(<code>Roll*</code>·<code>Lookup*</code>)의 실제 구현은 DataTable을 읽는 부분이라 생략합니다.</p>
 
     <h3>후보 1장 생성 (3번 호출)</h3>
-    <pre class="hljs"><span class="hljs-comment">// 후보 1장을 완성해 반환. 뽑기 UI는 이걸 3번 호출해 3장을 보여준다.</span>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-cpp active" type="button">GachaSubsystem.cpp</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 후보 1장을 완성해 반환. 뽑기 UI는 이걸 3번 호출해 3장을 보여준다.</span>
 <span class="hljs-type">FOwnedCharacter</span> <span class="hljs-type">UGachaSubsystem</span>::<span class="hljs-title">GenerateCandidate</span>()
 {
     <span class="hljs-type">FOwnedCharacter</span> C;
@@ -709,10 +718,16 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         C.Abilities.<span class="hljs-title">Add</span>({ AbilityId, StartStep });     <span class="hljs-comment">// 개화된 능력치 추가(최대 4)</span>
     }
     <span class="hljs-keyword">return</span> C;
-}</pre>
+}</pre></div>
+    </div>
 
     <h3>능력치 강화 (조각)</h3>
-    <pre class="hljs"><span class="hljs-comment">// 조각으로 한 캐릭터의 능력치를 한 단계 올린다. 대상은 가중 랜덤.</span>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-cpp active" type="button">GachaSubsystem.cpp</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 조각으로 한 캐릭터의 능력치를 한 단계 올린다. 대상은 가중 랜덤.</span>
 <span class="hljs-keyword">void</span> <span class="hljs-type">UGachaSubsystem</span>::<span class="hljs-title">UpgradeAbility</span>(<span class="hljs-type">FOwnedCharacter</span>&amp; C)
 {
     <span class="hljs-comment">// 아직 최대가 아닌 개화 능력치들 중 가중 랜덤(가중치 = 남은 단계 = 상한 − 현재)</span>
@@ -724,7 +739,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-keyword">if</span> (!<span class="hljs-title">SpendShards</span>(Cost)) <span class="hljs-keyword">return</span>;                  <span class="hljs-comment">// 조각 부족 시 중단</span>
 
     A.CurrentStep += <span class="hljs-number">1</span>;                             <span class="hljs-comment">// 다음 단계로 (효과값은 표에서 파생, 저장 안 함)</span>
-}</pre>
+}</pre></div>
+    </div>
   </div>
 
   <!-- ===== 06 확장 ===== -->
@@ -749,5 +765,49 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.5</span>
 </footer>
 
+<script>
+(function () {
+  document.querySelectorAll('.codeblock').forEach(function (block) {
+    var tabs = block.querySelectorAll('.codeblock-tab');
+    var panels = block.querySelectorAll('.codeblock-panel');
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) { t.classList.remove('active'); });
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        if (panels[i]) panels[i].classList.add('active');
+      });
+    });
+    var copyBtn = block.querySelector('.codeblock-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () {
+        var pre = block.querySelector('.codeblock-panel.active pre');
+        if (!pre) return;
+        var text = pre.innerText;
+        var done = function () {
+          copyBtn.textContent = '복사됨 ✓';
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.textContent = '복사';
+            copyBtn.classList.remove('copied');
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+        } else {
+          fallbackCopy(text, done);
+        }
+      });
+    }
+  });
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+})();
+</script>
 </body>
 </html>

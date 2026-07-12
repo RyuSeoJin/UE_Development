@@ -8,6 +8,10 @@
      CHANGELOG — 01-multi-guild-architecture.html
      RecordTales V2 멀티 길드 아키텍처 (Track B · 02-A 아키텍처 패턴).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     v0.4 · 2026-07-12
+       - (변경) 스켈레톤 <pre class="hljs"> 3건을 .codeblock(파일명 탭 + 복사 버튼)으로 래핑 —
+         RecordTalesTypes.h / RecordTalesSaveGame.h / GuildSubsystem.h 단일 탭.
+         탭 전환·복사 JS 추가(v1 문서와 동일 패턴). (사용자 피드백: .h/.cpp 예제가 탭 미노출)
      v0.3 · 2026-07-10
        - (변경) 작업 시작하기 블록의 코드 외 작업에 ③ 추가 — 세이브↔서브시스템 로드·저장
          타이밍은 위키 'Subsystem ↔ SaveGame 연동' 문서의 패턴 적용 (신규 배선도 문서 연계)
@@ -746,7 +750,12 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <p>핵심 구조의 뼈대입니다(세부 구현 아님). <strong>길드별 데이터</strong>는 세이브 안의 배열 원소로, <strong>계정 공유</strong>는 세이브 최상위에 둡니다.</p>
 
     <h3>FGuildData — 길드 하나의 데이터 (per-guild)</h3>
-    <pre class="hljs"><span class="hljs-comment">// 길드 하나 = 계정 세이브 안의 배열 원소. 계정 공유 자산은 여기 넣지 않는다.</span>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">RecordTalesTypes.h</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 길드 하나 = 계정 세이브 안의 배열 원소. 계정 공유 자산은 여기 넣지 않는다.</span>
 <span class="hljs-meta">USTRUCT()</span>
 <span class="hljs-keyword">struct</span> <span class="hljs-type">FGuildData</span>
 {
@@ -760,10 +769,16 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
     <span class="hljs-comment">// 레벨은 저장하지 않고 시간에서 파생 — 60분=1레벨. 이게 '정직한 레벨'의 핵심.</span>
     <span class="hljs-type">int32</span> <span class="hljs-title">GetLevel</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> FocusSeconds / <span class="hljs-number">3600</span>; }
-};</pre>
+};</pre></div>
+    </div>
 
     <h3>URecordTalesSaveGame — 계정 공유 + 길드 배열</h3>
-    <pre class="hljs"><span class="hljs-meta">UCLASS()</span>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">RecordTalesSaveGame.h</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">UCLASS()</span>
 <span class="hljs-keyword">class</span> <span class="hljs-type">URecordTalesSaveGame</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">USaveGame</span>
 {
     <span class="hljs-meta">GENERATED_BODY()</span>
@@ -779,10 +794,16 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FGuildData</span>&gt;    Guilds;   <span class="hljs-comment">// 멀티 길드 배열</span>
     <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FArchiveRecord</span>&gt; Archive;  <span class="hljs-comment">// 통합 원장(각 기록에 GuildId 태그)</span>
     <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">int32</span> NextGuildId = <span class="hljs-number">1</span>;             <span class="hljs-comment">// 길드 생성순 번호 카운터(재사용 없음)</span>
-};</pre>
+};</pre></div>
+    </div>
 
     <h3>UGuildSubsystem — 길드 로직 + 현재 길드 컨텍스트</h3>
-    <pre class="hljs"><span class="hljs-meta">UCLASS()</span>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">GuildSubsystem.h</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">UCLASS()</span>
 <span class="hljs-keyword">class</span> <span class="hljs-type">UGuildSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
 {
     <span class="hljs-meta">GENERATED_BODY()</span>
@@ -800,7 +821,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-keyword">void</span> <span class="hljs-title">SoftDeleteGuild</span>(<span class="hljs-type">int32</span> GuildId);  <span class="hljs-comment">// bDeleted=true, 그 길드 기록도 함께 숨김(cascade)</span>
     <span class="hljs-keyword">void</span> <span class="hljs-title">RestoreGuild</span>(<span class="hljs-type">int32</span> GuildId);     <span class="hljs-comment">// bDeleted=false로 복원</span>
     <span class="hljs-keyword">void</span> <span class="hljs-title">PurgeGuild</span>(<span class="hljs-type">int32</span> GuildId);       <span class="hljs-comment">// 실제 제거 + 그 길드 기록도 완전 삭제</span>
-};</pre>
+};</pre></div>
+    </div>
 
     <div class="callout info" style="margin-top:14px">
       <span class="ic">&#x1F9ED;</span>
@@ -831,5 +853,49 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.5</span>
 </footer>
 
+<script>
+(function () {
+  document.querySelectorAll('.codeblock').forEach(function (block) {
+    var tabs = block.querySelectorAll('.codeblock-tab');
+    var panels = block.querySelectorAll('.codeblock-panel');
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) { t.classList.remove('active'); });
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        if (panels[i]) panels[i].classList.add('active');
+      });
+    });
+    var copyBtn = block.querySelector('.codeblock-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () {
+        var pre = block.querySelector('.codeblock-panel.active pre');
+        if (!pre) return;
+        var text = pre.innerText;
+        var done = function () {
+          copyBtn.textContent = '복사됨 ✓';
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.textContent = '복사';
+            copyBtn.classList.remove('copied');
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+        } else {
+          fallbackCopy(text, done);
+        }
+      });
+    }
+  });
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+})();
+</script>
 </body>
 </html>
