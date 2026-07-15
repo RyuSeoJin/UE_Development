@@ -7,6 +7,9 @@
 <!-- ============================================================
      CHANGELOG — recordtales_v2-index.html
      RecordTales V2 프로젝트 허브 (골격). 작업 규약: doc-process/DOC-TRACKS.md (Track B)
+     v0.2 · 2026-07-15
+       - (용어 확정) 캐릭터 "분해" → "추출(Extract)"로 명칭 통일, 조각 = 조각(Shard).
+         프로젝트 용어집에 추출(Extract)·조각(Shard) 항목 추가(term-extract·term-shard 앵커).
      v0.1 · 2026-07-09
        - 신규 생성 (골격). RecordTales V2 재설계 프로젝트 허브.
        - 마스터 CSS v1.5 inline 스냅샷 (기존 recordtales-index.html 스타일 블록 재사용).
@@ -494,7 +497,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td>기억 거래소</td><td>캐릭터를 추출(교환)해 조각을 얻는 건물. 배치&middot;상시 산출 없음.</td></tr>
       <tr><td>능력치 개화</td><td>캐릭터의 능력치 슬롯(최대 4)이 열리는 것. 캐릭터 등급이 개화 수&middot;능력치 등급을 결정.</td></tr>
       <tr><td>능력치 등급</td><td>능력치 자체의 등급(일반~레전더리). 효과 크기(계수 tier)를 정함.</td></tr>
-      <tr><td>조각(Shard)</td><td>캐릭터 추출로 얻는 강화 재료. 능력치 단계를 올리는 데 씀.</td></tr>
+      <tr><td id="term-extract">추출(Extract)</td><td>보유한 캐릭터를 소멸시켜 조각(Shard)을 얻는 행동. 기억 거래소에서 실행. 등급이 높을수록 더 많은 조각 지급.</td></tr>
+      <tr><td id="term-shard">조각(Shard)</td><td>추출(Extract)로 얻는 강화 재료. 능력치 단계를 올리는 데 씀.</td></tr>
       <tr><td>계정 XP</td><td>전 길드 활동 XP의 합. 가챠 등급 출현 확률을 결정.</td></tr>
       <tr><td>정직한 레벨</td><td>실제 활동에서만 오르는 길드 레벨. 캐릭터&middot;Gold로는 못 올림.</td></tr>
       <tr><td>소프트 삭제 &middot; 휴지통</td><td>삭제해도 데이터를 남겨 휴지통에서 복원 가능. 완전 삭제는 별도.</td></tr>

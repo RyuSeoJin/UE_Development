@@ -8,6 +8,9 @@
      CHANGELOG — 00-recordtales-v2-overview.html
      RecordTales V2 프로젝트 개요 (Track B · 02-A 아키텍처 패턴, 프로젝트 스코프).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     v0.3 · 2026-07-15
+       - (용어 확정) 캐릭터 "분해" → "추출(Extract)"로 명칭 통일, 조각 = "조각(Shard)".
+         용어집에 추출(Extract)·조각(Shard) 항목 추가(term-extract·term-shard 앵커).
      v0.2 · 2026-07-10
        - (추가) 06 제작 순서 섹션에 "🚀 작업 시작하기" 블록 — 공통 전제(엔진·IDE·C++ 프로젝트),
          착수 문서 순서(01→03→02→04), 공통 절차는 위키 'C++ 클래스 생성 · 빌드 워크플로우' 참조.
@@ -358,7 +361,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><strong>골드 건물</strong></td><td>캐릭터를 배치하면 그 능력치로 <strong>Gold</strong>를 산출하는 경영 건물.</td></tr>
       <tr><td><strong>기억 거래소</strong></td><td>캐릭터를 <strong>추출</strong>해 <strong>조각</strong>을 얻는 건물(배치·상시 산출 없음).</td></tr>
       <tr><td><strong>능력치 개화</strong></td><td>캐릭터의 능력치 슬롯(최대 4)이 열리는 것. <strong>캐릭터 등급</strong>이 개화 슬롯 수와 뜨는 능력치 등급을 결정.</td></tr>
-      <tr><td><strong>조각(Shard)</strong></td><td>추출로 얻는 강화 재료. 능력치 <strong>단계</strong>를 올리는 데 씀.</td></tr>
+      <tr><td id="term-extract"><strong>추출(Extract)</strong></td><td>보유한 캐릭터를 소멸시켜 <strong>조각(Shard)</strong>을 얻는 행동. <strong>기억 거래소</strong>에서 실행하며, 캐릭터 등급이 높을수록 더 많은 조각을 지급.</td></tr>
+      <tr><td id="term-shard"><strong>조각(Shard)</strong></td><td><strong>추출(Extract)</strong>로 얻는 강화 재료. 능력치 <strong>단계</strong>를 올리는 데 씀.</td></tr>
       <tr><td><strong>소프트 삭제 · 휴지통</strong></td><td>길드·기록을 삭제해도 데이터를 남겨 <strong>휴지통에서 복원</strong> 가능. 완전 삭제는 별도(로컬 저장).</td></tr>
     </table>
 
