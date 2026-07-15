@@ -3,31 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RecordTales V2 — 영지 · 경영 건물 경제</title>
+<title>RecordTales V2 — 아카이브 · 기록 ID · 소프트 삭제</title>
 <!-- ============================================================
-     CHANGELOG — 02-estate-management-economy.html
-     RecordTales V2 영지 · 경영 건물 경제 (Track B · 02-A 아키텍처 패턴).
+     CHANGELOG — 07-archive-record-softdelete.html
+     RecordTales V2 아카이브 · 기록 ID · 소프트 삭제 (Track B · 02-A 아키텍처 패턴).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
-     v0.3 · 2026-07-12
-       - (변경) 스켈레톤 <pre class="hljs"> 3건을 .codeblock(파일명 탭 + 복사 버튼)으로 래핑 —
-         RecordTalesTypes.h / EstateSubsystem.h / EstateSubsystem.cpp 단일 탭.
-         탭 전환·복사 JS 추가(v1 문서와 동일 패턴). (사용자 피드백: .h/.cpp 예제가 탭 미노출)
-     v0.2 · 2026-07-10
-       - (추가) 05 스켈레톤 섹션 첫머리에 "🚀 이 문서로 작업 시작하기" 블록 —
-         전제(01·03 선행) · 만들 파일 표 · 코드 외 작업(DT_Building 데이터 입력) · 컴파일 주의.
-         (사용자 피드백: 착수 방법·코드 외 작업 누락 보완)
-     v0.1 · 2026-07-09
-       - 신규 생성. 골드 건물·기억 거래소, 산출 공식, 유휴/집중 배율, 스켈레톤.
-       - 마스터 CSS v1.5 전체 inline 스냅샷. 스켈레톤 코드 hljs 구워넣기 + 한국어 주석(v3.8).
-       - 실제 수치는 DataTable 튜닝 — 본 문서는 공식·구조 중심. 문서 간 상대링크 없음.
-       - 상세 설계 원장: ~/.claude/plans/replicated-weaving-stearns.md
+     v0.1 · 2026-07-12
+       - 신규 생성. 통합 원장·태그·기록 ID 규칙·뷰·소프트 삭제(휴지통)·스켈레톤.
+       - 마스터 CSS v1.5 전체 inline. 코드는 .codeblock 탭+복사 + 하단 JS. hljs 구워넣기 + 한국어 주석.
+       - 정렬은 문자열 ID 아닌 datetime/정수 필드. 문서 간 상대링크 없음.
+       - 상세 설계 원장: Project/RecordTales_V2/_HANDOFF.md
      ============================================================ -->
 <style>
 /* ============================================================
    UE Design System — Master Stylesheet
    (design-guide-ue-master.css)
    언리얼 에셋 분석 · 아키텍처 설계 문서 공통 토대
-   v1.5  (Dark · Indigo Minimal · Editorial)
+   v1.6  (Dark · Indigo Minimal · Editorial)
 
    사용법
    - 가이드 문서(master-visual / design-template의 01 / 02)는 <link>로 이 파일을 참조.
@@ -35,6 +27,18 @@
      단일 파일로 배포한다. (오프라인 무결성 유지)
 
    변경 이력 (CHANGELOG) — 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+   v1.6 · 2026-07-10
+     - (추가) 블루프린트 에디터 관례색 토큰(--bp-*) — 캔버스/노드/제목 바 5종(이벤트·
+       함수 호출·순수 함수·흐름 제어·캐스트)/핀 타입 8종(Exec·Bool·Float·Int·
+       String·Vector·Object·Class). UE 에디터의 의미색이므로 .bp-graph 내부 전용.
+     - (추가) .bp-graph — 블루프린트 노드 그래프 컨테이너(UE 에디터 재현, 구워넣은 SVG).
+       SVG 내부 클래스: .bpn-body/.bpn-name/.bpn-sub/.bpn-icon/.bpn-chip/.bpn-chip-text
+       (노드) · .bpp-exec(실행 핀 ▷)/.bpp-pin(데이터 핀 ● + t-* 타입, .off=미연결)/
+       .bpp-label(핀 라벨) · .bpw(와이어: .exec 또는 t-* 타입) · .bpg-caption(캡션)
+     - 규칙: .diagram과 동일 철학 — 생성 시점 SVG 구워넣기(런타임 렌더링 금지).
+       제목 바 그라데이션·격자 패턴은 SVG <defs> 표준 블록(bpg-*)을 각 SVG에 포함.
+     - 사유: 사용자 요청 "구현 방법에 블루프린트 노드 포함 + 에디터와 동일한 디자인"
+       (블루프린트 인터페이스 문서, Case B 승인)
    v1.5 · 2026-07-07
      - (추가) .diagram — 구워넣은 SVG 다이어그램 컨테이너(Mermaid 스타일 플로차트).
        SVG 내부 클래스: .dg-node(+k-* 종류 변형)/.dg-text/.dg-sub/.dg-edge(+lk-* 연결 변형)/.dg-elabel
@@ -119,6 +123,28 @@
   --ue-header: #38D9B4;      /* .h  헤더(선언)   */
   --ue-source: #FB8C5A;      /* .cpp 소스(구현)  */
   --ue-macro:  #FB8C5A;      /* UCLASS / UPROPERTY / UFUNCTION 등 리플렉션 매크로 */
+
+  /* --- 블루프린트 에디터 관례색 (.bp-graph 전용, v1.6 신규) ---
+     UE 블루프린트 에디터의 노드·핀 색 관례를 그대로 재현하는 의미색.
+     인디고 팔레트와 성격이 다르므로 .bp-graph SVG 내부에서만 사용한다
+     (본문 UI·다른 컴포넌트에 유출 금지). */
+  --bp-canvas:  #26282A;     /* 그래프 에디터 캔버스 배경                          */
+  --bp-grid:    #2B2D2F;     /* 캔버스 격자선(소, 16px)                            */
+  --bp-grid-2:  #1D1F21;     /* 캔버스 격자선(대, 80px)                            */
+  --bp-node:    #17181A;     /* 노드 본체                                          */
+  --bp-event:   #A03232;     /* 제목 바 — 이벤트(빨강)                             */
+  --bp-call:    #2E6FB4;     /* 제목 바 — 함수 호출·인터페이스 메시지(파랑)        */
+  --bp-pure:    #3F9142;     /* 제목 바 — 순수 함수(초록, 실행 핀 없음)            */
+  --bp-flow:    #787878;     /* 제목 바 — 흐름 제어 Branch/Sequence 등(회색)       */
+  --bp-cast:    #38808F;     /* 제목 바 — 캐스트(청록)                             */
+  --bp-exec:    #E2E2E2;     /* 실행 핀 ▷ · 실행 와이어(흰색)                      */
+  --bp-bool:    #A31515;     /* Boolean 핀(적갈색)                                 */
+  --bp-float:   #9FE838;     /* Float 핀(연두)                                     */
+  --bp-int:     #26E0A8;     /* Integer 핀(청록)                                   */
+  --bp-string:  #F535C8;     /* String 핀(자홍)                                    */
+  --bp-vector:  #F6C21C;     /* Vector 핀(노랑)                                    */
+  --bp-object:  #0A84FF;     /* Object 참조 핀(파랑)                               */
+  --bp-class:   #8A5CD6;     /* Class·Interface 참조 핀(보라)                      */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -534,6 +560,56 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .graph-net .gn-label { fill: var(--text-muted); font-family: 'IBM Plex Mono', monospace; font-size: 10px; text-anchor: middle; }
 .graph-net .gn-label.big { fill: var(--text); font-size: 11px; font-weight: 600; }
 
+/* ============================================================
+   BP-GRAPH — 블루프린트 노드 그래프 (UE 에디터 재현)  [v1.6 신규]
+   블루프린트 에디터의 노드·핀·와이어를 생성 시점 SVG로 구워넣는다
+   (.diagram과 동일 철학 — 런타임 렌더링 스크립트 금지).
+
+   사용 규칙
+   - 제목 바 그라데이션(bpg-event/call/pure/flow/cast)·격자 패턴(bpg-grid/grid80)·
+     그림자(bpg-shadow)는 SVG <defs> 표준 블록을 각 SVG에 포함해 쓴다
+     (master-visual 09 데모의 defs를 그대로 복사). 제목 바 fill은
+     CSS가 아니라 fill="url(#bpg-…)" 속성으로 지정한다(그라데이션이 CSS 클래스에
+     덮이지 않게 하기 위함).
+   - 노드 종류(제목 바 색): 이벤트=빨강 · 함수 호출/인터페이스 메시지=파랑 ·
+     순수 함수=초록(실행 핀 없음) · 흐름 제어=회색 · 캐스트=청록.
+   - 핀: 실행 핀 ▷(.bpp-exec) · 데이터 핀 ●(.bpp-pin + t-* 타입 색).
+     미연결 핀은 .off(외곽선만). 와이어(.bpw)는 실행=.exec(흰색·굵게),
+     데이터=핀과 같은 t-* 색.
+   - 변수 Get/Set 캡슐: .bpn-body에 rx=15 + 좌측 타입 색 스트립(rect)로 표현.
+   ============================================================ */
+.bp-graph { background: var(--bp-canvas); border: 1px solid var(--border); border-radius: 10px; margin: 16px 0; overflow-x: auto; }
+.bp-graph svg { display: block; max-width: 100%; height: auto; margin: 0 auto; min-width: 560px; }
+.bp-graph .bpn-body { fill: var(--bp-node); fill-opacity: 0.97; stroke: #050505; }
+.bp-graph .bpn-name { fill: #F4F4F4; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; font-weight: 600; }
+.bp-graph .bpn-sub  { fill: #B9D2EA; font-family: 'Pretendard', 'Noto Sans KR', sans-serif; font-size: 8.5px; }
+.bp-graph .bpn-icon { fill: #EDEDED; font-size: 11px; }
+.bp-graph .bpn-chip { fill: #101113; stroke: #3A3C40; }
+.bp-graph .bpn-chip-text { fill: #D8D8D8; font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; }
+.bp-graph .bpp-exec { fill: var(--bp-exec); }
+.bp-graph .bpp-pin { stroke-width: 1.6; }
+.bp-graph .bpp-pin.t-bool   { fill: var(--bp-bool);   stroke: var(--bp-bool); }
+.bp-graph .bpp-pin.t-float  { fill: var(--bp-float);  stroke: var(--bp-float); }
+.bp-graph .bpp-pin.t-int    { fill: var(--bp-int);    stroke: var(--bp-int); }
+.bp-graph .bpp-pin.t-string { fill: var(--bp-string); stroke: var(--bp-string); }
+.bp-graph .bpp-pin.t-vector { fill: var(--bp-vector); stroke: var(--bp-vector); }
+.bp-graph .bpp-pin.t-object { fill: var(--bp-object); stroke: var(--bp-object); }
+.bp-graph .bpp-pin.t-class  { fill: var(--bp-class);  stroke: var(--bp-class); }
+/* 미연결 핀 — 외곽선만 (t-* 뒤에 선언해 fill을 이긴다) */
+.bp-graph .bpp-pin.off  { fill: none; }
+.bp-graph .bpp-exec.off { fill: none; stroke: var(--bp-exec); stroke-width: 1.4; }
+.bp-graph .bpp-label { fill: #C9C9C9; font-family: 'IBM Plex Mono', monospace; font-size: 10px; }
+.bp-graph .bpw { fill: none; stroke-width: 1.8; }
+.bp-graph .bpw.exec     { stroke: var(--bp-exec); stroke-width: 2.2; }
+.bp-graph .bpw.t-bool   { stroke: var(--bp-bool); }
+.bp-graph .bpw.t-float  { stroke: var(--bp-float); }
+.bp-graph .bpw.t-int    { stroke: var(--bp-int); }
+.bp-graph .bpw.t-string { stroke: var(--bp-string); }
+.bp-graph .bpw.t-vector { stroke: var(--bp-vector); }
+.bp-graph .bpw.t-object { stroke: var(--bp-object); }
+.bp-graph .bpw.t-class  { stroke: var(--bp-class); }
+.bp-graph .bpg-caption { fill: #8B8F94; font-family: 'Pretendard', 'Noto Sans KR', sans-serif; font-size: 12px; }
+
 @media (max-width: 720px) {
   .content { padding: 0 20px 60px; }
   .hero { padding: 48px 20px 40px; }
@@ -562,27 +638,27 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <body>
 
 <nav>
-  <div class="nav-logo">RECORDTALES V2 &middot; ESTATE</div>
+  <div class="nav-logo">RECORDTALES V2 &middot; ARCHIVE</div>
   <div class="nav-links">
     <a href="#concept">개념</a>
-    <a href="#compose">구성</a>
-    <a href="#formula">산출 공식</a>
-    <a href="#flow">흐름</a>
+    <a href="#id">기록 ID</a>
+    <a href="#views">뷰</a>
+    <a href="#softdelete">소프트 삭제</a>
     <a href="#skeleton">스켈레톤</a>
     <a href="#extend">확장</a>
   </div>
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">RecordTales V2 &middot; v0.1 &middot; Estate Economy</div>
-  <h1>영지 &middot; 경영 건물<br><span>경제</span></h1>
+  <div class="hero-eyebrow">RecordTales V2 &middot; v0.1 &middot; Archive</div>
+  <h1>아카이브 · 기록 ID<br><span>· 소프트 삭제</span></h1>
   <p class="hero-sub">
-    뽑은 캐릭터를 <strong>경영 건물</strong>에 배치해 Gold와 조각을 버는 계정 단위 경제입니다. 산출은 캐릭터 능력치로 커지고, <strong>집중 중일 때 N배</strong>가 되어 "게임을 최대로 돌리려면 실제로 집중해야" 하도록 설계됩니다.
+    모든 활동은 계정 단위 <strong>통합 원장</strong>에 기록되고, 각 기록은 (길드 → 카테고리 → 소스)로 태그됩니다. 길드별로 나눠 보거나 전체를 모아 볼 수 있고, 삭제해도 휴지통에서 되살릴 수 있습니다.
   </p>
   <div class="hero-meta">
-    <span class="badge badge-blue">2 건물 · 2 자원</span>
-    <span class="badge badge-green">유휴 1배 + 집중 N배</span>
-    <span class="badge badge-purple">02-A 아키텍처 패턴</span>
+    <span class="badge badge-blue">통합 원장 + 태그</span>
+    <span class="badge badge-green">밀리초 ID</span>
+    <span class="badge badge-purple">소프트 삭제 · 휴지통</span>
   </div>
 </div>
 
@@ -591,113 +667,86 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   <!-- ===== 01 개념 ===== -->
   <div class="section" id="concept">
     <div class="section-label">01 — 개념</div>
-    <h2>영지가 하는 일</h2>
+    <h2>통합 저장, 분리 조회</h2>
     <p>
-      <strong>영지(Estate)</strong>는 계정 단위의 홈 화면이자, 뽑은 캐릭터가 "일하는" 공간입니다. 중복 허용·무제한 보유로 캐릭터가 많이 쌓이는데, 경영 건물이 <strong>비주력 캐릭터에게 일자리</strong>를 주어 놀지 않게 하고 자원을 순환시킵니다.
+      기록은 길드마다 따로 저장하지 않고 <strong>계정 단위 통합 원장 하나</strong>에 모읍니다. 대신 각 기록에 <strong>GuildId · 카테고리 · 소스</strong>를 태그합니다. 그래서 특정 길드에 들어가면 그 길드 기록만 필터해 보이고(분리), 기념비에선 전 길드를 합쳐 볼 수 있습니다(전체 조망).
     </p>
-    <p>
-      건물은 두 종류입니다. <strong>골드 건물</strong>은 캐릭터를 배치하면 <strong>Gold</strong>를 산출하고, <strong>기억 거래소</strong>는 캐릭터를 추출해 <strong>조각</strong>을 얻습니다. 골드 건물의 산출은 <strong>집중(타이머 가동) 중일 때 N배</strong>가 됩니다.
-    </p>
-
-    <div class="callout tip" style="margin-top:18px">
-      <span class="ic">&#x1F4A1;</span>
-      <p><strong>게임이 집중을 유도한다.</strong> 유휴(집중 안 함) 상태에선 1배로만 벌리고 오프라인 누적에 상한이 있습니다. 반면 집중 중에는 N배. 그래서 "경영으로 많이 벌려면 실제 집중이 필요"해, 게임 요소가 생산성을 방해하지 않고 오히려 당깁니다.</p>
-    </div>
-  </div>
-
-  <!-- ===== 02 구성 ===== -->
-  <div class="section" id="compose">
-    <div class="section-label">02 — 구성</div>
-    <h2>건물 · 슬롯 · 자원</h2>
-    <p>경영 경제는 2건물·2자원으로 단순합니다(복잡할수록 일정 관리 앱에서 멀어짐). 캐릭터 배치처는 <strong>골드 건물 하나</strong>이고, 기억 거래소는 추출 전용입니다.</p>
-
-    <table class="tbl">
-      <tr><th>건물</th><th>산출</th><th>배치</th><th>비고</th></tr>
-      <tr>
-        <td><strong>골드 건물</strong> (음식점·상점 등 테마별)</td>
-        <td>Gold</td>
-        <td>슬롯(≤3, 성장 해금)에 캐릭터 배치</td>
-        <td>산출은 아래 공식. 테마 매칭 캐릭터면 보너스.</td>
-      </tr>
-      <tr>
-        <td><strong>기억 거래소</strong></td>
-        <td>조각</td>
-        <td>배치 없음 — 캐릭터를 넣어 추출(교환)</td>
-        <td>등급별 고정 조각 지급.</td>
-      </tr>
-    </table>
-
-    <div class="callout info" style="margin-top:16px">
+    <div class="callout info" style="margin-top:6px">
       <span class="ic">&#x1F9ED;</span>
-      <p><strong>자원 2종.</strong> <strong>Gold</strong>(가챠·건물 업그레이드·해금에 씀)와 <strong>조각</strong>(캐릭터 능력치 단계 강화에 씀). 건물 업그레이드로 기본 산출이 오르고, 슬롯이 열립니다(레벨별, <code>DT_Building_Upgrade</code>).</p>
+      <p><strong>왜 통합인가.</strong> 길드별로 사일로화하면 "올해 다 합쳐 몇 시간 했나" 같은 <strong>전체 조망</strong>을 영영 못 만듭니다. 통합 저장 + 태그면 per-guild 뷰와 전체 뷰가 둘 다 공짜로 나옵니다. RecordTales의 이름값(내 기록의 이야기)이 여기 있습니다.</p>
     </div>
   </div>
 
-  <!-- ===== 03 산출 공식 ===== -->
-  <div class="section" id="formula">
-    <div class="section-label">03 — 산출 공식</div>
-    <h2>얼마나 버는가</h2>
-    <p>골드 건물의 시간당 산출은 <strong>더하는 부분(flat)</strong>과 <strong>곱하는 부분(상태 배율)</strong>로 나뉩니다.</p>
+  <!-- ===== 02 기록 ID ===== -->
+  <div class="section" id="id">
+    <div class="section-label">02 — 기록 ID</div>
+    <h2>밀리초 + 길드번호</h2>
+    <p>기록 ID는 <code>YYYYMMDDhhmmssSSS-{GUILDID}</code> 형식입니다.</p>
 
-    <div class="callout info">
-      <span class="ic">&#x1F9EE;</span>
-      <p style="line-height:2">
-        <strong>골드/시간 = (건물 기본 산출 + Σ 캐릭터 flat 보너스) &times; 상태 배율</strong><br>
-        &bull; <strong>일반(집중 안 함) 배율</strong> = 1 + Σ(캐릭터 일반 배율 보너스)<br>
-        &bull; <strong>집중 배율</strong> = <em>기본 집중 배율 N</em>(영지 규칙) + Σ(캐릭터 집중 배율 보너스)<br>
-        &bull; <strong>flat 보너스</strong>는 상태와 무관하게 항상 더해집니다.
-      </p>
-    </div>
-
-    <h3>워크드 예시</h3>
-    <p>기본 산출 <strong>10</strong>인 음식점에 세 캐릭터를 배치했다고 합시다(수치는 예시).</p>
     <table class="tbl">
-      <tr><th>캐릭터</th><th>flat</th><th>일반 배율 보너스</th><th>집중 배율 보너스</th></tr>
-      <tr><td>A</td><td>+3</td><td>—</td><td>—</td></tr>
-      <tr><td>B</td><td>+2</td><td>—</td><td>×2</td></tr>
-      <tr><td>C</td><td>—</td><td>×2</td><td>×2</td></tr>
-      <tr><td><strong>합</strong></td><td><strong>+5</strong></td><td>1+(2&minus;1)=<strong>2</strong></td><td>N+(2&minus;1)+(2&minus;1)=<strong>N+2</strong></td></tr>
+      <tr><th>부분</th><th>예</th><th>역할</th></tr>
+      <tr><td><code>YYYYMMDDhhmmssSSS</code></td><td>20260712143005123</td><td>밀리초까지 — 고정폭 0-패딩이라 문자열 정렬해도 시간순 보장·충돌 방지</td></tr>
+      <tr><td><code>{GUILDID}</code></td><td>000001</td><td>생성순 길드번호. <strong>최소 6자리 0-패딩이되 초과 시 자릿수 확장</strong>(→1000000). 재사용 없음</td></tr>
     </table>
-    <table class="tbl" style="margin-top:12px">
-      <tr><th>상태</th><th>계산</th><th>시간당 Gold</th></tr>
-      <tr><td>일반(유휴)</td><td>(10 + 5) &times; 2</td><td><strong>30</strong> (오프라인 누적 캡 적용)</td></tr>
-      <tr><td>집중 중</td><td>(10 + 5) &times; (N + 2)</td><td><strong>15 &times; (N+2)</strong></td></tr>
-    </table>
-    <p style="color:var(--text-dim); font-size:13px; margin-top:10px">※ 배율 보너스는 "각 배율 − 1"을 더합니다(예: ×2 → +1). N(영지 기본 집중 배율)·건물 기본 산출·캐릭터 능력치 값은 모두 DataTable 튜닝 대상입니다.</p>
+
+    <div class="callout warn" style="margin-top:14px">
+      <span class="ic">&#x26A0;&#xFE0F;</span>
+      <p><strong>정렬은 문자열 ID가 아니라 필드로.</strong> ID의 길드 접미사는 <strong>가독용</strong>일 뿐, 실제 정렬·필터는 밑단 <code>CreatedAt</code>(FDateTime)·정수 <code>GuildId</code> 필드로 합니다. 그래야 길드번호가 자릿수 확장돼도(가변 폭) 정렬이 안 깨집니다.</p>
+    </div>
   </div>
 
-  <!-- ===== 04 흐름 ===== -->
-  <div class="section" id="flow">
-    <div class="section-label">04 — 흐름</div>
-    <h2>배치에서 수집까지</h2>
+  <!-- ===== 03 뷰 ===== -->
+  <div class="section" id="views">
+    <div class="section-label">03 — 뷰</div>
+    <h2>어디서 무엇을 보나</h2>
 
     <div class="pipe-step">
       <div class="pipe-num">1</div>
-      <div class="pipe-body">
-        <div class="pipe-title">배치</div>
-        <div class="pipe-desc">골드 건물 슬롯에 캐릭터를 넣습니다(<code>FBuildingState.DeployedInstanceIds</code>). 그 캐릭터의 능력치가 산출에 반영됩니다.</div>
-      </div>
+      <div class="pipe-body"><div class="pipe-title">홈 = "오늘 할 일"</div>
+        <div class="pipe-desc">앱을 열면 전 길드 통합의 오늘 할 일(행동)이 먼저. 즉흥 집중 시작 경로도 짧게.</div></div>
     </div>
     <div class="pipe-step">
       <div class="pipe-num">2</div>
-      <div class="pipe-body">
-        <div class="pipe-title">산출 (상태 배율)</div>
-        <div class="pipe-desc">유휴면 일반 배율(1배 계열), 집중 중이면 집중 배율(기본 N배 + 캐릭터 보너스). 시간당 산출이 공식으로 정해집니다.</div>
-      </div>
+      <div class="pipe-body"><div class="pipe-title">길드 패널 = 그 길드 아카이브</div>
+        <div class="pipe-desc">길드 건물에 들어가면 그 GuildId로 필터된 기록(분야별).</div></div>
     </div>
     <div class="pipe-step">
       <div class="pipe-num">3</div>
-      <div class="pipe-body">
-        <div class="pipe-title">유휴 누적 (오프라인 캡)</div>
-        <div class="pipe-desc">앱을 닫아도 유휴 산출이 쌓이되, <strong>오프라인 누적 캡</strong>까지만(돌아왔을 때 보너스 수준). 무한정 쌓이지 않아 "집중 안 해도 됨"을 막습니다.</div>
-      </div>
+      <div class="pipe-body"><div class="pipe-title">기념비 = 전체 기록</div>
+        <div class="pipe-desc">기념비형 오브젝트를 선택하면 전 길드를 모은 회고 뷰(전체 조망).</div></div>
     </div>
     <div class="pipe-step">
       <div class="pipe-num">4</div>
-      <div class="pipe-body">
-        <div class="pipe-title">수집</div>
-        <div class="pipe-desc"><code>LastCollectTime</code>과 <strong>신뢰 시간</strong>(조작 방지)으로 "지난 시간 × 산출"을 계산해 Gold 지갑에 넣습니다.</div>
-      </div>
+      <div class="pipe-body"><div class="pipe-title">캘린더 도트</div>
+        <div class="pipe-desc">집중/스톱워치/퀘스트 소스별 점. per-guild / 전체 두 모드.</div></div>
+    </div>
+  </div>
+
+  <!-- ===== 04 소프트 삭제 ===== -->
+  <div class="section" id="softdelete">
+    <div class="section-label">04 — 소프트 삭제 · 휴지통</div>
+    <h2>지워도 되살린다</h2>
+    <p>길드·기록에 <code>bDeleted</code> + <code>DeletedTime</code> 플래그를 둡니다. 로컬 저장, 무기한 보존.</p>
+
+    <div class="pipe-step">
+      <div class="pipe-num">1</div>
+      <div class="pipe-body"><div class="pipe-title">삭제 = 플래그만</div>
+        <div class="pipe-desc">일반 화면은 <code>bDeleted==false</code>만 보여줌. 삭제는 실제 제거가 아니라 플래그 세팅.</div></div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">2</div>
+      <div class="pipe-body"><div class="pipe-title">휴지통 = 복원</div>
+        <div class="pipe-desc"><code>bDeleted==true</code>만 모아 보여주고, 복원(플래그 해제). <strong>삭제 항목은 휴지통 열 때만 로드</strong>(평소 화면 속도 유지).</div></div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">3</div>
+      <div class="pipe-body"><div class="pipe-title">완전 삭제 · Cascade</div>
+        <div class="pipe-desc">완전 삭제는 실제 제거. <strong>길드 삭제 → 그 길드 기록도 함께</strong>(복원 시 함께 복원, 완전삭제 시 함께 purge).</div></div>
+    </div>
+
+    <div class="callout info" style="margin-top:12px">
+      <span class="ic">&#x1F9ED;</span>
+      <p><strong>용량 걱정 없음.</strong> 기록 하나는 숫자·짧은 텍스트라 ~100~200바이트. 수년 heavy 사용도 수 MB 수준이라 무기한 보존이 문제 되지 않습니다. 신경 쓸 건 크기가 아니라 <strong>로딩 방식</strong>(삭제 항목 지연 로드).</p>
     </div>
   </div>
 
@@ -706,83 +755,49 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <div class="section-label">05 — 스켈레톤</div>
     <h2>뼈대 코드</h2>
 
-    <h3>🚀 이 문서로 작업 시작하기</h3>
-    <div class="callout info"><span class="ic">🧭</span><p><strong>전제 조건</strong> — ① <strong>01 문서 완료</strong>: <code>EconomySubsystem</code>·<code>EstateSubsystem</code> 골격과 계정 세이브가 이미 존재 ② <strong>03 문서 완료</strong>: <code>DT_Building</code> 테이블 애셋 존재(산출 공식이 조회할 값의 원본). 공통 절차는 위키 『C++ 클래스 생성 · 빌드 워크플로우』.</p></div>
-    <table class="tbl">
-      <tr><th>작업 대상 파일</th><th>생성 방법</th><th>비고</th></tr>
-      <tr><td><code>FBuildingState</code> 구조체</td><td>새 파일 아님 — 01의 <code>RecordTalesTypes.h</code>에 <strong>추가</strong></td><td>계정 세이브 Estate 배열의 원소</td></tr>
-      <tr><td><code>EconomySubsystem.h/.cpp</code> 본문</td><td>새 파일 아님 — 01에서 만든 골격에 <strong>이 문서의 산출·구매 함수를 채움</strong></td><td>공식(유휴/집중 배율)이 코드로 들어가는 곳</td></tr>
-      <tr><td><code>EstateSubsystem.h/.cpp</code> 본문</td><td>〃</td><td>건물 배치·업그레이드 상태 관리</td></tr>
-    </table>
-    <div class="callout tip"><span class="ic">💡</span><p><strong>코드 외 작업</strong> — ① <code>DT_Building</code>에 <strong>실제 행 데이터 입력</strong>(건물별 기본 산출·업그레이드 비용 — 애셋 생성 절차 자체는 03 문서 담당, 여기서는 값 채우기) ② 밸런스 튜닝은 코드 재컴파일 없이 이 테이블 편집만으로 — 그게 이 구조의 목적입니다.</p></div>
-    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>컴파일 주의</strong> — <code>FBuildingState</code>를 헤더에 추가하는 순간부터는 <strong>재빌드 코스</strong>(에디터 종료 → IDE 빌드)입니다. 이후 산출 공식 등 <strong>.cpp 본문만</strong> 다듬는 반복 작업은 Live Coding(<code>Ctrl+Alt+F11</code>)으로 빠르게 돌 수 있습니다.</div></div>
-
-    <p>건물 상태와 산출 계산의 뼈대입니다. 실제 값은 DataTable에서 조회하므로, 여기서는 <strong>공식이 코드로 어떻게 표현되는지</strong>에 집중합니다.</p>
-
-    <h3>FBuildingState — 내 건물 하나</h3>
     <div class="codeblock">
       <div class="codeblock-bar">
-        <button class="codeblock-tab tab-h active" type="button">RecordTalesTypes.h</button>
-        <button class="codeblock-copy" type="button">복사</button>
-      </div>
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 계정 세이브의 Estate 배열 원소. 영지는 계정 단위 하나.</span>
-<span class="hljs-meta">USTRUCT()</span>
-<span class="hljs-keyword">struct</span> <span class="hljs-type">FBuildingState</span>
-{
-    <span class="hljs-meta">GENERATED_BODY()</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">FName</span>   BuildingId;                <span class="hljs-comment">// → DT_Building (어떤 건물인지)</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">int32</span>   Level = <span class="hljs-number">1</span>;               <span class="hljs-comment">// 업그레이드 레벨 → DT_Building_Upgrade(기본 산출·슬롯)</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">int32</span>&gt; DeployedInstanceIds; <span class="hljs-comment">// 배치된 캐릭터 InstanceId(열린 슬롯 수만큼)</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">FDateTime</span> LastCollectTime;         <span class="hljs-comment">// 유휴 누적 계산 기준(오프라인 캡)</span>
-};</pre></div>
-    </div>
-
-    <h3>UEstateSubsystem — 산출 계산 · 수집</h3>
-    <div class="codeblock">
-      <div class="codeblock-bar">
-        <button class="codeblock-tab tab-h active" type="button">EstateSubsystem.h</button>
+        <button class="codeblock-tab tab-h active" type="button">RecordSubsystem.h</button>
+        <button class="codeblock-tab tab-cpp" type="button">RecordSubsystem.cpp</button>
         <button class="codeblock-copy" type="button">복사</button>
       </div>
       <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">UCLASS()</span>
-<span class="hljs-keyword">class</span> <span class="hljs-type">UEstateSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
+<span class="hljs-keyword">class</span> <span class="hljs-type">URecordSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
 {
     <span class="hljs-meta">GENERATED_BODY()</span>
 <span class="hljs-keyword">public</span>:
-    <span class="hljs-comment">// 한 건물의 시간당 산출 = (기본 + Σflat) × 상태 배율</span>
-    <span class="hljs-comment">// bFocusing=true면 집중 배율, false면 일반 배율을 쓴다</span>
-    <span class="hljs-type">float</span> <span class="hljs-title">ComputeOutputPerHour</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FBuildingState</span>&amp; B, <span class="hljs-type">bool</span> bFocusing) <span class="hljs-keyword">const</span>;
+    <span class="hljs-comment">// 활동 완료 시 기록 생성 — 현재 길드·카테고리·소스로 태그해 통합 원장에 추가</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title">AddRecord</span>(<span class="hljs-type">int32</span> GuildId, <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Category,
+                   <span class="hljs-type">ERecordSource</span> Source, <span class="hljs-type">int32</span> DurationSeconds);
 
-    <span class="hljs-comment">// 유휴 누적 수집: (지금 − LastCollectTime) × 산출, 단 오프라인 캡 적용</span>
-    <span class="hljs-type">int64</span> <span class="hljs-title">Collect</span>(<span class="hljs-type">FBuildingState</span>&amp; B);
+    <span class="hljs-comment">// 소프트 삭제 / 복원 / 완전 삭제 (휴지통)</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title">SoftDelete</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; RecordId);
+    <span class="hljs-keyword">void</span> <span class="hljs-title">Restore</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; RecordId);
+    <span class="hljs-keyword">void</span> <span class="hljs-title">Purge</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; RecordId);
+
+    <span class="hljs-comment">// 뷰: 삭제 안 된 것(bDeleted==false)만. 정렬은 CreatedAt 기준</span>
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FArchiveRecord</span>&gt; <span class="hljs-title">GetGuildRecords</span>(<span class="hljs-type">int32</span> GuildId) <span class="hljs-keyword">const</span>;
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FArchiveRecord</span>&gt; <span class="hljs-title">GetAllRecords</span>() <span class="hljs-keyword">const</span>;
 };</pre></div>
-    </div>
-
-    <h3>ComputeOutputPerHour — 공식의 코드 표현</h3>
-    <div class="codeblock">
-      <div class="codeblock-bar">
-        <button class="codeblock-tab tab-cpp active" type="button">EstateSubsystem.cpp</button>
-        <button class="codeblock-copy" type="button">복사</button>
-      </div>
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-type">float</span> <span class="hljs-type">UEstateSubsystem</span>::<span class="hljs-title">ComputeOutputPerHour</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FBuildingState</span>&amp; B, <span class="hljs-type">bool</span> bFocusing) <span class="hljs-keyword">const</span>
+      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-comment">// 기록 ID = 밀리초 타임스탬프 + 생성순 길드번호. 정렬은 이 문자열이 아니라 CreatedAt 필드로.</span>
+<span class="hljs-type">FString</span> <span class="hljs-title">MakeRecordId</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FDateTime</span>&amp; Now, <span class="hljs-type">int32</span> GuildId)
 {
-    <span class="hljs-comment">// 1) 건물 기본 산출 (레벨별) — DT_Building_Upgrade에서 조회</span>
-    <span class="hljs-type">float</span> Base = <span class="hljs-title">LookupBaseOutput</span>(B.BuildingId, B.Level);
+    <span class="hljs-comment">// YYYYMMDDhhmmss(초까지) + 밀리초 3자리 = 고정폭·유일</span>
+    <span class="hljs-type">FString</span> Ts = Now.<span class="hljs-title">ToString</span>(<span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"%Y%m%d%H%M%S"</span>));
+    Ts += <span class="hljs-type">FString</span>::<span class="hljs-title">Printf</span>(<span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"%03d"</span>), Now.<span class="hljs-title">GetMillisecond</span>());
+    <span class="hljs-comment">// 길드번호는 최소 6자리 0-패딩(넘으면 자동 확장). 접미사는 가독용일 뿐</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-type">FString</span>::<span class="hljs-title">Printf</span>(<span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"%s-%06d"</span>), *Ts, GuildId);
+}
 
-    <span class="hljs-comment">// 2) 배치 캐릭터들을 순회하며 flat은 더하고, 상태별 배율 보너스는 모은다</span>
-    <span class="hljs-type">float</span> FlatSum = <span class="hljs-number">0.f</span>, MultBonus = <span class="hljs-number">0.f</span>;
-    <span class="hljs-keyword">for</span> (<span class="hljs-type">int32</span> Id : B.DeployedInstanceIds)
-        <span class="hljs-title">AccumulateAbilities</span>(Id, bFocusing, FlatSum, MultBonus);  <span class="hljs-comment">// 배율은 (값−1)씩 누적</span>
-
-    <span class="hljs-comment">// 3) 상태 배율 = (집중이면 영지 기본 N배, 아니면 1) + 캐릭터 배율 보너스</span>
-    <span class="hljs-type">float</span> StateMult = (bFocusing ? EstateFocusBaseNx : <span class="hljs-number">1.f</span>) + MultBonus;
-
-    <span class="hljs-keyword">return</span> (Base + FlatSum) * StateMult;  <span class="hljs-comment">// (기본 + Σflat) × 상태 배율</span>
+<span class="hljs-comment">// 소프트 삭제 = 실제 제거가 아니라 플래그만. 완전 삭제(Purge)에서만 배열에서 뺀다.</span>
+<span class="hljs-keyword">void</span> <span class="hljs-type">URecordSubsystem</span>::<span class="hljs-title">SoftDelete</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; RecordId)
+{
+    <span class="hljs-keyword">if</span> (<span class="hljs-type">FArchiveRecord</span>* R = <span class="hljs-title">FindRecord</span>(RecordId))
+    {
+        R-&gt;bDeleted = <span class="hljs-literal">true</span>;
+        R-&gt;DeletedTime = <span class="hljs-type">FDateTime</span>::<span class="hljs-title">Now</span>();   <span class="hljs-comment">// 무기한 보존 — 휴지통에서 복원 가능</span>
+    }
 }</pre></div>
-    </div>
-
-    <div class="callout info" style="margin-top:14px">
-      <span class="ic">&#x1F9ED;</span>
-      <p><strong>수집에 신뢰 시간을 쓰는 이유.</strong> 기기 시계를 임의로 앞당겨 유휴 보상을 부풀리는 것을 막으려면, 로컬 시계 대신 <strong>신뢰 시간(trusted time)</strong>으로 경과를 계산해야 합니다. 오프라인 캡과 함께, 유휴 수입이 남용되지 않게 이중으로 막습니다.</p>
     </div>
   </div>
 
@@ -793,19 +808,18 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
     <div class="callout tip">
       <span class="ic">&#x2705;</span>
-      <p><strong>이렇게:</strong> 새 골드 건물 테마는 <code>DT_Building</code>에 행을 더하고, 레벨별 산출·슬롯·비용은 <code>DT_Building_Upgrade</code>(건물별 개별 곡선)에 넣는다. 캐릭터의 <strong>테마 매칭 보너스</strong>(캐릭터 테마 == 건물 테마면 추가 보너스)는 산출에 얹되, 비매칭 캐릭터도 배치되어 능력치는 작동한다.</p>
+      <p><strong>이렇게:</strong> v1(단일 길드) 세이브를 로드하면 기록에 GuildId가 없으니 <code>SaveVersion</code> 마이그레이션에서 <strong>"기본 길드"로 백필</strong>한다. 삭제 항목은 휴지통을 열 때만 로드해 평소 뷰를 가볍게 유지한다.</p>
     </div>
     <div class="callout warn" style="margin-top:12px">
       <span class="ic">&#x26A0;&#xFE0F;</span>
-      <p><strong>이건 피하기:</strong> 유휴 산출에 캡을 빼지 말 것 — 방치만으로 게임이 굴러가 집중 유인이 사라진다. 산출 배율을 곱셈으로 무한 스택하지 말 것 — "각 배율 −1을 더한다"는 합산 규칙을 지켜 폭주를 막는다. 수집을 로컬 시계로만 계산하지 말 것 — 시계 조작에 뚫린다.</p>
+      <p><strong>이건 피하기:</strong> 문자열 ID로 정렬하지 말 것(CreatedAt 필드로). 삭제한 길드의 GuildId를 재사용하지 말 것(과거 기록 태그가 엉킨다). 소프트 삭제 없이 곧바로 완전 삭제하지 말 것(실수 복구 불가).</p>
     </div>
-    <p style="color:var(--text-dim); font-size:13px; margin-top:12px">캐릭터 간 조합/건물 시너지는 나중 고려 항목입니다.</p>
   </div>
 
 </div>
 
 <footer>
-  <span>RecordTales V2 &middot; 영지 · 경영 건물 경제 v0.1</span>
+  <span>RecordTales V2 &middot; 아카이브 · 기록 ID · 소프트 삭제 v0.1</span>
   <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.5</span>
 </footer>
 
@@ -853,5 +867,6 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   }
 })();
 </script>
+
 </body>
 </html>

@@ -445,10 +445,11 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td>멀티 길드 아키텍처</td><td>신규</td><td><a href="./01-multi-guild-architecture.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
       <tr><td>영지 &middot; 경영 건물 경제</td><td>신규</td><td><a href="./02-estate-management-economy.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
       <tr><td>가챠 &middot; 능력치 개화 &middot; 조각</td><td>신규</td><td><a href="./04-gacha-ability-awakening.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
-      <tr><td>정직한 경제 &middot; 레벨</td><td>재작성</td><td>예정</td></tr>
-      <tr><td>아카이브 &middot; 기록 ID &middot; 소프트 삭제</td><td>재작성</td><td>예정</td></tr>
+      <tr><td>정직한 경제 &middot; 레벨</td><td>재작성</td><td><a href="./06-honest-economy.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
+      <tr><td>아카이브 &middot; 기록 ID &middot; 소프트 삭제</td><td>재작성</td><td><a href="./07-archive-record-softdelete.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
       <tr><td>데이터 설계 (DataTable &middot; SaveGame)</td><td>재작성</td><td><a href="./03-data-design.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
-      <tr><td>포커스 &middot; 퀘스트 &middot; UI 등</td><td>이관/개정</td><td>예정</td></tr>
+      <tr><td>데이터 스키마 명세 (컬럼 전수)</td><td>신규</td><td><a href="./05-data-schema-spec.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
+      <tr><td>포커스 &middot; 퀘스트 &middot; UI (Phase 1 코어)</td><td>이관/개정</td><td><a href="./08-phase1-core-systems.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
     </table>
   </div>
 
@@ -467,7 +468,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <p>길드 레벨 = 실제 활동에서만 오르는 고정 XP(캐릭터&middot;Gold로 못 올림). 가챠 확률은 전 길드 XP를 합산한 <strong>계정 XP</strong>가 결정. Gold는 계정 공유.</p>
 
     <h3>영지 &middot; 경영 건물 경제</h3>
-    <p>영지(계정 단위, 홈 화면)에 <strong>골드 건물</strong>(캐릭터 배치 &rarr; 골드)과 <strong>기억 거래소</strong>(캐릭터 분해 &rarr; 조각)를 둡니다. 산출 = (건물 기본 + &Sigma;캐릭터 flat) &times; 상태 배율(집중 중 N배). 유휴는 오프라인 누적 캡. 자원 2종(골드&middot;조각).</p>
+    <p>영지(계정 단위, 홈 화면)에 <strong>골드 건물</strong>(캐릭터 배치 &rarr; 골드)과 <strong>기억 거래소</strong>(캐릭터 추출 &rarr; 조각)를 둡니다. 산출 = (건물 기본 + &Sigma;캐릭터 flat) &times; 상태 배율(집중 중 N배). 유휴는 오프라인 누적 캡. 자원 2종(골드&middot;조각).</p>
 
     <h3>가챠 &middot; 능력치 개화</h3>
     <p>중복 허용&middot;보유 무제한. 뽑을 때 캐릭터 등급이 롤되고, 등급이 능력치 슬롯(최대 4)의 개화 수와 뜨는 능력치 등급을 결정. 능력치는 flat 골드 / 유휴 배율 / 집중 배율 3종, 등급이 계수 tier. 3장 후보 중 1택(스킵&middot;리롤 없음). 조각으로 단계 강화(가중 랜덤).</p>
@@ -490,10 +491,10 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td>영지(Estate)</td><td>계정 단위의 홈 화면. 경영 건물을 배치&middot;관리하는 공간(모든 길드 공유).</td></tr>
       <tr><td>길드(Guild)</td><td>활동 도메인 하나. 아카이브&middot;레벨&middot;카테고리를 길드별로 가짐. 캐릭터&middot;자원은 계정 공유.</td></tr>
       <tr><td>골드 건물</td><td>캐릭터를 배치하면 그 특성으로 골드를 산출하는 경영 건물.</td></tr>
-      <tr><td>기억 거래소</td><td>캐릭터를 분해(교환)해 조각을 얻는 건물. 배치&middot;상시 산출 없음.</td></tr>
+      <tr><td>기억 거래소</td><td>캐릭터를 추출(교환)해 조각을 얻는 건물. 배치&middot;상시 산출 없음.</td></tr>
       <tr><td>능력치 개화</td><td>캐릭터의 능력치 슬롯(최대 4)이 열리는 것. 캐릭터 등급이 개화 수&middot;능력치 등급을 결정.</td></tr>
       <tr><td>능력치 등급</td><td>능력치 자체의 등급(일반~레전더리). 효과 크기(계수 tier)를 정함.</td></tr>
-      <tr><td>조각(Shard)</td><td>캐릭터 분해로 얻는 강화 재료. 능력치 단계를 올리는 데 씀.</td></tr>
+      <tr><td>조각(Shard)</td><td>캐릭터 추출로 얻는 강화 재료. 능력치 단계를 올리는 데 씀.</td></tr>
       <tr><td>계정 XP</td><td>전 길드 활동 XP의 합. 가챠 등급 출현 확률을 결정.</td></tr>
       <tr><td>정직한 레벨</td><td>실제 활동에서만 오르는 길드 레벨. 캐릭터&middot;Gold로는 못 올림.</td></tr>
       <tr><td>소프트 삭제 &middot; 휴지통</td><td>삭제해도 데이터를 남겨 휴지통에서 복원 가능. 완전 삭제는 별도.</td></tr>

@@ -8,6 +8,12 @@
      CHANGELOG — 04-gacha-ability-awakening.html
      RecordTales V2 가챠 · 능력치 개화 (Track B · 02-A 아키텍처 패턴).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     v0.5 · 2026-07-15
+       - (갱신) DT_Gacha_Rate_ByLevel 스냅샷 수치를 확정본으로 교체 — 레전더리 L11+ 해금(2%→5% 램프),
+         plateau(L20) N10·R70·E15·L5. L20 10뽑당 레전더리 ≈1.4개(후하게), 1→20 누적 ≈10개. 05와 동일.
+     v0.4 · 2026-07-15
+       - (추가) 뽑기 흐름 섹션에 DT_Gacha_Rate_ByLevel 라이브 튜닝 값 스냅샷 표(1~20레벨, plateau) +
+         3장 1택 증폭 경고(레전더리 후보 3%→뽑기당 8.7%, 200뽑 기대 ≈6개). 05와 동일 수치.
      v0.3 · 2026-07-12
        - (변경) 스켈레톤 <pre class="hljs"> 2건을 .codeblock(파일명 탭 + 복사 버튼)으로 래핑 —
          GachaSubsystem.cpp 단일 탭 ×2. 탭 전환·복사 JS 추가(v1 문서와 동일 패턴).
@@ -622,7 +628,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><strong>능력치 종류</strong></td><td>3종: <strong>flat 골드 보너스 · 유휴 배율 · 집중 배율</strong>(전부 경영 골드 건물 배치용).</td></tr>
       <tr><td><strong>능력치 등급</strong></td><td>일반~레전더리. 같은 효과라도 등급이 계수 tier(효과 범위)를 정함(예: 집중배율 노말 0.5~1.5 → 레전더리 3~4).</td></tr>
       <tr><td><strong>능력치 단계</strong></td><td>능력치마다 여러 단계(고등급일수록 많음). 롤이 시작 단계, 조각으로 상한까지 강화.</td></tr>
-      <tr><td><strong>조각</strong></td><td>캐릭터 분해(기억 거래소)로 획득. 능력치 단계를 올리는 데 씀.</td></tr>
+      <tr><td><strong>조각</strong></td><td>캐릭터 추출(기억 거래소)로 획득. 능력치 단계를 올리는 데 씀.</td></tr>
     </table>
 
     <p style="color:var(--text-dim); font-size:13px; margin-top:10px">※ 실제 확률·계수·비용 수치는 DataTable(03 문서 참조)에서 튜닝합니다.</p>
@@ -653,6 +659,41 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <div class="pipe-num">4</div>
       <div class="pipe-body"><div class="pipe-title">3장 제시 → 1택</div>
         <div class="pipe-desc">이렇게 만든 완성 후보 3장을 스탯까지 보여주고, 플레이어가 하나를 선택합니다. 나머지는 버려집니다(스킵·리롤 없음).</div></div>
+    </div>
+
+    <h3 style="margin-top:22px">1단계 등급 확률 — DT_Gacha_Rate_ByLevel (스냅샷)</h3>
+    <div class="callout info" style="margin:8px 0 6px">
+      <span class="ic">&#x1F4A1;</span>
+      <p><strong>라이브 튜닝 값의 스냅샷(2026-07-15)</strong> — 실제 밸런싱은 DataTable/CSV에서 관리하며 문서 값은 참고용입니다. 전제: <strong>60분 집중=1레벨, 레벨당 10뽑</strong>(20레벨=200뽑). 등급 <strong>단계 해금</strong>(L1–3 노말·레어 → L4+ 에픽 → L11+ 레전더리), 각 행 합=100, <strong>L20에서 plateau</strong>.</p>
+    </div>
+    <div style="overflow-x:auto">
+    <table class="tbl">
+      <tr><th>Lv</th><th>Normal</th><th>Rare</th><th>Epic</th><th>Legendary</th></tr>
+      <tr><td>1</td><td>87</td><td>13</td><td>0</td><td>0</td></tr>
+      <tr><td>2</td><td>84</td><td>16</td><td>0</td><td>0</td></tr>
+      <tr><td>3</td><td>81</td><td>19</td><td>0</td><td>0</td></tr>
+      <tr><td>4</td><td>78</td><td>22</td><td>0</td><td>0</td></tr>
+      <tr><td>5</td><td>75</td><td>25</td><td>0</td><td>0</td></tr>
+      <tr><td>6</td><td>71</td><td>28</td><td>1</td><td>0</td></tr>
+      <tr><td>7</td><td>67</td><td>31</td><td>2</td><td>0</td></tr>
+      <tr><td>8</td><td>63</td><td>34</td><td>3</td><td>0</td></tr>
+      <tr><td>9</td><td>59</td><td>37</td><td>4</td><td>0</td></tr>
+      <tr><td>10</td><td>55</td><td>40</td><td>5</td><td>0</td></tr>
+      <tr><td>11</td><td>49</td><td>43</td><td>6</td><td>2</td></tr>
+      <tr><td>12</td><td>45</td><td>46</td><td>7</td><td>2</td></tr>
+      <tr><td>13</td><td>40</td><td>49</td><td>8</td><td>3</td></tr>
+      <tr><td>14</td><td>36</td><td>52</td><td>9</td><td>3</td></tr>
+      <tr><td>15</td><td>32</td><td>55</td><td>10</td><td>3</td></tr>
+      <tr><td>16</td><td>27</td><td>58</td><td>11</td><td>4</td></tr>
+      <tr><td>17</td><td>23</td><td>61</td><td>12</td><td>4</td></tr>
+      <tr><td>18</td><td>19</td><td>64</td><td>13</td><td>4</td></tr>
+      <tr><td>19</td><td>14</td><td>67</td><td>14</td><td>5</td></tr>
+      <tr><td>20 <span style="color:var(--text-dim)">(plateau)</span></td><td>10</td><td>70</td><td>15</td><td>5</td></tr>
+    </table>
+    </div>
+    <div class="callout warn" style="margin-top:10px">
+      <span class="ic">&#x26A0;&#xFE0F;</span>
+      <p><strong>표는 "후보 1장"의 등급 확률</strong>입니다. 실제 <strong>획득</strong> 분포는 3장 중 1택(등급 우선 선택)이라 고등급으로 증폭됩니다 — 레전더리 후보 L20 5% → 뽑기당 1−0.95³ ≈ <strong>14.3%</strong>. 1→20레벨(200뽑) 누적 레전더리 기대 획득 <strong>≈ 10개</strong>, L20 도달 후엔 10뽑당 <strong>≈ 1.4개</strong>(엔드게임 파밍은 후하게 설계).</p>
     </div>
   </div>
 

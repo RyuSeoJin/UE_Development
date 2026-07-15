@@ -7,13 +7,17 @@
 
 ## A. 현재 상태 (2026-07-09)
 - 새 폴더 `Project/RecordTales_V2/` + 프로젝트 허브 `recordtales_v2-index.html` 생성.
-- **완료 문서 5건** (허브 문서 목록에 링크 등록됨):
+- **완료 문서 9건** (허브 문서 목록에 링크 등록됨):
   - `00-recordtales-v2-overview.html` — 프로젝트 개요 (02-A)
   - `01-multi-guild-architecture.html` — 멀티 길드 아키텍처 (02-A)
   - `02-estate-management-economy.html` — 영지·경영 건물 경제 (02-A)
   - `03-data-design.html` — 데이터 설계 지도 (04 템플릿)
   - `04-gacha-ability-awakening.html` — 가챠·능력치 개화 (02-A)
-- **설계는 구조적으로 전부 잠김.** 남은 것 = 실수치 튜닝(DataTable) + 남은 문서 3건(아래 D).
+  - `05-data-schema-spec.html` — 데이터 스키마 명세 (02-B, 모든 컬럼 코드+표 · .codeblock 탭+JS)
+  - `06-honest-economy.html` — 정직한 경제·레벨 (02-A)
+  - `07-archive-record-softdelete.html` — 아카이브·기록 ID·소프트 삭제 (02-A)
+  - `08-phase1-core-systems.html` — Phase 1 코어(포커스·퀘스트·UI) (02-A)
+- **✅ 문서 세트 완료.** 남은 것 = 실수치 튜닝(DataTable/Settings)뿐. (아래 D는 각 문서의 아웃라인 기록 — 이미 전부 생성됨.)
 
 ---
 
@@ -61,9 +65,9 @@
 
 ---
 
-## D. 남은 문서 + 아웃라인
+## D. 문서 아웃라인 (참고 — ✅ 06·07·08 모두 생성 완료)
 
-### 05 정직한 경제 · 레벨 (`05-honest-economy.html`, 02-A, Case A)
+### 06 정직한 경제 · 레벨 (`06-honest-economy.html`, 02-A, Case A)
 1. **개념** — 정직한 레벨(60분=1레벨, 시간 거울), 왜(캐릭터·Gold로 못 올림). callout.
 2. **자원 흐름** — Gold(활동+골드건물 → 가챠·업그레이드·해금) / 조각(분해 → 강화) / XP(활동 → 길드 레벨+계정 XP). 표/관계도.
 3. **레벨 규칙** — 60분=1레벨 선형·무제한, 퀘스트 XP 없음, 계정 XP=전 길드 합→가챠 plateau. pipe-step/callout.
@@ -71,7 +75,7 @@
 5. **스켈레톤** — `UEconomySubsystem`(AddFocusTime→길드+계정, Gold 지갑, 해금). hljs.
 6. **확장** — Do/Don't(레벨 저장 금지·plateau·해금 추가).
 
-### 06 아카이브 · 기록 ID · 소프트 삭제 (`06-archive-record-softdelete.html`, 02-A, Case A)
+### 07 아카이브 · 기록 ID · 소프트 삭제 (`07-archive-record-softdelete.html`, 02-A, Case A)
 1. **개념** — 통합 원장 + (Guild→Category→Source) 태그, 왜(분리 뷰 + 전체 조망).
 2. **기록 ID** — `YYYYMMDDhhmmssSSS-{GUILDID}` 규칙, 정렬은 정수/날짜 필드로, 자릿수 확장. 표/예시.
 3. **뷰** — 홈 "오늘 할 일" / 길드별 / 기념비 전체 / 캘린더. pipe-step.
@@ -79,7 +83,7 @@
 5. **스켈레톤** — `FArchiveRecord`(+GuildId·bDeleted), `URecordSubsystem`(AddRecord·SoftDelete·Restore·Purge). hljs.
 6. **확장** — 마이그레이션(v2→v3 기본 길드 백필), 삭제 항목 지연 로드.
 
-### 07 포커스 · 퀘스트 · UI (이관/개정, `07-*.html`)
+### 08 포커스 · 퀘스트 · UI (이관/개정, `08-*.html`)
 - v1 문서(01 포커스, 02 퀘스트, 07 UI, 10 UMG)에서 **개념만 참고**하되 V2 맥락 반영: 포커스 보상 출력 재배선(XP→계정 풀+길드, Gold→공유), 퀘스트 XP 제거(Gold만), UI에 길드 선택기·홈 "오늘 할 일". 필요 시 문서 분할.
 
 ---
