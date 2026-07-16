@@ -8,6 +8,10 @@
      CHANGELOG — 04-gacha-ability-awakening.html
      RecordTales V2 가챠 · 능력치 개화 (Track B · 02-A 아키텍처 패턴).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     v0.8 · 2026-07-15
+       - (재구성) 강화 비용을 능력치 등급 기준 조회로 변경 — LookupUpgradeCost(AbilityId) → DT_Ability_UpgradeCost.Upgrade_ShardAmount.
+     v0.7 · 2026-07-15
+       - (분리) 강화 비용 조회 참조를 DT_Ability_Step.ShardCostToNext → DT_Ability_UpgradeCost.ShardCostToNext로 갱신.
      v0.6 · 2026-07-15
        - (용어 확정) 캐릭터 "분해" → "추출(Extract)"로 명칭 통일. 조각 = 조각(Shard).
      v0.5 · 2026-07-15
@@ -778,7 +782,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-keyword">if</span> (Pick == INDEX_NONE) <span class="hljs-keyword">return</span>;                    <span class="hljs-comment">// 전부 최대면 강화 불가</span>
 
     <span class="hljs-type">FOwnedAbility</span>&amp; A = C.Abilities[Pick];
-    <span class="hljs-type">int32</span> Cost = <span class="hljs-title">LookupShardCost</span>(A.AbilityId, A.CurrentStep); <span class="hljs-comment">// DT_Ability_Step.ShardCostToNext</span>
+    <span class="hljs-comment">// 비용은 능력치 등급으로 결정(단계 무관). AbilityId → DT_Ability_Type[등급] → DT_Ability_UpgradeCost[등급]</span>
+    <span class="hljs-type">int32</span> Cost = <span class="hljs-title">LookupUpgradeCost</span>(A.AbilityId); <span class="hljs-comment">// DT_Ability_UpgradeCost.Upgrade_ShardAmount</span>
     <span class="hljs-keyword">if</span> (!<span class="hljs-title">SpendShards</span>(Cost)) <span class="hljs-keyword">return</span>;                  <span class="hljs-comment">// 조각 부족 시 중단</span>
 
     A.CurrentStep += <span class="hljs-number">1</span>;                             <span class="hljs-comment">// 다음 단계로 (효과값은 표에서 파생, 저장 안 함)</span>

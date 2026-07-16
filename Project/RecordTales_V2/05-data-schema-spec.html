@@ -8,6 +8,21 @@
      CHANGELOG — 05-data-schema-spec.html
      RecordTales V2 데이터 스키마 명세 (Track B · 02-B 기능 구현 명세).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     v0.11 · 2026-07-15
+       - (재구성) DT_Ability_UpgradeCost를 단계 키 → 능력치 등급 키로 변경(단계 무관 고정 비용).
+         컬럼 ShardCostToNext → Upgrade_ShardAmount, struct 축소. 확정 스냅샷(N10·R25·E50·L100).
+         단계별 보정치는 추후 별도 도입 예정으로 명기.
+     v0.10 · 2026-07-15
+       - (분리) 강화 비용을 DT_Ability_Step에서 떼어 10번째 테이블 DT_Ability_UpgradeCost 신설 —
+         Step={Value·RollWeight}, UpgradeCost={ShardCostToNext}(동일 RowName 키). struct FAbilityUpgradeCostRow 추가.
+         관련 참조(추출 callout·FOwnedAbility 주석) + "9종"→"10종" 표기 갱신.
+     v0.9 · 2026-07-15
+       - (추가) DataTable 9번째 테이블 DT_Extract_Reward 신설 — 캐릭터 등급 → 추출 조각 지급(고정).
+         struct FExtractRewardRow{int32 Extract_ShardAmount} + 확정 스냅샷(N1·R2·E3·L5). "8종"→"9종" 표기 갱신.
+     v0.8 · 2026-07-15
+       - (확정) 등급 enum(ECharacterRarity·EAbilityRarity) 값을 Normal→Rarity_Normal 형식으로 변경 —
+         DataTable RowName 문자열(Rarity_Normal…)과 100% 일치시켜 표 조회 마찰 제거. UMETA DisplayName(한글) 추가.
+         ::Normal 참조 2건(FOwnedCharacter.Rarity·FAbilityTypeRow.AbilityRarity)도 ::Rarity_Normal로 갱신.
      v0.7 · 2026-07-15
        - (추가) 04·05 섹션 첫머리에 코드 상자 표기 규칙 안내 callout —
          "파일명.h — 부제"(대시)=같은 파일 표시상 분할, "파일A.h / 파일B.h"(슬래시)=실제 다른 두 파일.
@@ -660,7 +675,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <a href="#scope">범위</a>
     <a href="#decision">설계 결정</a>
     <a href="#enum">enum</a>
-    <a href="#tables">DataTable 8종</a>
+    <a href="#tables">DataTable 10종</a>
     <a href="#save">SaveGame</a>
     <a href="#register">등록·검증</a>
   </div>
@@ -670,10 +685,10 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   <div class="hero-eyebrow">RecordTales V2 &middot; v0.1 &middot; Data Schema Spec</div>
   <h1>데이터 스키마<br><span>명세</span></h1>
   <p class="hero-sub">
-    03(데이터 설계)에서 지도로 본 데이터를, 여기서는 <strong>복붙 가능한 struct 정의</strong>로 전부 풀어 씁니다. DataTable 행 구조체 8종·SaveGame 구조·전역 상수의 모든 컬럼을 타입·의미와 함께 담습니다.
+    03(데이터 설계)에서 지도로 본 데이터를, 여기서는 <strong>복붙 가능한 struct 정의</strong>로 전부 풀어 씁니다. DataTable 행 구조체 10종·SaveGame 구조·전역 상수의 모든 컬럼을 타입·의미와 함께 담습니다.
   </p>
   <div class="hero-meta">
-    <span class="badge badge-blue">DataTable 행 8종</span>
+    <span class="badge badge-blue">DataTable 행 10종</span>
     <span class="badge badge-green">SaveGame 전 필드</span>
     <span class="badge badge-purple">02-B 기능 구현 명세</span>
   </div>
@@ -716,12 +731,25 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <button class="codeblock-copy" type="button">복사</button>
       </div>
       <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 캐릭터 등급 — 뽑을 때 롤(인스턴스). 개화 슬롯 수·능력치 등급 분포를 결정</span>
+<span class="hljs-comment">// 값 이름을 DataTable RowName 문자열과 100% 일치시킴(Rarity_Normal…) → 표를 등급 이름 그대로 조회</span>
 <span class="hljs-meta">UENUM(BlueprintType)</span>
-<span class="hljs-keyword">enum class</span> <span class="hljs-type">ECharacterRarity</span> : <span class="hljs-type">uint8</span> { Normal, Rare, Epic, Legendary };
+<span class="hljs-keyword">enum class</span> <span class="hljs-type">ECharacterRarity</span> : <span class="hljs-type">uint8</span>
+{
+    Rarity_Normal    <span class="hljs-meta">UMETA</span>(DisplayName = <span class="hljs-string">"노말"</span>),      <span class="hljs-comment">// = DT RowName "Rarity_Normal". UMETA DisplayName = 에디터/블프 표시용 한글</span>
+    Rarity_Rare      <span class="hljs-meta">UMETA</span>(DisplayName = <span class="hljs-string">"레어"</span>),
+    Rarity_Epic      <span class="hljs-meta">UMETA</span>(DisplayName = <span class="hljs-string">"에픽"</span>),
+    Rarity_Legendary <span class="hljs-meta">UMETA</span>(DisplayName = <span class="hljs-string">"레전더리"</span>)
+};
 
-<span class="hljs-comment">// 능력치 등급 — 각 능력치 자체의 등급. 효과 크기(계수 tier)를 결정</span>
+<span class="hljs-comment">// 능력치 등급 — 각 능력치 자체의 등급. 효과 크기(계수 tier)를 결정. 캐릭터 등급과 별개 축이라 타입 분리</span>
 <span class="hljs-meta">UENUM(BlueprintType)</span>
-<span class="hljs-keyword">enum class</span> <span class="hljs-type">EAbilityRarity</span> : <span class="hljs-type">uint8</span> { Normal, Rare, Epic, Legendary };
+<span class="hljs-keyword">enum class</span> <span class="hljs-type">EAbilityRarity</span> : <span class="hljs-type">uint8</span>
+{
+    Rarity_Normal    <span class="hljs-meta">UMETA</span>(DisplayName = <span class="hljs-string">"노말"</span>),
+    Rarity_Rare      <span class="hljs-meta">UMETA</span>(DisplayName = <span class="hljs-string">"레어"</span>),
+    Rarity_Epic      <span class="hljs-meta">UMETA</span>(DisplayName = <span class="hljs-string">"에픽"</span>),
+    Rarity_Legendary <span class="hljs-meta">UMETA</span>(DisplayName = <span class="hljs-string">"레전더리"</span>)
+};
 
 <span class="hljs-comment">// 능력치 효과 종류 — 전부 골드 건물 배치 시 적용</span>
 <span class="hljs-meta">UENUM(BlueprintType)</span>
@@ -733,17 +761,17 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     </div>
   </div>
 
-  <!-- ===== 04 DataTable 8종 ===== -->
+  <!-- ===== 04 DataTable 10종 ===== -->
   <div class="section" id="tables">
-    <div class="section-label">04 — DataTable 행 구조체 8종</div>
+    <div class="section-label">04 — DataTable 행 구조체 10종</div>
     <h2>밸런스 표 (ROW)</h2>
     <p>모두 <code>FTableRowBase</code>를 상속해야 DataTable의 행 타입으로 지정할 수 있습니다. 값은 에디터/CSV에서 채웁니다.</p>
     <div class="callout info" style="margin:8px 0 16px">
       <span class="ic">&#x1F4A1;</span>
-      <p><strong>코드 상자 표기 규칙:</strong> 아래 8종은 실제로 <strong>단일 헤더 <code>RTTables.h</code> 하나</strong>에 다 들어갑니다 — 한 상자에 담기엔 너무 길어서 <strong>표시 편의상 3개 상자(능력치·캐릭터/가챠·건물)로 나눈 것</strong>일 뿐입니다. 탭 이름이 <code>파일명.h — 부제</code>처럼 <strong>대시(—)</strong>로 이어지면 "같은 파일의 일부 구간", <code>파일A.h / 파일B.h</code>처럼 <strong>슬래시(/)</strong>로 이어지면 "실제로 다른 두 파일"이라는 뜻입니다(05 섹션의 <code>RTSaveGame.h / RTSettings.h</code> 상자 참고).</p>
+      <p><strong>코드 상자 표기 규칙:</strong> 아래 10종은 실제로 <strong>단일 헤더 <code>RTTables.h</code> 하나</strong>에 다 들어갑니다 — 한 상자에 담기엔 너무 길어서 <strong>표시 편의상 3개 상자(능력치·캐릭터/가챠·건물)로 나눈 것</strong>일 뿐입니다. 탭 이름이 <code>파일명.h — 부제</code>처럼 <strong>대시(—)</strong>로 이어지면 "같은 파일의 일부 구간", <code>파일A.h / 파일B.h</code>처럼 <strong>슬래시(/)</strong>로 이어지면 "실제로 다른 두 파일"이라는 뜻입니다(05 섹션의 <code>RTSaveGame.h / RTSettings.h</code> 상자 참고).</p>
     </div>
 
-    <h3>능력치 — Ability_Type · Ability_Step</h3>
+    <h3>능력치 — Ability_Type · Ability_Step · Ability_UpgradeCost</h3>
 
     <p style="margin-bottom:6px"><strong>DT_Ability_Type</strong> <span style="color:var(--text-dim)">· RowName = 효과×등급 (예 <code>FocusMult_Legendary</code>)</span></p>
     <table class="tbl">
@@ -761,7 +789,23 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>StepIndex</code></td><td>int32</td><td>몇 단계 (정렬 키)</td></tr>
       <tr><td><code>Value</code></td><td>float</td><td>그 단계 효과값 (직접 지정, 자동 등분 아님)</td></tr>
       <tr><td><code>RollWeight</code></td><td>int32</td><td>뽑기 시 이 단계로 시작할 가중치</td></tr>
-      <tr><td><code>ShardCostToNext</code></td><td>int32</td><td>다음 단계로 올리는 조각 비용 (최대 단계는 미사용)</td></tr>
+    </table>
+
+    <p style="margin:14px 0 6px"><strong>DT_Ability_UpgradeCost</strong> <span style="color:var(--text-dim)">· RowName = 능력치 등급(<code>Rarity_Normal</code> 등) · 한 단계 올리는 데 드는 조각(단계 무관 고정)</span></p>
+    <table class="tbl">
+      <tr><th>컬럼</th><th>타입</th><th>의미</th></tr>
+      <tr><td><code>Upgrade_ShardAmount</code></td><td>int32</td><td>그 등급 능력치를 <strong>한 단계</strong> 올리는 데 드는 조각(Shard) 수 (단계 무관 고정)</td></tr>
+    </table>
+    <div class="callout info" style="margin:8px 0 6px">
+      <span class="ic">&#x1F4A1;</span>
+      <p><strong>라이브 튜닝 값의 스냅샷(2026-07-15)</strong> — <strong>능력치 등급(EAbilityRarity)</strong>당 고정 비용. 어느 단계를 올리든 같은 값입니다. 후반 단계일수록 비싸지는 <strong>단계별 보정치는 추후 별도 도입 예정</strong>(현재는 flat). 추출 지급량(<code>DT_Extract_Reward</code>)과의 비율이 "몇 마리를 갈아야 한 단계"를 정합니다.</p>
+    </div>
+    <table class="tbl">
+      <tr><th>Rarity_Grade</th><th>Upgrade_ShardAmount</th></tr>
+      <tr><td>Rarity_Normal</td><td>10</td></tr>
+      <tr><td>Rarity_Rare</td><td>25</td></tr>
+      <tr><td>Rarity_Epic</td><td>50</td></tr>
+      <tr><td>Rarity_Legendary</td><td>100</td></tr>
     </table>
 
     <div class="codeblock">
@@ -775,13 +819,13 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 {
     <span class="hljs-meta">GENERATED_BODY()</span>
     <span class="hljs-meta">UPROPERTY(EditAnywhere)</span> <span class="hljs-type">FText</span> DisplayName;                        <span class="hljs-comment">// UI 표시 이름</span>
-    <span class="hljs-meta">UPROPERTY(EditAnywhere)</span> <span class="hljs-type">EAbilityRarity</span> AbilityRarity = <span class="hljs-type">EAbilityRarity</span>::Normal; <span class="hljs-comment">// 이 능력치의 등급 = 효과 tier</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere)</span> <span class="hljs-type">EAbilityRarity</span> AbilityRarity = <span class="hljs-type">EAbilityRarity</span>::Rarity_Normal; <span class="hljs-comment">// 이 능력치의 등급 = 효과 tier</span>
     <span class="hljs-meta">UPROPERTY(EditAnywhere)</span> <span class="hljs-type">EEffectType</span> EffectType = <span class="hljs-type">EEffectType</span>::FlatGold;  <span class="hljs-comment">// flat/유휴/집중 중 무엇</span>
     <span class="hljs-meta">UPROPERTY(EditAnywhere)</span> <span class="hljs-type">int32</span> SelectWeight = <span class="hljs-number">1</span>;                     <span class="hljs-comment">// 같은 등급 내에서 뽑힐 가중치</span>
 };
 
-<span class="hljs-comment">// DT_Ability_Step — 능력치 단계별 값·확률·비용. RowName 예: FocusMult_Legendary_1</span>
-<span class="hljs-comment">// 단계마다 한 행. 등급 높을수록 행(단계) 수가 많다.</span>
+<span class="hljs-comment">// DT_Ability_Step — 능력치 단계별 값·시작 가중치. RowName 예: FocusMult_Legendary_1</span>
+<span class="hljs-comment">// 단계마다 한 행. 등급 높을수록 행(단계) 수가 많다. 강화 비용은 DT_Ability_UpgradeCost로 분리했다.</span>
 <span class="hljs-meta">USTRUCT(BlueprintType)</span>
 <span class="hljs-keyword">struct</span> <span class="hljs-type">FAbilityStepRow</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">FTableRowBase</span>
 {
@@ -790,7 +834,16 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-meta">UPROPERTY(EditAnywhere)</span> <span class="hljs-type">int32</span> StepIndex = <span class="hljs-number">0</span>;        <span class="hljs-comment">// 몇 단계(정렬 키)</span>
     <span class="hljs-meta">UPROPERTY(EditAnywhere)</span> <span class="hljs-type">float</span> Value = <span class="hljs-number">0.f</span>;           <span class="hljs-comment">// 그 단계 효과값(직접 지정, 자동 등분 아님)</span>
     <span class="hljs-meta">UPROPERTY(EditAnywhere)</span> <span class="hljs-type">int32</span> RollWeight = <span class="hljs-number">0</span>;       <span class="hljs-comment">// 뽑기 시 이 단계로 시작할 가중치</span>
-    <span class="hljs-meta">UPROPERTY(EditAnywhere)</span> <span class="hljs-type">int32</span> ShardCostToNext = <span class="hljs-number">0</span>;  <span class="hljs-comment">// 다음 단계로 올리는 조각 비용(최대 단계는 0/미사용)</span>
+};
+
+<span class="hljs-comment">// DT_Ability_UpgradeCost — 능력치 등급 → 한 단계 올리는 조각 비용(단계 무관 고정). RowName = 능력치 등급(Rarity_Normal…)</span>
+<span class="hljs-comment">// 단계별 보정치(후반 단계 가중)는 추후 별도 도입 예정. 지금은 등급당 고정값 하나.</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-type">FAbilityUpgradeCostRow</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">FTableRowBase</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-comment">// 컬럼명은 CSV 헤더와 철자 동일해야 함(Extract_ShardAmount와 대칭)</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere)</span> <span class="hljs-type">int32</span> Upgrade_ShardAmount = <span class="hljs-number">0</span>;  <span class="hljs-comment">// 이 등급 능력치 한 단계 강화 비용(조각)</span>
 };</pre></div>
     </div>
 
@@ -866,6 +919,23 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>NormalPct</code> · <code>RarePct</code> · <code>EpicPct</code> · <code>LegendaryPct</code></td><td>float ×4</td><td>개화된 슬롯에 각 <strong>능력치 등급</strong>이 뜰 확률(%)</td></tr>
     </table>
 
+    <p style="margin:14px 0 6px"><strong>DT_Extract_Reward</strong> <span style="color:var(--text-dim)">· RowName = 캐릭터 등급(<code>Rarity_Normal</code> 등) · 추출 시 등급별 고정 조각 지급</span></p>
+    <table class="tbl">
+      <tr><th>컬럼</th><th>타입</th><th>의미</th></tr>
+      <tr><td><code>Extract_ShardAmount</code></td><td>int32</td><td>그 등급 캐릭터를 <strong>추출(Extract)</strong>할 때 주는 <strong>조각(Shard)</strong> 수 (고정)</td></tr>
+    </table>
+    <div class="callout info" style="margin:8px 0 6px">
+      <span class="ic">&#x1F4A1;</span>
+      <p><strong>라이브 튜닝 값의 스냅샷(2026-07-15)</strong> — 기억 거래소에서 캐릭터를 추출할 때 등급별로 고정 지급. 이 지급량과 <code>DT_Ability_UpgradeCost.Upgrade_ShardAmount</code>(강화 비용)의 <strong>비율</strong>이 "몇 마리를 갈아야 한 단계"를 정하는 핵심 밸런스 레버입니다.</p>
+    </div>
+    <table class="tbl">
+      <tr><th>Rarity_Grade</th><th>Extract_ShardAmount</th></tr>
+      <tr><td>Rarity_Normal</td><td>1</td></tr>
+      <tr><td>Rarity_Rare</td><td>2</td></tr>
+      <tr><td>Rarity_Epic</td><td>3</td></tr>
+      <tr><td>Rarity_Legendary</td><td>5</td></tr>
+    </table>
+
     <div class="codeblock">
       <div class="codeblock-bar">
         <button class="codeblock-tab tab-h active" type="button">RTTables.h — Character / Gacha</button>
@@ -918,6 +988,15 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-meta">UPROPERTY(EditAnywhere)</span> <span class="hljs-type">float</span> RarePct = <span class="hljs-number">0.f</span>;
     <span class="hljs-meta">UPROPERTY(EditAnywhere)</span> <span class="hljs-type">float</span> EpicPct = <span class="hljs-number">0.f</span>;
     <span class="hljs-meta">UPROPERTY(EditAnywhere)</span> <span class="hljs-type">float</span> LegendaryPct = <span class="hljs-number">0.f</span>;
+};
+
+<span class="hljs-comment">// DT_Extract_Reward — 캐릭터 등급 → 추출 시 주는 조각 수(고정). RowName = 캐릭터 등급(Rarity_Normal…)</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-type">FExtractRewardRow</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">FTableRowBase</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-comment">// 조각 개수는 소수가 될 일이 없어 int32. 컬럼명은 CSV 헤더와 철자 동일해야 함</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere)</span> <span class="hljs-type">int32</span> Extract_ShardAmount = <span class="hljs-number">0</span>;  <span class="hljs-comment">// 이 등급 캐릭터 추출 시 지급 조각 수</span>
 };</pre></div>
     </div>
 
@@ -1022,7 +1101,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <button class="codeblock-tab tab-h active" type="button">RTSaveTypes.h</button>
         <button class="codeblock-copy" type="button">복사</button>
       </div>
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 개화된 능력치 하나 — 현재 단계만 저장(값·비용은 DT_Ability_Step에서 조회)</span>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 개화된 능력치 하나 — 현재 단계만 저장(값=DT_Ability_Step, 비용=DT_Ability_UpgradeCost에서 조회)</span>
 <span class="hljs-meta">USTRUCT()</span>
 <span class="hljs-keyword">struct</span> <span class="hljs-type">FOwnedAbility</span>
 {
@@ -1038,7 +1117,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-meta">GENERATED_BODY()</span>
     <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">int32</span> InstanceId = <span class="hljs-number">0</span>;                    <span class="hljs-comment">// 고유 번호(건물 배치가 이걸 참조)</span>
     <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">FName</span> CharacterId;                        <span class="hljs-comment">// → DT_Character</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">ECharacterRarity</span> Rarity = <span class="hljs-type">ECharacterRarity</span>::Normal; <span class="hljs-comment">// 뽑을 때 롤된 등급</span>
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">ECharacterRarity</span> Rarity = <span class="hljs-type">ECharacterRarity</span>::Rarity_Normal; <span class="hljs-comment">// 뽑을 때 롤된 등급</span>
     <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FOwnedAbility</span>&gt; Abilities;        <span class="hljs-comment">// 개화된 능력치(최대 4)</span>
 };
 

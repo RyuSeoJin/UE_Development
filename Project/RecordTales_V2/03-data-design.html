@@ -8,6 +8,12 @@
      CHANGELOG — 03-data-design.html
      RecordTales V2 데이터 설계 지도 (Track B · 04 데이터 설계 지도 템플릿).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     v0.5 · 2026-07-15
+       - (재구성) DT_Ability_UpgradeCost를 능력치 등급 키(단계 무관 고정)로 변경 — 지도·비용 참조·강화 흐름 갱신.
+     v0.4 · 2026-07-15
+       - (분리) 강화 비용을 DT_Ability_UpgradeCost로 분리(DataTable "9종"→"10종") — 지도·관계도·비용 참조·확장 안내 갱신.
+     v0.3 · 2026-07-15
+       - (추가) 데이터 지도에 DT_Extract_Reward(캐릭터 등급 → 추출 조각) 추가. DataTable "8종"→"9종".
      v0.2 · 2026-07-10
        - (추가) 02 테이블/파일 지도 섹션 첫머리에 "🚀 이 문서로 작업 시작하기" 블록 —
          전제(01 선행) · 만들 파일(행 구조체 헤더) · 코드 외 작업(DT_* 애셋 생성 절차·저장 위치) · 컴파일 주의.
@@ -576,7 +582,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     V2의 데이터가 어디에 살고(정적 표 vs 런타임 세이브), 어떻게 서로 연결되는지의 지도입니다. 핵심 원칙은 <strong>"밸런스 값은 표에서 조회하고, 세이브에는 내가 뽑아 정해진 것만 담는다"</strong>입니다.
   </p>
   <div class="hero-meta">
-    <span class="badge badge-blue">DataTable 8종</span>
+    <span class="badge badge-blue">DataTable 10종</span>
     <span class="badge badge-green">SaveGame 3구조</span>
     <span class="badge badge-purple">04 데이터 설계 지도</span>
   </div>
@@ -625,7 +631,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <div class="var-card">
       <div class="vc-head">
         <span class="vc-domain">Static</span>
-        <span class="vc-file">DataTable 8종 <span style="color:var(--ue-header)">(밸런스)</span></span>
+        <span class="vc-file">DataTable 10종 <span style="color:var(--ue-header)">(밸런스)</span></span>
         <span class="vc-role">손으로 채우는 마스터 데이터 · 수치 튜닝의 홈</span>
       </div>
       <div class="vc-var"><span class="vv-name">DT_Character_Rarity_Ability_Open_Chance</span><span class="vv-type">Table</span><span class="vbadge row">ROW</span>
@@ -635,13 +641,17 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <div class="vc-var"><span class="vv-name">DT_Ability_Type</span><span class="vv-type">Table</span><span class="vbadge row">ROW</span>
         <span class="vv-note">능력치 종류(효과×등급)·EffectType·SelectWeight</span></div>
       <div class="vc-var"><span class="vv-name">DT_Ability_Step</span><span class="vv-type">Table</span><span class="vbadge row">ROW</span>
-        <span class="vv-note">RowName=AbilityId+단계 → Value·RollWeight·ShardCostToNext</span></div>
+        <span class="vv-note">RowName=AbilityId+단계 → Value·RollWeight</span></div>
+      <div class="vc-var"><span class="vv-name">DT_Ability_UpgradeCost</span><span class="vv-type">Table</span><span class="vbadge row">ROW</span>
+        <span class="vv-note">RowName=능력치 등급 → Upgrade_ShardAmount(한 단계 강화 비용, 단계 무관 고정)</span></div>
       <div class="vc-var"><span class="vv-name">DT_Character</span><span class="vv-type">Table</span><span class="vbadge row">ROW</span>
         <span class="vv-note">캐릭터 정체성(이름·종족·소속·직업·Icon·MatchedTheme)</span></div>
       <div class="vc-var"><span class="vv-name">DT_Gacha_Rate_ByLevel</span><span class="vv-type">Table</span><span class="vbadge row">ROW</span>
         <span class="vv-note">계정 레벨 → 캐릭터 등급 출현 확률(plateau)</span></div>
       <div class="vc-var"><span class="vv-name">DT_Building · DT_Building_Upgrade</span><span class="vv-type">Table ×2</span><span class="vbadge row">ROW</span>
         <span class="vv-note">건물 정체성 · 레벨별 산출·슬롯·비용(건물별 개별 곡선)</span></div>
+      <div class="vc-var"><span class="vv-name">DT_Extract_Reward</span><span class="vv-type">Table</span><span class="vbadge row">ROW</span>
+        <span class="vv-note">캐릭터 등급 → 추출(Extract) 시 지급 조각 수(고정)</span></div>
     </div>
 
     <div class="var-card">
@@ -686,7 +696,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <table class="tbl">
       <tr><th>데이터</th><th>둘 곳</th><th>근거</th></tr>
       <tr><td>능력치 효과값 (예: 집중배율 3.5)</td><td><span class="owner o-subsystem">ROW 조회</span></td><td><code>DT_Ability_Step.Value</code>에서 (AbilityId, 단계)로 조회. 세이브엔 <strong>CurrentStep만</strong>.</td></tr>
-      <tr><td>강화 비용</td><td><span class="owner o-subsystem">ROW 조회</span></td><td><code>DT_Ability_Step.ShardCostToNext</code>. 튜닝은 표만 고침.</td></tr>
+      <tr><td>강화 비용</td><td><span class="owner o-subsystem">ROW 조회</span></td><td><code>DT_Ability_UpgradeCost.Upgrade_ShardAmount</code>(능력치 등급별, 단계 무관). 튜닝은 표만 고침.</td></tr>
       <tr><td>건물 레벨별 산출·슬롯</td><td><span class="owner o-subsystem">ROW 조회</span></td><td><code>DT_Building_Upgrade</code>. 세이브엔 <strong>Level만</strong>.</td></tr>
       <tr><td>캐릭터 등급 · 능력치 현재 단계</td><td><span class="owner o-savegame">SAVE</span></td><td>뽑을 때 인스턴스에 롤·이후 강화로 변함 — 파생 불가, 저장 필수.</td></tr>
       <tr><td>Gold · 조각 · 보유 목록 · 건물 상태</td><td><span class="owner o-savegame">SAVE</span></td><td>내 소유물. 껐다 켜도 남아야 함.</td></tr>
@@ -709,7 +719,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <div class="rel-row">
         <div class="rel-node n-savegame"><div class="rn-name">FOwnedAbility.AbilityId + CurrentStep</div><div class="rn-role">SAVE</div></div>
         <div class="rel-arrow"><span class="ra-label">(AbilityId+단계)로 조회</span><span class="ra-line">&rarr;</span></div>
-        <div class="rel-node n-subsystem" style="border-left-color:var(--accent)"><div class="rn-name">DT_Ability_Step</div><div class="rn-role">ROW (값·비용)</div></div>
+        <div class="rel-node n-subsystem" style="border-left-color:var(--accent)"><div class="rn-name">DT_Ability_Step · UpgradeCost</div><div class="rn-role">ROW (값·가중치 / 비용)</div></div>
       </div>
       <div class="rel-row">
         <div class="rel-node n-savegame"><div class="rn-name">FBuildingState.BuildingId + Level</div><div class="rn-role">SAVE</div></div>
@@ -755,7 +765,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <div class="pipe-step">
       <div class="pipe-num">5</div>
       <div class="pipe-body"><div class="pipe-title">가중 랜덤 대상 + 비용 지불</div>
-        <div class="pipe-desc">개화된 비-최대 능력치 중 가중 랜덤(=남은 단계)으로 하나 선택 → 현재 단계의 <code>DT_Ability_Step.ShardCostToNext</code>만큼 조각 지불 → <code>CurrentStep += 1</code>. 세이브는 CurrentStep만 바뀜.</div></div>
+        <div class="pipe-desc">개화된 비-최대 능력치 중 가중 랜덤(=남은 단계)으로 하나 선택 → 그 능력치 등급의 <code>DT_Ability_UpgradeCost.Upgrade_ShardAmount</code>만큼 조각 지불 → <code>CurrentStep += 1</code>. 세이브는 CurrentStep만 바뀜.</div></div>
     </div>
   </div>
 
@@ -766,7 +776,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
     <div class="callout tip">
       <span class="ic">&#x2705;</span>
-      <p><strong>이렇게:</strong> 새 능력치는 <code>DT_Ability_Type</code>에 종류 행 + <code>DT_Ability_Step</code>에 단계 행들을 추가한다. 새 건물은 <code>DT_Building</code> + <code>DT_Building_Upgrade</code>. 밸런스 수치만 바꿀 땐 표의 값만 고친다(코드·세이브 무변경). 새 상수는 DeveloperSettings에.</p>
+      <p><strong>이렇게:</strong> 새 능력치는 <code>DT_Ability_Type</code>에 종류 행 + <code>DT_Ability_Step</code>·<code>DT_Ability_UpgradeCost</code>에 단계 행들을 추가한다. 새 건물은 <code>DT_Building</code> + <code>DT_Building_Upgrade</code>. 밸런스 수치만 바꿀 땐 표의 값만 고친다(코드·세이브 무변경). 새 상수는 DeveloperSettings에.</p>
     </div>
     <div class="callout warn" style="margin-top:12px">
       <span class="ic">&#x26A0;&#xFE0F;</span>
