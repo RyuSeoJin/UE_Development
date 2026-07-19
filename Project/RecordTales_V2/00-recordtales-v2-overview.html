@@ -8,12 +8,16 @@
      CHANGELOG — 00-recordtales-v2-overview.html
      RecordTales V2 프로젝트 개요 (Track B · 02-A 아키텍처 패턴, 프로젝트 스코프).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     v0.7 · 2026-07-20
+       - (동기화) DataTable 이름을 구글 시트(라이브 밸런스 원본) 확정본으로 일괄 개명 —
+         DT_GachaRateByLevel · DT_Character_Ability_OpenChance · DT_Character_Ability_GradeChance ·
+         DT_Ability_Enhance · DT_Character_Extract (상세 매핑: 05 문서 v0.12).
      v0.6 · 2026-07-15
-       - (재구성) DT_Ability_UpgradeCost를 능력치 등급별 고정 비용(단계 무관)으로 변경 — 트리 주석 갱신.
+       - (재구성) DT_Ability_Enhance를 능력치 등급별 고정 비용(단계 무관)으로 변경 — 트리 주석 갱신.
      v0.5 · 2026-07-15
-       - (분리) 데이터 트리에 DT_Ability_UpgradeCost(단계별 강화 비용) 추가 — DT_Ability_Step에서 비용 분리. 조회 주석 갱신.
+       - (분리) 데이터 트리에 DT_Ability_Enhance(단계별 강화 비용) 추가 — DT_Ability_Step에서 비용 분리. 조회 주석 갱신.
      v0.4 · 2026-07-15
-       - (추가) 데이터 큰 그림 트리에 DT_Extract_Reward(등급 → 추출 조각 수) 추가.
+       - (추가) 데이터 큰 그림 트리에 DT_Character_Extract(등급 → 추출 조각 수) 추가.
      v0.3 · 2026-07-15
        - (용어 확정) 캐릭터 "분해" → "추출(Extract)"로 명칭 통일, 조각 = "조각(Shard)".
          용어집에 추출(Extract)·조각(Shard) 항목 추가(term-extract·term-shard 앵커).
@@ -413,15 +417,15 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     </p>
 
     <div class="tree"><span class="note">// 정적 DataTable — 밸런스 (손으로 채움)</span>
-DT_Character_Rarity_Ability_Open_Chance   <span class="note">&larr; 등급 → 개화 슬롯 수 확률</span>
-DT_Character_Rarity_Ability_Select_Chance <span class="note">&larr; 등급 → 능력치 등급 분포</span>
+DT_Character_Ability_OpenChance   <span class="note">&larr; 등급 → 개화 슬롯 수 확률</span>
+DT_Character_Ability_GradeChance <span class="note">&larr; 등급 → 능력치 등급 분포</span>
 DT_Ability_Type                           <span class="note">&larr; 능력치 종류(효과×등급)</span>
 DT_Ability_Step                           <span class="note">&larr; 단계별 값·시작 가중치</span>
-DT_Ability_UpgradeCost                    <span class="note">&larr; 능력치 등급별 강화 비용(조각, 단계 무관)</span>
+DT_Ability_Enhance                    <span class="note">&larr; 능력치 등급별 강화 비용(조각, 단계 무관)</span>
 DT_Character                              <span class="note">&larr; 캐릭터 정체성</span>
-DT_Gacha_Rate_ByLevel                     <span class="note">&larr; 계정 레벨 → 캐릭터 등급</span>
+DT_GachaRateByLevel                     <span class="note">&larr; 계정 레벨 → 캐릭터 등급</span>
 DT_Building / DT_Building_Upgrade          <span class="note">&larr; 건물 정체성 · 레벨별 산출</span>
-DT_Extract_Reward                         <span class="note">&larr; 등급 → 추출 조각 수(고정)</span>
+DT_Character_Extract                         <span class="note">&larr; 등급 → 추출 조각 수(고정)</span>
 
 <span class="note">// 런타임 SaveGame — 인스턴스 (계정 단위)</span>
 FOwnedCharacter { InstanceId, CharacterId, Rarity, Abilities[≤4] }
@@ -430,7 +434,7 @@ FEconomyState   { Gold, Shards }</div>
 
     <div class="callout info" style="margin-top:14px">
       <span class="ic">&#x1F9ED;</span>
-      <p><strong>능력치는 "현재 단계"만 저장</strong>합니다. 효과값은 <code>DT_Ability_Step</code>, 강화 비용은 <code>DT_Ability_UpgradeCost</code>에서 조회하므로, 수치 튜닝은 표만 고치면 되고 세이브는 건드리지 않습니다.</p>
+      <p><strong>능력치는 "현재 단계"만 저장</strong>합니다. 효과값은 <code>DT_Ability_Step</code>, 강화 비용은 <code>DT_Ability_Enhance</code>에서 조회하므로, 수치 튜닝은 표만 고치면 되고 세이브는 건드리지 않습니다.</p>
     </div>
   </div>
 

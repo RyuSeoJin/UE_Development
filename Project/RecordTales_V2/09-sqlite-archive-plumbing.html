@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RecordTales V2 · 09 SQLite 배관 놓기 — 아카이브 한 컬럼 먼저</title>
+<!-- ============================================================
+     CHANGELOG — 09-sqlite-archive-plumbing.html
+     RecordTales V2 SQLite 배관(따라하기) 명세. 유형 ③ (Track B · 02-B 템플릿).
+     작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.6 · 2026-07-20
+       - (변경) 03 섹션 "기존 SaveGame 설계와의 관계" 콜아웃 갱신 — 풀-DB 저장 전략 확정으로
+         이 배관이 스파이크에서 본 채택으로 승격(테이블 설계 기준은 10 문서).
+     v1.5 · 2026-07-18
+       - (확장) 03 섹션의 "DB 초기화" 팁을 소제목+절차표+주의로 상세화 — 왜 필요한지
+         (CREATE TABLE IF NOT EXISTS + 파일 영속), 5단계 절차(종료→Saved/의 .db 및
+         -wal/-shm/-journal 삭제→재실행→확인), 데이터 소실 경고·DROP TABLE 대안,
+         출시 후 마이그레이션(PRAGMA user_version·ALTER TABLE) 구분.
+       - (정정) 03 섹션 확장 다이어그램의 잔존 옛 번호 "11·08 문서" → V2 "07·03·05 문서"
+         (이관 시 누락분). 본문에 코드/변수 지도(구 RecordTales 12) 참조는 이관 때 이미 제거됨.
+     v1.4 · 2026-07-18
+       - (변경) 7단계 BP 호출을 ASCII(.snip) → UE 에디터 재현 노드 그래프(.bp-graph, master v1.6)로 교체.
+         Event BeginPlay → Get Game Instance Subsystem → Create Archive → Get All Archives →
+         For Each Loop → Break Archive Row → Print String, 실행/데이터 와이어·핀 색 재현 + 핀 색 범례.
+       - (추가) 인라인 스냅샷에 --bp-* 관례색 토큰 + .bp-graph CSS 블록 보완
+         (마스터 v1.7 스냅샷에서 미사용이라 빠졌던 부분 — 마스터 자체 변경 없음).
+     v1.3 · 2026-07-18
+       - (정정) v1.1에서 "SQLiteSupport 하나면 됨"으로 바꿨던 것을 되돌림 — 실측 결과
+         C++에서 FSQLiteDatabase/FSQLitePreparedStatement를 쓰려면 Build.cs에 SQLiteCore
+         모듈이 필수(구현이 SQLiteCore에 있어 링크됨; SQLiteSupport 헤더만으론 LNK2019).
+         2단계 Build.cs를 SQLiteCore+SQLiteSupport로, 1단계 콜아웃·🚀 표·트러블슈팅
+         'unresolved external' 행을 이에 맞게 정정. (.uproject 플러그인은 SQLiteSupport만으로
+         SQLiteCore 플러그인이 자동 활성 — 변경 없음)
+       - (추가) 5단계 .cpp에 #include "SQLitePreparedStatement.h" (빠지면 컴파일 실패).
+       - (추가) 04에 '빌드 에러 원문 찾는 법' 콜아웃(IntelliSense vs 빌드 에러·MSB3073 껍데기·
+         출력 창), 6단계에 Build vs Rebuild 팁.
+     v1.2 · 2026-07-18
+       - (이동) Project/RecordTales/14- → Project/RecordTales_V2/09- 로 이관
+         (RecordTales 폴더 폐기, V2가 활성 프로젝트). 파일명·문서 번호 14→09,
+         title·nav·hero·footer를 V2 표기로 갱신. 3섹션 교차 참조를 V2 문서
+         (07 아카이브·기록 ID·소프트 삭제 / 03·05 데이터 설계)로 수정. 본문 절차·코드 동일.
+     v1.1 · 2026-07-18
+       - (변경) UE 5.8 실측 반영: SQLiteCore가 정식 통합·노출되어 플러그인/Build.cs 모두
+         SQLiteSupport 하나만으로 동작(SQLiteCore는 그 공개 의존성으로 따라옴).
+         1·2단계 코드·요약표·트러블슈팅에서 SQLiteCore 명시 참조 제거(구버전 폴백만 주석).
+       - (추가) 3단계에 Public/Private 분리 레이아웃 설명 — .h→Public/, .cpp→Private/
+         (UBT가 Public은 타 모듈까지, Private는 이 모듈만 인클루드 경로에 올림). 4·5단계에
+         대상 파일 위치 힌트, RECORDTALES_API 예시에 Proj_RecordTales→PROJ_RECORDTALES_API 추가.
+     v1.0 · 2026-07-18
+       - 신규 생성. 외부 초안(recordtales_sqlite_setup.html)을 마스터 디자인 시스템으로 재작성.
+         목표: title 한 컬럼짜리 archives 테이블을 넣고 다시 읽어오는 "배관"을 먼저 성공시키기.
+         8단계 따라하기(C++ 확인 → 플러그인 → Build.cs → 서브시스템 → 헤더 → 구현 → 빌드 → BP 호출),
+         "여기까지 되면"(컬럼 확장·DB 초기화 규칙), "막혔을 때"(트러블슈팅 표).
+       - Case B 승인: 원본의 진행률 체크리스트 UX 유지 → master.css v1.7 신규 .checklist 컴포넌트로 편입.
+       - 마스터 CSS v1.7 inline 스냅샷, hljs 구워넣기, 탭/복사 + 체크리스트 토글 inline JS.
+       - 공통 절차(C++ 위저드·Build.cs·컴파일 규칙)는 반복하지 않고 중앙 문서를 이름으로만 언급
+         (ue-wiki/ue-architect/core-cpp/ue-cpp-class-workflow.html · framework/ue-gameinstance-subsystem.html).
+     ============================================================ -->
+<style>
+/* ============================================================
+   UE Design System — Master Stylesheet (INLINE SNAPSHOT)
+   design-guide/design-guide-ue-master.css  v1.7  (Dark · Indigo Minimal · Editorial)
+   생성 시점 스냅샷 — 이후 마스터 개정은 이 문서 재생성으로만 반영.
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Pretendard:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg: #0D0F1A;
+  --surface: #13162A;
+  --surface-2: #1A1F38;
+  --border: #252B4A;
+  --accent: #5B6EFA;
+  --accent-2: #9B6DFF;
+  --accent-3: #38D9B4;
+  --text: #E4E8FF;
+  --text-muted: #7B82A6;
+  --text-dim: #4A5080;
+  --amber: #F59E0B;
+  --pink: #E040FB;
+  --red: #F87171;
+
+  --ue-folder: #F59E0B;
+  --ue-bp:     #5B6EFA;
+  --ue-enum:   #9B6DFF;
+  --ue-mat:    #FB8C5A;
+  --ue-tex:    #38D9B4;
+  --ue-demo:   #6BD98E;
+
+  --ue-gamemode:   #5B6EFA;
+  --ue-gamestate:  #7B9CFF;
+  --ue-controller: #38D9B4;
+  --ue-pawn:       #6BD98E;
+  --ue-instance:   #9B6DFF;
+  --ue-savegame:   #F59E0B;
+  --ue-subsystem:  #E040FB;
+
+  --ue-header: #38D9B4;
+  --ue-source: #FB8C5A;
+  --ue-macro:  #FB8C5A;
+
+  /* 블루프린트 에디터 관례색 (.bp-graph 전용 — 본문 UI에 유출 금지) */
+  --bp-canvas:  #26282A;
+  --bp-grid:    #2B2D2F;
+  --bp-grid-2:  #1D1F21;
+  --bp-node:    #17181A;
+  --bp-event:   #A03232;
+  --bp-call:    #2E6FB4;
+  --bp-pure:    #3F9142;
+  --bp-flow:    #787878;
+  --bp-cast:    #38808F;
+  --bp-exec:    #E2E2E2;
+  --bp-bool:    #A31515;
+  --bp-float:   #9FE838;
+  --bp-int:     #26E0A8;
+  --bp-string:  #F535C8;
+  --bp-vector:  #F6C21C;
+  --bp-object:  #0A84FF;
+  --bp-class:   #8A5CD6;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+  font-size: 15px; line-height: 1.7; -webkit-font-smoothing: antialiased;
+}
+
+/* NAV */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(13,15,26,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px; display: flex; align-items: center; gap: 32px; height: 52px;
+}
+.nav-logo { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em; white-space: nowrap; }
+.nav-links { display: flex; gap: 22px; flex-wrap: wrap; }
+.nav-links a { color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 500; transition: color 0.2s; }
+.nav-links a:hover { color: var(--text); }
+.nav-links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+
+/* HERO */
+.hero { padding: 72px 48px 56px; max-width: 920px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+.hero-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: var(--accent); text-transform: uppercase; margin-bottom: 20px; }
+.hero h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 20px; }
+.hero h1 span { color: var(--accent); }
+.hero-sub { font-size: 16px; color: var(--text-muted); max-width: 660px; line-height: 1.75; }
+.hero-meta { margin-top: 28px; display: flex; gap: 10px; flex-wrap: wrap; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; border: 1px solid; }
+.badge-blue { color: var(--accent); border-color: var(--accent); background: rgba(91,110,250,0.08); }
+.badge-green { color: var(--accent-3); border-color: var(--accent-3); background: rgba(56,217,180,0.08); }
+.badge-purple { color: var(--accent-2); border-color: var(--accent-2); background: rgba(155,109,255,0.08); }
+
+/* CONTENT / SECTION */
+.content { max-width: 920px; margin: 0 auto; padding: 0 48px 80px; }
+.section { padding: 52px 0 0; border-top: 1px solid var(--border); margin-top: 52px; }
+.section:first-child { margin-top: 0; padding-top: 48px; border-top: none; }
+.section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 12px; }
+.section h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 20px; }
+.section h3 { font-size: 15px; font-weight: 700; color: var(--text); margin: 30px 0 10px; letter-spacing: 0.01em; }
+.section p { color: var(--text-muted); margin-bottom: 14px; line-height: 1.8; }
+.section p strong { color: var(--text); font-weight: 600; }
+
+code { font-family: 'IBM Plex Mono', monospace; font-size: 0.86em; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; color: var(--accent-3); }
+
+/* CALLOUT */
+.callout { display: flex; gap: 12px; align-items: flex-start; border-radius: 8px; padding: 14px 16px; margin: 18px 0; border: 1px solid var(--border); background: var(--surface-2); font-size: 13.5px; line-height: 1.65; }
+.callout .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.callout p { margin: 0; color: var(--text-muted); }
+.callout p strong { color: var(--text); }
+.callout.info { border-left: 3px solid var(--accent); }
+.callout.tip  { border-left: 3px solid var(--accent-3); }
+.callout.warn { border-left: 3px solid var(--amber); }
+
+/* CODE SNIPPET (수동 escape · 의사코드/노드 흐름용) */
+.snip { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 12px 0 22px; }
+.snip-head { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 8px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+.code-dot { width: 8px; height: 8px; border-radius: 50%; }
+.snip pre { padding: 14px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-muted); line-height: 1.75; overflow-x: auto; white-space: pre; }
+.snip pre .tag { color: var(--accent); }
+.snip pre .atr { color: var(--ue-mat); }
+.snip pre .val { color: var(--accent-3); }
+.snip pre .cm  { color: var(--text-dim); }
+
+/* CODE BLOCK — 실제 C++/H (탭 전환 + 복사 + 구워넣은 하이라이팅) */
+.codeblock { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 16px 0 24px; }
+.codeblock-bar { display: flex; align-items: stretch; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.codeblock-tab {
+  padding: 9px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600;
+  color: var(--text-dim); background: transparent; border: none; border-right: 1px solid var(--border);
+  cursor: pointer; transition: color 0.15s, background 0.15s; box-shadow: inset 0 -2px 0 transparent;
+}
+.codeblock-tab:hover { color: var(--text-muted); }
+.codeblock-tab.active { color: var(--text); background: var(--surface); }
+.codeblock-tab.tab-h.active   { box-shadow: inset 0 -2px 0 var(--ue-header); }
+.codeblock-tab.tab-cpp.active { box-shadow: inset 0 -2px 0 var(--ue-source); }
+.codeblock-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.codeblock-copy {
+  margin-left: auto; align-self: center; margin-right: 8px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600;
+  color: var(--text-muted); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 5px; padding: 4px 10px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+}
+.codeblock-copy:hover { color: var(--text); border-color: var(--accent); }
+.codeblock-copy.copied { color: var(--accent-3); border-color: var(--accent-3); }
+.codeblock-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.codeblock-panel { display: none; }
+.codeblock-panel.active { display: block; }
+.codeblock pre { padding: 16px 18px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.75; overflow-x: auto; white-space: pre; }
+
+/* highlight.js 테마 — 다크·인디고 팔레트 매핑 */
+.hljs { color: var(--text-muted); background: var(--surface); }
+.hljs-comment, .hljs-quote { color: var(--text-dim); font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-section { color: var(--accent); font-weight: 500; }
+.hljs-literal, .hljs-symbol, .hljs-bullet { color: var(--accent-2); }
+.hljs-number { color: var(--accent-2); }
+.hljs-string, .hljs-attr, .hljs-attribute, .hljs-name { color: var(--ue-demo); }
+.hljs-type, .hljs-class .hljs-title, .hljs-title.class_, .hljs-built_in { color: var(--accent-3); }
+.hljs-title, .hljs-title.function_, .hljs-function .hljs-title { color: var(--text); }
+.hljs-params { color: var(--text-muted); }
+.hljs-meta, .hljs-meta .hljs-keyword { color: var(--ue-macro); font-weight: 600; }
+.hljs-meta .hljs-string { color: var(--ue-demo); }
+.hljs-property, .hljs-variable { color: var(--text); }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 700; }
+
+/* 파일 태그 (본문 인라인 · .h / .cpp) */
+.filetag { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 3px; }
+.filetag.h   { background: rgba(56,217,180,0.14); color: var(--ue-header); }
+.filetag.cpp { background: rgba(251,140,90,0.14);  color: var(--ue-source); }
+
+/* mini-components */
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 4px; }
+.stat-label { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+.pills { display: flex; flex-wrap: wrap; gap: 7px; }
+.pill { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; padding: 3px 12px; border-radius: 20px; border: 1px solid; }
+.pill.blue { color: var(--accent); border-color: rgba(91,110,250,0.4); background: rgba(91,110,250,0.08); }
+.pill.purple { color: var(--accent-2); border-color: rgba(155,109,255,0.4); background: rgba(155,109,255,0.08); }
+.pill.green { color: var(--accent-3); border-color: rgba(56,217,180,0.4); background: rgba(56,217,180,0.08); }
+.pill.pink { color: var(--pink); border-color: rgba(224,64,251,0.4); background: rgba(224,64,251,0.08); }
+.pill.red { color: var(--red); border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.08); }
+
+.arch { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: stretch; }
+.arch-layer { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 16px 14px; }
+.arch-arrow { display: flex; align-items: center; justify-content: center; padding: 0 8px; color: var(--text-dim); font-size: 16px; }
+.arch-tag { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 7px; color: var(--accent); }
+.arch-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.arch-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+.tbl { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 13px; }
+.tbl th { background: var(--surface-2); color: var(--text-muted); font-weight: 600; font-size: 12px; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+.tbl td { padding: 10px 14px; color: var(--text-muted); border-bottom: 1px solid rgba(37,43,74,0.5); vertical-align: top; line-height: 1.55; }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl td:first-child { color: var(--text); }
+.tbl td code, .tbl th code { background: transparent; border: none; padding: 0; color: var(--accent); }
+.tbl td.err { color: var(--red); font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
+
+.tree { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.9; color: var(--text-dim); white-space: pre; overflow-x: auto; }
+.tree .folder { color: var(--ue-folder); font-weight: 600; }
+.tree .note { color: var(--text-muted); }
+.tree .c-subsystem { color: var(--ue-subsystem); font-weight: 600; }
+.tree .c-savegame { color: var(--ue-savegame); font-weight: 600; }
+
+.pitfall { display: flex; gap: 14px; align-items: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; border-left: 3px solid var(--amber); margin: 14px 0; }
+.pitfall.tip { border-left-color: var(--accent-3); }
+.pitfall .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.pitfall-text { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
+.pitfall-text strong { color: var(--text); }
+
+footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920px; margin: 0 auto; font-size: 12px; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+/* CHECKLIST — 인터랙티브 진행률 체크리스트  [master v1.7] */
+.checklist { margin: 20px 0; }
+.check-prog { display: flex; align-items: center; gap: 16px; padding: 13px 16px; margin-bottom: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; }
+.check-bar { flex: 1; min-width: 120px; height: 4px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.check-fill { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 3px; transition: width 0.3s ease; }
+.check-count { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.check-count b { color: var(--accent); font-weight: 600; }
+.check-step { border: 1px solid var(--border); border-radius: 8px; background: var(--surface); margin-bottom: 10px; overflow: hidden; }
+.check-step.done { border-color: rgba(56,217,180,0.35); }
+.check-head { display: flex; gap: 14px; align-items: flex-start; padding: 15px 18px; cursor: pointer; user-select: none; }
+.check-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 8px; }
+.check-tick { flex: none; width: 26px; height: 26px; border: 2px solid var(--border); border-radius: 50%; display: grid; place-items: center; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text-dim); background: var(--surface-2); transition: background 0.18s, border-color 0.18s, color 0.18s; margin-top: 1px; }
+.check-step.done .check-tick { background: var(--accent-3); border-color: var(--accent-3); color: var(--bg); }
+.check-step.done .check-tick .tk-num { display: none; }
+.check-step.done .check-tick::after { content: '✓'; font-size: 14px; font-weight: 700; }
+.check-title { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: 0.01em; }
+.check-step.done .check-title { color: var(--text-muted); text-decoration: line-through; text-decoration-color: var(--text-dim); }
+.check-why { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-dim); margin-top: 3px; line-height: 1.5; }
+.check-body { padding: 0 18px 18px 58px; }
+.check-body > *:first-child { margin-top: 0; }
+
+/* BP-GRAPH — 블루프린트 노드 그래프 (UE 에디터 재현)  [master v1.6] */
+.bp-graph { background: var(--bp-canvas); border: 1px solid var(--border); border-radius: 10px; margin: 16px 0; overflow-x: auto; }
+.bp-graph svg { display: block; max-width: 100%; height: auto; margin: 0 auto; min-width: 560px; }
+.bp-graph .bpn-body { fill: var(--bp-node); fill-opacity: 0.97; stroke: #050505; }
+.bp-graph .bpn-name { fill: #F4F4F4; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; font-weight: 600; }
+.bp-graph .bpn-sub  { fill: #B9D2EA; font-family: 'Pretendard', 'Noto Sans KR', sans-serif; font-size: 8.5px; }
+.bp-graph .bpn-icon { fill: #EDEDED; font-size: 11px; }
+.bp-graph .bpn-chip { fill: #101113; stroke: #3A3C40; }
+.bp-graph .bpn-chip-text { fill: #D8D8D8; font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; }
+.bp-graph .bpp-exec { fill: var(--bp-exec); }
+.bp-graph .bpp-pin { stroke-width: 1.6; }
+.bp-graph .bpp-pin.t-int    { fill: var(--bp-int);    stroke: var(--bp-int); }
+.bp-graph .bpp-pin.t-string { fill: var(--bp-string); stroke: var(--bp-string); }
+.bp-graph .bpp-pin.t-object { fill: var(--bp-object); stroke: var(--bp-object); }
+.bp-graph .bpp-pin.off  { fill: none; }
+.bp-graph .bpp-exec.off { fill: none; stroke: var(--bp-exec); stroke-width: 1.4; }
+.bp-graph .bpp-label { fill: #C9C9C9; font-family: 'IBM Plex Mono', monospace; font-size: 10px; }
+.bp-graph .bpw { fill: none; stroke-width: 1.8; }
+.bp-graph .bpw.exec     { stroke: var(--bp-exec); stroke-width: 2.2; }
+.bp-graph .bpw.t-int    { stroke: var(--bp-int); }
+.bp-graph .bpw.t-string { stroke: var(--bp-string); }
+.bp-graph .bpw.t-object { stroke: var(--bp-object); }
+.bp-graph .bpg-caption { fill: #8B8F94; font-family: 'Pretendard', 'Noto Sans KR', sans-serif; font-size: 12px; }
+
+@media (max-width: 720px) {
+  .content { padding: 0 20px 60px; }
+  .hero { padding: 48px 20px 40px; }
+  .stat-row, .grid-2 { grid-template-columns: 1fr; }
+  .arch { grid-template-columns: 1fr; }
+  .arch-arrow { transform: rotate(90deg); padding: 4px 0; }
+  .check-body { padding-left: 18px; }
+  nav { padding: 0 16px; gap: 16px; }
+  .nav-links { display: none; }
+  footer { padding: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">RECORDTALES V2 · 09 SQLITE 배관</div>
+  <div class="nav-links">
+    <a href="#goal">목표 &amp; 시작</a>
+    <a href="#steps">따라하기</a>
+    <a href="#next">여기까지 되면</a>
+    <a href="#trouble">막혔을 때</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">RecordTales V2 · Doc 09 · SQLite Plumbing</div>
+  <h1>한 컬럼짜리 테이블을<br><span>먼저</span> 성공시키기</h1>
+  <p class="hero-sub">
+    스키마는 잊으세요. <code>title</code> 하나만 넣고 다시 읽어오는 것까지가 목표입니다. 아카이브 데이터를 SQLite로 옮기기 전에, <strong>블루프린트 → C++ → SQLite → 파일</strong>로 이어지는 배관이 실제로 뚫리는지부터 확인합니다. 이게 되면 나머지는 전부 SQL 문자열 편집입니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">유형 ③ 프로젝트 문서</span>
+    <span class="badge badge-green">템플릿 02-B 기능 구현</span>
+    <span class="badge badge-purple">따라하기 · 8단계</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- ============================== 01 목표 & 시작 -->
+  <div class="section" id="goal">
+    <div class="section-label">01 — 목표 &amp; 시작하기</div>
+    <h2>왜 "한 컬럼"부터인가</h2>
+    <p>SQLite를 붙일 때 초보자가 가장 많이 막히는 지점은 스키마가 아니라 <strong>배관</strong>입니다 — 플러그인이 켜졌는지, <code>#include</code>가 통과하는지, 빌드가 반영됐는지, 블루프린트에서 함수가 보이는지. 이 네 가지가 한 번에 얽히면 어디가 잘못됐는지 알 수 없습니다.</p>
+    <p>그래서 데이터는 <strong><code>title</code> 문자열 하나</strong>로 최소화하고, "넣고 → 다시 읽어온다"는 왕복만 통과시킵니다. 이 왕복이 되면 배관은 뚫린 것이고, 이후 컬럼을 늘리는 일은 SQL <code>CREATE TABLE</code>·<code>INSERT</code> 문자열만 고치면 됩니다.</p>
+
+    <div class="stat-row">
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent)">1</div><div class="stat-label">컬럼(<code>title</code>)만으로<br>왕복을 검증한다</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--ue-subsystem)">1</div><div class="stat-label">서브시스템이<br>SQL의 유일한 창구</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent-3)">8</div><div class="stat-label">단계를 체크하며<br>따라간다</div></div>
+    </div>
+
+    <h3>🚀 이 문서로 작업 시작하기</h3>
+    <div class="callout info">
+      <span class="ic">🚀</span>
+      <p><strong>① 전제 조건</strong><br>
+      · <strong>C++ 프로젝트</strong>여야 합니다(블루프린트 전용이면 0단계에서 전환). C++ 클래스 생성·Build.cs·컴파일의 공통 절차는 중앙 문서 「C++ 클래스 워크플로우」(<code>ue-cpp-class-workflow</code>)를 따릅니다.<br>
+      · 이 문서의 서브시스템은 <code>UGameInstanceSubsystem</code> 파생입니다 — 수명·자동 호출 개념은 중앙 문서 「GameInstance 서브시스템」(<code>ue-gameinstance-subsystem</code>)에 있습니다.<br>
+      · 검증용으로 <strong>DB Browser for SQLite</strong>(무료)를 설치해 두면 데이터를 눈으로 확인할 수 있습니다(7단계).</p>
+    </div>
+
+    <p style="margin-top:18px"><strong>② 만들 파일</strong> — 서브시스템 클래스 1쌍만 추가합니다. 3단계의 C++ 클래스 위저드로 생성하면 <span class="filetag h">.h</span> <span class="filetag cpp">.cpp</span>가 함께 만들어집니다(분리 레이아웃이면 각각 <code>Public/</code>·<code>Private/</code> 폴더로 — 3단계 참고).</p>
+    <table class="tbl">
+      <tr><th>파일</th><th>부모 클래스</th><th>위저드 검색어</th><th>역할</th></tr>
+      <tr><td><code>Archive/ArchiveSubsystem.h/.cpp</code></td><td><code>UGameInstanceSubsystem</code></td><td><code>GameInstanceSubsystem</code></td><td>블루프린트와 SQLite 사이의 유일한 다리 — DB 열기/닫기 + <code>CreateArchive</code>/<code>GetArchives</code></td></tr>
+    </table>
+
+    <p style="margin-top:18px"><strong>③ 코드 외 작업</strong> — 코드만으로는 끝나지 않습니다. 아래 두 가지는 반드시 에디터/설정에서 해야 합니다(각각 1·2단계).</p>
+    <table class="tbl">
+      <tr><th>작업</th><th>어디서</th><th>왜 필요한가</th></tr>
+      <tr><td>플러그인 <code>SQLiteSupport</code> 활성화</td><td>편집 &gt; 플러그인</td><td>이것만 켜면 <code>SQLiteCore</code> 플러그인도 자동으로 함께 켜짐(.uproject엔 이거면 충분)</td></tr>
+      <tr><td><code>Build.cs</code>에 <code>SQLiteCore</code>(+<code>SQLiteSupport</code>) 모듈 추가</td><td>소스 편집</td><td>헤더 include만이 아니라 <strong>링크</strong>까지 되려면 <code>SQLiteCore</code> 필수</td></tr>
+    </table>
+
+    <div class="callout warn">
+      <span class="ic">⚠️</span>
+      <p><strong>④ 컴파일 주의</strong> — <code>Build.cs</code> 수정과 새 <code>UCLASS</code>/<code>USTRUCT</code> 추가는 <strong>라이브 코딩으로 반영되지 않습니다.</strong> 에디터를 완전히 닫고 Visual Studio에서 빌드하세요. 이걸 모르면 "코드를 고쳤는데 아무 일도 안 일어나는" 상태에 빠집니다(6단계에서 다시 강조).</p>
+    </div>
+  </div>
+
+  <!-- ============================== 02 따라하기 체크리스트 -->
+  <div class="section" id="steps">
+    <div class="section-label">02 — 따라하기</div>
+    <h2>배관을 뚫는 8단계</h2>
+    <p>각 단계를 끝내면 <strong>헤더를 클릭</strong>해 완료로 표시하세요(진행률 바가 채워집니다). 완료 체크는 이 브라우저에만 남고 저장되지는 않습니다 — 순서를 잃지 않기 위한 표식입니다.</p>
+
+    <div class="checklist">
+      <div class="check-prog">
+        <div class="check-bar"><span class="check-fill"></span></div>
+        <div class="check-count"><b>0</b> / 8 단계</div>
+      </div>
+
+      <!-- 0 -->
+      <div class="check-step">
+        <div class="check-head" tabindex="0" role="button" aria-pressed="false">
+          <div class="check-tick"><span class="tk-num">0</span></div>
+          <div><div class="check-title">C++ 프로젝트인지 확인</div><div class="check-why">블루프린트 전용 프로젝트면 여기서 막힙니다</div></div>
+        </div>
+        <div class="check-body">
+          <p>프로젝트 폴더에 <code>Source/</code> 폴더와 <code>.sln</code> 파일이 있나요?</p>
+          <div class="grid-2">
+            <div class="callout tip" style="margin:0"><span class="ic">✅</span><p><strong>있다</strong> — 이미 C++ 프로젝트입니다. 1단계로 넘어가세요.</p></div>
+            <div class="callout warn" style="margin:0"><span class="ic">🔧</span><p><strong>없다</strong> — 블루프린트 전용입니다. 아래로 먼저 전환하세요.</p></div>
+          </div>
+          <p style="margin-top:14px"><strong>Visual Studio 2022</strong> 설치 시 <strong>"C++를 사용한 게임 개발"</strong> 워크로드를 반드시 체크해야 합니다. 없으면 빌드가 되지 않습니다.</p>
+          <p>그다음 에디터에서 <code>도구 &gt; 새로운 C++ 클래스</code> → <code>None</code> → 아무 이름 → 생성. 이 순간 프로젝트가 C++로 전환되고 <code>Source/</code>와 <code>.sln</code>이 생깁니다. <strong>되돌릴 수는 없지만, 기존 블루프린트는 그대로 다 씁니다.</strong></p>
+          <div class="callout tip"><span class="ic">🔎</span><p><strong>확인</strong> — 프로젝트 루트에 <code>[프로젝트명].sln</code>이 보이고, 더블클릭하면 Visual Studio가 열린다.</p></div>
+        </div>
+      </div>
+
+      <!-- 1 -->
+      <div class="check-step">
+        <div class="check-head" tabindex="0" role="button" aria-pressed="false">
+          <div class="check-tick"><span class="tk-num">1</span></div>
+          <div><div class="check-title">플러그인 켜기</div><div class="check-why">설치가 아니라 스위치입니다 — 이미 엔진에 있습니다</div></div>
+        </div>
+        <div class="check-body">
+          <p>에디터에서 <code>편집 &gt; 플러그인</code> → 검색창에 <code>sqlite</code> → <strong>SQLite Support</strong>를 체크 → 에디터 재시작. <strong>이것 하나만 켜면 됩니다</strong> — SQLite Support가 저수준 <code>SQLiteCore</code>를 의존성으로 함께 끌어옵니다.</p>
+          <div class="callout info"><span class="ic">🧭</span><p><strong>플러그인은 <code>SQLiteSupport</code> 하나면 됩니다</strong> — 이걸 켜면 <code>SQLiteCore</code> 플러그인도 의존성으로 자동 활성화되어, <code>.uproject</code>엔 <code>SQLiteSupport</code>만 있어도 됩니다. <strong>단, C++에서 직접 쓰려면 <code>Build.cs</code>에 <code>SQLiteCore</code> 모듈을 넣어야 링크됩니다</strong>(2단계). "플러그인 활성화"와 "Build.cs 모듈 의존"은 별개예요.</p></div>
+          <p><code>[프로젝트명].uproject</code>를 메모장으로 열면 <code>Plugins</code>에 아래 항목이 들어가 있어야 합니다.</p>
+          <div class="codeblock">
+            <div class="codeblock-bar">
+              <button class="codeblock-tab tab-h active" type="button">[프로젝트명].uproject</button>
+              <button class="codeblock-copy" type="button">복사</button>
+            </div>
+            <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-attr">"Plugins"</span>: [
+    { <span class="hljs-attr">"Name"</span>: <span class="hljs-string">"SQLiteSupport"</span>, <span class="hljs-attr">"Enabled"</span>: <span class="hljs-literal">true</span> }
+]</pre></div>
+          </div>
+          <div class="callout tip"><span class="ic">🔎</span><p><strong>확인</strong> — 플러그인 창에서 <strong>SQLite Support</strong>가 체크돼 있고, 재시작 후 위 항목이 <code>.uproject</code>의 <code>Plugins</code>에 보인다.</p></div>
+        </div>
+      </div>
+
+      <!-- 2 -->
+      <div class="check-step">
+        <div class="check-head" tabindex="0" role="button" aria-pressed="false">
+          <div class="check-tick"><span class="tk-num">2</span></div>
+          <div><div class="check-title">Build.cs에 모듈 추가</div><div class="check-why">이게 있어야 #include가 통과합니다</div></div>
+        </div>
+        <div class="check-body">
+          <p><code>Source/[프로젝트명]/[프로젝트명].Build.cs</code>를 열고 의존 모듈 목록에 <code>"SQLiteCore"</code>와 <code>"SQLiteSupport"</code>를 더합니다.</p>
+          <div class="codeblock">
+            <div class="codeblock-bar">
+              <button class="codeblock-tab tab-cpp active" type="button">[프로젝트명].Build.cs</button>
+              <button class="codeblock-copy" type="button">복사</button>
+            </div>
+            <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// PublicDependencyModuleNames = 이 모듈이 공개적으로 의존하는 엔진 모듈 목록.</span>
+<span class="hljs-comment">// 여기에 이름을 넣어야 해당 모듈의 public 헤더를 #include 할 수 있다.</span>
+PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class="hljs-keyword">new</span> <span class="hljs-type">string</span>[]
+{
+    <span class="hljs-string">"Core"</span>, <span class="hljs-string">"CoreUObject"</span>, <span class="hljs-string">"Engine"</span>, <span class="hljs-string">"InputCore"</span>,
+    <span class="hljs-string">"SQLiteCore"</span>, <span class="hljs-string">"SQLiteSupport"</span>      <span class="hljs-comment">// ← 이번에 추가하는 두 모듈</span>
+});</pre></div>
+          </div>
+          <div class="callout info"><span class="ic">🧭</span><p><strong>왜 <code>SQLiteCore</code>가 필요한가 — 컴파일 vs 링크</strong><br>
+          · <strong>컴파일(헤더 찾기)</strong>: <code>SQLiteSupport</code>만 있어도 <code>SQLiteDatabase.h</code>·<code>SQLitePreparedStatement.h</code>가 인클루드 경로에 올라와 <code>#include</code>는 통과합니다.<br>
+          · <strong>링크(구현 찾기)</strong>: 하지만 <code>FSQLiteDatabase</code>·<code>FSQLitePreparedStatement</code>의 실제 구현은 <strong><code>SQLiteCore</code> 모듈</strong>에 들어 있어, 이 모듈을 안 넣으면 <code>unresolved external symbol</code>(LNK2019)이 납니다. 그래서 <strong><code>SQLiteCore</code>를 반드시</strong> 넣습니다(둘 다 넣으면 확실).</p></div>
+          <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>Build.cs를 고치면 라이브 코딩으로는 반영되지 않습니다.</strong> 에디터를 완전히 닫고 Visual Studio에서 빌드해야 모듈 링크가 갱신됩니다. 이걸 모르면 다음 단계에서 <code>Cannot open include file: 'SQLiteDatabase.h'</code>가 계속 납니다.</div></div>
+        </div>
+      </div>
+
+      <!-- 3 -->
+      <div class="check-step">
+        <div class="check-head" tabindex="0" role="button" aria-pressed="false">
+          <div class="check-tick"><span class="tk-num">3</span></div>
+          <div><div class="check-title">서브시스템 클래스 만들기</div><div class="check-why">블루프린트와 SQL 사이의 유일한 다리</div></div>
+        </div>
+        <div class="check-body">
+          <p>에디터에서 <code>도구 &gt; 새로운 C++ 클래스</code> → <strong>모든 클래스</strong> 탭 → <code>GameInstanceSubsystem</code> 검색해서 부모로 선택 → 이름 <code>ArchiveSubsystem</code>.</p>
+          <p><code>UGameInstanceSubsystem</code>이라서 게임 시작 시 <code>Initialize</code>가, 종료 시 <code>Deinitialize</code>가 <strong>자동으로 불립니다.</strong> 덕분에 DB를 언제 열고 닫을지 직접 관리할 필요가 없습니다 — 서브시스템의 수명이 곧 DB의 수명입니다.</p>
+          <div class="callout info"><span class="ic">🗂️</span><p><strong>왜 <code>.h</code>는 <code>Public/</code>, <code>.cpp</code>는 <code>Private/</code>에 생기나</strong> — 지금 모듈이 <strong>Public/Private 분리 레이아웃</strong>이면 위저드가 자동으로 나눠 넣습니다. <span class="filetag h">.h</span>(선언 = 남이 봐야 하는 "인터페이스")는 <code>Source/[프로젝트명]/Public/</code>에, <span class="filetag cpp">.cpp</span>(구현 = 모듈 내부 사정)는 <code>Source/[프로젝트명]/Private/</code>에 갑니다. 언리얼 빌드 툴(UBT)이 <code>Public/</code>은 <strong>다른 모듈까지</strong>, <code>Private/</code>는 <strong>이 모듈만</strong> 인클루드 경로에 올려 주므로, <code>.cpp</code>에서 <code>#include "ArchiveSubsystem.h"</code>는 폴더 경로 없이도 통과합니다. <code>Public/</code>·<code>Private/</code> 폴더가 아예 없는 "플랫 레이아웃"이면 둘 다 <code>Source/[프로젝트명]/</code>에 나란히 생깁니다.</p></div>
+          <div class="callout tip"><span class="ic">🔎</span><p><strong>확인</strong> — <code>ArchiveSubsystem.h</code>와 <code>ArchiveSubsystem.cpp</code>가 <strong>둘 다</strong> 생겼다. 분리 레이아웃이면 각각 <code>Public/</code>·<code>Private/</code>에, 플랫이면 같은 폴더에. <strong>헤더만 보이면 <code>Private/</code> 폴더를 열어 <code>.cpp</code>를 확인</strong>하세요 — 사라진 게 아니라 형제 폴더에 있습니다.</p></div>
+        </div>
+      </div>
+
+      <!-- 4 -->
+      <div class="check-step">
+        <div class="check-head" tabindex="0" role="button" aria-pressed="false">
+          <div class="check-tick"><span class="tk-num">4</span></div>
+          <div><div class="check-title">헤더 작성</div><div class="check-why">블루프린트가 보게 될 것들</div></div>
+        </div>
+        <div class="check-body">
+          <p>블루프린트에 노출할 <strong>구조체 1개(<code>FArchiveRow</code>)</strong>와 <strong>함수 2개(<code>CreateArchive</code>·<code>GetArchives</code>)</strong>를 선언합니다. 아래를 <span class="filetag h">ArchiveSubsystem.h</span>(분리 레이아웃이면 <code>Public/</code>의 것)에 붙여 넣으세요.</p>
+          <div class="codeblock">
+            <div class="codeblock-bar">
+              <button class="codeblock-tab tab-h active" type="button">ArchiveSubsystem.h</button>
+              <button class="codeblock-copy" type="button">복사</button>
+            </div>
+            <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// ArchiveSubsystem.h — 블루프린트와 SQLite 사이의 유일한 다리</span>
+<span class="hljs-meta">#pragma once</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"CoreMinimal.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span>   <span class="hljs-comment">// UGameInstanceSubsystem 선언</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"SQLiteDatabase.h"</span>                      <span class="hljs-comment">// FSQLiteDatabase — 1·2단계로 켠 플러그인 헤더</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"ArchiveSubsystem.generated.h"</span>          <span class="hljs-comment">// UHT 생성 — 항상 맨 마지막 include</span>
+
+<span class="hljs-comment">// 아카이브 1건 = 한 행. BlueprintType이라 이 구조체를 BP에서 변수·핀으로 쓸 수 있다.</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-type">FArchiveRow</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+    <span class="hljs-comment">// BlueprintReadOnly = BP에서 읽기만(쓰기 금지). Category = 디테일 패널 그룹 이름.</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly, Category=<span class="hljs-string">"Archive"</span>)</span>
+    <span class="hljs-type">int32</span> ArchiveId = <span class="hljs-number">0</span>;          <span class="hljs-comment">// archives 테이블의 PRIMARY KEY 값</span>
+
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly, Category=<span class="hljs-string">"Archive"</span>)</span>
+    <span class="hljs-type">FString</span> Title;                <span class="hljs-comment">// title 컬럼 — 지금 단계의 유일한 데이터</span>
+};
+
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> <span class="hljs-type">RECORDTALES_API</span> <span class="hljs-type">UArchiveSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// 게임 시작 시 엔진이 자동 호출 → 여기서 DB를 연다.</span>
+    <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection) <span class="hljs-keyword">override</span>;
+    <span class="hljs-comment">// 게임 종료 시 자동 호출 → 여기서 DB를 닫는다.</span>
+    <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Deinitialize</span>() <span class="hljs-keyword">override</span>;
+
+    <span class="hljs-comment">// 아카이브 1건 추가. 반환값 = 방금 만들어진 archive_id (실패 시 -1).</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category=<span class="hljs-string">"Archive"</span>)</span>
+    <span class="hljs-type">int32</span> <span class="hljs-title">CreateArchive</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Title);
+
+    <span class="hljs-comment">// 저장된 아카이브 전체를 최신순으로 반환.</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category=<span class="hljs-string">"Archive"</span>)</span>
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FArchiveRow</span>&gt; <span class="hljs-title">GetArchives</span>();
+
+<span class="hljs-keyword">private</span>:
+    <span class="hljs-type">FSQLiteDatabase</span> Db;   <span class="hljs-comment">// 이 서브시스템이 소유하는 DB 핸들 (수명 = 게임 세션)</span>
+};</pre></div>
+          </div>
+          <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>가장 흔한 컴파일 에러 — <code>RECORDTALES_API</code></strong>. 이 매크로는 <strong>본인 모듈 이름을 대문자로 바꾸고 <code>_API</code>를 붙인 것</strong>이어야 합니다. 모듈이 <code>MyGame</code>이면 <code>MYGAME_API</code>, <code>Proj_RecordTales</code>면 <code>PROJ_RECORDTALES_API</code>입니다. 3단계에서 생성된 <code>.h</code>에 이미 올바른 매크로가 적혀 있으니 <strong>그걸 그대로 쓰세요</strong>(위 예시의 <code>RECORDTALES_API</code>를 무작정 복사하지 말 것).</div></div>
+        </div>
+      </div>
+
+      <!-- 5 -->
+      <div class="check-step">
+        <div class="check-head" tabindex="0" role="button" aria-pressed="false">
+          <div class="check-tick"><span class="tk-num">5</span></div>
+          <div><div class="check-title">구현 작성</div><div class="check-why">SQL이 사는 유일한 곳</div></div>
+        </div>
+        <div class="check-body">
+          <p>DB 열기/닫기와 <code>INSERT</code>/<code>SELECT</code>를 구현합니다. SQL 문자열이 등장하는 곳은 이 <span class="filetag cpp">.cpp</span> 하나뿐입니다. 아래를 <span class="filetag cpp">ArchiveSubsystem.cpp</span>(분리 레이아웃이면 <code>Private/</code>의 것)에 붙여 넣으세요. 헤더(4단계)와 달리 여기선 쿼리를 실행하므로 <code>SQLitePreparedStatement.h</code>도 include합니다(빠지면 <code>FSQLitePreparedStatement</code>를 못 찾아 컴파일 실패).</p>
+          <div class="codeblock">
+            <div class="codeblock-bar">
+              <button class="codeblock-tab tab-cpp active" type="button">ArchiveSubsystem.cpp</button>
+              <button class="codeblock-copy" type="button">복사</button>
+            </div>
+            <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// ArchiveSubsystem.cpp — SQL이 사는 유일한 파일</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"ArchiveSubsystem.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"SQLitePreparedStatement.h"</span>   <span class="hljs-comment">// FSQLitePreparedStatement / ESQLitePreparedStatementStepResult</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"Misc/Paths.h"</span>                <span class="hljs-comment">// FPaths::ProjectSavedDir()</span>
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UArchiveSubsystem</span>::<span class="hljs-title">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection)
+{
+    <span class="hljs-type">Super</span>::<span class="hljs-title">Initialize</span>(Collection);   <span class="hljs-comment">// 부모 초기화 먼저 — 관례상 항상 맨 위</span>
+
+    <span class="hljs-comment">// DB 파일은 반드시 Saved/ 아래에 둔다 (아래 주의 박스 참고).</span>
+    <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span> Path = <span class="hljs-type">FPaths</span>::<span class="hljs-title">ProjectSavedDir</span>() / <span class="hljs-title">TEXT</span>(<span class="hljs-string">"recordtales.db"</span>);
+    <span class="hljs-title">UE_LOG</span>(LogTemp, Log, <span class="hljs-title">TEXT</span>(<span class="hljs-string">"DB 경로: %s"</span>), *Path);   <span class="hljs-comment">// 로그로 실제 경로 확인</span>
+
+    <span class="hljs-comment">// ReadWriteCreate = 없으면 새로 만들고, 있으면 읽기/쓰기로 연다.</span>
+    <span class="hljs-keyword">if</span> (!Db.<span class="hljs-title">Open</span>(*Path, <span class="hljs-type">ESQLiteDatabaseOpenMode</span>::ReadWriteCreate))
+    {
+        <span class="hljs-title">UE_LOG</span>(LogTemp, Error, <span class="hljs-title">TEXT</span>(<span class="hljs-string">"DB 열기 실패: %s"</span>), *Db.<span class="hljs-title">GetLastError</span>());
+        <span class="hljs-keyword">return</span>;                       <span class="hljs-comment">// 열기 실패 시 이후 함수는 IsValid()==false로 안전하게 빠진다</span>
+    }
+
+    Db.<span class="hljs-title">Execute</span>(<span class="hljs-title">TEXT</span>(<span class="hljs-string">"PRAGMA foreign_keys = ON;"</span>));   <span class="hljs-comment">// 외래키 강제 (지금은 없지만 습관)</span>
+
+    <span class="hljs-comment">// IF NOT EXISTS = 이미 있으면 그대로 둔다 → 컬럼을 늘려도 기존 테이블은 안 바뀜(3섹션 참고).</span>
+    Db.<span class="hljs-title">Execute</span>(<span class="hljs-title">TEXT</span>(
+        <span class="hljs-string">"CREATE TABLE IF NOT EXISTS archives ("</span>
+        <span class="hljs-string">"  archive_id INTEGER PRIMARY KEY AUTOINCREMENT,"</span>   <span class="hljs-comment">// 자동 증가 번호</span>
+        <span class="hljs-string">"  title      TEXT NOT NULL"</span>                          <span class="hljs-comment">// 지금 단계의 유일한 컬럼</span>
+        <span class="hljs-string">");"</span>
+    ));
+
+    <span class="hljs-title">UE_LOG</span>(LogTemp, Log, <span class="hljs-title">TEXT</span>(<span class="hljs-string">"DB 준비 완료"</span>));
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UArchiveSubsystem</span>::<span class="hljs-title">Deinitialize</span>()
+{
+    Db.<span class="hljs-title">Close</span>();                     <span class="hljs-comment">// 세션 종료 시 파일 핸들 정리</span>
+    <span class="hljs-type">Super</span>::<span class="hljs-title">Deinitialize</span>();
+}
+
+<span class="hljs-type">int32</span> <span class="hljs-type">UArchiveSubsystem</span>::<span class="hljs-title">CreateArchive</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Title)
+{
+    <span class="hljs-keyword">if</span> (!Db.<span class="hljs-title">IsValid</span>()) <span class="hljs-keyword">return</span> -<span class="hljs-number">1</span>;   <span class="hljs-comment">// DB가 안 열렸으면 -1</span>
+
+    <span class="hljs-comment">// PreparedStatement = SQL 틀을 미리 컴파일하고 값만 바인딩 → SQL 인젝션 안전.</span>
+    <span class="hljs-type">FSQLitePreparedStatement</span> Stmt;
+    <span class="hljs-keyword">if</span> (!Stmt.<span class="hljs-title">Create</span>(Db, <span class="hljs-title">TEXT</span>(<span class="hljs-string">"INSERT INTO archives (title) VALUES (?1);"</span>)))
+    {
+        <span class="hljs-title">UE_LOG</span>(LogTemp, Error, <span class="hljs-title">TEXT</span>(<span class="hljs-string">"준비 실패: %s"</span>), *Db.<span class="hljs-title">GetLastError</span>());
+        <span class="hljs-keyword">return</span> -<span class="hljs-number">1</span>;
+    }
+
+    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">1</span>, Title);   <span class="hljs-comment">// ?1 자리에 Title을 끼워 넣음</span>
+    Stmt.<span class="hljs-title">Execute</span>();                          <span class="hljs-comment">// INSERT 실행</span>
+
+    <span class="hljs-keyword">return</span> (<span class="hljs-type">int32</span>)Db.<span class="hljs-title">GetLastInsertRowId</span>();   <span class="hljs-comment">// AUTOINCREMENT가 방금 준 번호</span>
+}
+
+<span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FArchiveRow</span>&gt; <span class="hljs-type">UArchiveSubsystem</span>::<span class="hljs-title">GetArchives</span>()
+{
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FArchiveRow</span>&gt; Out;
+    <span class="hljs-keyword">if</span> (!Db.<span class="hljs-title">IsValid</span>()) <span class="hljs-keyword">return</span> Out;   <span class="hljs-comment">// 빈 배열 반환</span>
+
+    <span class="hljs-type">FSQLitePreparedStatement</span> Stmt;
+    Stmt.<span class="hljs-title">Create</span>(Db, <span class="hljs-title">TEXT</span>(
+        <span class="hljs-string">"SELECT archive_id, title FROM archives ORDER BY archive_id DESC;"</span>));  <span class="hljs-comment">// 최신순</span>
+
+    <span class="hljs-comment">// Step()이 Row를 돌려주는 동안 = 결과 행이 남아 있는 동안 반복.</span>
+    <span class="hljs-keyword">while</span> (Stmt.<span class="hljs-title">Step</span>() == <span class="hljs-type">ESQLitePreparedStatementStepResult</span>::Row)
+    {
+        <span class="hljs-type">FArchiveRow</span> Row;
+        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">0</span>, Row.ArchiveId);   <span class="hljs-comment">// 0번 컬럼 = archive_id</span>
+        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">1</span>, Row.Title);       <span class="hljs-comment">// 1번 컬럼 = title</span>
+        Out.<span class="hljs-title">Add</span>(Row);
+    }
+    <span class="hljs-keyword">return</span> Out;
+}</pre></div>
+          </div>
+          <div class="pitfall"><span class="ic">🚫</span><div class="pitfall-text"><strong>DB를 <code>Content/</code>에 두지 마세요.</strong> SQLite DB는 <strong>쓰기 가능한 파일</strong>입니다. 패키징된 <code>Content/</code>에 두면 에디터에선 되다가 빌드 후 <code>disk I/O error</code>가 납니다. 반드시 <code>FPaths::ProjectSavedDir()</code>(위 코드처럼)만 쓰세요.</div></div>
+        </div>
+      </div>
+
+      <!-- 6 -->
+      <div class="check-step">
+        <div class="check-head" tabindex="0" role="button" aria-pressed="false">
+          <div class="check-tick"><span class="tk-num">6</span></div>
+          <div><div class="check-title">빌드</div><div class="check-why">라이브 코딩으로는 안 됩니다</div></div>
+        </div>
+        <div class="check-body">
+          <table class="tbl">
+            <tr><th>순서</th><th>할 일</th></tr>
+            <tr><td>1</td><td>에디터를 <strong>완전히 닫습니다</strong></td></tr>
+            <tr><td>2</td><td><code>.sln</code>을 열고 구성을 <strong>Development Editor / Win64</strong>로</td></tr>
+            <tr><td>3</td><td><code>빌드 &gt; 솔루션 빌드</code> (Ctrl+Shift+B)</td></tr>
+            <tr><td>4</td><td>성공하면 <code>.uproject</code> 더블클릭해서 에디터 열기</td></tr>
+          </table>
+          <div class="callout tip"><span class="ic">🔎</span><p><strong>확인</strong> — 출력 로그(<code>창 &gt; 출력 로그</code>)에 <code>DB 경로: .../Saved/recordtales.db</code>와 <code>DB 준비 완료</code>가 찍혀 있습니다. <strong>여기까지 나오면 배관은 뚫린 것입니다.</strong></p></div>
+          <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>새 클래스 추가 후엔 라이브 코딩 금지.</strong> 새 <code>UCLASS</code>·<code>USTRUCT</code>를 만들면 라이브 코딩이 처리하지 못합니다. 지금 단계에선 <strong>라이브 코딩을 끄고</strong> 에디터를 닫았다 여는 습관을 들이세요. 나중에 함수 본문만 고칠 땐 켜도 됩니다.</div></div>
+          <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>평소엔 "빌드(Build)", "다시 빌드(Rebuild)"는 피하세요.</strong> Rebuild는 프로젝트를 통째로 지웠다 다시 만들어 오래 걸리고, 당신 코드와 무관한 모듈·플러그인까지 재컴파일하다 곁가지 에러를 부를 수 있습니다. 코드나 <code>Build.cs</code>를 고쳤을 때도 <strong>보통 Build로 충분</strong>합니다.</div></div>
+        </div>
+      </div>
+
+      <!-- 7 -->
+      <div class="check-step">
+        <div class="check-head" tabindex="0" role="button" aria-pressed="false">
+          <div class="check-tick"><span class="tk-num">7</span></div>
+          <div><div class="check-title">블루프린트에서 호출</div><div class="check-why">여기서 SQL은 한 글자도 안 보입니다</div></div>
+        </div>
+        <div class="check-body">
+          <p>아무 블루프린트(레벨 BP도 됩니다)에서 다음처럼 연결합니다.</p>
+          <div class="bp-graph">
+            <svg viewBox="0 0 980 560" role="img" aria-label="블루프린트 예시: BeginPlay에서 Create Archive와 Get All Archives를 호출하고, For Each로 각 Title을 Print String으로 출력">
+              <defs>
+                <pattern id="bpg-grid" width="16" height="16" patternUnits="userSpaceOnUse">
+                  <path d="M16 0H0V16" fill="none" style="stroke:var(--bp-grid)" stroke-width="1"/>
+                </pattern>
+                <pattern id="bpg-grid80" width="80" height="80" patternUnits="userSpaceOnUse">
+                  <rect width="80" height="80" fill="url(#bpg-grid)"/>
+                  <path d="M80 0H0V80" fill="none" style="stroke:var(--bp-grid-2)" stroke-width="1.4"/>
+                </pattern>
+                <linearGradient id="bpg-event" x1="0" y1="0" x2="1" y2="0"><stop offset="0" style="stop-color:var(--bp-event)" stop-opacity="0.95"/><stop offset="1" style="stop-color:var(--bp-event)" stop-opacity="0.12"/></linearGradient>
+                <linearGradient id="bpg-call" x1="0" y1="0" x2="1" y2="0"><stop offset="0" style="stop-color:var(--bp-call)" stop-opacity="0.95"/><stop offset="1" style="stop-color:var(--bp-call)" stop-opacity="0.12"/></linearGradient>
+                <linearGradient id="bpg-pure" x1="0" y1="0" x2="1" y2="0"><stop offset="0" style="stop-color:var(--bp-pure)" stop-opacity="0.95"/><stop offset="1" style="stop-color:var(--bp-pure)" stop-opacity="0.12"/></linearGradient>
+                <linearGradient id="bpg-flow" x1="0" y1="0" x2="1" y2="0"><stop offset="0" style="stop-color:var(--bp-flow)" stop-opacity="0.95"/><stop offset="1" style="stop-color:var(--bp-flow)" stop-opacity="0.12"/></linearGradient>
+                <linearGradient id="bpg-cast" x1="0" y1="0" x2="1" y2="0"><stop offset="0" style="stop-color:var(--bp-cast)" stop-opacity="0.95"/><stop offset="1" style="stop-color:var(--bp-cast)" stop-opacity="0.12"/></linearGradient>
+                <filter id="bpg-shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="2.5" stdDeviation="3" flood-color="#000" flood-opacity="0.55"/></filter>
+              </defs>
+
+              <rect width="980" height="560" style="fill:var(--bp-canvas)"/>
+              <rect width="980" height="560" fill="url(#bpg-grid80)"/>
+
+              <!-- 와이어 (노드 뒤) -->
+              <path class="bpw exec" d="M180,92 C195,92 199,92 214,92"/>
+              <path class="bpw exec" d="M410,92 C426,92 428,92 444,92"/>
+              <path class="bpw exec" d="M640,92 C656,92 658,92 674,92"/>
+              <path class="bpw exec" d="M860,92 C930,120 700,360 674,432"/>
+              <path class="bpw t-object" d="M464,290 C400,290 220,220 214,112"/>
+              <path class="bpw t-object" d="M464,290 C500,230 452,160 444,112"/>
+              <path class="bpw t-object" d="M634,112 C654,112 658,112 674,112"/>
+              <path class="bpw t-object" d="M854,112 C912,150 628,250 674,290"/>
+              <path class="bpw t-string" d="M854,312 C912,352 628,420 674,452"/>
+
+              <!-- N1 이벤트: Event BeginPlay -->
+              <g filter="url(#bpg-shadow)">
+                <rect class="bpn-body" x="24" y="64" width="150" height="52" rx="6"/>
+                <path d="M24,88 v-18 a6,6 0 0 1 6,-6 h138 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-event)"/>
+                <text class="bpn-icon" x="36" y="82">◆</text>
+                <text class="bpn-name" x="50" y="82">Event BeginPlay</text>
+                <path class="bpp-exec" d="M166,86 h7 l7,6 -7,6 h-7 z"/>
+              </g>
+
+              <!-- N2 함수 호출: Create Archive -->
+              <g filter="url(#bpg-shadow)">
+                <rect class="bpn-body" x="214" y="52" width="190" height="104" rx="6"/>
+                <path d="M214,76 v-18 a6,6 0 0 1 6,-6 h178 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-call)"/>
+                <text class="bpn-icon" x="226" y="70" font-style="italic">f</text>
+                <text class="bpn-name" x="240" y="70">Create Archive</text>
+                <path class="bpp-exec" d="M200,86 h7 l7,6 -7,6 h-7 z"/>
+                <path class="bpp-exec" d="M396,86 h7 l7,6 -7,6 h-7 z"/>
+                <circle class="bpp-pin t-object" cx="214" cy="112" r="5"/>
+                <text class="bpp-label" x="224" y="116">Target</text>
+                <circle class="bpp-pin t-string off" cx="214" cy="136" r="5"/>
+                <text class="bpp-label" x="224" y="140">Title</text>
+                <rect class="bpn-chip" x="256" y="129" width="60" height="16" rx="3"/>
+                <text class="bpn-chip-text" x="286" y="140" text-anchor="middle">테스트</text>
+                <circle class="bpp-pin t-int off" cx="404" cy="112" r="5"/>
+                <text class="bpp-label" x="394" y="116" text-anchor="end">Return Value</text>
+              </g>
+
+              <!-- N3 함수 호출: Get All Archives -->
+              <g filter="url(#bpg-shadow)">
+                <rect class="bpn-body" x="444" y="52" width="190" height="88" rx="6"/>
+                <path d="M444,76 v-18 a6,6 0 0 1 6,-6 h178 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-call)"/>
+                <text class="bpn-icon" x="456" y="70" font-style="italic">f</text>
+                <text class="bpn-name" x="470" y="70">Get All Archives</text>
+                <path class="bpp-exec" d="M430,86 h7 l7,6 -7,6 h-7 z"/>
+                <path class="bpp-exec" d="M626,86 h7 l7,6 -7,6 h-7 z"/>
+                <circle class="bpp-pin t-object" cx="444" cy="112" r="5"/>
+                <text class="bpp-label" x="454" y="116">Target</text>
+                <circle class="bpp-pin t-object" cx="634" cy="112" r="5"/>
+                <text class="bpp-label" x="624" y="116" text-anchor="end">Return Value</text>
+              </g>
+
+              <!-- N4 흐름 제어: For Each Loop -->
+              <g filter="url(#bpg-shadow)">
+                <rect class="bpn-body" x="674" y="52" width="180" height="116" rx="6"/>
+                <path d="M674,76 v-18 a6,6 0 0 1 6,-6 h168 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-flow)"/>
+                <text class="bpn-icon" x="686" y="70">↻</text>
+                <text class="bpn-name" x="700" y="70">For Each Loop</text>
+                <path class="bpp-exec" d="M660,86 h7 l7,6 -7,6 h-7 z"/>
+                <circle class="bpp-pin t-object" cx="674" cy="112" r="5"/>
+                <text class="bpp-label" x="684" y="116">Array</text>
+                <path class="bpp-exec" d="M846,86 h7 l7,6 -7,6 h-7 z"/>
+                <text class="bpp-label" x="844" y="90" text-anchor="end">Loop Body</text>
+                <circle class="bpp-pin t-object" cx="854" cy="112" r="5"/>
+                <text class="bpp-label" x="844" y="116" text-anchor="end">Array Element</text>
+                <path class="bpp-exec off" d="M846,132 h7 l7,6 -7,6 h-7 z"/>
+                <text class="bpp-label" x="844" y="146" text-anchor="end">Completed</text>
+              </g>
+
+              <!-- N5 순수 함수: Get Game Instance Subsystem -->
+              <g filter="url(#bpg-shadow)">
+                <rect class="bpn-body" x="214" y="250" width="250" height="64" rx="6"/>
+                <path d="M214,274 v-18 a6,6 0 0 1 6,-6 h238 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-pure)"/>
+                <text class="bpn-icon" x="226" y="268" font-style="italic">f</text>
+                <text class="bpn-name" x="240" y="268">Get Game Instance Subsystem</text>
+                <text class="bpp-label" x="228" y="294">Class</text>
+                <rect class="bpn-chip" x="270" y="285" width="164" height="16" rx="3"/>
+                <text class="bpn-chip-text" x="352" y="296" text-anchor="middle">Archive Subsystem</text>
+                <circle class="bpp-pin t-object" cx="464" cy="290" r="5"/>
+              </g>
+
+              <!-- N6 순수 함수: Break Archive Row -->
+              <g filter="url(#bpg-shadow)">
+                <rect class="bpn-body" x="674" y="250" width="180" height="78" rx="6"/>
+                <path d="M674,274 v-18 a6,6 0 0 1 6,-6 h168 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-pure)"/>
+                <text class="bpn-icon" x="686" y="268" font-style="italic">f</text>
+                <text class="bpn-name" x="700" y="268">Break Archive Row</text>
+                <circle class="bpp-pin t-object" cx="674" cy="290" r="5"/>
+                <text class="bpp-label" x="684" y="294">Archive Row</text>
+                <circle class="bpp-pin t-int off" cx="854" cy="290" r="5"/>
+                <text class="bpp-label" x="844" y="294" text-anchor="end">Archive Id</text>
+                <circle class="bpp-pin t-string" cx="854" cy="312" r="5"/>
+                <text class="bpp-label" x="844" y="316" text-anchor="end">Title</text>
+              </g>
+
+              <!-- N7 함수 호출: Print String -->
+              <g filter="url(#bpg-shadow)">
+                <rect class="bpn-body" x="674" y="400" width="180" height="68" rx="6"/>
+                <path d="M674,424 v-18 a6,6 0 0 1 6,-6 h168 a6,6 0 0 1 6,6 v18 z" fill="url(#bpg-call)"/>
+                <text class="bpn-icon" x="686" y="418" font-style="italic">f</text>
+                <text class="bpn-name" x="700" y="418">Print String</text>
+                <path class="bpp-exec" d="M660,426 h7 l7,6 -7,6 h-7 z"/>
+                <path class="bpp-exec off" d="M846,426 h7 l7,6 -7,6 h-7 z"/>
+                <circle class="bpp-pin t-string" cx="674" cy="452" r="5"/>
+                <text class="bpp-label" x="684" y="456">In String</text>
+              </g>
+
+              <text class="bpg-caption" x="24" y="36">레벨 BP — BeginPlay → Create Archive → Get All Archives → For Each → (Break) Title → Print String</text>
+            </svg>
+          </div>
+          <p style="font-size:12.5px">핀 색: <span style="color:var(--bp-exec)"><strong>▷ 흰=실행 순서</strong></span> · <span style="color:var(--bp-object)"><strong>● 파랑=객체(서브시스템·구조체)</strong></span> · <span style="color:var(--bp-int)"><strong>● 청록=정수</strong></span> · <span style="color:var(--bp-string)"><strong>● 분홍=문자열</strong></span>. Target 두 개는 <code>Get Game Instance Subsystem</code>(Class=Archive Subsystem) 하나로 채웁니다. <code>Array Element</code>(Archive Row)를 <code>Break Archive Row</code>로 풀어 <code>Title</code>만 <code>Print String</code>에 연결.</p>
+          <div class="callout tip"><span class="ic">🔬</span><p><strong>최종 확인 — 눈으로 보기.</strong> <strong>DB Browser for SQLite</strong>(무료)를 설치하고 <code>[프로젝트]/Saved/recordtales.db</code>를 열어보세요. <code>archives</code> 테이블에 방금 넣은 행이 실제로 보입니다. 이 도구는 앞으로 계속 씁니다 — 코드가 의심스러울 때 <strong>데이터를 직접 눈으로 확인</strong>하는 게 디버깅 속도를 완전히 바꿉니다.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================== 03 여기까지 되면 -->
+  <div class="section" id="next">
+    <div class="section-label">03 — 다음 단계</div>
+    <h2>여기까지 되면, 나머지는 SQL 문자열 편집</h2>
+    <p>배관이 뚫렸으니 이제 <strong>컬럼을 하나씩</strong> 늘리면 됩니다. <code>title</code> 다음에 <code>created_at_utc</code>, 그다음 <code>created_at_offset</code>, 그다음 <code>status</code>… 한 번에 하나씩, 매번 DB Browser로 확인하면서요. V2 아카이브 스키마(07 기록 ID·소프트 삭제 · 03·05 데이터 설계)는 그때 꺼내 매핑하면 됩니다.</p>
+
+    <div class="arch">
+      <div class="arch-layer">
+        <div class="arch-tag">지금</div>
+        <div class="arch-title">title 1컬럼</div>
+        <div class="arch-desc">넣고 → 읽는 왕복만 검증</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-layer">
+        <div class="arch-tag">다음</div>
+        <div class="arch-title">컬럼 1개씩 추가</div>
+        <div class="arch-desc">CREATE/INSERT/SELECT 문자열만 수정, 매번 DB Browser 확인</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-layer">
+        <div class="arch-tag">최종</div>
+        <div class="arch-title">아카이브 스키마</div>
+        <div class="arch-desc">07·03·05 문서의 기록 필드로 확장</div>
+      </div>
+    </div>
+
+    <h3>스키마를 바꿨을 때 — DB 초기화(개발 중)</h3>
+    <p><strong>왜 필요한가</strong> — <code>CREATE TABLE IF NOT EXISTS</code>는 테이블이 <strong>이미 있으면 아무것도 하지 않습니다.</strong> 게다가 DB 파일은 껐다 켜도 디스크에 그대로 남으므로, CREATE 문에 새 컬럼을 넣어도 <strong>기존 테이블(옛 스키마)이 그대로</strong>라 새 컬럼이 안 생깁니다. 그래서 파일을 지워 "테이블이 아예 없는" 상태로 만든 뒤 다시 실행하면, CREATE 문이 <strong>새 스키마로 처음부터</strong> 테이블을 만듭니다.</p>
+    <table class="tbl">
+      <tr><th>순서</th><th>할 일</th></tr>
+      <tr><td>1</td><td>게임/에디터를 <strong>완전히 종료</strong> (실행 중이면 파일이 잠겨 있고, DB는 <code>Initialize</code>에서만 열려서 껐다 켜야 반영됨)</td></tr>
+      <tr><td>2</td><td>파일 탐색기로 <code>[프로젝트]/Saved/</code> 폴더로 이동</td></tr>
+      <tr><td>3</td><td><code>Saved/</code>의 <strong><code>.db</code> 파일 삭제</strong>(이 문서 예제는 <code>recordtales.db</code>, 이름을 바꿨다면 그 파일). 옆에 <code>*.db-wal</code>·<code>*.db-shm</code>·<code>*.db-journal</code>이 있으면 <strong>함께 삭제</strong> — 안 그러면 옛 데이터가 딸려올 수 있음</td></tr>
+      <tr><td>4</td><td>게임을 <strong>다시 실행</strong> → 파일이 없으니 CREATE 문이 새 스키마로 테이블 생성</td></tr>
+      <tr><td>5</td><td>DB Browser로 열어 <strong>새 컬럼이 생겼는지</strong> 확인</td></tr>
+    </table>
+    <div class="callout warn"><span class="ic">⚠️</span><p><strong>파일을 지우면 그 안의 데이터도 전부 사라집니다.</strong> 개발 중 <strong>테스트 데이터</strong>라 괜찮은 것이지, 실제 사용자 데이터엔 절대 이렇게 하면 안 됩니다. 파일을 안 지우고 그 테이블만 비우려면 DB Browser의 <code>SQL 실행</code> 탭에서 <code>DROP TABLE archives;</code> 실행 후 게임을 재실행해도 됩니다.</p></div>
+    <div class="callout info"><span class="ic">🧭</span><p><strong>출시 후에는 파일 삭제 금지</strong> — 사용자 데이터를 지울 수 없으니 <strong>마이그레이션</strong>을 합니다: <code>PRAGMA user_version</code>으로 스키마 버전을 관리하고, <code>ALTER TABLE archives ADD COLUMN …</code>으로 <strong>기존 데이터를 지키면서</strong> 컬럼을 추가합니다. "개발 중 = 파일 삭제, 출시 후 = ALTER TABLE" 두 갈래이고, 지금 단계에선 파일 삭제가 정답입니다.</p></div>
+
+    <div class="callout info"><span class="ic">🧭</span><p><strong>이 배관이 본 채택으로 승격됨(2026-07-20)</strong> — 처음엔 실현 가능성을 증명하는 스파이크였지만, 이후 <strong>풀-DB 저장 전략이 확정</strong>되어 이 배관이 V2 영속 저장의 본체가 됐습니다: 기록(archives)뿐 아니라 상태(player·guilds·owned_*·buildings)까지 전부 이 DB의 테이블로 확장합니다. 전체 테이블 설계·확장 순서는 <strong>10 코드 &amp; 변수 연결 지도</strong>가 기준입니다(07·03·05의 SaveGame 기반 기술은 후속 개정 대상).</p></div>
+  </div>
+
+  <!-- ============================== 04 막혔을 때 -->
+  <div class="section" id="trouble">
+    <div class="section-label">04 — 검증 &amp; 트러블슈팅</div>
+    <h2>막혔을 때 — 에러 메시지로 찾기</h2>
+    <p>대부분의 막힘은 아래 표의 증상 중 하나입니다. 에러 문구로 행을 찾으세요.</p>
+    <div class="callout info"><span class="ic">🧭</span><p><strong>에러 원문부터 찾는 법</strong> — 언리얼은 컴파일 에러가 VS "오류 목록"에 잘 안 잡히고 <strong>출력(Output) 창</strong>에만 뜹니다.<br>
+    · 오류 목록에 <code>MSB3073</code>만 보이면 그건 "빌드 실패" <strong>껍데기</strong>일 뿐 진짜 원인이 아닙니다.<br>
+    · <strong>출력 창</strong>(<code>Ctrl+Alt+O</code> → 드롭다운 <code>빌드</code>)에서 <code>Result: Failed</code> 바로 위, 또는 <code>Ctrl+F</code>로 <code>): error</code>를 검색해 <code>파일.cpp(줄): error C####</code>/<code>LNK####</code> 줄을 찾으세요 — 그게 진짜입니다.<br>
+    · 파란 <code>abc</code> 아이콘(<code>E0xxx</code>)은 <strong>IntelliSense</strong>(실시간 문법 도우미)라 엔진 헤더에까지 유령 에러를 자주 냅니다. 빨간 X(<code>C####</code>/<code>LNK####</code>/<code>MSB####</code>)가 진짜 빌드 에러 — 오류 목록 위 드롭다운을 <strong>"빌드 전용"</strong>으로 두면 노이즈가 걸러집니다.</p></div>
+    <table class="tbl">
+      <tr><th style="min-width:230px">증상</th><th>원인 &amp; 해결</th></tr>
+      <tr><td class="err">Cannot open include file: 'SQLiteDatabase.h'</td><td>2단계 Build.cs 누락, 또는 에디터를 안 닫고 라이브 코딩으로 빌드함 → 에디터 닫고 VS에서 재빌드</td></tr>
+      <tr><td class="err">unresolved external symbol (LNK2019) — FSQLiteDatabase / FSQLitePreparedStatement</td><td>Build.cs에 <code>SQLiteCore</code> 모듈을 안 넣음 → <code>"SQLiteCore"</code>(+<code>"SQLiteSupport"</code>) 추가 후 에디터 닫고 재빌드. <strong>컴파일은 되는데 링크만 실패</strong>하면 대개 이것(헤더는 있으나 구현 모듈 미연결).</td></tr>
+      <tr><td class="err">RECORDTALES_API 관련 에러</td><td>매크로 이름이 모듈 이름과 불일치 → 3단계에서 생성된 <code>.h</code>의 매크로를 그대로 복사</td></tr>
+      <tr><td class="err">Failed to open database: disk I/O error</td><td>DB를 <code>Content/</code>에 뒀음 → <code>FPaths::ProjectSavedDir()</code>로 옮기기(5단계)</td></tr>
+      <tr><td>BP에 <code>Create Archive</code> 노드가 안 보임</td><td>빌드 실패했는데 에디터가 이전 DLL로 열림 → 출력 로그에서 빌드 에러부터 확인</td></tr>
+      <tr><td><code>Get Subsystem</code> 노드가 비어 있음</td><td>Class 핀에서 <code>Archive Subsystem</code>을 명시적으로 골라야 함</td></tr>
+      <tr><td>함수 이름이 다르다고 함</td><td>엔진 버전에 따라 SQLite API 시그니처가 다름 → 아래 엔진 헤더가 유일한 진실</td></tr>
+    </table>
+
+    <h3>블로그마다 함수 이름이 다른 이유</h3>
+    <p>공식 튜토리얼이 없어서 결국 다들 이 두 헤더를 직접 읽습니다. 함수 시그니처가 의심되면 <strong>블로그가 아니라 아래 파일</strong>을 여세요.</p>
+    <div class="snip">
+      <div class="snip-head"><div class="code-dot" style="background:var(--ue-header)"></div>엔진 설치 경로 (유일한 진실)</div>
+<pre><span class="cm">Engine/Plugins/Runtime/Database/SQLiteCore/Source/SQLiteCore/Public/</span>
+  SQLitePreparedStatement.h   <span class="cm">// Create / Step / SetBindingValueByIndex / GetColumnValueByIndex</span>
+  SQLiteDatabase.h            <span class="cm">// Open / Close / Execute / IsValid / GetLastError / GetLastInsertRowId</span></pre>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <span>RecordTales V2 · Doc 09 SQLite 배관 놓기 · 기준 마스터 v1.7</span>
+  <span>Dark · Indigo Minimal · Editorial</span>
+</footer>
+
+<script>
+(function () {
+  /* 코드블록 탭 전환 + 복사 */
+  document.querySelectorAll('.codeblock').forEach(function (block) {
+    var tabs = block.querySelectorAll('.codeblock-tab');
+    var panels = block.querySelectorAll('.codeblock-panel');
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) { t.classList.remove('active'); });
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        if (panels[i]) panels[i].classList.add('active');
+      });
+    });
+    var copyBtn = block.querySelector('.codeblock-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () {
+        var pre = block.querySelector('.codeblock-panel.active pre');
+        if (!pre) return;
+        var text = pre.innerText;
+        var done = function () {
+          copyBtn.textContent = '복사됨 ✓';
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.textContent = '복사';
+            copyBtn.classList.remove('copied');
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+        } else {
+          fallbackCopy(text, done);
+        }
+      });
+    }
+  });
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+
+  /* 진행률 체크리스트 — 헤더 클릭/Enter로 완료 토글 + 진행률 반영 (로컬·비영속) */
+  document.querySelectorAll('.checklist').forEach(function (list) {
+    var steps = [].slice.call(list.querySelectorAll('.check-step'));
+    var fill  = list.querySelector('.check-fill');
+    var count = list.querySelector('.check-count b');
+    function refresh() {
+      var done = steps.filter(function (s) { return s.classList.contains('done'); }).length;
+      if (count) count.textContent = done;
+      if (fill)  fill.style.width = (steps.length ? done / steps.length * 100 : 0) + '%';
+    }
+    steps.forEach(function (step) {
+      var head = step.querySelector('.check-head');
+      if (!head) return;
+      function toggle() {
+        step.classList.toggle('done');
+        head.setAttribute('aria-pressed', String(step.classList.contains('done')));
+        refresh();
+      }
+      head.addEventListener('click', toggle);
+      head.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+      });
+    });
+    refresh();
+  });
+})();
+</script>
+
+</body>
+</html>

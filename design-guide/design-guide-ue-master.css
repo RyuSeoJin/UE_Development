@@ -2,7 +2,7 @@
    UE Design System — Master Stylesheet
    (design-guide-ue-master.css)
    언리얼 에셋 분석 · 아키텍처 설계 문서 공통 토대
-   v1.6  (Dark · Indigo Minimal · Editorial)
+   v1.8  (Dark · Indigo Minimal · Editorial)
 
    사용법
    - 가이드 문서(master-visual / design-template의 01 / 02)는 <link>로 이 파일을 참조.
@@ -10,6 +10,25 @@
      단일 파일로 배포한다. (오프라인 무결성 유지)
 
    변경 이력 (CHANGELOG) — 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+   v1.8 · 2026-07-20
+     - (추가) DB(SQLite) 저장 위치 표기 3종 — 데이터 설계 지도 계열에서 "SQLite DB 파일에
+       사는 데이터"를 구분하기 위함(수명 5종째: SAVE/RUNTIME/CONFIG/ROW/DB).
+       .vbadge.db(수명 배지) · .ls-file.db(변수 여정 파일 칩) · .fh-node.n-db(흐름 전도 노드).
+       색은 기존 --ue-mat(주황) 재사용 — 신규 토큰 없음.
+     - 사유: RecordTales_V2 아카이브 기록의 SQLite 채택(하이브리드: 상태=SaveGame, 기록=DB) —
+       코드/변수 지도 문서(Case B 승인).
+   v1.7 · 2026-07-18
+     - (추가) .checklist — 인터랙티브 진행률 체크리스트: "따라 하며 하나씩 완료를
+       체크"하는 실습형(따라하기) 문서용 컴포넌트. 단계 헤더 클릭/Enter로 완료(.done)
+       토글, 상단 진행률 바(.check-prog>.check-bar>.check-fill)가 완료 수를 즉시 반영.
+       색은 기존 팔레트 재사용(완료=accent-3, 진행 바=accent) — 신규 토큰 없음.
+       내부 클래스: .check-prog/.check-bar/.check-fill/.check-count · .check-step(.done) ·
+       .check-head/.check-tick(.tk-num)/.check-title/.check-why · .check-body
+     - 규칙: 완료 상태는 로컬·비영속(새로고침 시 초기화). 토글 JS는 결과물에 inline
+       (탭/복사 JS와 같은 최소 상호작용 범위). prefers-reduced-motion에서 전환 끔(공통).
+     - (변경) 반응형 블록에 .check-body 좌패딩 폴백 추가.
+     - 사유: SQLite 배관 "따라하기" 문서(Track B · Project/RecordTales, Case B 승인) —
+       원본의 진행률 체크리스트 UX를 다크·인디고 팔레트로 편입.
    v1.6 · 2026-07-10
      - (추가) 블루프린트 에디터 관례색 토큰(--bp-*) — 캔버스/노드/제목 바 5종(이벤트·
        함수 호출·순수 함수·흐름 제어·캐스트)/핀 타입 8종(Exec·Bool·Float·Int·
@@ -437,6 +456,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .vbadge.run  { background: rgba(155,109,255,0.14); color: var(--accent-2); }     /* 런타임 휘발(저장 안 함)   */
 .vbadge.cfg  { background: rgba(56,217,180,0.14);  color: var(--accent-3); }     /* Config/Settings 상수      */
 .vbadge.row  { background: rgba(91,110,250,0.14);  color: var(--accent); }       /* DataTable 행(에디터 데이터)*/
+.vbadge.db   { background: rgba(251,140,90,0.14);  color: var(--ue-mat); }       /* SQLite DB 파일 저장 [v1.8] */
 
 /* ============================================================
    FLOW-HUB — 변수 흐름 연결 전도  [v1.4 신규]
@@ -461,6 +481,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .fh-node.n-instance  { border-left-color: var(--ue-instance); }
 .fh-node.n-table     { border-left-color: var(--accent-3); }
 .fh-node.n-ui        { border-left-color: var(--ue-gamestate); }
+.fh-node.n-db        { border-left-color: var(--ue-mat); }  /* SQLite DB [v1.8] */
 .fh-node .fn-name { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
 .fh-node .fn-role { font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.45; }
 .fh-links { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
@@ -490,6 +511,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .ls-file.cpp   { background: rgba(251,140,90,0.13); color: var(--ue-source); }
 .ls-file.save  { background: rgba(245,158,11,0.13); color: var(--ue-savegame); }
 .ls-file.table { background: rgba(91,110,250,0.13); color: var(--accent); }
+.ls-file.db    { background: rgba(251,140,90,0.13); color: var(--ue-mat); }  /* SQLite DB [v1.8] */
 .ls-title { font-size: 13.5px; font-weight: 700; color: var(--text); }
 .ls-fn { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-muted); }
 .ls-var { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--accent-3); background: var(--surface-2); border: 1px solid var(--border); border-radius: 5px; padding: 4px 10px; display: inline-block; margin: 3px 0 5px; }
@@ -593,6 +615,39 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .bp-graph .bpw.t-class  { stroke: var(--bp-class); }
 .bp-graph .bpg-caption { fill: #8B8F94; font-family: 'Pretendard', 'Noto Sans KR', sans-serif; font-size: 12px; }
 
+/* ============================================================
+   CHECKLIST — 인터랙티브 진행률 체크리스트  [v1.7 신규]
+   "따라 하며 하나씩 완료를 체크"하는 실습형(따라하기) 문서용 컴포넌트.
+   단계 헤더를 클릭(또는 Enter/Space)하면 완료(.done)를 토글하고, 상단 진행률
+   바가 완료 수를 즉시 반영한다. 완료 상태는 로컬·비영속(새로고침 시 초기화).
+   구조:
+     .checklist
+       .check-prog  ( .check-bar > .check-fill  +  .check-count )
+       .check-step(.done)
+         .check-head  ( .check-tick > .tk-num  +  div > .check-title / .check-why )
+         .check-body  ( 본문·codeblock·callout 등 — .check-head 밖이라 클릭이 토글 안 됨 )
+   색은 기존 팔레트만 재사용: 완료 체크=accent-3, 진행 바=accent.
+   ============================================================ */
+.checklist { margin: 20px 0; }
+.check-prog { display: flex; align-items: center; gap: 16px; padding: 13px 16px; margin-bottom: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; }
+.check-bar { flex: 1; min-width: 120px; height: 4px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.check-fill { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 3px; transition: width 0.3s ease; }
+.check-count { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.check-count b { color: var(--accent); font-weight: 600; }
+.check-step { border: 1px solid var(--border); border-radius: 8px; background: var(--surface); margin-bottom: 10px; overflow: hidden; }
+.check-step.done { border-color: rgba(56,217,180,0.35); }
+.check-head { display: flex; gap: 14px; align-items: flex-start; padding: 15px 18px; cursor: pointer; user-select: none; }
+.check-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 8px; }
+.check-tick { flex: none; width: 26px; height: 26px; border: 2px solid var(--border); border-radius: 50%; display: grid; place-items: center; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text-dim); background: var(--surface-2); transition: background 0.18s, border-color 0.18s, color 0.18s; margin-top: 1px; }
+.check-step.done .check-tick { background: var(--accent-3); border-color: var(--accent-3); color: var(--bg); }
+.check-step.done .check-tick .tk-num { display: none; }
+.check-step.done .check-tick::after { content: '✓'; font-size: 14px; font-weight: 700; }
+.check-title { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: 0.01em; }
+.check-step.done .check-title { color: var(--text-muted); text-decoration: line-through; text-decoration-color: var(--text-dim); }
+.check-why { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-dim); margin-top: 3px; line-height: 1.5; }
+.check-body { padding: 0 18px 18px 58px; }
+.check-body > *:first-child { margin-top: 0; }
+
 @media (max-width: 720px) {
   .content { padding: 0 20px 60px; }
   .hero { padding: 48px 20px 40px; }
@@ -611,6 +666,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   .flow-hub { grid-template-columns: 1fr; }
   .fh-hub { min-width: 0; }
   .ls-step { padding-left: 24px; }
+  /* [v1.7] 체크리스트 본문 좌패딩 폴백 */
+  .check-body { padding-left: 18px; }
   nav { padding: 0 16px; gap: 16px; }
   .nav-links { display: none; }
   footer { padding: 20px; }

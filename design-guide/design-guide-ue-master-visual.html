@@ -3,11 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>디자인 마스터 (비주얼) — UE 문서 디자인 시스템 v1.7</title>
+<title>디자인 마스터 (비주얼) — UE 문서 디자인 시스템 v1.9</title>
 <link rel="stylesheet" href="design-guide-ue-master.css">
 <!-- ============================================================
      CHANGELOG — design-guide-ue-master-visual.html
      master.css의 시각 레퍼런스. 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.9 · 2026-07-20
+       - (추가) master.css v1.8 DB(SQLite) 표기 3종 반영 — 07 섹션 수명 배지 문구를 4종→5종으로
+         (.vbadge.db), lane-seq 파일 칩 설명에 .ls-file.db 추가. 색은 --ue-mat 재사용.
+       - (변경) 버전 표기 v1.8 → v1.9 (헤더·hero·footer)
+     v1.8 · 2026-07-18
+       - (추가) 10 섹션: master.css v1.7 인터랙티브 진행률 체크리스트 데모
+         (.checklist — 단계 헤더 클릭/Enter로 완료 토글 · 상단 진행률 바 즉시 반영,
+         .check-prog/.check-bar/.check-fill/.check-count · .check-step(.done) ·
+         .check-head/.check-tick/.check-title/.check-why · .check-body)
+       - (추가) checklist 사용 규칙 명문화: 완료 상태는 로컬·비영속, 토글 JS는 결과물에 inline,
+         본문(.check-body)은 헤더(.check-head) 밖이라 codeblock 복사/탭 클릭이 완료를 토글하지 않음
+       - (변경) 버전 표기 v1.7 → v1.8 (헤더·hero·footer), nav에 체크리스트(#v17) 링크 추가
      v1.7 · 2026-07-10
        - (추가) 09 섹션: master.css v1.6 블루프린트 노드 그래프 데모
          (.bp-graph — UE 에디터 재현 SVG: 노드 종류 5색 제목 바 · 실행/데이터 핀 ·
@@ -59,6 +71,7 @@
     <a href="#v14">데이터 설계</a>
     <a href="#v15">다이어그램</a>
     <a href="#v16">BP 노드</a>
+    <a href="#v17">체크리스트</a>
     <a href="../design-template/01-ue-asset-analysis.html">→ 에셋 분석</a>
     <a href="../design-template/02-ue-architecture.html">→ 아키텍처</a>
     <a href="../ue-wiki/design-guide-ue-index.html">→ 문서 허브</a>
@@ -66,7 +79,7 @@
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">Design System · v1.7 · Master Visual</div>
+  <div class="hero-eyebrow">Design System · v1.9 · Master Visual</div>
   <h1>UE 디자인<br><span>마스터</span></h1>
   <p class="hero-sub">
     모든 언리얼 문서(에셋 분석 · 아키텍처 설계)가 공유하는 디자인 마스터입니다. 컬러·타이포·레이아웃·기본 컴포넌트를 한 곳에 고정합니다. 스타일 원본은 <code>design-guide-ue-master.css</code> 한 파일이며, 이 문서는 그 시각 레퍼런스입니다.
@@ -374,7 +387,7 @@
     <p>데이터 설계 지도 템플릿(<a href="../design-template/04-ue-data-map.html" style="color:var(--accent)">04 데이터 설계 지도</a>) 전용 컴포넌트입니다. "변수가 어느 파일에 살고(정적 배치), 어떻게 흘러가는지(동적 연결)"를 시각화합니다. 색은 전부 기존 팔레트를 재사용합니다.</p>
 
     <h3>파일-변수 카드 (.var-card + .vbadge)</h3>
-    <p>헤더/소스 파일 쌍이 <strong>소유한 변수의 전수 목록</strong>을 카드로 보여줍니다. 각 행은 변수명 · 타입 · 수명 배지 · 한 줄 설명으로 구성합니다. 수명 배지 4종: <span class="vbadge save">SAVE</span> 디스크 저장 · <span class="vbadge run">RUNTIME</span> 휘발 · <span class="vbadge cfg">CONFIG</span> Settings 상수 · <span class="vbadge row">ROW</span> DataTable 행.</p>
+    <p>헤더/소스 파일 쌍이 <strong>소유한 변수의 전수 목록</strong>을 카드로 보여줍니다. 각 행은 변수명 · 타입 · 수명 배지 · 한 줄 설명으로 구성합니다. 수명 배지 5종: <span class="vbadge save">SAVE</span> 디스크 저장 · <span class="vbadge run">RUNTIME</span> 휘발 · <span class="vbadge cfg">CONFIG</span> Settings 상수 · <span class="vbadge row">ROW</span> DataTable 행 · <span class="vbadge db">DB</span> SQLite 파일 저장 <span style="color:var(--text-dim);font-size:11px">[v1.8]</span>.</p>
     <div class="demo"><div class="demo-head">Live</div><div class="demo-body">
       <div class="var-card" style="margin:0">
         <div class="vc-head">
@@ -434,7 +447,7 @@
     </div></div>
 
     <h3>변수 여정 시퀀스 (.lane-seq)</h3>
-    <p>변수 하나가 <strong>어느 파일의 어느 함수를 거쳐 어떻게 변하는지</strong>를 단계로 추적합니다. 파일 칩(<code>.ls-file</code>) 색: <span class="ls-file">.h</span> 선언 · <span class="ls-file cpp">.cpp</span> 구현 · <span class="ls-file save">SaveGame</span> 저장 · <span class="ls-file table">DataTable</span> 데이터.</p>
+    <p>변수 하나가 <strong>어느 파일의 어느 함수를 거쳐 어떻게 변하는지</strong>를 단계로 추적합니다. 파일 칩(<code>.ls-file</code>) 색: <span class="ls-file">.h</span> 선언 · <span class="ls-file cpp">.cpp</span> 구현 · <span class="ls-file save">SaveGame</span> 저장 · <span class="ls-file table">DataTable</span> 데이터 · <span class="ls-file db">SQLite DB</span> DB 파일 <span style="color:var(--text-dim);font-size:11px">[v1.8]</span>.</p>
     <div class="demo"><div class="demo-head">Live</div><div class="demo-body">
       <div class="lane-seq" style="margin:0">
         <div class="ls-step">
@@ -684,12 +697,117 @@
     <div class="callout warn"><span class="ic">⚠️</span><p><strong>bp-graph 사용 규칙</strong> — ① SVG는 생성 시점에 구워넣기(런타임 렌더링 스크립트 금지), ② <code>bpg-*</code> 표준 defs 블록(격자 패턴·제목 그라데이션 5종·그림자)을 각 SVG에 포함, ③ 제목 바는 CSS 클래스가 아니라 <code>fill="url(#bpg-…)"</code> 속성으로 지정, ④ <code>--bp-*</code> 관례색은 이 컴포넌트 안에서만 사용(본문 UI에 유출 금지), ⑤ 미연결 핀은 <code>.off</code>(외곽선만)로 UE 에디터처럼 구분.</p></div>
   </div>
 
+  <!-- 10 v1.7 인터랙티브 진행률 체크리스트 -->
+  <div class="section" id="v17">
+    <div class="section-label">10 — v1.7 인터랙티브 체크리스트</div>
+    <h2>따라 하며 완료를 체크하는 실습 컴포넌트 (.checklist)</h2>
+    <p>플러그인 활성화·빌드처럼 <strong>순서대로 따라 하며 하나씩 완료를 확인</strong>하는 "따라하기" 문서용 컴포넌트입니다. 단계 헤더를 클릭(또는 <code>Enter</code>/<code>Space</code>)하면 완료로 표시되고, 상단 진행률 바가 즉시 갱신됩니다. 완료 상태는 <strong>로컬·비영속</strong>(새로고침 시 초기화)이며, 토글 JS는 탭/복사 JS처럼 결과물에 inline합니다. 색은 기존 팔레트만 재사용합니다(완료 체크 <code>accent-3</code>, 진행 바 <code>accent</code>).</p>
+
+    <h3>Live — 클릭해서 완료 토글</h3>
+    <div class="demo"><div class="demo-head">Live · 헤더를 클릭하면 완료 처리</div><div class="demo-body">
+      <div class="checklist" style="margin:0">
+        <div class="check-prog">
+          <div class="check-bar"><span class="check-fill"></span></div>
+          <div class="check-count"><b>0</b> / 3 단계</div>
+        </div>
+        <div class="check-step">
+          <div class="check-head" tabindex="0" role="button" aria-pressed="false">
+            <div class="check-tick"><span class="tk-num">1</span></div>
+            <div><div class="check-title">플러그인 켜기</div><div class="check-why">설치가 아니라 스위치입니다</div></div>
+          </div>
+          <div class="check-body">
+            <p style="margin-top:0"><code>편집 &gt; 플러그인</code>에서 대상 플러그인을 체크하고 에디터를 재시작합니다. 본문에는 <code>.codeblock</code>·<code>.callout</code> 등 어떤 컴포넌트든 넣을 수 있고, 그 안에서의 클릭(복사 버튼 등)은 완료를 토글하지 않습니다.</p>
+          </div>
+        </div>
+        <div class="check-step">
+          <div class="check-head" tabindex="0" role="button" aria-pressed="false">
+            <div class="check-tick"><span class="tk-num">2</span></div>
+            <div><div class="check-title">Build.cs에 모듈 추가</div><div class="check-why">이게 있어야 #include가 통과합니다</div></div>
+          </div>
+          <div class="check-body">
+            <p style="margin-top:0">모듈 의존을 <code>PublicDependencyModuleNames</code>에 추가합니다.</p>
+          </div>
+        </div>
+        <div class="check-step">
+          <div class="check-head" tabindex="0" role="button" aria-pressed="false">
+            <div class="check-tick"><span class="tk-num">3</span></div>
+            <div><div class="check-title">빌드로 검증</div><div class="check-why">로그가 찍히면 배관이 뚫린 것</div></div>
+          </div>
+          <div class="check-body">
+            <p style="margin-top:0">에디터를 닫고 Visual Studio에서 빌드한 뒤, 출력 로그에서 준비 완료 메시지를 확인합니다.</p>
+          </div>
+        </div>
+      </div>
+    </div></div>
+
+    <div class="callout warn"><span class="ic">⚠️</span><p><strong>checklist 사용 규칙</strong> — ① 완료 상태는 로컬·비영속(저장하지 않음), ② 토글/진행률 JS는 결과물에 inline(탭·복사 JS와 같은 최소 상호작용 범위), ③ 본문은 반드시 <code>.check-body</code>(헤더 <code>.check-head</code> 밖)에 넣어 codeblock 복사·탭 클릭이 완료를 토글하지 않게 함, ④ 색은 기존 팔레트만 재사용(신규 토큰 금지), ⑤ <code>role="button"</code>·<code>tabindex="0"</code>·<code>aria-pressed</code>로 키보드 접근성 유지.</p></div>
+
+    <div class="demo"><div class="demo-head">토글 JS (결과물에 inline)</div><div class="demo-body">
+      <div class="codeblock" style="margin:0">
+        <div class="codeblock-bar">
+          <button class="codeblock-tab tab-h active" type="button">checklist.js</button>
+        </div>
+        <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-title function_">document</span>.<span class="hljs-title">querySelectorAll</span>(<span class="hljs-string">'.checklist'</span>).<span class="hljs-title">forEach</span>(<span class="hljs-keyword">function</span> (list) {
+  <span class="hljs-keyword">var</span> steps = [].slice.<span class="hljs-title">call</span>(list.<span class="hljs-title">querySelectorAll</span>(<span class="hljs-string">'.check-step'</span>));
+  <span class="hljs-keyword">var</span> fill  = list.<span class="hljs-title">querySelector</span>(<span class="hljs-string">'.check-fill'</span>);
+  <span class="hljs-keyword">var</span> count = list.<span class="hljs-title">querySelector</span>(<span class="hljs-string">'.check-count b'</span>);
+  <span class="hljs-keyword">function</span> <span class="hljs-title">refresh</span>() {
+    <span class="hljs-keyword">var</span> done = steps.<span class="hljs-title">filter</span>(<span class="hljs-keyword">function</span> (s) { <span class="hljs-keyword">return</span> s.classList.<span class="hljs-title">contains</span>(<span class="hljs-string">'done'</span>); }).length;
+    <span class="hljs-keyword">if</span> (count) count.textContent = done;
+    <span class="hljs-keyword">if</span> (fill)  fill.style.width = (steps.length ? done / steps.length * <span class="hljs-number">100</span> : <span class="hljs-number">0</span>) + <span class="hljs-string">'%'</span>;
+  }
+  steps.<span class="hljs-title">forEach</span>(<span class="hljs-keyword">function</span> (step) {
+    <span class="hljs-keyword">var</span> head = step.<span class="hljs-title">querySelector</span>(<span class="hljs-string">'.check-head'</span>);
+    <span class="hljs-keyword">function</span> <span class="hljs-title">toggle</span>() {
+      step.classList.<span class="hljs-title">toggle</span>(<span class="hljs-string">'done'</span>);
+      head.<span class="hljs-title">setAttribute</span>(<span class="hljs-string">'aria-pressed'</span>, <span class="hljs-title">String</span>(step.classList.<span class="hljs-title">contains</span>(<span class="hljs-string">'done'</span>)));
+      <span class="hljs-title">refresh</span>();
+    }
+    head.<span class="hljs-title">addEventListener</span>(<span class="hljs-string">'click'</span>, toggle);
+    head.<span class="hljs-title">addEventListener</span>(<span class="hljs-string">'keydown'</span>, <span class="hljs-keyword">function</span> (e) {
+      <span class="hljs-keyword">if</span> (e.key === <span class="hljs-string">'Enter'</span> || e.key === <span class="hljs-string">' '</span>) { e.<span class="hljs-title">preventDefault</span>(); <span class="hljs-title">toggle</span>(); }
+    });
+  });
+  <span class="hljs-title">refresh</span>();
+});</pre></div>
+      </div>
+    </div></div>
+  </div>
+
 </div>
 
 <footer>
-  <span>UE 문서 디자인 시스템 · Master v1.7</span>
+  <span>UE 문서 디자인 시스템 · Master v1.9</span>
   <span>기준 디자인: Dark · Indigo Minimal · Editorial</span>
 </footer>
+
+<script>
+  /* v1.7 체크리스트 Live 데모 — 헤더 클릭/Enter로 완료 토글 + 진행률 반영 */
+  document.querySelectorAll('.checklist').forEach(function (list) {
+    var steps = [].slice.call(list.querySelectorAll('.check-step'));
+    var fill  = list.querySelector('.check-fill');
+    var count = list.querySelector('.check-count b');
+    function refresh() {
+      var done = steps.filter(function (s) { return s.classList.contains('done'); }).length;
+      if (count) count.textContent = done;
+      if (fill)  fill.style.width = (steps.length ? done / steps.length * 100 : 0) + '%';
+    }
+    steps.forEach(function (step) {
+      var head = step.querySelector('.check-head');
+      if (!head) return;
+      function toggle() {
+        step.classList.toggle('done');
+        head.setAttribute('aria-pressed', String(step.classList.contains('done')));
+        refresh();
+      }
+      head.addEventListener('click', toggle);
+      head.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+      });
+    });
+    refresh();
+  });
+</script>
 
 </body>
 </html>

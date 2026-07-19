@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RecordTales V2 · 10 코드 &amp; 변수 연결 지도</title>
+<!-- ============================================================
+     CHANGELOG — 10-code-variable-map.html
+     RecordTales V2 코드 & 변수 연결 지도 (Track B · 04 데이터 설계 지도 템플릿).
+     작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.1 · 2026-07-20
+       - (개정) 저장 전략 하이브리드 → 풀-DB 확정(사용자 결정): 상태(SAVE)까지 전부 SQLite로.
+         테이블 6종(player 1행·guilds·owned_characters·owned_abilities·buildings·archives),
+         SAVE 배지는 "V2 미사용" 표기, lk-save 범례를 "DB 저장(영속화)"로 재정의.
+         근거: 저장소 단일화 + 다중 테이블 변경의 트랜잭션 정합성(BEGIN/COMMIT).
+       - (개정) 소유 결정표 저장소 SAVE→DB, 전도 ①·② 및 조감 관계망을 Archive.db 단일 저장으로,
+         여정 ①·②를 INSERT/UPDATE·트랜잭션 기준으로, 06 플로차트를 풀-DB 기준(+mmd)으로 재작성.
+       - (참고) ROW(밸런스=시트→DataTable)·RUNTIME은 변화 없음. DB 파일명은 실코드 Archive.db
+         기준(범위가 계정 전체가 됐으므로 recordtales.db 개명 권장 — 코드 한 줄).
+     v1.0 · 2026-07-20
+       - 신규 생성. 구현 관점의 소유+흐름 지도 — 변수가 어느 파일(서브시스템·SaveGame·
+         DataTable·SQLite)에 살고, 계정/길드 어느 축에 속하며, 시스템 사이를 어떻게 흐르는가.
+       - V2 반영: 멀티 길드 2축(계정 공유/길드별), 하이브리드 저장(상태=SaveGame ·
+         기록=SQLite Archive.db — 09 배관 검증), 가챠·개화·추출·강화 5개 DataTable을
+         구글 시트 실측 컬럼·수치로 수록(동기화: 05 v0.12), 소프트 삭제(DeletedAt).
+       - 03(데이터 설계 지도)과의 구분: 03=설계 시점 데이터 구조 지도, 10=구현 관점
+         코드/변수 소유·흐름 지도(실코드 UArchiveSubsystem·시트 확정 반영).
+       - 여정 3편: 가챠 1회(Lv7 실수치) · 추출→강화(Epic 3조각/50조각) · 집중 기록→SQLite.
+       - 마스터 CSS v1.8 inline 스냅샷(사용 컴포넌트 범위 — vbadge.db/ls-file.db/fh-node.n-db
+         [v1.8 신규] 포함), 다이어그램 SVG 구워넣기 + Mermaid 소스(.mmd) 병기, 탭/복사 inline JS.
+     ============================================================ -->
+<style>
+/* ============================================================
+   UE Design System — Master Stylesheet (INLINE SNAPSHOT)
+   design-guide/design-guide-ue-master.css  v1.8  (Dark · Indigo Minimal · Editorial)
+   생성 시점 스냅샷(사용 컴포넌트 범위) — 이후 마스터 개정은 이 문서 재생성으로만 반영.
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Pretendard:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg: #0D0F1A;
+  --surface: #13162A;
+  --surface-2: #1A1F38;
+  --border: #252B4A;
+  --accent: #5B6EFA;
+  --accent-2: #9B6DFF;
+  --accent-3: #38D9B4;
+  --text: #E4E8FF;
+  --text-muted: #7B82A6;
+  --text-dim: #4A5080;
+  --amber: #F59E0B;
+  --pink: #E040FB;
+  --red: #F87171;
+
+  --ue-folder: #F59E0B;
+  --ue-bp:     #5B6EFA;
+  --ue-enum:   #9B6DFF;
+  --ue-mat:    #FB8C5A;
+  --ue-tex:    #38D9B4;
+  --ue-demo:   #6BD98E;
+
+  --ue-gamemode:   #5B6EFA;
+  --ue-gamestate:  #7B9CFF;
+  --ue-controller: #38D9B4;
+  --ue-pawn:       #6BD98E;
+  --ue-instance:   #9B6DFF;
+  --ue-savegame:   #F59E0B;
+  --ue-subsystem:  #E040FB;
+
+  --ue-header: #38D9B4;
+  --ue-source: #FB8C5A;
+  --ue-macro:  #FB8C5A;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+  font-size: 15px; line-height: 1.7; -webkit-font-smoothing: antialiased;
+}
+
+/* NAV */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(13,15,26,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px; display: flex; align-items: center; gap: 32px; height: 52px;
+}
+.nav-logo { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em; white-space: nowrap; }
+.nav-links { display: flex; gap: 22px; flex-wrap: wrap; }
+.nav-links a { color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 500; transition: color 0.2s; }
+.nav-links a:hover { color: var(--text); }
+.nav-links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+
+/* HERO */
+.hero { padding: 72px 48px 56px; max-width: 920px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+.hero-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: var(--accent); text-transform: uppercase; margin-bottom: 20px; }
+.hero h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 20px; }
+.hero h1 span { color: var(--accent); }
+.hero-sub { font-size: 16px; color: var(--text-muted); max-width: 660px; line-height: 1.75; }
+.hero-meta { margin-top: 28px; display: flex; gap: 10px; flex-wrap: wrap; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; border: 1px solid; }
+.badge-blue { color: var(--accent); border-color: var(--accent); background: rgba(91,110,250,0.08); }
+.badge-green { color: var(--accent-3); border-color: var(--accent-3); background: rgba(56,217,180,0.08); }
+.badge-purple { color: var(--accent-2); border-color: var(--accent-2); background: rgba(155,109,255,0.08); }
+
+/* CONTENT / SECTION */
+.content { max-width: 920px; margin: 0 auto; padding: 0 48px 80px; }
+.section { padding: 52px 0 0; border-top: 1px solid var(--border); margin-top: 52px; }
+.section:first-child { margin-top: 0; padding-top: 48px; border-top: none; }
+.section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 12px; }
+.section h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 20px; }
+.section h3 { font-size: 15px; font-weight: 700; color: var(--text); margin: 30px 0 10px; letter-spacing: 0.01em; }
+.section p { color: var(--text-muted); margin-bottom: 14px; line-height: 1.8; }
+.section p strong { color: var(--text); font-weight: 600; }
+
+code { font-family: 'IBM Plex Mono', monospace; font-size: 0.86em; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; color: var(--accent-3); }
+
+/* CALLOUT */
+.callout { display: flex; gap: 12px; align-items: flex-start; border-radius: 8px; padding: 14px 16px; margin: 18px 0; border: 1px solid var(--border); background: var(--surface-2); font-size: 13.5px; line-height: 1.65; }
+.callout .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.callout p { margin: 0; color: var(--text-muted); }
+.callout p strong { color: var(--text); }
+.callout.info { border-left: 3px solid var(--accent); }
+.callout.tip  { border-left: 3px solid var(--accent-3); }
+.callout.warn { border-left: 3px solid var(--amber); }
+
+/* CODE BLOCK (탭 + 복사 + 구워넣은 하이라이팅) */
+.codeblock { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 16px 0 24px; }
+.codeblock-bar { display: flex; align-items: stretch; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.codeblock-tab {
+  padding: 9px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600;
+  color: var(--text-dim); background: transparent; border: none; border-right: 1px solid var(--border);
+  cursor: pointer; transition: color 0.15s, background 0.15s; box-shadow: inset 0 -2px 0 transparent;
+}
+.codeblock-tab:hover { color: var(--text-muted); }
+.codeblock-tab.active { color: var(--text); background: var(--surface); }
+.codeblock-tab.tab-h.active   { box-shadow: inset 0 -2px 0 var(--ue-header); }
+.codeblock-tab.tab-cpp.active { box-shadow: inset 0 -2px 0 var(--ue-source); }
+.codeblock-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.codeblock-copy {
+  margin-left: auto; align-self: center; margin-right: 8px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600;
+  color: var(--text-muted); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 5px; padding: 4px 10px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+}
+.codeblock-copy:hover { color: var(--text); border-color: var(--accent); }
+.codeblock-copy.copied { color: var(--accent-3); border-color: var(--accent-3); }
+.codeblock-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.codeblock-panel { display: none; }
+.codeblock-panel.active { display: block; }
+.codeblock pre { padding: 16px 18px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.75; overflow-x: auto; white-space: pre; }
+
+/* highlight.js 테마 — 다크·인디고 팔레트 매핑 */
+.hljs { color: var(--text-muted); background: var(--surface); }
+.hljs-comment, .hljs-quote { color: var(--text-dim); font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-section { color: var(--accent); font-weight: 500; }
+.hljs-literal, .hljs-symbol, .hljs-bullet { color: var(--accent-2); }
+.hljs-number { color: var(--accent-2); }
+.hljs-string, .hljs-attr, .hljs-attribute, .hljs-name { color: var(--ue-demo); }
+.hljs-type, .hljs-class .hljs-title, .hljs-title.class_, .hljs-built_in { color: var(--accent-3); }
+.hljs-title, .hljs-title.function_, .hljs-function .hljs-title { color: var(--text); }
+.hljs-params { color: var(--text-muted); }
+.hljs-meta, .hljs-meta .hljs-keyword { color: var(--ue-macro); font-weight: 600; }
+.hljs-meta .hljs-string { color: var(--ue-demo); }
+.hljs-property, .hljs-variable { color: var(--text); }
+
+/* 파일 태그 */
+.filetag { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 3px; }
+.filetag.h   { background: rgba(56,217,180,0.14); color: var(--ue-header); }
+.filetag.cpp { background: rgba(251,140,90,0.14);  color: var(--ue-source); }
+
+/* stat cards */
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 4px; }
+.stat-label { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+/* pills */
+.pills { display: flex; flex-wrap: wrap; gap: 7px; }
+.pill { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; padding: 3px 12px; border-radius: 20px; border: 1px solid; }
+.pill.blue { color: var(--accent); border-color: rgba(91,110,250,0.4); background: rgba(91,110,250,0.08); }
+.pill.green { color: var(--accent-3); border-color: rgba(56,217,180,0.4); background: rgba(56,217,180,0.08); }
+.pill.purple { color: var(--accent-2); border-color: rgba(155,109,255,0.4); background: rgba(155,109,255,0.08); }
+
+/* 표 */
+.tbl { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 13px; }
+.tbl th { background: var(--surface-2); color: var(--text-muted); font-weight: 600; font-size: 12px; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+.tbl td { padding: 10px 14px; color: var(--text-muted); border-bottom: 1px solid rgba(37,43,74,0.5); vertical-align: top; line-height: 1.55; }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl td:first-child { color: var(--text); }
+.tbl td code, .tbl th code { background: transparent; border: none; padding: 0; color: var(--accent); }
+.tbl .owner { display: inline-flex; align-items: center; gap: 7px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.tbl .owner::before { content: ''; width: 9px; height: 9px; border-radius: 2px; background: var(--text-dim); flex-shrink: 0; }
+.tbl .owner.o-instance::before   { background: var(--ue-instance); }
+.tbl .owner.o-savegame::before   { background: var(--ue-savegame); }
+.tbl .owner.o-subsystem::before  { background: var(--ue-subsystem); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); }
+.legend .dot { width: 9px; height: 9px; border-radius: 2px; }
+
+/* pitfall */
+.pitfall { display: flex; gap: 14px; align-items: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; border-left: 3px solid var(--amber); margin: 14px 0; }
+.pitfall.tip { border-left-color: var(--accent-3); }
+.pitfall .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.pitfall-text { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
+.pitfall-text strong { color: var(--text); }
+
+/* DO / DON'T */
+.dd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 22px 0; }
+.dd { border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; background: var(--surface-2); }
+.dd.do { border-left: 3px solid var(--accent-3); }
+.dd.dont { border-left: 3px solid var(--red); }
+.dd h4 { font-size: 13px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.dd.do h4 { color: var(--accent-3); }
+.dd.dont h4 { color: var(--red); }
+.dd ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.dd li { font-size: 12.5px; color: var(--text-muted); line-height: 1.55; padding-left: 16px; position: relative; }
+.dd li::before { content: ''; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; border-radius: 50%; }
+.dd.do li::before { background: var(--accent-3); }
+.dd.dont li::before { background: var(--red); }
+
+footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920px; margin: 0 auto; font-size: 12px; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+
+/* VAR-CARD — 파일-변수 카드 [v1.4] */
+.var-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 14px 0; }
+.var-card .vc-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 11px 16px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.var-card .vc-domain { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); }
+.var-card .vc-file { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; font-weight: 600; color: var(--text); }
+.var-card .vc-role { font-size: 11.5px; color: var(--text-muted); margin-left: auto; }
+.var-card .vc-var { display: grid; grid-template-columns: minmax(150px, 1.05fr) minmax(120px, 0.95fr) auto 1.4fr; gap: 4px 14px; align-items: baseline; padding: 8px 16px; border-bottom: 1px solid rgba(37,43,74,0.45); }
+.var-card .vc-var:last-child { border-bottom: none; }
+.vc-var .vv-name { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; font-weight: 600; color: var(--text); }
+.vc-var .vv-type { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--accent-3); }
+.vc-var .vv-note { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+/* 변수 수명 배지 (v1.8: .db 추가) */
+.vbadge { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; padding: 1px 7px; border-radius: 3px; text-transform: uppercase; white-space: nowrap; }
+.vbadge.save { background: rgba(245,158,11,0.14);  color: var(--ue-savegame); }
+.vbadge.run  { background: rgba(155,109,255,0.14); color: var(--accent-2); }
+.vbadge.cfg  { background: rgba(56,217,180,0.14);  color: var(--accent-3); }
+.vbadge.row  { background: rgba(91,110,250,0.14);  color: var(--accent); }
+.vbadge.db   { background: rgba(251,140,90,0.14);  color: var(--ue-mat); }       /* SQLite DB [v1.8] */
+
+/* FLOW-HUB + 범례 [v1.4 / v1.8: n-db 추가] */
+.flow-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 12px 0; }
+.flow-legend span { display: inline-flex; align-items: center; gap: 7px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); }
+.flow-legend .lk { width: 18px; height: 3px; border-radius: 2px; flex-shrink: 0; }
+.flow-legend .lk.lk-call  { background: var(--accent); }
+.flow-legend .lk.lk-event { background: var(--pink); }
+.flow-legend .lk.lk-save  { background: var(--ue-savegame); }
+.flow-legend .lk.lk-table { background: var(--accent-3); }
+
+.flow-hub { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: center; margin: 16px 0; }
+.fh-col { display: flex; flex-direction: column; gap: 10px; }
+.fh-node { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; border-left: 3px solid var(--text-dim); }
+.fh-node.n-subsystem { border-left-color: var(--ue-subsystem); }
+.fh-node.n-savegame  { border-left-color: var(--ue-savegame); }
+.fh-node.n-instance  { border-left-color: var(--ue-instance); }
+.fh-node.n-table     { border-left-color: var(--accent-3); }
+.fh-node.n-ui        { border-left-color: var(--ue-gamestate); }
+.fh-node.n-db        { border-left-color: var(--ue-mat); }  /* SQLite DB [v1.8] */
+.fh-node .fn-name { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.fh-node .fn-role { font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.45; }
+.fh-links { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+.fh-link { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 3px; border: 1px solid; white-space: nowrap; }
+.fh-link.lk-call  { color: var(--accent);      border-color: rgba(91,110,250,0.45);  background: rgba(91,110,250,0.08); }
+.fh-link.lk-event { color: var(--pink);        border-color: rgba(224,64,251,0.45);  background: rgba(224,64,251,0.08); }
+.fh-link.lk-save  { color: var(--ue-savegame); border-color: rgba(245,158,11,0.45);  background: rgba(245,158,11,0.08); }
+.fh-link.lk-table { color: var(--accent-3);    border-color: rgba(56,217,180,0.45);  background: rgba(56,217,180,0.08); }
+.fh-hub { background: var(--surface-2); border: 1px solid var(--accent); border-radius: 10px; padding: 16px 18px; text-align: center; min-width: 190px; box-shadow: 0 0 0 3px rgba(91,110,250,0.10); }
+.fh-hub .fn-name { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: var(--text); }
+.fh-hub .fn-role { font-size: 11px; color: var(--text-muted); margin-top: 3px; line-height: 1.5; }
+
+/* LANE-SEQ — 변수 여정 [v1.4 / v1.8: .db 칩 추가] */
+.lane-seq { display: flex; flex-direction: column; margin: 16px 0; }
+.ls-step { position: relative; padding: 0 0 22px 28px; }
+.ls-step::before { content: ''; position: absolute; left: 6px; top: 20px; bottom: -2px; width: 2px; background: var(--border); }
+.ls-step:last-child::before { display: none; }
+.ls-step:last-child { padding-bottom: 0; }
+.ls-step::after { content: ''; position: absolute; left: 1px; top: 7px; width: 8px; height: 8px; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--accent); }
+.ls-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 5px; }
+.ls-file { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 3px; background: rgba(56,217,180,0.13); color: var(--ue-header); }
+.ls-file.cpp   { background: rgba(251,140,90,0.13); color: var(--ue-source); }
+.ls-file.save  { background: rgba(245,158,11,0.13); color: var(--ue-savegame); }
+.ls-file.table { background: rgba(91,110,250,0.13); color: var(--accent); }
+.ls-file.db    { background: rgba(251,140,90,0.13); color: var(--ue-mat); }  /* SQLite DB [v1.8] */
+.ls-title { font-size: 13.5px; font-weight: 700; color: var(--text); }
+.ls-fn { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-muted); }
+.ls-var { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--accent-3); background: var(--surface-2); border: 1px solid var(--border); border-radius: 5px; padding: 4px 10px; display: inline-block; margin: 3px 0 5px; }
+.ls-desc { font-size: 12.5px; color: var(--text-muted); line-height: 1.65; }
+
+/* DIAGRAM — 구워넣은 SVG 플로차트 [v1.5] */
+.diagram { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin: 16px 0; overflow-x: auto; }
+.diagram svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.diagram .dg-node { fill: var(--surface-2); stroke: var(--border); stroke-width: 1.3; }
+.diagram .dg-node.k-subsystem { stroke: var(--ue-subsystem); }
+.diagram .dg-node.k-savegame  { stroke: var(--ue-savegame); }
+.diagram .dg-node.k-table     { stroke: var(--accent-3); }
+.diagram .dg-node.k-db        { stroke: var(--ue-mat); }
+.diagram .dg-node.k-decision  { stroke: var(--accent); fill: rgba(91,110,250,0.07); }
+.diagram .dg-text { fill: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; }
+.diagram .dg-sub { fill: var(--text-muted); font-family: 'Pretendard', sans-serif; font-size: 10.5px; }
+.diagram .dg-edge { stroke: var(--text-dim); stroke-width: 1.5; fill: none; }
+.diagram .dg-edge.lk-save  { stroke: var(--ue-savegame); }
+.diagram .dg-edge.lk-table { stroke: var(--accent-3); }
+.diagram .dg-elabel { fill: var(--text-muted); font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; }
+
+/* GRAPH-NET — 옵시디언 그래프 뷰 스타일 관계망 [v1.5] */
+.graph-net { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin: 16px 0; overflow-x: auto; }
+.graph-net svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.graph-net .gn-edge { stroke: var(--text-dim); stroke-opacity: 0.4; stroke-width: 1.2; fill: none; }
+.graph-net .gn-edge.lk-call  { stroke: var(--accent); stroke-opacity: 0.55; }
+.graph-net .gn-edge.lk-event { stroke: var(--pink); stroke-opacity: 0.55; stroke-dasharray: 4 4; }
+.graph-net .gn-edge.lk-save  { stroke: var(--ue-savegame); stroke-opacity: 0.5; }
+.graph-net .gn-edge.lk-table { stroke: var(--accent-3); stroke-opacity: 0.55; }
+.graph-net .gn-node { stroke-width: 1.6; }
+.graph-net .gn-node.k-subsystem { fill: rgba(224,64,251,0.16);  stroke: var(--ue-subsystem); }
+.graph-net .gn-node.k-savegame  { fill: rgba(245,158,11,0.16);  stroke: var(--ue-savegame); }
+.graph-net .gn-node.k-instance  { fill: rgba(155,109,255,0.16); stroke: var(--ue-instance); }
+.graph-net .gn-node.k-table     { fill: rgba(56,217,180,0.14);  stroke: var(--accent-3); }
+.graph-net .gn-node.k-ui        { fill: rgba(123,156,255,0.14); stroke: var(--ue-gamestate); }
+.graph-net .gn-node.k-db        { fill: rgba(251,140,90,0.16);  stroke: var(--ue-mat); }
+.graph-net .gn-label { fill: var(--text-muted); font-family: 'IBM Plex Mono', monospace; font-size: 10px; text-anchor: middle; }
+.graph-net .gn-label.big { fill: var(--text); font-size: 11px; font-weight: 600; }
+
+@media (max-width: 720px) {
+  .content { padding: 0 20px 60px; }
+  .hero { padding: 48px 20px 40px; }
+  .stat-row, .dd-grid { grid-template-columns: 1fr; }
+  .var-card .vc-var { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+  .vc-var .vv-note { width: 100%; }
+  .flow-hub { grid-template-columns: 1fr; }
+  .fh-hub { min-width: 0; }
+  .ls-step { padding-left: 24px; }
+  nav { padding: 0 16px; gap: 16px; }
+  .nav-links { display: none; }
+  footer { padding: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">RECORDTALES V2 · 10 코드/변수 지도</div>
+  <div class="nav-links">
+    <a href="#howto">지도 읽는 법</a>
+    <a href="#files">파일 지도</a>
+    <a href="#owner">소유 결정</a>
+    <a href="#links">연결 지도</a>
+    <a href="#journeys">흐름 추적</a>
+    <a href="#rules">확장 규칙</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">RecordTales V2 · Doc 10 · Code &amp; Variable Map</div>
+  <h1>코드 &amp; 변수<br><span>연결 지도</span></h1>
+  <p class="hero-sub">
+    변수 하나하나가 <strong>어느 파일에 살고</strong>(서브시스템·DataTable·SQLite), <strong>계정과 길드 어느 축</strong>에 속하며, 시스템 사이를 <strong>어떻게 흘러</strong> 하나로 연결되는지를 구현 관점에서 그립니다. 밸런스 수치는 전부 구글 시트(라이브 원본) 실측값입니다. 03이 "설계 시점의 데이터 구조 지도"라면, 이 문서는 <strong>실코드·확정 시트 기준의 소유+흐름 지도</strong>입니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">유형 ③ 프로젝트 문서</span>
+    <span class="badge badge-green">템플릿 04 데이터 설계 지도</span>
+    <span class="badge badge-purple">풀-DB 저장 · 시트 실측</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- ============================== 01 지도 읽는 법 -->
+  <div class="section" id="howto">
+    <div class="section-label">01 — 지도 읽는 법</div>
+    <h2>배지 두 종류와 축 하나만 익히면 됩니다</h2>
+
+    <h3>수명 배지 — 이 변수는 어디까지 살아남는가</h3>
+    <p>
+      <span class="vbadge db">DB</span> SQLite(<code>Archive.db</code>) — <strong>영속 데이터의 유일한 저장소</strong>(상태=UPDATE, 기록=INSERT) ·
+      <span class="vbadge run">RUNTIME</span> 메모리 휘발 — 세션 끝나면 소멸 ·
+      <span class="vbadge row">ROW</span> DataTable 행 — 기획이 시트/CSV로 관리(코드는 읽기만) ·
+      <span class="vbadge save">SAVE</span> SaveGame(.sav) — <strong>V2 미사용</strong>(풀-DB 확정으로 대체) ·
+      <span class="vbadge cfg">CONFIG</span> Settings 상수 — 미사용(밸런스는 전부 ROW)
+    </p>
+
+    <h3>연결 4색 — 시스템 사이를 잇는 선의 의미</h3>
+    <div class="flow-legend">
+      <span><span class="lk lk-call"></span>함수 호출</span>
+      <span><span class="lk lk-event"></span>델리게이트 브로드캐스트</span>
+      <span><span class="lk lk-save"></span>DB 저장(영속화)</span>
+      <span><span class="lk lk-table"></span>DataTable 조회</span>
+    </div>
+
+    <h3>V2의 축 — 계정 공유 vs 길드별</h3>
+    <p>멀티 길드(하이브리드 C)라서 모든 저장 변수에는 <strong>소속 축</strong>이 있습니다. <strong>계정 공유</strong> = Gold · 조각(Shard) · 캐릭터 로스터 · 계정 XP/레벨(가챠 확률 결정). <strong>길드별</strong> = 아카이브 기록 · 길드 XP/레벨 · 카테고리. 소유 결정표(03섹션)의 "축" 열이 이걸 고정합니다.</p>
+
+    <div class="callout info"><span class="ic">🗄️</span><p><strong>저장 전략 = 풀-DB (2026-07-20 확정)</strong> — 영속 데이터는 <strong>전부 SQLite <code>Archive.db</code></strong>(09 배관 검증)에 저장합니다. <strong>상태</strong>(재화·로스터·레벨·건물)는 테이블 행을 <code>UPDATE</code>, <strong>기록</strong>(아카이브)은 <code>INSERT</code>로 쌓습니다. 채택 이유: ① 저장소 단일화(이중 저장 정합성 걱정 제거) ② <strong>트랜잭션</strong> — 추출처럼 여러 테이블을 고치는 작업을 <code>BEGIN…COMMIT</code> 하나로 묶어 "중간 상태"가 불가능 ③ DB Browser로 모든 데이터를 눈으로 확인. SaveGame(.sav)은 쓰지 않습니다 — 03·05·07 문서의 SaveGame 기반 설계는 이 지도가 대체하며, 해당 문서 개정은 별도 작업입니다.</p></div>
+    <div class="pitfall tip"><span class="ic">💡</span><p class="pitfall-text" style="margin:0"><strong>파일명 참고</strong> — 실코드(09)의 DB 파일명은 <code>Archive.db</code>인데, 이제 범위가 "아카이브"가 아니라 <strong>계정 전체</strong>이므로 <code>recordtales.db</code>로 개명을 권장합니다(5단계 코드의 <code>TEXT("...")</code> 한 줄 + 기존 파일 삭제).</p></div>
+
+    <h3>테이블 이름 동기화(구 명칭 매핑)</h3>
+    <p>DataTable 이름·컬럼은 <strong>구글 시트가 정본</strong>입니다(05 v0.12에서 전 문서 동기화 완료). 예전 문서·머릿속 이름과 헷갈릴 때 이 표를 보세요.</p>
+    <table class="tbl">
+      <tr><th>정본(시트)</th><th>구 명칭</th><th>내용</th></tr>
+      <tr><td><code>DT_GachaRateByLevel</code></td><td><code>DT_Gacha_Rate_ByLevel</code></td><td>플레이어 레벨(1~20) → 캐릭터 등급 확률</td></tr>
+      <tr><td><code>DT_Character_Ability_OpenChance</code></td><td><code>DT_Character_Rarity_Ability_Open_Chance</code></td><td>캐릭터 등급 → 슬롯 1~4 개화 확률</td></tr>
+      <tr><td><code>DT_Character_Ability_GradeChance</code></td><td><code>DT_..._Select_Chance</code></td><td>캐릭터 등급 → 능력치 등급 확률</td></tr>
+      <tr><td><code>DT_Ability_Enhance</code></td><td><code>DT_Ability_UpgradeCost</code></td><td>능력치 등급 → 강화 조각 비용</td></tr>
+      <tr><td><code>DT_Character_Extract</code></td><td><code>DT_Extract_Reward</code></td><td>캐릭터 등급 → 추출 조각 지급</td></tr>
+    </table>
+  </div>
+
+  <!-- ============================== 02 파일 지도 -->
+  <div class="section" id="files">
+    <div class="section-label">02 — 파일 지도 (정적 배치)</div>
+    <h2>변수가 사는 곳</h2>
+    <p>도메인별 <strong>대표 변수</strong>를 소유 파일 기준으로 배치합니다(필드 전수 스키마의 원장은 05). 각 행: 변수 · 타입 · 수명 배지 · 한 줄 설명.</p>
+
+    <div class="stat-row">
+      <div class="stat-card"><div class="stat-num" style="color:var(--ue-subsystem)">7</div><div class="stat-label">서브시스템<br>(런타임 주인)</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--accent-3)">5</div><div class="stat-label">밸런스 DataTable<br>(시트 실측)</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--ue-mat)">6</div><div class="stat-label">DB 테이블<br>(Archive.db 하나에)</div></div>
+    </div>
+
+    <h3>경제 — 계정 공유 재화·레벨</h3>
+    <div class="var-card">
+      <div class="vc-head">
+        <span class="vc-domain">Economy</span>
+        <span class="vc-file">EconomySubsystem<span style="color:var(--ue-header)">.h</span> / <span style="color:var(--ue-source)">.cpp</span></span>
+        <span class="vc-role">재화·XP 적립의 유일한 창구</span>
+      </div>
+      <div class="vc-var">
+        <span class="vv-name">Gold</span><span class="vv-type">int64</span><span class="vbadge db">DB</span>
+        <span class="vv-note">계정 공유 재화(<code>player</code> 1행 UPDATE). 건물 산출·보상으로만 증가(정직한 경제)</span>
+      </div>
+      <div class="vc-var">
+        <span class="vv-name">Shards</span><span class="vv-type">int32</span><span class="vbadge db">DB</span>
+        <span class="vv-note">조각(계정 공유, <code>player</code> 행). 추출로 얻고 강화로 소모 — 증감은 트랜잭션 안에서</span>
+      </div>
+      <div class="vc-var">
+        <span class="vv-name">AccountXp / AccountLevel</span><span class="vv-type">int64 / int32</span><span class="vbadge db">DB</span>
+        <span class="vv-note">전 길드 활동 XP 합산(<code>player</code> 행) → 가챠 확률 행(<code>DT_GachaRateByLevel</code>)을 결정</span>
+      </div>
+      <div class="vc-var">
+        <span class="vv-name">GuildXp[GuildId]</span><span class="vv-type">TMap(캐시)</span><span class="vbadge db">DB</span>
+        <span class="vv-note">길드별 XP/레벨(길드 축, <code>guilds</code> 길드당 1행) — 실제 활동에서만 증가</span>
+      </div>
+    </div>
+
+    <h3>가챠 · 캐릭터 — 계정 로스터</h3>
+    <div class="var-card">
+      <div class="vc-head">
+        <span class="vc-domain">Gacha</span>
+        <span class="vc-file">GachaSubsystem<span style="color:var(--ue-header)">.h</span> / <span style="color:var(--ue-source)">.cpp</span></span>
+        <span class="vc-role">뽑기·등급 롤·능력치 개화</span>
+      </div>
+      <div class="vc-var">
+        <span class="vv-name">PendingCandidates</span><span class="vv-type">TArray (3장)</span><span class="vbadge run">RUNTIME</span>
+        <span class="vv-note">3장 후보 — 1택하면 소멸(저장 안 함)</span>
+      </div>
+      <div class="vc-var">
+        <span class="vv-name">OwnedCharacters</span><span class="vv-type">TArray(캐시)</span><span class="vbadge db">DB</span>
+        <span class="vv-note">보유 캐릭터(계정 공유) — 캐릭터당 <code>owned_characters</code> 1행 + 능력치당 <code>owned_abilities</code> 1행(FK)</span>
+      </div>
+    </div>
+
+    <h3>영지 · 집중 — 건물과 세션</h3>
+    <div class="var-card">
+      <div class="vc-head">
+        <span class="vc-domain">Estate · Focus</span>
+        <span class="vc-file">EstateSubsystem · FocusSubsystem</span>
+        <span class="vc-role">건물 산출 · 집중 세션 상태</span>
+      </div>
+      <div class="vc-var">
+        <span class="vv-name">BuildingStates</span><span class="vv-type">TArray(캐시)</span><span class="vbadge db">DB</span>
+        <span class="vv-note">건물 레벨·배치 캐릭터(계정 축, <code>buildings</code> 건물당 1행)</span>
+      </div>
+      <div class="vc-var">
+        <span class="vv-name">SessionElapsed / State</span><span class="vv-type">float / enum</span><span class="vbadge run">RUNTIME</span>
+        <span class="vv-note">진행 중 타이머 — 세션이 끝나면 기록 행(INSERT)과 XP(UPDATE)로 변환되고 소멸</span>
+      </div>
+    </div>
+
+    <h3>아카이브 — 기록은 SQLite에</h3>
+    <div class="var-card">
+      <div class="vc-head">
+        <span class="vc-domain">Archive</span>
+        <span class="vc-file">ArchiveSubsystem<span style="color:var(--ue-header)">.h</span> / <span style="color:var(--ue-source)">.cpp</span></span>
+        <span class="vc-role">SQLite와의 유일한 다리(09 배관)</span>
+      </div>
+      <div class="vc-var">
+        <span class="vv-name">Database</span><span class="vv-type">FSQLiteDatabase</span><span class="vbadge run">RUNTIME</span>
+        <span class="vv-note">Archive.db 연결 핸들 — Initialize에서 열고 Deinitialize에서 닫음</span>
+      </div>
+      <div class="vc-var">
+        <span class="vv-name">archives 행 (기록 1건)</span><span class="vv-type">SQL row</span><span class="vbadge db">DB</span>
+        <span class="vv-note">GuildId·Category·CreatedAt·Duration·Title·<strong>DeletedAt</strong>(소프트 삭제 — NULL=살아있음)</span>
+      </div>
+    </div>
+    <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>이름 주의</strong> — 설계 문서(00·01·07)의 <code>URecordSubsystem</code> 역할을 실코드에서는 <code>UArchiveSubsystem</code>(09에서 생성·검증)이 맡습니다. 이 지도는 실코드 이름을 기준으로 합니다.</div></div>
+
+    <h3>Archive.db 테이블 6종 — 영속 데이터의 전체 목록</h3>
+    <p>풀-DB이므로 "껐다 켜도 남는 것"은 전부 이 여섯 테이블 중 하나에 삽니다. 도입은 09의 리듬대로 <strong>한 테이블씩</strong>(쉬운 것부터) 넓힙니다.</p>
+    <table class="tbl">
+      <tr><th>순서</th><th>테이블</th><th>행 단위</th><th>주요 쓰기</th><th>내용</th></tr>
+      <tr><td>1</td><td><code>player</code></td><td><strong>항상 1행</strong></td><td>UPDATE</td><td>Gold · Shards · AccountXp (계정 상태)</td></tr>
+      <tr><td>2</td><td><code>guilds</code></td><td>길드당 1행</td><td>INSERT/UPDATE</td><td>GuildId · Name · GuildXp (길드 축)</td></tr>
+      <tr><td>3</td><td><code>owned_characters</code></td><td>캐릭터당 1행</td><td>INSERT/DELETE</td><td>InstanceId · CharacterRow · Rarity</td></tr>
+      <tr><td>3</td><td><code>owned_abilities</code></td><td>능력치당 1행</td><td>INSERT/UPDATE</td><td>InstanceId(<strong>FK</strong>) · Slot · Rarity · Step — 캐릭터 1:N</td></tr>
+      <tr><td>4</td><td><code>buildings</code></td><td>건물당 1행</td><td>INSERT/UPDATE</td><td>BuildingRow · Level · 배치 캐릭터</td></tr>
+      <tr><td>✓</td><td><code>archives</code></td><td>기록당 1행</td><td>INSERT/UPDATE</td><td>GuildId · Category · Duration · <code>DeletedAt</code>(소프트 삭제) — 09에서 가동 중</td></tr>
+    </table>
+    <div class="callout tip"><span class="ic">🔗</span><p><strong>외래키(FK)가 처음 실전 투입되는 지점</strong> — <code>owned_abilities.InstanceId</code>는 <code>owned_characters</code>를 참조합니다. 09에서 켜 둔 <code>PRAGMA foreign_keys = ON</code>이 여기서 일합니다: 존재하지 않는 캐릭터에 능력치 행을 넣으면 DB가 거부합니다.</p></div>
+
+    <h3>밸런스 DataTable 5종 — 시트 실측 컬럼</h3>
+    <p>행 구조체는 <span class="filetag h">RTTables.h</span>(05 원장)에 삽니다. 아래 컬럼명은 <strong>시트 헤더와 철자까지 동일</strong>합니다(CSV 임포트 매칭 조건).</p>
+    <table class="tbl">
+      <tr><th>테이블</th><th>RowName(키)</th><th>값 컬럼</th><th>실측 스냅샷(2026-07-20)</th></tr>
+      <tr><td><code>DT_GachaRateByLevel</code></td><td><code>Player_Level</code> 1~20</td><td><code>Gacha_Character_Normal/Rare/Epic/Legendary</code></td><td>Lv1 87/13/0/0 → Lv7 67/31/2/0 → Lv20 10/70/15/5 (plateau)</td></tr>
+      <tr><td><code>DT_Character_Ability_OpenChance</code></td><td><code>Character_Rarity_Grade</code></td><td><code>Ability_OpenChance_First~Fourth</code></td><td>N 100/0/0/0 · R 100/70/0/0 · E 100/100/70/0 · L 100/100/100/70</td></tr>
+      <tr><td><code>DT_Character_Ability_GradeChance</code></td><td><code>Character_Rarity_Grade</code></td><td><code>Ability_Rarity_Normal~Legendary</code></td><td>N 100/0/0/0 · R 30/70/0/0 · E 10/20/70/0 · L 0/10/20/70</td></tr>
+      <tr><td><code>DT_Ability_Enhance</code></td><td><code>Ability_Rarity_Grade</code></td><td><code>Upgrade_ShardAmount</code></td><td>N 10 · R 25 · E 50 · L 100</td></tr>
+      <tr><td><code>DT_Character_Extract</code></td><td><code>Character_Rarity_Grade</code></td><td><code>Extract_ShardAmount</code></td><td>N 1 · R 2 · E 3 · L 5</td></tr>
+    </table>
+    <div class="callout warn"><span class="ic">⚠️</span><p><strong>OpenChance는 "개수"가 아니라 슬롯별 개방 확률</strong>입니다 — 1번 슬롯은 항상 100%, 다음 슬롯이 계단형(100→70)으로 열립니다. 그리고 <code>DT_GachaRateByLevel</code>은 <strong>Lv20에서 끝</strong>나므로, 코드에서 <strong>Lv21+는 20행을 사용(plateau 폴백)</strong>하도록 구현해야 합니다.</p></div>
+  </div>
+
+  <!-- ============================== 03 소유 결정 -->
+  <div class="section" id="owner">
+    <div class="section-label">03 — 소유 결정</div>
+    <h2>값마다 주인 하나, 축 하나</h2>
+    <p>같은 값을 두 곳에서 고치기 시작하면 지도가 무너집니다. <strong>쓰기 권한은 주인 하나</strong>에게만 두고, 나머지는 읽기/통지만 합니다.</p>
+    <table class="tbl">
+      <tr><th>값</th><th>주인(쓰기)</th><th>저장소</th><th>축</th><th>근거</th></tr>
+      <tr><td>Gold · Shards</td><td><span class="owner o-subsystem">EconomySubsystem</span></td><td><span class="vbadge db">DB</span> <code>player</code></td><td>계정</td><td>모든 길드가 공유하는 재화 — 적립/차감 창구 단일화(1행 UPDATE)</td></tr>
+      <tr><td>AccountXp/Level</td><td><span class="owner o-subsystem">EconomySubsystem</span></td><td><span class="vbadge db">DB</span> <code>player</code></td><td>계정</td><td>전 길드 XP 합산 — 가챠 확률의 유일한 입력</td></tr>
+      <tr><td>GuildXp/Level</td><td><span class="owner o-subsystem">EconomySubsystem</span></td><td><span class="vbadge db">DB</span> <code>guilds</code></td><td><strong>길드</strong></td><td>정직한 레벨 — 실제 활동에서만, 길드당 1행</td></tr>
+      <tr><td>OwnedCharacters(등급·개화·단계)</td><td><span class="owner o-subsystem">GachaSubsystem</span></td><td><span class="vbadge db">DB</span> <code>owned_*</code></td><td>계정</td><td>로스터는 계정 공유 — 뽑기/강화/추출 모두 여기서만, 다중 테이블 변경은 트랜잭션</td></tr>
+      <tr><td>BuildingStates</td><td><span class="owner o-subsystem">EstateSubsystem</span></td><td><span class="vbadge db">DB</span> <code>buildings</code></td><td>계정</td><td>영지는 계정 단위 홈 화면</td></tr>
+      <tr><td>아카이브 기록 · DeletedAt</td><td><span class="owner o-subsystem">ArchiveSubsystem</span></td><td><span class="vbadge db">DB</span></td><td><strong>길드</strong></td><td>누적+검색형 — 행에 GuildId를 새겨 길드 스코프 유지, 소프트 삭제는 UPDATE 한 줄</td></tr>
+      <tr><td>가챠·개화·강화·추출 확률/비용</td><td><span class="owner o-savegame">기획(구글 시트)</span></td><td><span class="vbadge row">ROW</span></td><td>—</td><td>코드는 읽기만 — 밸런싱은 시트→CSV 재임포트로</td></tr>
+      <tr><td>세션 타이머 · 가챠 후보 3장</td><td><span class="owner o-subsystem">Focus/GachaSubsystem</span></td><td><span class="vbadge run">RUNTIME</span></td><td>—</td><td>결과(기록·캐릭터)만 남기고 과정은 버림</td></tr>
+      <tr><td>DB 열닫 · 트랜잭션 시점</td><td><span class="owner o-instance">GameInstance</span></td><td>—</td><td>—</td><td>Archive.db 열닫과 다중 테이블 트랜잭션의 단일 창구(수명=앱)</td></tr>
+    </table>
+  </div>
+
+  <!-- ============================== 04 연결 지도 -->
+  <div class="section" id="links">
+    <div class="section-label">04 — 연결 지도 (동적 흐름)</div>
+    <h2>조감 관계망 → 주제별 전도</h2>
+
+    <h3>전체 조감 — 무엇이 무엇과 닿아 있나</h3>
+    <div class="graph-net">
+      <svg viewBox="0 0 720 300" role="img" aria-label="V2 시스템 관계망: 서브시스템들이 SaveGame과 Archive.db, DataTable군에 연결">
+        <line class="gn-edge lk-call"  x1="120" y1="80"  x2="300" y2="150"/>
+        <line class="gn-edge lk-call"  x1="120" y1="220" x2="300" y2="150"/>
+        <line class="gn-edge lk-event" x1="300" y1="150" x2="180" y2="150"/>
+        <line class="gn-edge lk-table" x1="440" y1="70"  x2="560" y2="60"/>
+        <line class="gn-edge lk-call"  x1="300" y1="150" x2="440" y2="70"/>
+        <line class="gn-edge lk-save"  x1="300" y1="150" x2="470" y2="170"/>
+        <line class="gn-edge lk-save"  x1="440" y1="70"  x2="470" y2="170"/>
+        <line class="gn-edge lk-save"  x1="120" y1="220" x2="470" y2="170"/>
+        <line class="gn-edge lk-call"  x1="120" y1="80"  x2="230" y2="255"/>
+        <line class="gn-edge lk-table" x1="440" y1="70"  x2="560" y2="120"/>
+        <circle class="gn-node k-subsystem" cx="120" cy="80"  r="14"/>
+        <text class="gn-label" x="120" y="52">FocusSubsystem</text>
+        <circle class="gn-node k-subsystem" cx="300" cy="150" r="20"/>
+        <text class="gn-label big" x="300" y="185">EconomySubsystem</text>
+        <circle class="gn-node k-subsystem" cx="440" cy="70"  r="17"/>
+        <text class="gn-label big" x="440" y="42">GachaSubsystem</text>
+        <circle class="gn-node k-subsystem" cx="120" cy="220" r="13"/>
+        <text class="gn-label" x="120" y="248">EstateSubsystem</text>
+        <circle class="gn-node k-ui" cx="180" cy="150" r="10"/>
+        <text class="gn-label" x="163" y="130">UI</text>
+        <circle class="gn-node k-db" cx="470" cy="170" r="18"/>
+        <text class="gn-label big" x="470" y="205">Archive.db — 상태 테이블</text>
+        <circle class="gn-node k-table" cx="560" cy="60" r="13"/>
+        <text class="gn-label" x="583" y="35">DT 5종(시트)</text>
+        <circle class="gn-node k-db" cx="230" cy="255" r="14"/>
+        <text class="gn-label big" x="230" y="285">Archive.db — archives(기록)</text>
+        <circle class="gn-node k-table" cx="560" cy="120" r="9"/>
+        <text class="gn-label" x="600" y="124">DT_Character 등</text>
+      </svg>
+      <div class="flow-legend" style="margin-bottom:0">
+        <span><span class="lk lk-call"></span>함수 호출</span>
+        <span><span class="lk lk-event"></span>델리게이트</span>
+        <span><span class="lk lk-save"></span>DB 저장</span>
+        <span><span class="lk lk-table"></span>테이블 조회</span>
+      </div>
+    </div>
+    <p style="font-size:13px">노드 크기 = 연결 수. 저장 파일은 <span style="color:var(--ue-mat)"><strong>Archive.db 하나</strong></span>입니다 — 안에서 <strong>상태 테이블군</strong>(player·guilds·owned_*·buildings, UPDATE 중심)과 <strong>기록 테이블</strong>(archives, INSERT 중심)로 나뉩니다.</p>
+
+    <h3>전도 ① — 가챠 · 개화 (시트 3장이 순서대로 개입)</h3>
+    <div class="flow-hub">
+      <div class="fh-col">
+        <div class="fh-node n-subsystem">
+          <div class="fn-name">EconomySubsystem</div>
+          <div class="fn-role">계정 레벨 제공</div>
+          <div class="fh-links"><span class="fh-link lk-call">GetAccountLevel() →</span></div>
+        </div>
+        <div class="fh-node n-table">
+          <div class="fn-name">DT_GachaRateByLevel</div>
+          <div class="fn-role">레벨 → 캐릭터 등급 확률</div>
+          <div class="fh-links"><span class="fh-link lk-table">FindRow(Lv) →</span></div>
+        </div>
+        <div class="fh-node n-table">
+          <div class="fn-name">DT_Character_Ability_OpenChance</div>
+          <div class="fn-role">등급 → 슬롯 개화 확률</div>
+          <div class="fh-links"><span class="fh-link lk-table">FindRow(등급) →</span></div>
+        </div>
+        <div class="fh-node n-table">
+          <div class="fn-name">DT_Character_Ability_GradeChance</div>
+          <div class="fn-role">등급 → 능력치 등급 확률</div>
+          <div class="fh-links"><span class="fh-link lk-table">FindRow(등급) →</span></div>
+        </div>
+      </div>
+      <div class="fh-hub">
+        <div class="fn-name">GachaSubsystem</div>
+        <div class="fn-role">등급 롤 → 슬롯 롤 →<br>능력치 등급 롤 → 3장 1택</div>
+      </div>
+      <div class="fh-col">
+        <div class="fh-node n-db">
+          <div class="fn-name">owned_characters + abilities</div>
+          <div class="fn-role">선택한 1장 = 캐릭터 1행 + 능력치 N행</div>
+          <div class="fh-links"><span class="fh-link lk-save">← INSERT (트랜잭션)</span></div>
+        </div>
+        <div class="fh-node n-ui">
+          <div class="fn-name">가챠 UI</div>
+          <div class="fn-role">후보 3장 표시·선택</div>
+          <div class="fh-links"><span class="fh-link lk-event">← OnCandidatesReady</span></div>
+        </div>
+      </div>
+    </div>
+
+    <h3>전도 ② — 저장 (두 저장소로 갈라지는 지점)</h3>
+    <div class="flow-hub">
+      <div class="fh-col">
+        <div class="fh-node n-subsystem">
+          <div class="fn-name">Economy · Gacha · Estate</div>
+          <div class="fn-role">상태 데이터의 주인들</div>
+          <div class="fh-links"><span class="fh-link lk-save">상태 → UPDATE</span></div>
+        </div>
+        <div class="fh-node n-subsystem">
+          <div class="fn-name">Focus · Quest</div>
+          <div class="fn-role">세션 종료 시 기록 생성</div>
+          <div class="fh-links"><span class="fh-link lk-call">CreateArchive() →</span></div>
+        </div>
+      </div>
+      <div class="fh-hub">
+        <div class="fn-name">GameInstance</div>
+        <div class="fn-role">DB 열닫·트랜잭션의<br>단일 창구</div>
+      </div>
+      <div class="fh-col">
+        <div class="fh-node n-db">
+          <div class="fn-name">player · guilds · owned_* · buildings</div>
+          <div class="fn-role">상태 테이블군 — 행 갱신(계정+길드 축)</div>
+          <div class="fh-links"><span class="fh-link lk-save">UPDATE / INSERT</span></div>
+        </div>
+        <div class="fh-node n-db">
+          <div class="fn-name">archives</div>
+          <div class="fn-role">기록 1건 = INSERT 1행(GuildId·DeletedAt)</div>
+          <div class="fh-links"><span class="fh-link lk-save">INSERT / UPDATE</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================== 05 흐름 추적 -->
+  <div class="section" id="journeys">
+    <div class="section-label">05 — 흐름 추적 (여정 3편)</div>
+    <h2>실측 수치로 따라가는 변수의 여정</h2>
+
+    <h3>여정 ① — 가챠 1회 (계정 레벨 7 예시)</h3>
+    <div class="lane-seq">
+      <div class="ls-step">
+        <div class="ls-head"><span class="ls-file cpp">EconomySubsystem.cpp</span><span class="ls-title">레벨 확인</span><span class="ls-fn">GetAccountLevel()</span></div>
+        <div class="ls-var">AccountLevel = 7</div>
+        <div class="ls-desc">전 길드 XP 합산으로 계산된 계정 레벨. 가챠 확률의 유일한 입력입니다.</div>
+      </div>
+      <div class="ls-step">
+        <div class="ls-head"><span class="ls-file table">DT_GachaRateByLevel</span><span class="ls-title">등급 확률 조회</span><span class="ls-fn">FindRow("7")</span></div>
+        <div class="ls-var">Gacha_Character_ N67 / R31 / E2 / L0</div>
+        <div class="ls-desc">Lv7 행의 실측값. 등급 롤 → 이번 후보는 <strong>Rare</strong>가 떴다고 합시다(후보 3장 각각 롤).</div>
+      </div>
+      <div class="ls-step">
+        <div class="ls-head"><span class="ls-file table">DT_Character_Ability_OpenChance</span><span class="ls-title">슬롯 개화 롤</span><span class="ls-fn">FindRow("Character_Rarity_Rare")</span></div>
+        <div class="ls-var">Ability_OpenChance_ 100 / 70 / 0 / 0 → 슬롯 2개 개화</div>
+        <div class="ls-desc">1번 슬롯 100% 보장, 2번 슬롯 70% 롤 성공 가정. 슬롯별 독립 롤이지만 계단형 값이라 항상 왼쪽부터 열립니다.</div>
+      </div>
+      <div class="ls-step">
+        <div class="ls-head"><span class="ls-file table">DT_Character_Ability_GradeChance</span><span class="ls-title">능력치 등급 롤</span><span class="ls-fn">FindRow("Character_Rarity_Rare")</span></div>
+        <div class="ls-var">Ability_Rarity_ N30 / R70 / E0 / L0 → 슬롯마다 등급 롤</div>
+        <div class="ls-desc">개화된 슬롯 2개 각각에 능력치 등급을 롤(Rare 캐릭터는 70%가 Rare 능력치). 능력치 종류·시작 단계는 DT_Ability_Type/Step(05)에서.</div>
+      </div>
+      <div class="ls-step">
+        <div class="ls-head"><span class="ls-file db">Archive.db</span><span class="ls-title">1택 후 저장</span><span class="ls-fn">INSERT INTO owned_characters / owned_abilities</span></div>
+        <div class="ls-var">owned_characters 행: 12 → 13 (+능력치 2행)</div>
+        <div class="ls-desc">3장 후보 중 1장을 선택하는 순간에만 캐릭터 1행 + 능력치 2행이 <strong>한 트랜잭션</strong>으로 들어갑니다. 후보 3장(RUNTIME)은 소멸.</div>
+      </div>
+    </div>
+
+    <h3>여정 ② — 추출 → 강화 (조각의 왕복)</h3>
+    <div class="lane-seq">
+      <div class="ls-step">
+        <div class="ls-head"><span class="ls-file table">DT_Character_Extract</span><span class="ls-title">Epic 캐릭터 추출</span><span class="ls-fn">FindRow("Character_Rarity_Epic")</span></div>
+        <div class="ls-var">Extract_ShardAmount = 3</div>
+        <div class="ls-desc">기억 거래소에서 Epic 1명을 추출 → 조각 3개. 캐릭터 인스턴스는 로스터에서 제거됩니다.</div>
+      </div>
+      <div class="ls-step">
+        <div class="ls-head"><span class="ls-file db">Archive.db</span><span class="ls-title">캐릭터 제거 + 조각 적립 (한 트랜잭션)</span><span class="ls-fn">DELETE owned_characters → UPDATE player</span></div>
+        <div class="ls-var">BEGIN → DELETE 1행 → Shards: 47 → 50 → COMMIT</div>
+        <div class="ls-desc">캐릭터 소멸과 조각 적립이 <code>BEGIN…COMMIT</code>으로 묶여 <strong>중간 상태가 불가능</strong>합니다 — 풀-DB의 핵심 이점. 조각의 주인은 여전히 EconomySubsystem 하나.</div>
+      </div>
+      <div class="ls-step">
+        <div class="ls-head"><span class="ls-file table">DT_Ability_Enhance</span><span class="ls-title">강화 비용 조회</span><span class="ls-fn">FindRow("Ability_Rarity_Epic")</span></div>
+        <div class="ls-var">Upgrade_ShardAmount = 50</div>
+        <div class="ls-desc">Epic 능력치 한 단계 = 조각 50. 실측 비율상 <strong>Epic 캐릭터 약 17명(50÷3)</strong>을 갈아야 Epic 능력치 1단계 — 이 비율이 핵심 밸런스 레버입니다.</div>
+      </div>
+      <div class="ls-step">
+        <div class="ls-head"><span class="ls-file db">Archive.db</span><span class="ls-title">강화 실행 (한 트랜잭션)</span><span class="ls-fn">UPDATE player + UPDATE owned_abilities</span></div>
+        <div class="ls-var">BEGIN → Shards: 50 → 0 · StepIndex: 2 → 3 → COMMIT</div>
+        <div class="ls-desc">조각 차감(player 행)과 단계 상승(owned_abilities 행)이 실제 트랜잭션 하나로 커밋됩니다 — 조각만 날아가는 사고가 원천 차단.</div>
+      </div>
+    </div>
+
+    <h3>여정 ③ — 집중 기록 1건 (세션이 행으로 남는 여정)</h3>
+    <div class="lane-seq">
+      <div class="ls-step">
+        <div class="ls-head"><span class="ls-file cpp">FocusSubsystem.cpp</span><span class="ls-title">세션 종료</span><span class="ls-fn">EndSession()</span></div>
+        <div class="ls-var">SessionElapsed = 1500s (25분)</div>
+        <div class="ls-desc">RUNTIME 타이머가 멈추고, 이 값은 이제 두 갈래로 변환됩니다 — XP(상태)와 기록(행).</div>
+      </div>
+      <div class="ls-step">
+        <div class="ls-head"><span class="ls-file cpp">EconomySubsystem.cpp</span><span class="ls-title">XP 적립</span><span class="ls-fn">AddXp(ActiveGuildId, 25)</span></div>
+        <div class="ls-var">GuildXp[A] += 25 · AccountXp += 25</div>
+        <div class="ls-desc">길드 XP(길드 축, <code>guilds</code> 행)와 계정 XP(계정 축, <code>player</code> 행)가 동시에 오릅니다 — 정직한 경제(활동에서만).</div>
+      </div>
+      <div class="ls-step">
+        <div class="ls-head"><span class="ls-file cpp">ArchiveSubsystem.cpp</span><span class="ls-title">기록 생성</span><span class="ls-fn">CreateArchive(...)</span></div>
+        <div class="ls-var">INSERT INTO archives (GuildId, Category, Duration, ...)</div>
+        <div class="ls-desc">기록 1건 = 행 1개. GuildId를 새겨 길드 스코프를 유지합니다(09 배관 그대로).</div>
+      </div>
+      <div class="ls-step">
+        <div class="ls-head"><span class="ls-file db">Archive.db</span><span class="ls-title">디스크 영속 + 소프트 삭제 대비</span><span class="ls-fn">DeletedAt = NULL</span></div>
+        <div class="ls-var">archives 행: DeletedAt = NULL (살아있음)</div>
+        <div class="ls-desc">나중에 휴지통으로 보낼 땐 행을 지우지 않고 <code>UPDATE archives SET DeletedAt=now</code> 한 줄 — 복원은 다시 NULL로.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================== 06 확장 규칙 -->
+  <div class="section" id="rules">
+    <div class="section-label">06 — 확장 규칙</div>
+    <h2>새 변수가 생기면 이 순서로 배치한다</h2>
+
+    <div class="diagram">
+      <svg viewBox="0 0 700 260" role="img" aria-label="새 변수 배치 결정 플로차트: 영속이면 전부 DB — 기록형은 INSERT 행, 시트 튜닝값은 ROW, 나머지 상태는 UPDATE 행">
+        <defs>
+          <marker id="m10-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--text-dim)"/>
+          </marker>
+        </defs>
+        <polygon class="dg-node k-decision" points="110,20 200,55 110,90 20,55"/>
+        <text class="dg-text" x="110" y="50" text-anchor="middle">껐다 켜도</text>
+        <text class="dg-text" x="110" y="65" text-anchor="middle">남아야 하나?</text>
+        <rect class="dg-node" x="20" y="200" width="180" height="40" rx="8"/>
+        <text class="dg-text" x="110" y="224" text-anchor="middle">RUNTIME 멤버</text>
+        <polygon class="dg-node k-decision" points="340,20 440,55 340,90 240,55"/>
+        <text class="dg-text" x="340" y="50" text-anchor="middle">누적·검색형</text>
+        <text class="dg-text" x="340" y="65" text-anchor="middle">기록인가?</text>
+        <rect class="dg-node k-db" x="250" y="200" width="180" height="40" rx="8"/>
+        <text class="dg-text" x="340" y="224" text-anchor="middle">archives류 — 행 INSERT</text>
+        <polygon class="dg-node k-decision" points="565,20 665,55 565,90 465,55"/>
+        <text class="dg-text" x="565" y="50" text-anchor="middle">기획이 시트로</text>
+        <text class="dg-text" x="565" y="65" text-anchor="middle">튜닝하는 값?</text>
+        <rect class="dg-node k-table" x="475" y="130" width="180" height="40" rx="8"/>
+        <text class="dg-text" x="565" y="154" text-anchor="middle">DataTable 행 (ROW)</text>
+        <rect class="dg-node k-db" x="475" y="200" width="180" height="40" rx="8"/>
+        <text class="dg-text" x="565" y="224" text-anchor="middle">상태 테이블 — 행 UPDATE</text>
+        <path class="dg-edge" d="M110,90 L110,196" marker-end="url(#m10-arrow)"/>
+        <text class="dg-elabel" x="118" y="145">아니오</text>
+        <path class="dg-edge" d="M200,55 L236,55" marker-end="url(#m10-arrow)"/>
+        <text class="dg-elabel" x="207" y="47">예</text>
+        <path class="dg-edge lk-table" d="M340,90 L340,196" marker-end="url(#m10-arrow)"/>
+        <text class="dg-elabel" x="348" y="145">예</text>
+        <path class="dg-edge" d="M440,55 L461,55" marker-end="url(#m10-arrow)"/>
+        <text class="dg-elabel" x="440" y="47">아니오</text>
+        <path class="dg-edge lk-table" d="M565,90 L565,126" marker-end="url(#m10-arrow)"/>
+        <text class="dg-elabel" x="573" y="112">예</text>
+        <path class="dg-edge lk-save" d="M655,72 C680,110 680,180 655,210" marker-end="url(#m10-arrow)"/>
+        <text class="dg-elabel" x="668" y="145">아니오</text>
+      </svg>
+    </div>
+
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">variable-placement.mmd</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-keyword">flowchart</span> LR
+    A{<span class="hljs-string">"껐다 켜도 남아야 하나?"</span>} -- 아니오 --&gt; R[<span class="hljs-string">"RUNTIME 멤버"</span>]
+    A -- 예 --&gt; B{<span class="hljs-string">"누적·검색형 기록인가?"</span>}
+    B -- 예 --&gt; D[<span class="hljs-string">"archives류 테이블 — 행 INSERT"</span>]
+    B -- 아니오 --&gt; C{<span class="hljs-string">"기획이 시트로 튜닝하는 값?"</span>}
+    C -- 예 --&gt; T[<span class="hljs-string">"DataTable 행 (ROW)"</span>]
+    C -- 아니오 --&gt; S[<span class="hljs-string">"상태 테이블 — 행 UPDATE"</span>]</pre></div>
+    </div>
+
+    <p>배치가 정해지면 마지막으로 <strong>축을 지정</strong>합니다 — 이 값은 계정 공유인가, 길드별인가? (길드별 상태면 <code>guilds</code>처럼 길드당 1행으로, 기록이면 <code>GuildId</code> 컬럼으로.)</p>
+
+    <div class="dd-grid">
+      <div class="dd do">
+        <h4>✓ 이렇게</h4>
+        <ul>
+          <li>밸런스 수치의 원본은 <strong>구글 시트</strong> — 문서·코드가 시트를 따라간다</li>
+          <li>행 구조체 프로퍼티명 = <strong>시트 헤더와 철자 동일</strong>(CSV 임포트 조건)</li>
+          <li>저장 변수마다 <strong>계정/길드 축</strong>을 소유 결정표에 기록</li>
+          <li>기록 삭제는 <code>DeletedAt</code> UPDATE(소프트 삭제) — 행 DELETE는 휴지통 비우기에만</li>
+          <li>여러 테이블을 고치는 작업(추출·강화)은 <code>BEGIN…COMMIT</code> 트랜잭션으로 묶기</li>
+          <li>스키마 변경: 개발 중엔 DB 파일 삭제(09 절차), 출시 후엔 <code>user_version</code>+<code>ALTER TABLE</code></li>
+          <li>Lv21+ 가챠는 <strong>20행 plateau 폴백</strong>으로 처리</li>
+        </ul>
+      </div>
+      <div class="dd dont">
+        <h4>✗ 이건 피하기</h4>
+        <ul>
+          <li>밸런스 값(확률·비용)을 런타임 DB 테이블에 넣기 — 원본은 시트→DataTable(ROW)</li>
+          <li>여러 테이블을 고치는 작업을 트랜잭션 없이 쓰기 — 크래시 시 "조각만 사라진" 중간 상태</li>
+          <li>같은 값을 두 서브시스템이 쓰기 — 주인은 하나</li>
+          <li>구 명칭(<code>DT_Ability_UpgradeCost</code> 등)으로 새 코드 작성 — 01섹션 매핑 표 참조</li>
+          <li>DataTable 값을 코드에 하드코딩 — 시트 수정이 무효가 됨</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <span>RecordTales V2 · Doc 10 코드 &amp; 변수 연결 지도 · 기준 마스터 v1.8</span>
+  <span>Dark · Indigo Minimal · Editorial</span>
+</footer>
+
+<script>
+(function () {
+  /* 코드블록 탭 전환 + 복사 */
+  document.querySelectorAll('.codeblock').forEach(function (block) {
+    var tabs = block.querySelectorAll('.codeblock-tab');
+    var panels = block.querySelectorAll('.codeblock-panel');
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) { t.classList.remove('active'); });
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        if (panels[i]) panels[i].classList.add('active');
+      });
+    });
+    var copyBtn = block.querySelector('.codeblock-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () {
+        var pre = block.querySelector('.codeblock-panel.active pre');
+        if (!pre) return;
+        var text = pre.innerText;
+        var done = function () {
+          copyBtn.textContent = '복사됨 ✓';
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.textContent = '복사';
+            copyBtn.classList.remove('copied');
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+        } else {
+          fallbackCopy(text, done);
+        }
+      });
+    }
+  });
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+})();
+</script>
+
+</body>
+</html>

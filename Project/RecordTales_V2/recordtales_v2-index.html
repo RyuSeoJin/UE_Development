@@ -7,6 +7,20 @@
 <!-- ============================================================
      CHANGELOG — recordtales_v2-index.html
      RecordTales V2 프로젝트 허브 (골격). 작업 규약: doc-process/DOC-TRACKS.md (Track B)
+     v0.5 · 2026-07-20
+       - (결정) 저장 전략 풀-DB 확정(사용자 승인) — 영속 데이터 전부 SQLite(Archive.db 테이블 6종:
+         player·guilds·owned_characters·owned_abilities·buildings·archives). SaveGame(.sav) 미사용.
+         10 문서 v1.1로 개정 반영. 03·05·07의 SaveGame 기반 기술은 후속 개정 대상.
+     v0.4 · 2026-07-20
+       - (추가) 문서 목록에 10 코드 & 변수 연결 지도 등록 (템플릿 04) — 구현 관점 소유+흐름 지도.
+         하이브리드 저장(상태=SaveGame·기록=SQLite), 계정/길드 2축, 시트 실측 DT 5종(개명 정본),
+         여정 3편(가챠 Lv7·추출→강화·집중 기록→DB). 마스터 v1.8(vbadge.db 등) 기반.
+       - (참고) DataTable 이름 시트 동기화(05 v0.12)로 00·03·04·05·06·_HANDOFF 개정됨.
+     v0.3 · 2026-07-18
+       - (추가) 문서 목록에 09 SQLite 배관 놓기 등록 — RecordTales(폐기)에서 이관한
+         따라하기 문서(02-B). title 한 컬럼 archives 왕복 검증, 8단계 진행률 체크리스트
+         (master v1.7 신규 .checklist), UE 5.8 SQLiteSupport 기준. 09-sqlite-archive-plumbing.html.
+       - (변경) footer 버전 표기 v0.1 → v0.3.
      v0.2 · 2026-07-15
        - (용어 확정) 캐릭터 "분해" → "추출(Extract)"로 명칭 통일, 조각 = 조각(Shard).
          프로젝트 용어집에 추출(Extract)·조각(Shard) 항목 추가(term-extract·term-shard 앵커).
@@ -453,6 +467,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td>데이터 설계 (DataTable &middot; SaveGame)</td><td>재작성</td><td><a href="./03-data-design.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
       <tr><td>데이터 스키마 명세 (컬럼 전수)</td><td>신규</td><td><a href="./05-data-schema-spec.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
       <tr><td>포커스 &middot; 퀘스트 &middot; UI (Phase 1 코어)</td><td>이관/개정</td><td><a href="./08-phase1-core-systems.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
+      <tr><td>09 SQLite 배관 놓기 (아카이브 배선 실습)</td><td>구현 &middot; 실습</td><td><a href="./09-sqlite-archive-plumbing.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
+      <tr><td>10 코드 &amp; 변수 연결 지도 (소유 &middot; 축 &middot; 흐름)</td><td>구현 &middot; 데이터</td><td><a href="./10-code-variable-map.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
     </table>
   </div>
 
@@ -509,7 +525,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>RecordTales V2 &middot; 프로젝트 허브 (골격) v0.1</span>
+  <span>RecordTales V2 &middot; 프로젝트 허브 (골격) v0.5</span>
   <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.5</span>
 </footer>
 
