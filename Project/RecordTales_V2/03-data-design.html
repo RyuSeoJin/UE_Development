@@ -1,13 +1,36 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RecordTales V2 — 데이터 설계 (DataTable · SaveGame)</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RecordTales V2 — 데이터 설계 (DataTable · SQLite DB)</title>
 <!-- ============================================================
      CHANGELOG — 03-data-design.html
      RecordTales V2 데이터 설계 지도 (Track B · 04 데이터 설계 지도 템플릿).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     v0.9 · 2026-07-20
+       - (구조 반영) 길드 시스템 확정(12 v0.1) — 카테고리 2축 모델: guilds 카드에 Category(대분류 1개)·
+         AUTOINCREMENT·Secured 반영 + archive_categories(소분류 공유 풀) 행 추가. "6테이블"→"7테이블".
+     v0.8 · 2026-07-20
+       - (변경) DB 파일명 확정 — recordtales.db 표기를 전부 Archive.db로 통일(다른 데이터베이스와 이름
+         혼동 방지, 사용자 결정). 02 폐기 콜아웃의 개명 권장 문구를 "Archive.db 유지"로 재작성.
+     · 2026-07-20 — (반응형) 마스터 v1.9 .tbl 모바일 가로 스크롤 규칙 인라인 반영(본문·구조 무변경).
+     v0.7 · 2026-07-20
+       - (전면 개정) 저장 모델 SaveGame → 풀-DB(SQLite) 전환 — 10 문서 풀-DB 확정 반영.
+         · 01 수명 배지: SAVE → DB(SQLite, 영속의 유일 저장소)로 교체, SAVE(.sav)·CONFIG는
+           "미사용" 명시(ROW/RUNTIME 유지).
+         · 02 테이블 지도: 런타임 SaveGame 3구조 카드 → SQLite 6테이블 카드
+           (player·guilds·owned_characters·owned_abilities·buildings·archives). 상태=UPDATE/기록=INSERT,
+           FK(owned_abilities→owned_characters) 표시, player 카드에 Secured(암호화 사본) 컬럼 노출.
+           DataTable(ROW) 카드는 불변. 🚀 착수 블록을 DB 6테이블(09 배관)까지 포함해 갱신.
+         · 03 소유 결정: "표 vs 세이브" → "표(ROW) vs DB / 계정·길드 축". 쓰기 주인 단일화 유지.
+         · 04 연결 지도: "세이브가 표 참조" → "DB 행이 RowName으로 표 참조"(개념 동일, 저장소만 교체).
+         · 05 흐름 추적: 뽑기·강화에 트랜잭션(BEGIN…COMMIT) 반영 + 추출 시나리오(DELETE+UPDATE 원자성) 추가.
+         · 07 확장 규칙: SaveVersion 마이그레이션 → PRAGMA user_version·ALTER TABLE. 무결성 값 갱신 규칙 추가.
+       - (추가) 06 "상태 보호 — 인증 암호화 + 자동 복원" 섹션 신설 —
+         Secured 블롭 정본 모델·저장/로드 자동 복원 흐름(.diagram + variable-guard.mmd)·키 관리·한계 명시.
+         (사용자 요청: 보호 방법 상세화. 구체 컬럼 타입·암호 코드는 05 스키마 명세에서.)
+       - (스냅샷) 마스터 CSS v1.5 → v1.8 재스냅샷(.vbadge.db 등 포함). Case A(마스터 갱신 없음).
      v0.6 · 2026-07-20
        - (동기화) DataTable 이름을 구글 시트(라이브 밸런스 원본) 확정본으로 일괄 개명 —
          DT_GachaRateByLevel · DT_Character_Ability_OpenChance · DT_Character_Ability_GradeChance ·
@@ -21,10 +44,8 @@
      v0.2 · 2026-07-10
        - (추가) 02 테이블/파일 지도 섹션 첫머리에 "🚀 이 문서로 작업 시작하기" 블록 —
          전제(01 선행) · 만들 파일(행 구조체 헤더) · 코드 외 작업(DT_* 애셋 생성 절차·저장 위치) · 컴파일 주의.
-         (사용자 피드백: 착수 방법·코드 외 작업 누락 보완)
      v0.1 · 2026-07-09
-       - 신규 생성. 정적 DataTable 8종 + 런타임 SaveGame 3구조 + 전역 상수 배치·연결·흐름.
-       - 마스터 CSS v1.5 전체 inline 스냅샷. 수명 배지(.vbadge) ROW/SAVE/RUNTIME/CONFIG.
+       - 신규 생성. 정적 DataTable + 런타임 SaveGame 3구조 + 전역 상수 배치·연결·흐름.
        - "값은 표에서 조회, 세이브엔 인스턴스가 정한 것만" 원칙 시각화. 문서 간 상대링크 없음.
        - 상세 설계 원장: ~/.claude/plans/replicated-weaving-stearns.md
      ============================================================ -->
@@ -33,7 +54,7 @@
    UE Design System — Master Stylesheet
    (design-guide-ue-master.css)
    언리얼 에셋 분석 · 아키텍처 설계 문서 공통 토대
-   v1.5  (Dark · Indigo Minimal · Editorial)
+   v1.8  (Dark · Indigo Minimal · Editorial)
 
    사용법
    - 가이드 문서(master-visual / design-template의 01 / 02)는 <link>로 이 파일을 참조.
@@ -41,6 +62,37 @@
      단일 파일로 배포한다. (오프라인 무결성 유지)
 
    변경 이력 (CHANGELOG) — 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+   v1.8 · 2026-07-20
+     - (추가) DB(SQLite) 저장 위치 표기 3종 — 데이터 설계 지도 계열에서 "SQLite DB 파일에
+       사는 데이터"를 구분하기 위함(수명 5종째: SAVE/RUNTIME/CONFIG/ROW/DB).
+       .vbadge.db(수명 배지) · .ls-file.db(변수 여정 파일 칩) · .fh-node.n-db(흐름 전도 노드).
+       색은 기존 --ue-mat(주황) 재사용 — 신규 토큰 없음.
+     - 사유: RecordTales_V2 아카이브 기록의 SQLite 채택(하이브리드: 상태=SaveGame, 기록=DB) —
+       코드/변수 지도 문서(Case B 승인).
+   v1.7 · 2026-07-18
+     - (추가) .checklist — 인터랙티브 진행률 체크리스트: "따라 하며 하나씩 완료를
+       체크"하는 실습형(따라하기) 문서용 컴포넌트. 단계 헤더 클릭/Enter로 완료(.done)
+       토글, 상단 진행률 바(.check-prog>.check-bar>.check-fill)가 완료 수를 즉시 반영.
+       색은 기존 팔레트 재사용(완료=accent-3, 진행 바=accent) — 신규 토큰 없음.
+       내부 클래스: .check-prog/.check-bar/.check-fill/.check-count · .check-step(.done) ·
+       .check-head/.check-tick(.tk-num)/.check-title/.check-why · .check-body
+     - 규칙: 완료 상태는 로컬·비영속(새로고침 시 초기화). 토글 JS는 결과물에 inline
+       (탭/복사 JS와 같은 최소 상호작용 범위). prefers-reduced-motion에서 전환 끔(공통).
+     - (변경) 반응형 블록에 .check-body 좌패딩 폴백 추가.
+     - 사유: SQLite 배관 "따라하기" 문서(Track B · Project/RecordTales, Case B 승인) —
+       원본의 진행률 체크리스트 UX를 다크·인디고 팔레트로 편입.
+   v1.6 · 2026-07-10
+     - (추가) 블루프린트 에디터 관례색 토큰(--bp-*) — 캔버스/노드/제목 바 5종(이벤트·
+       함수 호출·순수 함수·흐름 제어·캐스트)/핀 타입 8종(Exec·Bool·Float·Int·
+       String·Vector·Object·Class). UE 에디터의 의미색이므로 .bp-graph 내부 전용.
+     - (추가) .bp-graph — 블루프린트 노드 그래프 컨테이너(UE 에디터 재현, 구워넣은 SVG).
+       SVG 내부 클래스: .bpn-body/.bpn-name/.bpn-sub/.bpn-icon/.bpn-chip/.bpn-chip-text
+       (노드) · .bpp-exec(실행 핀 ▷)/.bpp-pin(데이터 핀 ● + t-* 타입, .off=미연결)/
+       .bpp-label(핀 라벨) · .bpw(와이어: .exec 또는 t-* 타입) · .bpg-caption(캡션)
+     - 규칙: .diagram과 동일 철학 — 생성 시점 SVG 구워넣기(런타임 렌더링 금지).
+       제목 바 그라데이션·격자 패턴은 SVG <defs> 표준 블록(bpg-*)을 각 SVG에 포함.
+     - 사유: 사용자 요청 "구현 방법에 블루프린트 노드 포함 + 에디터와 동일한 디자인"
+       (블루프린트 인터페이스 문서, Case B 승인)
    v1.5 · 2026-07-07
      - (추가) .diagram — 구워넣은 SVG 다이어그램 컨테이너(Mermaid 스타일 플로차트).
        SVG 내부 클래스: .dg-node(+k-* 종류 변형)/.dg-text/.dg-sub/.dg-edge(+lk-* 연결 변형)/.dg-elabel
@@ -125,6 +177,28 @@
   --ue-header: #38D9B4;      /* .h  헤더(선언)   */
   --ue-source: #FB8C5A;      /* .cpp 소스(구현)  */
   --ue-macro:  #FB8C5A;      /* UCLASS / UPROPERTY / UFUNCTION 등 리플렉션 매크로 */
+
+  /* --- 블루프린트 에디터 관례색 (.bp-graph 전용, v1.6 신규) ---
+     UE 블루프린트 에디터의 노드·핀 색 관례를 그대로 재현하는 의미색.
+     인디고 팔레트와 성격이 다르므로 .bp-graph SVG 내부에서만 사용한다
+     (본문 UI·다른 컴포넌트에 유출 금지). */
+  --bp-canvas:  #26282A;     /* 그래프 에디터 캔버스 배경                          */
+  --bp-grid:    #2B2D2F;     /* 캔버스 격자선(소, 16px)                            */
+  --bp-grid-2:  #1D1F21;     /* 캔버스 격자선(대, 80px)                            */
+  --bp-node:    #17181A;     /* 노드 본체                                          */
+  --bp-event:   #A03232;     /* 제목 바 — 이벤트(빨강)                             */
+  --bp-call:    #2E6FB4;     /* 제목 바 — 함수 호출·인터페이스 메시지(파랑)        */
+  --bp-pure:    #3F9142;     /* 제목 바 — 순수 함수(초록, 실행 핀 없음)            */
+  --bp-flow:    #787878;     /* 제목 바 — 흐름 제어 Branch/Sequence 등(회색)       */
+  --bp-cast:    #38808F;     /* 제목 바 — 캐스트(청록)                             */
+  --bp-exec:    #E2E2E2;     /* 실행 핀 ▷ · 실행 와이어(흰색)                      */
+  --bp-bool:    #A31515;     /* Boolean 핀(적갈색)                                 */
+  --bp-float:   #9FE838;     /* Float 핀(연두)                                     */
+  --bp-int:     #26E0A8;     /* Integer 핀(청록)                                   */
+  --bp-string:  #F535C8;     /* String 핀(자홍)                                    */
+  --bp-vector:  #F6C21C;     /* Vector 핀(노랑)                                    */
+  --bp-object:  #0A84FF;     /* Object 참조 핀(파랑)                               */
+  --bp-class:   #8A5CD6;     /* Class·Interface 참조 핀(보라)                      */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -434,6 +508,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .vbadge.run  { background: rgba(155,109,255,0.14); color: var(--accent-2); }     /* 런타임 휘발(저장 안 함)   */
 .vbadge.cfg  { background: rgba(56,217,180,0.14);  color: var(--accent-3); }     /* Config/Settings 상수      */
 .vbadge.row  { background: rgba(91,110,250,0.14);  color: var(--accent); }       /* DataTable 행(에디터 데이터)*/
+.vbadge.db   { background: rgba(251,140,90,0.14);  color: var(--ue-mat); }       /* SQLite DB 파일 저장 [v1.8] */
 
 /* ============================================================
    FLOW-HUB — 변수 흐름 연결 전도  [v1.4 신규]
@@ -458,6 +533,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .fh-node.n-instance  { border-left-color: var(--ue-instance); }
 .fh-node.n-table     { border-left-color: var(--accent-3); }
 .fh-node.n-ui        { border-left-color: var(--ue-gamestate); }
+.fh-node.n-db        { border-left-color: var(--ue-mat); }  /* SQLite DB [v1.8] */
 .fh-node .fn-name { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
 .fh-node .fn-role { font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.45; }
 .fh-links { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
@@ -487,6 +563,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .ls-file.cpp   { background: rgba(251,140,90,0.13); color: var(--ue-source); }
 .ls-file.save  { background: rgba(245,158,11,0.13); color: var(--ue-savegame); }
 .ls-file.table { background: rgba(91,110,250,0.13); color: var(--accent); }
+.ls-file.db    { background: rgba(251,140,90,0.13); color: var(--ue-mat); }  /* SQLite DB [v1.8] */
 .ls-title { font-size: 13.5px; font-weight: 700; color: var(--text); }
 .ls-fn { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-muted); }
 .ls-var { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--accent-3); background: var(--surface-2); border: 1px solid var(--border); border-radius: 5px; padding: 4px 10px; display: inline-block; margin: 3px 0 5px; }
@@ -540,7 +617,91 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .graph-net .gn-label { fill: var(--text-muted); font-family: 'IBM Plex Mono', monospace; font-size: 10px; text-anchor: middle; }
 .graph-net .gn-label.big { fill: var(--text); font-size: 11px; font-weight: 600; }
 
+/* ============================================================
+   BP-GRAPH — 블루프린트 노드 그래프 (UE 에디터 재현)  [v1.6 신규]
+   블루프린트 에디터의 노드·핀·와이어를 생성 시점 SVG로 구워넣는다
+   (.diagram과 동일 철학 — 런타임 렌더링 스크립트 금지).
+
+   사용 규칙
+   - 제목 바 그라데이션(bpg-event/call/pure/flow/cast)·격자 패턴(bpg-grid/grid80)·
+     그림자(bpg-shadow)는 SVG <defs> 표준 블록을 각 SVG에 포함해 쓴다
+     (master-visual 09 데모의 defs를 그대로 복사). 제목 바 fill은
+     CSS가 아니라 fill="url(#bpg-…)" 속성으로 지정한다(그라데이션이 CSS 클래스에
+     덮이지 않게 하기 위함).
+   - 노드 종류(제목 바 색): 이벤트=빨강 · 함수 호출/인터페이스 메시지=파랑 ·
+     순수 함수=초록(실행 핀 없음) · 흐름 제어=회색 · 캐스트=청록.
+   - 핀: 실행 핀 ▷(.bpp-exec) · 데이터 핀 ●(.bpp-pin + t-* 타입 색).
+     미연결 핀은 .off(외곽선만). 와이어(.bpw)는 실행=.exec(흰색·굵게),
+     데이터=핀과 같은 t-* 색.
+   - 변수 Get/Set 캡슐: .bpn-body에 rx=15 + 좌측 타입 색 스트립(rect)로 표현.
+   ============================================================ */
+.bp-graph { background: var(--bp-canvas); border: 1px solid var(--border); border-radius: 10px; margin: 16px 0; overflow-x: auto; }
+.bp-graph svg { display: block; max-width: 100%; height: auto; margin: 0 auto; min-width: 560px; }
+.bp-graph .bpn-body { fill: var(--bp-node); fill-opacity: 0.97; stroke: #050505; }
+.bp-graph .bpn-name { fill: #F4F4F4; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; font-weight: 600; }
+.bp-graph .bpn-sub  { fill: #B9D2EA; font-family: 'Pretendard', 'Noto Sans KR', sans-serif; font-size: 8.5px; }
+.bp-graph .bpn-icon { fill: #EDEDED; font-size: 11px; }
+.bp-graph .bpn-chip { fill: #101113; stroke: #3A3C40; }
+.bp-graph .bpn-chip-text { fill: #D8D8D8; font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; }
+.bp-graph .bpp-exec { fill: var(--bp-exec); }
+.bp-graph .bpp-pin { stroke-width: 1.6; }
+.bp-graph .bpp-pin.t-bool   { fill: var(--bp-bool);   stroke: var(--bp-bool); }
+.bp-graph .bpp-pin.t-float  { fill: var(--bp-float);  stroke: var(--bp-float); }
+.bp-graph .bpp-pin.t-int    { fill: var(--bp-int);    stroke: var(--bp-int); }
+.bp-graph .bpp-pin.t-string { fill: var(--bp-string); stroke: var(--bp-string); }
+.bp-graph .bpp-pin.t-vector { fill: var(--bp-vector); stroke: var(--bp-vector); }
+.bp-graph .bpp-pin.t-object { fill: var(--bp-object); stroke: var(--bp-object); }
+.bp-graph .bpp-pin.t-class  { fill: var(--bp-class);  stroke: var(--bp-class); }
+/* 미연결 핀 — 외곽선만 (t-* 뒤에 선언해 fill을 이긴다) */
+.bp-graph .bpp-pin.off  { fill: none; }
+.bp-graph .bpp-exec.off { fill: none; stroke: var(--bp-exec); stroke-width: 1.4; }
+.bp-graph .bpp-label { fill: #C9C9C9; font-family: 'IBM Plex Mono', monospace; font-size: 10px; }
+.bp-graph .bpw { fill: none; stroke-width: 1.8; }
+.bp-graph .bpw.exec     { stroke: var(--bp-exec); stroke-width: 2.2; }
+.bp-graph .bpw.t-bool   { stroke: var(--bp-bool); }
+.bp-graph .bpw.t-float  { stroke: var(--bp-float); }
+.bp-graph .bpw.t-int    { stroke: var(--bp-int); }
+.bp-graph .bpw.t-string { stroke: var(--bp-string); }
+.bp-graph .bpw.t-vector { stroke: var(--bp-vector); }
+.bp-graph .bpw.t-object { stroke: var(--bp-object); }
+.bp-graph .bpw.t-class  { stroke: var(--bp-class); }
+.bp-graph .bpg-caption { fill: #8B8F94; font-family: 'Pretendard', 'Noto Sans KR', sans-serif; font-size: 12px; }
+
+/* ============================================================
+   CHECKLIST — 인터랙티브 진행률 체크리스트  [v1.7 신규]
+   "따라 하며 하나씩 완료를 체크"하는 실습형(따라하기) 문서용 컴포넌트.
+   단계 헤더를 클릭(또는 Enter/Space)하면 완료(.done)를 토글하고, 상단 진행률
+   바가 완료 수를 즉시 반영한다. 완료 상태는 로컬·비영속(새로고침 시 초기화).
+   구조:
+     .checklist
+       .check-prog  ( .check-bar > .check-fill  +  .check-count )
+       .check-step(.done)
+         .check-head  ( .check-tick > .tk-num  +  div > .check-title / .check-why )
+         .check-body  ( 본문·codeblock·callout 등 — .check-head 밖이라 클릭이 토글 안 됨 )
+   색은 기존 팔레트만 재사용: 완료 체크=accent-3, 진행 바=accent.
+   ============================================================ */
+.checklist { margin: 20px 0; }
+.check-prog { display: flex; align-items: center; gap: 16px; padding: 13px 16px; margin-bottom: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; }
+.check-bar { flex: 1; min-width: 120px; height: 4px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.check-fill { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 3px; transition: width 0.3s ease; }
+.check-count { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.check-count b { color: var(--accent); font-weight: 600; }
+.check-step { border: 1px solid var(--border); border-radius: 8px; background: var(--surface); margin-bottom: 10px; overflow: hidden; }
+.check-step.done { border-color: rgba(56,217,180,0.35); }
+.check-head { display: flex; gap: 14px; align-items: flex-start; padding: 15px 18px; cursor: pointer; user-select: none; }
+.check-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 8px; }
+.check-tick { flex: none; width: 26px; height: 26px; border: 2px solid var(--border); border-radius: 50%; display: grid; place-items: center; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text-dim); background: var(--surface-2); transition: background 0.18s, border-color 0.18s, color 0.18s; margin-top: 1px; }
+.check-step.done .check-tick { background: var(--accent-3); border-color: var(--accent-3); color: var(--bg); }
+.check-step.done .check-tick .tk-num { display: none; }
+.check-step.done .check-tick::after { content: '✓'; font-size: 14px; font-weight: 700; }
+.check-title { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: 0.01em; }
+.check-step.done .check-title { color: var(--text-muted); text-decoration: line-through; text-decoration-color: var(--text-dim); }
+.check-why { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-dim); margin-top: 3px; line-height: 1.5; }
+.check-body { padding: 0 18px 18px 58px; }
+.check-body > *:first-child { margin-top: 0; }
+
 @media (max-width: 720px) {
+  .tbl { display: block; overflow-x: auto; }  /* [v1.9] 좁은 폭 표 자체 가로 스크롤 */
   .content { padding: 0 20px 60px; }
   .hero { padding: 48px 20px 40px; }
   .swatch-grid { grid-template-columns: 1fr 1fr; }
@@ -558,13 +719,17 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   .flow-hub { grid-template-columns: 1fr; }
   .fh-hub { min-width: 0; }
   .ls-step { padding-left: 24px; }
+  /* [v1.7] 체크리스트 본문 좌패딩 폴백 */
+  .check-body { padding-left: 18px; }
   nav { padding: 0 16px; gap: 16px; }
   .nav-links { display: none; }
   footer { padding: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
 </style>
 </head>
+
 <body>
 
 <nav>
@@ -575,19 +740,20 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <a href="#own">소유 결정</a>
     <a href="#link">연결 지도</a>
     <a href="#trace">흐름 추적</a>
+    <a href="#guard">상태 보호</a>
     <a href="#extend">확장 규칙</a>
   </div>
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">RecordTales V2 &middot; v0.1 &middot; Data Design Map</div>
-  <h1>데이터 설계<br><span>DataTable · SaveGame</span></h1>
+  <div class="hero-eyebrow">RecordTales V2 &middot; v0.9 &middot; Data Design Map</div>
+  <h1>데이터 설계<br><span>DataTable · SQLite DB</span></h1>
   <p class="hero-sub">
-    V2의 데이터가 어디에 살고(정적 표 vs 런타임 세이브), 어떻게 서로 연결되는지의 지도입니다. 핵심 원칙은 <strong>"밸런스 값은 표에서 조회하고, 세이브에는 내가 뽑아 정해진 것만 담는다"</strong>입니다.
+    V2의 데이터가 어디에 살고(정적 표 vs 영속 DB), 어떻게 서로 연결되는지의 지도입니다. 핵심 원칙은 <strong>"밸런스 값은 표에서 조회하고, 내 상태는 하나의 SQLite DB에 담는다"</strong>입니다. 영속 데이터는 SaveGame(.sav)이 아니라 <strong>풀-DB(SQLite)</strong>에 저장합니다.
   </p>
   <div class="hero-meta">
     <span class="badge badge-blue">DataTable 10종</span>
-    <span class="badge badge-green">SaveGame 3구조</span>
+    <span class="badge badge-green">SQLite 7테이블</span>
     <span class="badge badge-purple">04 데이터 설계 지도</span>
   </div>
 </div>
@@ -598,19 +764,20 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   <div class="section" id="read">
     <div class="section-label">01 — 지도 읽는 법</div>
     <h2>수명 배지 먼저</h2>
-    <p>이 문서의 모든 데이터에는 <strong>수명 배지</strong>가 붙습니다. "이게 어디 살고 언제 사라지는가"를 배지 색으로 먼저 구분하세요.</p>
+    <p>이 문서의 모든 데이터에는 <strong>수명 배지</strong>가 붙습니다. "이게 어디 살고 언제 사라지는가"를 배지 색으로 먼저 구분하세요. V2는 <strong>풀-DB 전환</strong>으로 영속 저장을 SQLite 하나로 통일했습니다 — 그래서 배지 세계가 단순해졌습니다.</p>
 
     <table class="tbl">
       <tr><th>배지</th><th>의미</th><th>V2 예시</th></tr>
-      <tr><td><span class="vbadge row">ROW</span></td><td>DataTable 행 — 손으로 채우는 밸런스 데이터(에디터/CSV)</td><td><code>DT_Ability_Step</code>, <code>DT_GachaRateByLevel</code></td></tr>
-      <tr><td><span class="vbadge save">SAVE</span></td><td>SaveGame으로 디스크에 저장 — 껐다 켜도 남음</td><td><code>FOwnedCharacter</code>, <code>Gold</code>, <code>Shards</code></td></tr>
-      <tr><td><span class="vbadge run">RUNTIME</span></td><td>런타임 휘발 — 계산값, 세션 종료와 함께 소멸</td><td><code>CurrentGuildId</code>, 산출 계산 임시값</td></tr>
-      <tr><td><span class="vbadge cfg">CONFIG</span></td><td>DeveloperSettings 상수 — 기획자가 에디터에서 조정</td><td><code>EstateFocusBaseNx</code>, <code>IdleOfflineCapHours</code></td></tr>
+      <tr><td><span class="vbadge row">ROW</span></td><td>DataTable 행 — 손으로 채우는 밸런스 데이터(에디터/CSV, 코드는 읽기만)</td><td><code>DT_Ability_Step</code>, <code>DT_GachaRateByLevel</code></td></tr>
+      <tr><td><span class="vbadge db">DB</span></td><td><strong>SQLite <code>Archive.db</code></strong> — 껐다 켜도 남는 <strong>영속 데이터의 유일한 저장소</strong>(상태=UPDATE, 기록=INSERT)</td><td><code>Gold</code>, <code>owned_characters</code>, <code>archives</code></td></tr>
+      <tr><td><span class="vbadge run">RUNTIME</span></td><td>런타임 휘발 — 계산값, 세션 종료와 함께 소멸(저장 안 함)</td><td>세션 타이머, 가챠 후보 3장</td></tr>
+      <tr><td><span class="vbadge cfg" style="opacity:.5">SAVE</span></td><td><span style="color:var(--text-dim)"><strong>미사용</strong> — SaveGame(.sav)은 풀-DB 전환으로 폐기(상태는 전부 DB)</span></td><td><span style="color:var(--text-dim)">—</span></td></tr>
+      <tr><td><span class="vbadge cfg" style="opacity:.5">CONFIG</span></td><td><span style="color:var(--text-dim)"><strong>미사용</strong> — DeveloperSettings 상수도 폐기(밸런스는 전부 ROW)</span></td><td><span style="color:var(--text-dim)">—</span></td></tr>
     </table>
 
     <div class="callout info" style="margin-top:16px">
       <span class="ic">&#x1F9ED;</span>
-      <p><strong>한 문장 원칙.</strong> <span class="vbadge row">ROW</span>는 밸런스(손으로 채움), <span class="vbadge save">SAVE</span>는 내 소유물(인스턴스가 정한 것). 세이브는 표에 있는 값을 <strong>복사하지 않고 RowName으로 참조</strong>합니다 — 그래서 수치 튜닝은 표만 고치면 됩니다.</p>
+      <p><strong>한 문장 원칙.</strong> <span class="vbadge row">ROW</span>는 밸런스(모두에게 같은 규칙, 시트→CSV로 채움), <span class="vbadge db">DB</span>는 내 상태(나에게만 있는 진행). 상태는 표에 있는 값을 <strong>복사하지 않고 RowName으로 참조</strong>합니다 — 그래서 수치 튜닝은 표만 고치면 되고, 이미 저장된 내 데이터는 건드릴 필요가 없습니다.</p>
     </div>
   </div>
 
@@ -620,17 +787,17 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <h2>무엇이 어디 사는가</h2>
 
     <h3>🚀 이 문서로 작업 시작하기</h3>
-    <div class="callout info"><span class="ic">🧭</span><p><strong>전제 조건</strong> — <strong>01 문서 완료</strong>(세이브 구조·<code>RecordTalesTypes.h</code> 존재). 이 문서는 <strong>착수 순서 2번</strong> — 02·04의 시스템이 조회할 테이블을 여기서 실물로 만듭니다. 공통 절차는 위키 『C++ 클래스 생성 · 빌드 워크플로우』.</p></div>
+    <div class="callout info"><span class="ic">🧭</span><p><strong>전제 조건</strong> — <strong>01 문서 완료</strong>(<code>RTTypes.h</code> enum 존재). 이 문서는 <strong>착수 순서 2번</strong> — 02·04의 시스템이 조회할 <strong>밸런스 표</strong>와 상태가 살 <strong>DB 테이블</strong>을 여기서 실물로 만듭니다. C++ 공통 절차는 위키 『C++ 클래스 생성 · 빌드 워크플로우』, SQLite 배관은 09 문서 순서를 따릅니다.</p></div>
     <table class="tbl">
       <tr><th>작업</th><th>방법</th><th>비고</th></tr>
-      <tr><td>① 행 구조체 헤더 <code>RecordTalesTableRows.h</code></td><td>클래스 위저드 ▸ 부모 <strong>None</strong>(빈 헤더) → 이 문서의 행 구조체들(<code>FTableRowBase</code> 상속 USTRUCT) 작성</td><td>테이블 1종 = 행 구조체 1개</td></tr>
+      <tr><td>① 행 구조체 헤더 <code>RTTables.h</code></td><td>클래스 위저드 ▸ 부모 <strong>None</strong>(빈 헤더) → 05 문서의 행 구조체 10종(<code>FTableRowBase</code> 상속 USTRUCT) 작성</td><td>DataTable 1종 = 행 구조체 1개</td></tr>
       <tr><td>② 재빌드</td><td>에디터 종료 → IDE 빌드 → 재실행</td><td>새 헤더이므로 Live Coding 불가</td></tr>
-      <tr><td>③ <code>DT_*</code> 애셋 4종 생성</td><td>Content Browser에서 <code>Content/Data/</code> 폴더 생성 → 우클릭 ▸ <strong>Miscellaneous ▸ Data Table</strong> ▸ 행 구조체 선택 → 이름 <code>DT_Character</code> · <code>DT_Ability</code> · <code>DT_Gacha</code> · <code>DT_Building</code></td><td><strong>구조체를 먼저 컴파일해야 목록에 나타남</strong> — ②를 건너뛰면 선택지가 비어 있음</td></tr>
-      <tr><td>④ 행 데이터 입력</td><td>DT 애셋 더블클릭 → <strong>＋ Add</strong>로 행 추가, Row Name은 영문 키(예: <code>archer_01</code>)</td><td>대량 입력은 우클릭 ▸ Export/Import CSV 활용 가능</td></tr>
+      <tr><td>③ <code>DT_*</code> 애셋 생성·입력</td><td>Content Browser <code>Content/Data/</code> → 우클릭 ▸ <strong>Miscellaneous ▸ Data Table</strong> ▸ 행 구조체 선택 → <strong>＋ Add</strong>로 행 추가(대량은 시트 CSV Import)</td><td><strong>컬럼(프로퍼티)명 = 시트 헤더와 철자 동일</strong>이어야 CSV 매칭</td></tr>
+      <tr><td>④ SQLite 7테이블</td><td>코드 아님 — <strong>09 배관 문서</strong> 순서대로 DB 문지기의 <code>CREATE TABLE IF NOT EXISTS</code>에 한 테이블씩 넓힘(쉬운 것부터)</td><td>파일은 <code>Saved/</code>의 <code>Archive.db</code> 하나. FK 쓰려면 <code>PRAGMA foreign_keys = ON</code></td></tr>
     </table>
-    <div class="callout tip"><span class="ic">💡</span><p><strong>코드 외 작업이 곧 본체인 문서입니다</strong> — 이 문서 산출물의 절반은 코드(행 구조체)가 아니라 <strong>에디터에서 만드는 DT 애셋과 그 안의 데이터</strong>입니다. 완료 확인: 4개 DT 애셋이 <code>Content/Data/</code>에 있고, 각 애셋을 열면 이 문서의 열 구성이 그대로 보여야 합니다.</p></div>
+    <div class="callout tip"><span class="ic">💡</span><p><strong>코드 외 작업이 절반인 문서입니다</strong> — 산출물의 절반은 코드가 아니라 <strong>에디터에서 만드는 DT 애셋(밸런스)과 서브시스템이 만드는 DB 테이블(상태)</strong>입니다. 완료 확인: DT 애셋이 <code>Content/Data/</code>에 있고, 게임을 한 번 켜면 <code>Saved/Archive.db</code>가 생겨 DB Browser로 7테이블이 보여야 합니다.</p></div>
 
-    <p>카드 하나 = 저장 계층 하나입니다.</p>
+    <p>카드 하나 = 저장 계층 하나입니다. 표(ROW)는 손대지 않고, 예전 SaveGame 카드가 <strong>SQLite 7테이블</strong>로 바뀌었습니다.</p>
 
     <div class="var-card">
       <div class="vc-head">
@@ -661,80 +828,77 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <div class="var-card">
       <div class="vc-head">
         <span class="vc-domain">Runtime</span>
-        <span class="vc-file">URecordTalesSaveGame <span style="color:var(--ue-header)">(계정 단위)</span></span>
-        <span class="vc-role">디스크에 저장되는 내 소유물 — 계정 공유 + 길드 배열</span>
+        <span class="vc-file">Archive.db <span style="color:var(--ue-mat)">(SQLite · 계정 전체)</span></span>
+        <span class="vc-role">껐다 켜도 남는 모든 것 — 상태=UPDATE / 기록=INSERT</span>
       </div>
-      <div class="vc-var"><span class="vv-name">Roster</span><span class="vv-type">TArray&lt;FOwnedCharacter&gt;</span><span class="vbadge save">SAVE</span>
-        <span class="vv-note">뽑은 캐릭터(중복 허용, 무제한). 각 원소는 InstanceId로 구분</span></div>
-      <div class="vc-var"><span class="vv-name">Estate</span><span class="vv-type">TArray&lt;FBuildingState&gt;</span><span class="vbadge save">SAVE</span>
-        <span class="vv-note">영지의 경영 건물들(계정 하나). 배치 캐릭터 InstanceId 참조</span></div>
-      <div class="vc-var"><span class="vv-name">Economy</span><span class="vv-type">FEconomyState { Gold, Shards }</span><span class="vbadge save">SAVE</span>
-        <span class="vv-note">자원 2종</span></div>
-      <div class="vc-var"><span class="vv-name">Guilds · Archive</span><span class="vv-type">TArray&lt;FGuildData&gt; · TArray&lt;FArchiveRecord&gt;</span><span class="vbadge save">SAVE</span>
-        <span class="vv-note">멀티 길드 + 통합 원장(각 기록 GuildId 태그). 소프트 삭제 bDeleted 포함</span></div>
-      <div class="vc-var"><span class="vv-name">AccountFocusSeconds · NextInstanceId · NextGuildId</span><span class="vv-type">int32 ×3</span><span class="vbadge save">SAVE</span>
-        <span class="vv-note">가챠 확률 입력(시간 합) · 인스턴스/길드 번호 카운터</span></div>
+      <div class="vc-var"><span class="vv-name">player</span><span class="vv-type">항상 1행</span><span class="vbadge db">DB</span>
+        <span class="vv-note">Gold·Shards·AccountXp <strong>+ Secured(암호화 사본)</strong> — 계정 상태, UPDATE</span></div>
+      <div class="vc-var"><span class="vv-name">guilds</span><span class="vv-type">길드당 1행</span><span class="vbadge db">DB</span>
+        <span class="vv-note">GuildId(AUTOINCREMENT)·Name·<strong>Category(대분류 1개)</strong>·FocusSeconds·Secured — 길드 축, INSERT/UPDATE</span></div>
+      <div class="vc-var"><span class="vv-name">archive_categories</span><span class="vv-type">소분류당 1행</span><span class="vbadge db">DB</span>
+        <span class="vv-note">Name(PK)·SortOrder — <strong>소분류 공유 풀</strong>(계정 축, 모든 길드가 기록 태그에 사용)</span></div>
+      <div class="vc-var"><span class="vv-name">owned_characters</span><span class="vv-type">캐릭터당 1행</span><span class="vbadge db">DB</span>
+        <span class="vv-note">InstanceId·CharacterRow·Rarity — 계정 로스터, INSERT/DELETE</span></div>
+      <div class="vc-var"><span class="vv-name">owned_abilities</span><span class="vv-type">능력치당 1행</span><span class="vbadge db">DB</span>
+        <span class="vv-note">InstanceId(<strong>FK</strong>)·Slot·Rarity·Step — 캐릭터 1:N, INSERT/UPDATE</span></div>
+      <div class="vc-var"><span class="vv-name">buildings</span><span class="vv-type">건물당 1행</span><span class="vbadge db">DB</span>
+        <span class="vv-note">BuildingRow·Level·배치 캐릭터 — 계정 축, INSERT/UPDATE</span></div>
+      <div class="vc-var"><span class="vv-name">archives</span><span class="vv-type">기록당 1행</span><span class="vbadge db">DB</span>
+        <span class="vv-note">GuildId·Category·Duration·Title·<strong>DeletedAt</strong> — 기록(길드 축), INSERT/UPDATE(소프트 삭제)</span></div>
     </div>
 
-    <div class="var-card">
-      <div class="vc-head">
-        <span class="vc-domain">Config</span>
-        <span class="vc-file">URecordTalesSettings <span style="color:var(--ue-header)">(DeveloperSettings)</span></span>
-        <span class="vc-role">기획자가 에디터에서 만지는 전역 상수</span>
-      </div>
-      <div class="vc-var"><span class="vv-name">EstateFocusBaseNx</span><span class="vv-type">float</span><span class="vbadge cfg">CONFIG</span>
-        <span class="vv-note">집중 중 기본 산출 배율(영지 규칙)</span></div>
-      <div class="vc-var"><span class="vv-name">IdleOfflineCapHours</span><span class="vv-type">float</span><span class="vbadge cfg">CONFIG</span>
-        <span class="vv-note">유휴 오프라인 누적 상한 시간</span></div>
-      <div class="vc-var"><span class="vv-name">SecondsPerLevel</span><span class="vv-type">int32 = 3600</span><span class="vbadge cfg">CONFIG</span>
-        <span class="vv-note">정직한 레벨 — 60분(3600초)=1레벨</span></div>
-    </div>
+    <div class="callout tip" style="margin-top:4px"><span class="ic">🔗</span><p><strong>외래키(FK)가 처음 일하는 곳.</strong> <code>owned_abilities.InstanceId</code>는 <code>owned_characters</code>를 참조합니다. 09에서 켠 <code>PRAGMA foreign_keys = ON</code>이 여기서 작동해, <strong>존재하지 않는 캐릭터에 능력치 행을 넣으면 DB가 거부</strong>합니다(데이터 정합성 보증).</p></div>
+
+    <div class="callout warn" style="margin-top:10px"><span class="ic">🗑️</span><p><strong>폐기된 두 계층.</strong> <code>SaveGame(.sav)</code>과 <code>DeveloperSettings(CONFIG)</code>는 풀-DB 전환으로 <strong>더 이상 쓰지 않습니다</strong>. 이유 — ① 저장소 단일화(이중 저장 정합성 걱정 제거) ② 트랜잭션으로 여러 테이블 변경을 하나로 묶음 ③ DB Browser로 모든 데이터를 눈으로 확인. (파일명: 담는 범위는 <strong>계정 전체</strong>지만, 다른 데이터베이스와 이름이 헷갈리지 않도록 파일명은 <code>Archive.db</code>로 둡니다.)</p></div>
   </div>
 
   <!-- ===== 03 소유 결정 ===== -->
   <div class="section" id="own">
     <div class="section-label">03 — 소유 결정</div>
-    <h2>표에서 조회? 세이브에 저장?</h2>
-    <p>새 데이터를 추가할 때 "표 vs 세이브"를 정하는 기준입니다. <strong>파생 가능하면 저장하지 않고 계산·조회</strong>합니다.</p>
+    <h2>표에서 조회? DB에 저장? 그리고 어느 축?</h2>
+    <p>새 데이터를 추가할 때 정하는 두 가지 — <strong>①어디 두나(표 ROW vs DB)</strong>, <strong>②누구 것인가(계정 공유 vs 길드별 축)</strong>. 파생 가능하면 저장하지 않고 계산하며, <strong>같은 값의 쓰기 주인은 언제나 하나</strong>입니다(나머지는 읽기만).</p>
 
     <table class="tbl">
-      <tr><th>데이터</th><th>둘 곳</th><th>근거</th></tr>
-      <tr><td>능력치 효과값 (예: 집중배율 3.5)</td><td><span class="owner o-subsystem">ROW 조회</span></td><td><code>DT_Ability_Step.Value</code>에서 (AbilityId, 단계)로 조회. 세이브엔 <strong>CurrentStep만</strong>.</td></tr>
-      <tr><td>강화 비용</td><td><span class="owner o-subsystem">ROW 조회</span></td><td><code>DT_Ability_Enhance.Upgrade_ShardAmount</code>(능력치 등급별, 단계 무관). 튜닝은 표만 고침.</td></tr>
-      <tr><td>건물 레벨별 산출·슬롯</td><td><span class="owner o-subsystem">ROW 조회</span></td><td><code>DT_Building_Upgrade</code>. 세이브엔 <strong>Level만</strong>.</td></tr>
-      <tr><td>캐릭터 등급 · 능력치 현재 단계</td><td><span class="owner o-savegame">SAVE</span></td><td>뽑을 때 인스턴스에 롤·이후 강화로 변함 — 파생 불가, 저장 필수.</td></tr>
-      <tr><td>Gold · 조각 · 보유 목록 · 건물 상태</td><td><span class="owner o-savegame">SAVE</span></td><td>내 소유물. 껐다 켜도 남아야 함.</td></tr>
-      <tr><td>길드 레벨</td><td><span class="owner o-gamestate">RUNTIME 계산</span></td><td><code>FocusSeconds / 3600</code>로 매번 파생 — 저장하면 시간과 어긋날 여지가 생김.</td></tr>
+      <tr><th>데이터</th><th>저장/조회</th><th>축</th><th>근거</th></tr>
+      <tr><td>능력치 효과값 · 강화 비용 · 건물 산출</td><td><span class="vbadge row">ROW</span> 조회</td><td>—</td><td><code>DT_Ability_Step.Value</code> 등에서 (키)로 조회. 밸런싱은 시트→CSV 재임포트로. DB엔 <strong>단계·레벨만</strong>.</td></tr>
+      <tr><td>Gold · Shards(조각)</td><td><span class="vbadge db">DB</span> <code>player</code></td><td>계정</td><td>모든 길드가 공유하는 재화 — 적립/차감 창구는 <code>EconomySubsystem</code> 하나(1행 UPDATE).</td></tr>
+      <tr><td>AccountXp · AccountLevel</td><td><span class="vbadge db">DB</span> <code>player</code></td><td>계정</td><td>전 길드 XP 합산 → 가챠 확률(<code>DT_GachaRateByLevel</code>)의 유일한 입력.</td></tr>
+      <tr><td>GuildXp · GuildLevel</td><td><span class="vbadge db">DB</span> <code>guilds</code></td><td>길드</td><td>정직한 레벨 — 실제 활동에서만, 길드당 1행.</td></tr>
+      <tr><td>캐릭터 등급 · 개화 · 현재 단계</td><td><span class="vbadge db">DB</span> <code>owned_*</code></td><td>계정</td><td>뽑을 때 롤·강화로 변함(파생 불가). 뽑기/강화/추출은 여기서만, 다중 테이블은 트랜잭션.</td></tr>
+      <tr><td>건물 레벨 · 배치 캐릭터</td><td><span class="vbadge db">DB</span> <code>buildings</code></td><td>계정</td><td>영지는 계정 단위 홈 화면.</td></tr>
+      <tr><td>아카이브 기록 · DeletedAt</td><td><span class="vbadge db">DB</span> <code>archives</code></td><td>길드</td><td>누적+검색형 — 행에 <code>GuildId</code>를 새겨 길드 스코프 유지, 삭제는 UPDATE 한 줄.</td></tr>
+      <tr><td>세션 타이머 · 가챠 후보 3장</td><td><span class="vbadge run">RUNTIME</span></td><td>—</td><td>결과(기록·캐릭터)만 남기고 과정은 버림.</td></tr>
+      <tr><td>계정/길드 레벨(=XP 파생)</td><td><span class="vbadge run">RUNTIME</span> 계산</td><td>—</td><td>XP에서 매번 파생 — 저장하면 어긋날 여지가 생김(정직함 보장).</td></tr>
     </table>
   </div>
 
   <!-- ===== 04 연결 지도 ===== -->
   <div class="section" id="link">
     <div class="section-label">04 — 연결 지도</div>
-    <h2>세이브가 표를 가리키는 법</h2>
-    <p>세이브의 인스턴스는 값을 복사하지 않고 <strong>RowName(키)으로 DataTable을 참조</strong>합니다. 아래는 그 참조 연결입니다.</p>
+    <h2>DB 행이 표를 가리키는 법</h2>
+    <p>DB의 상태 행은 값을 복사하지 않고 <strong>RowName(키)으로 DataTable을 참조</strong>합니다. 아래는 그 참조 연결입니다(왼쪽 <span class="vbadge db">DB</span> 행 → 오른쪽 <span class="vbadge row">ROW</span> 표).</p>
 
     <div class="rel-map">
       <div class="rel-row">
-        <div class="rel-node n-savegame"><div class="rn-name">FOwnedCharacter.CharacterId</div><div class="rn-role">SAVE (FName)</div></div>
+        <div class="rel-node" style="border-left-color:var(--ue-mat)"><div class="rn-name">owned_characters.CharacterRow</div><div class="rn-role">DB (FName)</div></div>
         <div class="rel-arrow"><span class="ra-label">RowName 참조</span><span class="ra-line">&rarr;</span></div>
-        <div class="rel-node n-subsystem" style="border-left-color:var(--ue-mat)"><div class="rn-name">DT_Character</div><div class="rn-role">ROW (정체성)</div></div>
+        <div class="rel-node" style="border-left-color:var(--ue-mat)" ><div class="rn-name">DT_Character</div><div class="rn-role">ROW (정체성)</div></div>
       </div>
       <div class="rel-row">
-        <div class="rel-node n-savegame"><div class="rn-name">FOwnedAbility.AbilityId + CurrentStep</div><div class="rn-role">SAVE</div></div>
+        <div class="rel-node" style="border-left-color:var(--ue-mat)"><div class="rn-name">owned_abilities.AbilityId + Step</div><div class="rn-role">DB</div></div>
         <div class="rel-arrow"><span class="ra-label">(AbilityId+단계)로 조회</span><span class="ra-line">&rarr;</span></div>
-        <div class="rel-node n-subsystem" style="border-left-color:var(--accent)"><div class="rn-name">DT_Ability_Step · UpgradeCost</div><div class="rn-role">ROW (값·가중치 / 비용)</div></div>
+        <div class="rel-node" style="border-left-color:var(--accent)"><div class="rn-name">DT_Ability_Step · Enhance</div><div class="rn-role">ROW (값·가중치 / 비용)</div></div>
       </div>
       <div class="rel-row">
-        <div class="rel-node n-savegame"><div class="rn-name">FBuildingState.BuildingId + Level</div><div class="rn-role">SAVE</div></div>
+        <div class="rel-node" style="border-left-color:var(--ue-mat)"><div class="rn-name">buildings.BuildingRow + Level</div><div class="rn-role">DB</div></div>
         <div class="rel-arrow"><span class="ra-label">(건물id+레벨)로 조회</span><span class="ra-line">&rarr;</span></div>
-        <div class="rel-node n-subsystem" style="border-left-color:var(--ue-gamestate)"><div class="rn-name">DT_Building_Upgrade</div><div class="rn-role">ROW (산출·슬롯)</div></div>
+        <div class="rel-node" style="border-left-color:var(--accent-3)"><div class="rn-name">DT_Building_Upgrade</div><div class="rn-role">ROW (산출·슬롯)</div></div>
       </div>
     </div>
 
     <div class="callout tip" style="margin-top:16px">
       <span class="ic">&#x1F4A1;</span>
-      <p><strong>왜 참조인가.</strong> 값을 세이브에 복사해두면, 밸런스를 바꿀 때 이미 저장된 수천 개의 값이 옛 수치로 남습니다. RowName만 저장하면 표를 고치는 순간 모든 인스턴스가 새 밸런스를 즉시 반영합니다.</p>
+      <p><strong>왜 참조인가.</strong> 값을 DB 행에 복사해두면, 밸런스를 패치할 때 이미 저장된 수천 개의 값이 옛 수치로 남습니다. <strong>RowName만 저장</strong>하면 시트→CSV로 표를 고치는 순간 모든 인스턴스가 새 밸런스를 즉시 반영합니다 — 유저의 <code>Archive.db</code>는 건드리지 않고요.</p>
     </div>
   </div>
 
@@ -747,12 +911,12 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <div class="pipe-step">
       <div class="pipe-num">1</div>
       <div class="pipe-body"><div class="pipe-title">캐릭터 등급 롤</div>
-        <div class="pipe-desc"><code>DT_GachaRateByLevel</code>[계정 레벨] → 캐릭터 등급(노말~레전더리). 계정 레벨은 <code>AccountFocusSeconds</code>에서 파생.</div></div>
+        <div class="pipe-desc"><code>DT_GachaRateByLevel</code>[계정 레벨] → 캐릭터 등급(노말~레전더리). 계정 레벨은 <code>player.AccountXp</code>에서 파생.</div></div>
     </div>
     <div class="pipe-step">
       <div class="pipe-num">2</div>
       <div class="pipe-body"><div class="pipe-title">개화 슬롯 수</div>
-        <div class="pipe-desc"><code>DT_..._Open_Chance</code>[등급] → 4슬롯 중 몇 개가 개화되나.</div></div>
+        <div class="pipe-desc"><code>DT_Character_Ability_OpenChance</code>[등급] → 4슬롯 각각의 개화 확률(계단형).</div></div>
     </div>
     <div class="pipe-step">
       <div class="pipe-num">3</div>
@@ -761,39 +925,193 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     </div>
     <div class="pipe-step">
       <div class="pipe-num">4</div>
-      <div class="pipe-body"><div class="pipe-title">FOwnedCharacter 생성(SAVE)</div>
-        <div class="pipe-desc">CharacterId · Rarity · Abilities[AbilityId + CurrentStep]만 저장. 효과값은 저장 안 함(표에서 조회).</div></div>
+      <div class="pipe-body"><div class="pipe-title">1택 → INSERT (한 트랜잭션)</div>
+        <div class="pipe-desc">3장 후보 중 1장을 고르는 순간에만 <code>BEGIN</code> → <code>owned_characters</code> 1행 + <code>owned_abilities</code> N행 INSERT → <code>COMMIT</code>. 효과값은 저장 안 함(표에서 조회). 후보 3장(<span class="vbadge run">RUNTIME</span>)은 소멸.</div></div>
     </div>
 
-    <h3 style="margin-top:20px">시나리오: 능력치 강화</h3>
+    <h3 style="margin-top:20px">시나리오: 추출 → 강화 (조각의 왕복)</h3>
     <div class="pipe-step">
       <div class="pipe-num">5</div>
-      <div class="pipe-body"><div class="pipe-title">가중 랜덤 대상 + 비용 지불</div>
-        <div class="pipe-desc">개화된 비-최대 능력치 중 가중 랜덤(=남은 단계)으로 하나 선택 → 그 능력치 등급의 <code>DT_Ability_Enhance.Upgrade_ShardAmount</code>만큼 조각 지불 → <code>CurrentStep += 1</code>. 세이브는 CurrentStep만 바뀜.</div></div>
+      <div class="pipe-body"><div class="pipe-title">추출 — 캐릭터 제거 + 조각 적립 (한 트랜잭션)</div>
+        <div class="pipe-desc"><code>DT_Character_Extract</code>[등급] → 지급 조각. <code>BEGIN</code> → <code>DELETE owned_characters</code>(1행) → <code>UPDATE player.Shards</code> → <code>COMMIT</code>. 캐릭터 소멸과 조각 적립이 한 트랜잭션이라 <strong>중간 상태가 불가능</strong>합니다.</div></div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">6</div>
+      <div class="pipe-body"><div class="pipe-title">강화 — 조각 차감 + 단계 상승 (한 트랜잭션)</div>
+        <div class="pipe-desc">개화된 비-최대 능력치 중 가중 랜덤으로 하나 선택 → 그 능력치 등급의 <code>DT_Ability_Enhance.Upgrade_ShardAmount</code>만큼. <code>BEGIN</code> → <code>UPDATE player.Shards</code> + <code>UPDATE owned_abilities.Step</code> → <code>COMMIT</code>.</div></div>
+    </div>
+
+    <div class="callout tip" style="margin-top:16px">
+      <span class="ic">🔒</span>
+      <p><strong>왜 트랜잭션인가.</strong> 추출·강화는 두 테이블을 함께 고칩니다. <code>BEGIN…COMMIT</code>으로 묶으면 크래시가 나도 "조각만 날아가고 캐릭터·단계는 그대로" 같은 <strong>중간 상태가 원천 차단</strong>됩니다 — 풀-DB로 얻은 가장 큰 이점입니다.</p>
     </div>
   </div>
 
-  <!-- ===== 06 확장 규칙 ===== -->
-  <div class="section" id="extend">
-    <div class="section-label">06 — 확장 규칙</div>
-    <h2>새 데이터를 더할 때</h2>
+  <!-- ===== 06 상태 보호 ===== -->
+  <div class="section" id="guard">
+    <div class="section-label">06 — 상태 보호</div>
+    <h2>상태 DB는 어떻게 보호되는가 — 인증 암호화 + 자동 복원</h2>
+    <p><code>Archive.db</code>는 유저 PC의 <code>Saved/</code> 폴더에 있는 <strong>로컬 파일</strong>입니다 — DB Browser로 열어 <code>Gold</code>를 고칠 수 있죠. 서버 없는 싱글 게임에서 "완전 차단"은 불가능하지만, <strong>인증 암호화</strong>로 "고쳐도 게임이 알아서 되돌린다"를 만듭니다. (구체 컬럼 타입·암호 코드는 05 스키마 명세에서 다룹니다.)</p>
 
-    <div class="callout tip">
-      <span class="ic">&#x2705;</span>
-      <p><strong>이렇게:</strong> 새 능력치는 <code>DT_Ability_Type</code>에 종류 행 + <code>DT_Ability_Step</code>·<code>DT_Ability_Enhance</code>에 단계 행들을 추가한다. 새 건물은 <code>DT_Building</code> + <code>DT_Building_Upgrade</code>. 밸런스 수치만 바꿀 땐 표의 값만 고친다(코드·세이브 무변경). 새 상수는 DeveloperSettings에.</p>
+    <h3>핵심 아이디어 — 암호화 사본이 "진짜 값"이다</h3>
+    <p><code>player</code> 행의 치트 유인이 큰 값(<code>Gold</code>·<code>Shards</code>·<code>AccountXp</code>)을 <strong>암호화한 사본</strong>(<code>Secured</code> 블롭)으로 같은 행에 함께 저장합니다. 이 블롭이 값의 <strong>정본(source of truth)</strong>이고, 평문 3칸은 게임이 빠르게 읽고 개발 중 눈으로 확인하는 <strong>편의 사본</strong>일 뿐입니다.</p>
+
+    <div class="grid-2">
+      <div class="compare-box">
+        <h4>💾 저장할 때 (쓰기)</h4>
+        <p><code>EconomySubsystem</code>의 트랜잭션 안에서 <strong>평문 3칸 + <code>Secured</code> 블롭을 함께</strong> 갱신합니다. 둘은 항상 같은 <code>COMMIT</code>으로 묶여, 어긋난 채로 남지 않습니다.</p>
+        <div class="pills"><span class="pill blue">UPDATE player</span><span class="pill green">평문 = 값</span><span class="pill purple">Secured = 암호화(값)</span></div>
+      </div>
+      <div class="compare-box">
+        <h4>📂 로드할 때 (읽기)</h4>
+        <p><code>Secured</code> 블롭을 <strong>복호화·인증</strong>해 진짜 값을 얻고, 평문과 비교합니다. 평문이 밖에서 편집됐으면 <strong>복호화한 값을 채택 = 자동 복원</strong>. 아래 흐름이 그 판정입니다.</p>
+        <div class="pills"><span class="pill purple">복호화</span><span class="pill blue">비교</span><span class="pill green">자동 복원</span></div>
+      </div>
     </div>
-    <div class="callout warn" style="margin-top:12px">
+
+    <div class="diagram">
+      <svg viewBox="0 0 640 270" role="img" aria-label="로드 시 검증·복원 흐름: Secured 블롭 인증 통과 여부 → 실패면 복원 불가(새 게임), 통과면 평문과 복호화 값 비교 → 같으면 정상 진행, 다르면 자동 복원">
+        <defs>
+          <marker id="m3g-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--text-dim)"/>
+          </marker>
+        </defs>
+        <polygon class="dg-node k-decision" points="120,22 210,58 120,94 30,58"/>
+        <text class="dg-text" x="120" y="53" text-anchor="middle">Secured 블롭</text>
+        <text class="dg-text" x="120" y="68" text-anchor="middle">인증 통과?</text>
+        <rect class="dg-node" x="30" y="205" width="180" height="44" rx="8"/>
+        <text class="dg-text" x="120" y="223" text-anchor="middle">복원 불가 →</text>
+        <text class="dg-text" x="120" y="238" text-anchor="middle">경고 · 새 게임/백업</text>
+        <polygon class="dg-node k-decision" points="370,22 460,58 370,94 280,58"/>
+        <text class="dg-text" x="370" y="53" text-anchor="middle">평문 ==</text>
+        <text class="dg-text" x="370" y="68" text-anchor="middle">복호화 값?</text>
+        <rect class="dg-node k-table" x="280" y="132" width="180" height="40" rx="8"/>
+        <text class="dg-text" x="370" y="156" text-anchor="middle">정상 진행</text>
+        <rect class="dg-node k-db" x="280" y="205" width="180" height="44" rx="8"/>
+        <text class="dg-text" x="370" y="223" text-anchor="middle">자동 복원 —</text>
+        <text class="dg-text" x="370" y="238" text-anchor="middle">복호화 값 채택 + 알림</text>
+        <path class="dg-edge" d="M120,94 L120,201" marker-end="url(#m3g-arrow)"/>
+        <text class="dg-elabel" x="128" y="150">아니오</text>
+        <path class="dg-edge" d="M210,58 L276,58" marker-end="url(#m3g-arrow)"/>
+        <text class="dg-elabel" x="232" y="50">예</text>
+        <path class="dg-edge lk-table" d="M370,94 L370,128" marker-end="url(#m3g-arrow)"/>
+        <text class="dg-elabel" x="378" y="116">예</text>
+        <path class="dg-edge" d="M460,60 C505,120 505,190 462,222" marker-end="url(#m3g-arrow)"/>
+        <text class="dg-elabel" x="498" y="140">아니오</text>
+      </svg>
+    </div>
+
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">variable-guard.mmd</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-keyword">flowchart</span> LR
+    D1{<span class="hljs-string">"Secured 블롭\n복호화·인증 통과?"</span>} -- 아니오 --&gt; A[<span class="hljs-string">"복원 불가 → 경고·새 게임/백업"</span>]
+    D1 -- 예 --&gt; D2{<span class="hljs-string">"평문 == 복호화 값?"</span>}
+    D2 -- 예 --&gt; B[<span class="hljs-string">"정상 진행"</span>]
+    D2 -- 아니오 --&gt; C[<span class="hljs-string">"자동 복원 — 복호화 값 채택 + 알림"</span>]</pre></div>
+    </div>
+
+    <h3>왜 인증 암호화 하나면 되나</h3>
+    <p><strong>인증 암호화</strong>(예: AES-GCM)는 블롭 안에 <strong>진짜 값(복원용)</strong>과 <strong>위조 감지(인증 태그)</strong>를 한 번에 담습니다. 그래서 별도의 체크섬 컬럼이 필요 없습니다 — 블롭이 변조되면 복호화 단계에서 인증이 실패해 바로 들통나고, 평문만 변조되면 복호화한 값으로 되돌립니다. <strong>탐지와 복원을 한 메커니즘이 동시에</strong> 처리합니다.</p>
+
+    <div class="pitfall" style="margin-top:14px">
       <span class="ic">&#x26A0;&#xFE0F;</span>
-      <p><strong>이건 피하기:</strong> 표에서 조회 가능한 값을 세이브에 복사하지 말 것 — 밸런스 변경이 안 먹는다. 파생 가능한 값(레벨=시간/3600)을 저장하지 말 것. SaveGame 구조를 바꾸면 반드시 <code>SaveVersion += 1</code> + 로드 시 마이그레이션 분기를 둔다.</p>
+      <div class="pitfall-text"><strong>솔직한 한계 두 가지.</strong> ① <strong>키는 클라이언트에 심깁니다</strong> — 빌드에서 키를 추출한 아주 소수는 블롭까지 정상적으로 다시 만들 수 있습니다(완전 방어는 서버 권위뿐). 캐주얼~중급 변조는 막지만 절대적이지는 않습니다. ② <strong>평문+블롭을 둘 다 파괴</strong>하면 복원이 불가능해 새 게임으로 갈 수밖에 없습니다. 방치형 싱글 게임에는 이 선(무결성 검사 + 자동 복원)이 비용 대비 적정합니다.</div>
+    </div>
+
+    <div class="callout info" style="margin-top:12px">
+      <span class="ic">🎯</span>
+      <p><strong>무엇을 보호하나(범위).</strong> 치트 유인이 큰 값 — <code>player</code>의 재화·레벨 — 만 <code>Secured</code>로 감쌉니다. <code>owned_*</code>·<code>buildings</code>까지 확장할지는 비용 대비 실익으로 판단합니다(05에서 표로 정리). <code>archives</code>(기록)는 위·변조 유인이 적어 대상에서 제외합니다. <strong>SQLite 트랜잭션이 이미 자연 손상(크래시)은 막으므로</strong>, 불일치는 대부분 고의 편집 신호입니다.</p>
+    </div>
+  </div>
+
+  <!-- ===== 07 확장 규칙 ===== -->
+  <div class="section" id="extend">
+    <div class="section-label">07 — 확장 규칙</div>
+    <h2>새 데이터를 더할 때</h2>
+    <p>배치는 두 질문으로 정해집니다 — <strong>껐다 켜도 남아야 하나(→DB)</strong>, <strong>기획이 시트로 튜닝하나(→ROW)</strong>. 그다음 <strong>축(계정·길드)</strong>과, 치트 유인이 있으면 <strong>보호(Secured)</strong>를 지정합니다.</p>
+
+    <div class="dd-grid">
+      <div class="dd do">
+        <h4>✓ 이렇게</h4>
+        <ul>
+          <li>새 능력치는 <code>DT_Ability_Type</code>에 종류 행 + <code>DT_Ability_Step</code>·<code>DT_Ability_Enhance</code>에 행 추가. 새 건물은 <code>DT_Building</code> + <code>DT_Building_Upgrade</code></li>
+          <li>밸런스 수치만 바꿀 땐 <strong>시트→CSV</strong>로 표의 값만 고친다(코드·DB 무변경)</li>
+          <li>영속 상태는 DB 테이블 — <strong>상태=행 UPDATE / 기록=행 INSERT</strong>. 저장 변수마다 계정/길드 <strong>축</strong>을 소유 결정표에 기록</li>
+          <li>기록 삭제는 <code>DeletedAt</code> UPDATE(소프트 삭제) — 행 DELETE는 휴지통 비우기에만</li>
+          <li>여러 테이블을 고치는 작업(추출·강화)은 <code>BEGIN…COMMIT</code> 트랜잭션으로 묶기</li>
+          <li>치트 유인이 큰 값을 <code>player</code>에 추가하면 <strong><code>Secured</code>도 같은 트랜잭션에서 갱신</strong></li>
+          <li>스키마 변경: 개발 중엔 DB 파일 삭제(09 절차), 출시 후엔 <code>PRAGMA user_version</code> + <code>ALTER TABLE</code></li>
+        </ul>
+      </div>
+      <div class="dd dont">
+        <h4>✗ 이건 피하기</h4>
+        <ul>
+          <li>표에서 조회 가능한 값(효과값·비용)을 DB 행에 <strong>복사</strong>하기 — 밸런스 패치가 안 먹는다</li>
+          <li>파생 가능한 값(레벨 = XP 파생)을 저장하기 — 시간·XP와 어긋난다</li>
+          <li>여러 테이블 변경을 트랜잭션 없이 쓰기 — 크래시 시 "조각만 사라진" 중간 상태</li>
+          <li>같은 값을 두 서브시스템이 쓰기 — 주인은 하나(나머지는 읽기만)</li>
+          <li>보호 값을 평문만 갱신하고 <code>Secured</code>를 빼먹기 — 로드 시 자동 복원이 옛 값으로 되돌려버린다</li>
+          <li>영속 데이터를 다시 <code>SaveGame(.sav)</code>으로 저장하기 — 풀-DB로 통일했다</li>
+        </ul>
+      </div>
     </div>
   </div>
 
 </div>
 
 <footer>
-  <span>RecordTales V2 &middot; 데이터 설계 v0.1</span>
-  <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.5</span>
+  <span>RecordTales V2 &middot; 데이터 설계 v0.9</span>
+  <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.8</span>
 </footer>
+
+<script>
+(function () {
+  /* 코드블록 탭 전환 + 복사 */
+  document.querySelectorAll('.codeblock').forEach(function (block) {
+    var tabs = block.querySelectorAll('.codeblock-tab');
+    var panels = block.querySelectorAll('.codeblock-panel');
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) { t.classList.remove('active'); });
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        if (panels[i]) panels[i].classList.add('active');
+      });
+    });
+    var copyBtn = block.querySelector('.codeblock-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () {
+        var pre = block.querySelector('.codeblock-panel.active pre');
+        if (!pre) return;
+        var text = pre.innerText;
+        var done = function () {
+          copyBtn.textContent = '복사됨 ✓';
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.textContent = '복사';
+            copyBtn.classList.remove('copied');
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+        } else {
+          fallbackCopy(text, done);
+        }
+      });
+    }
+  });
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+})();
+</script>
 
 </body>
 </html>

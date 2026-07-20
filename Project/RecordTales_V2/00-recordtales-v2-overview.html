@@ -8,6 +8,8 @@
      CHANGELOG — 00-recordtales-v2-overview.html
      RecordTales V2 프로젝트 개요 (Track B · 02-A 아키텍처 패턴, 프로젝트 스코프).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     · 2026-07-20 — (동기화) 클래스명 URecordSubsystem → UArchiveSubsystem 통일(09 실코드·07 v0.2·10 지도 기준).
+     · 2026-07-20 — (반응형) 마스터 v1.9 .tbl 모바일 가로 스크롤 규칙 인라인 반영(본문·구조 무변경).
      v0.7 · 2026-07-20
        - (동기화) DataTable 이름을 구글 시트(라이브 밸런스 원본) 확정본으로 일괄 개명 —
          DT_GachaRateByLevel · DT_Character_Ability_OpenChance · DT_Character_Ability_GradeChance ·
@@ -235,6 +237,7 @@ code { font-family: 'IBM Plex Mono', monospace; font-size: 0.86em; background: v
 footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920px; margin: 0 auto; font-size: 12px; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
 
 @media (max-width: 720px) {
+  .tbl { display: block; overflow-x: auto; }  /* [v1.9] 좁은 폭 표 자체 가로 스크롤 */
   .content { padding: 0 20px 60px; }
   .hero { padding: 48px 20px 40px; }
   .stat-row, .stat-row-4, .grid-2, .grid-3 { grid-template-columns: 1fr; }
@@ -331,7 +334,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <div class="rel-row">
         <div class="rel-node n-subsystem"><div class="rn-name">UFocusSubsystem</div><div class="rn-role">세션 완료</div></div>
         <div class="rel-arrow"><span class="ra-label">활동 → 아카이브 기록(길드 태그)</span><span class="ra-line">&rarr;</span></div>
-        <div class="rel-node n-subsystem" style="border-left-color:var(--accent-3)"><div class="rn-name">URecordSubsystem</div><div class="rn-role">기록 저장 (길드별)</div></div>
+        <div class="rel-node n-subsystem" style="border-left-color:var(--accent-3)"><div class="rn-name">UArchiveSubsystem</div><div class="rn-role">기록 저장 (길드별)</div></div>
       </div>
       <div class="rel-row">
         <div class="rel-node n-subsystem" style="border-left-color:var(--accent)"><div class="rn-name">UEconomySubsystem</div><div class="rn-role">Gold + 계정 XP</div></div>

@@ -8,6 +8,13 @@
      CHANGELOG — 09-sqlite-archive-plumbing.html
      RecordTales V2 SQLite 배관(따라하기) 명세. 유형 ③ (Track B · 02-B 템플릿).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.8 · 2026-07-20
+       - (추가) 03 섹션에 구조 업데이트 callout — DB 열닫·CREATE TABLE이 11 문서에서
+         UDatabaseSubsystem(문지기)으로 이관됨을 안내(이 문서의 배관 절차 자체는 유효).
+     v1.7 · 2026-07-20
+       - (변경) DB 파일명 확정 — 예제의 recordtales.db 표기(코드 TEXT("...")·경로·삭제 안내 등 4곳)를
+         Archive.db로 통일(다른 데이터베이스와 이름 혼동 방지, 사용자 결정).
+     · 2026-07-20 — (반응형) 마스터 v1.9 .tbl 모바일 가로 스크롤 규칙 인라인 반영(본문·구조 무변경).
      v1.6 · 2026-07-20
        - (변경) 03 섹션 "기존 SaveGame 설계와의 관계" 콜아웃 갱신 — 풀-DB 저장 전략 확정으로
          이 배관이 스파이크에서 본 채택으로 승격(테이블 설계 기준은 10 문서).
@@ -319,6 +326,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .bp-graph .bpg-caption { fill: #8B8F94; font-family: 'Pretendard', 'Noto Sans KR', sans-serif; font-size: 12px; }
 
 @media (max-width: 720px) {
+  .tbl { display: block; overflow-x: auto; }  /* [v1.9] 좁은 폭 표 자체 가로 스크롤 */
   .content { padding: 0 20px 60px; }
   .hero { padding: 48px 20px 40px; }
   .stat-row, .grid-2 { grid-template-columns: 1fr; }
@@ -579,7 +587,7 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
     <span class="hljs-type">Super</span>::<span class="hljs-title">Initialize</span>(Collection);   <span class="hljs-comment">// 부모 초기화 먼저 — 관례상 항상 맨 위</span>
 
     <span class="hljs-comment">// DB 파일은 반드시 Saved/ 아래에 둔다 (아래 주의 박스 참고).</span>
-    <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span> Path = <span class="hljs-type">FPaths</span>::<span class="hljs-title">ProjectSavedDir</span>() / <span class="hljs-title">TEXT</span>(<span class="hljs-string">"recordtales.db"</span>);
+    <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span> Path = <span class="hljs-type">FPaths</span>::<span class="hljs-title">ProjectSavedDir</span>() / <span class="hljs-title">TEXT</span>(<span class="hljs-string">"Archive.db"</span>);
     <span class="hljs-title">UE_LOG</span>(LogTemp, Log, <span class="hljs-title">TEXT</span>(<span class="hljs-string">"DB 경로: %s"</span>), *Path);   <span class="hljs-comment">// 로그로 실제 경로 확인</span>
 
     <span class="hljs-comment">// ReadWriteCreate = 없으면 새로 만들고, 있으면 읽기/쓰기로 연다.</span>
@@ -664,7 +672,7 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
             <tr><td>3</td><td><code>빌드 &gt; 솔루션 빌드</code> (Ctrl+Shift+B)</td></tr>
             <tr><td>4</td><td>성공하면 <code>.uproject</code> 더블클릭해서 에디터 열기</td></tr>
           </table>
-          <div class="callout tip"><span class="ic">🔎</span><p><strong>확인</strong> — 출력 로그(<code>창 &gt; 출력 로그</code>)에 <code>DB 경로: .../Saved/recordtales.db</code>와 <code>DB 준비 완료</code>가 찍혀 있습니다. <strong>여기까지 나오면 배관은 뚫린 것입니다.</strong></p></div>
+          <div class="callout tip"><span class="ic">🔎</span><p><strong>확인</strong> — 출력 로그(<code>창 &gt; 출력 로그</code>)에 <code>DB 경로: .../Saved/Archive.db</code>와 <code>DB 준비 완료</code>가 찍혀 있습니다. <strong>여기까지 나오면 배관은 뚫린 것입니다.</strong></p></div>
           <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>새 클래스 추가 후엔 라이브 코딩 금지.</strong> 새 <code>UCLASS</code>·<code>USTRUCT</code>를 만들면 라이브 코딩이 처리하지 못합니다. 지금 단계에선 <strong>라이브 코딩을 끄고</strong> 에디터를 닫았다 여는 습관을 들이세요. 나중에 함수 본문만 고칠 땐 켜도 됩니다.</div></div>
           <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>평소엔 "빌드(Build)", "다시 빌드(Rebuild)"는 피하세요.</strong> Rebuild는 프로젝트를 통째로 지웠다 다시 만들어 오래 걸리고, 당신 코드와 무관한 모듈·플러그인까지 재컴파일하다 곁가지 에러를 부를 수 있습니다. 코드나 <code>Build.cs</code>를 고쳤을 때도 <strong>보통 Build로 충분</strong>합니다.</div></div>
         </div>
@@ -810,7 +818,7 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
             </svg>
           </div>
           <p style="font-size:12.5px">핀 색: <span style="color:var(--bp-exec)"><strong>▷ 흰=실행 순서</strong></span> · <span style="color:var(--bp-object)"><strong>● 파랑=객체(서브시스템·구조체)</strong></span> · <span style="color:var(--bp-int)"><strong>● 청록=정수</strong></span> · <span style="color:var(--bp-string)"><strong>● 분홍=문자열</strong></span>. Target 두 개는 <code>Get Game Instance Subsystem</code>(Class=Archive Subsystem) 하나로 채웁니다. <code>Array Element</code>(Archive Row)를 <code>Break Archive Row</code>로 풀어 <code>Title</code>만 <code>Print String</code>에 연결.</p>
-          <div class="callout tip"><span class="ic">🔬</span><p><strong>최종 확인 — 눈으로 보기.</strong> <strong>DB Browser for SQLite</strong>(무료)를 설치하고 <code>[프로젝트]/Saved/recordtales.db</code>를 열어보세요. <code>archives</code> 테이블에 방금 넣은 행이 실제로 보입니다. 이 도구는 앞으로 계속 씁니다 — 코드가 의심스러울 때 <strong>데이터를 직접 눈으로 확인</strong>하는 게 디버깅 속도를 완전히 바꿉니다.</p></div>
+          <div class="callout tip"><span class="ic">🔬</span><p><strong>최종 확인 — 눈으로 보기.</strong> <strong>DB Browser for SQLite</strong>(무료)를 설치하고 <code>[프로젝트]/Saved/Archive.db</code>를 열어보세요. <code>archives</code> 테이블에 방금 넣은 행이 실제로 보입니다. 이 도구는 앞으로 계속 씁니다 — 코드가 의심스러울 때 <strong>데이터를 직접 눈으로 확인</strong>하는 게 디버깅 속도를 완전히 바꿉니다.</p></div>
         </div>
       </div>
     </div>
@@ -848,7 +856,7 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
       <tr><th>순서</th><th>할 일</th></tr>
       <tr><td>1</td><td>게임/에디터를 <strong>완전히 종료</strong> (실행 중이면 파일이 잠겨 있고, DB는 <code>Initialize</code>에서만 열려서 껐다 켜야 반영됨)</td></tr>
       <tr><td>2</td><td>파일 탐색기로 <code>[프로젝트]/Saved/</code> 폴더로 이동</td></tr>
-      <tr><td>3</td><td><code>Saved/</code>의 <strong><code>.db</code> 파일 삭제</strong>(이 문서 예제는 <code>recordtales.db</code>, 이름을 바꿨다면 그 파일). 옆에 <code>*.db-wal</code>·<code>*.db-shm</code>·<code>*.db-journal</code>이 있으면 <strong>함께 삭제</strong> — 안 그러면 옛 데이터가 딸려올 수 있음</td></tr>
+      <tr><td>3</td><td><code>Saved/</code>의 <strong><code>.db</code> 파일 삭제</strong>(이 문서 예제는 <code>Archive.db</code>, 이름을 바꿨다면 그 파일). 옆에 <code>*.db-wal</code>·<code>*.db-shm</code>·<code>*.db-journal</code>이 있으면 <strong>함께 삭제</strong> — 안 그러면 옛 데이터가 딸려올 수 있음</td></tr>
       <tr><td>4</td><td>게임을 <strong>다시 실행</strong> → 파일이 없으니 CREATE 문이 새 스키마로 테이블 생성</td></tr>
       <tr><td>5</td><td>DB Browser로 열어 <strong>새 컬럼이 생겼는지</strong> 확인</td></tr>
     </table>
@@ -856,6 +864,7 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
     <div class="callout info"><span class="ic">🧭</span><p><strong>출시 후에는 파일 삭제 금지</strong> — 사용자 데이터를 지울 수 없으니 <strong>마이그레이션</strong>을 합니다: <code>PRAGMA user_version</code>으로 스키마 버전을 관리하고, <code>ALTER TABLE archives ADD COLUMN …</code>으로 <strong>기존 데이터를 지키면서</strong> 컬럼을 추가합니다. "개발 중 = 파일 삭제, 출시 후 = ALTER TABLE" 두 갈래이고, 지금 단계에선 파일 삭제가 정답입니다.</p></div>
 
     <div class="callout info"><span class="ic">🧭</span><p><strong>이 배관이 본 채택으로 승격됨(2026-07-20)</strong> — 처음엔 실현 가능성을 증명하는 스파이크였지만, 이후 <strong>풀-DB 저장 전략이 확정</strong>되어 이 배관이 V2 영속 저장의 본체가 됐습니다: 기록(archives)뿐 아니라 상태(player·guilds·owned_*·buildings)까지 전부 이 DB의 테이블로 확장합니다. 전체 테이블 설계·확장 순서는 <strong>10 코드 &amp; 변수 연결 지도</strong>가 기준입니다(07·03·05의 SaveGame 기반 기술은 후속 개정 대상).</p></div>
+    <div class="callout tip" style="margin-top:10px"><span class="ic">🚪</span><p><strong>구조 업데이트(2026-07-20)</strong> — 이 문서에서 <code>UArchiveSubsystem</code>이 맡던 <strong>DB 열닫·CREATE TABLE</strong>은 이후 <strong>11(플레이어 상태 저장) 1~2단계</strong>에서 전용 문지기 <code>UDatabaseSubsystem</code>으로 이관됐습니다. 이 문서의 절차(처음 배관 뚫기)는 그대로 유효하며, 최종 구조에선 "열닫·스키마 = 문지기 / archives 기능 = ArchiveSubsystem"으로 나뉩니다.</p></div>
   </div>
 
   <!-- ============================== 04 막혔을 때 -->

@@ -8,6 +8,7 @@
      CHANGELOG — 02-estate-management-economy.html
      RecordTales V2 영지 · 경영 건물 경제 (Track B · 02-A 아키텍처 패턴).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     · 2026-07-20 — (반응형) 마스터 v1.9 .tbl 모바일 가로 스크롤 규칙 인라인 반영(본문·구조 무변경).
      v0.4 · 2026-07-15
        - (용어 확정) 캐릭터 "분해" → "추출(Extract)"로 명칭 통일(기억 거래소 설명 전반). 조각 = 조각(Shard).
      v0.3 · 2026-07-12
@@ -537,6 +538,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .graph-net .gn-label.big { fill: var(--text); font-size: 11px; font-weight: 600; }
 
 @media (max-width: 720px) {
+  .tbl { display: block; overflow-x: auto; }  /* [v1.9] 좁은 폭 표 자체 가로 스크롤 */
   .content { padding: 0 20px 60px; }
   .hero { padding: 48px 20px 40px; }
   .swatch-grid { grid-template-columns: 1fr 1fr; }

@@ -8,6 +8,19 @@
      CHANGELOG — 10-code-variable-map.html
      RecordTales V2 코드 & 변수 연결 지도 (Track B · 04 데이터 설계 지도 템플릿).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.4 · 2026-07-20
+       - (구조 반영) 길드 시스템 확정(12 v0.1) — guilds 주인 Economy → GuildSubsystem 이관(소유 결정표·
+         Economy 카드 노트), 카테고리 2축(대분류=길드 속성 / 소분류=계정 공유 archive_categories) 반영,
+         테이블 "6종"→"7종"(archive_categories 추가, guilds 컬럼 갱신·AUTOINCREMENT).
+     v1.3 · 2026-07-20
+       - (구조 반영) DB 문지기 분리(11 v0.2, 사용자 결정) — 소유 결정표의 "DB 열닫·트랜잭션" 주인을
+         GameInstance → UDatabaseSubsystem으로, 저장 전도 허브 노드도 동일 교체.
+         ArchiveSubsystem 카드: 역할 "archives 기능 전담", Database(FSQLiteDatabase 소유) →
+         Db(FSQLiteDatabase* 대여)로 갱신.
+     v1.2 · 2026-07-20
+       - (변경) DB 파일명 확정 — "recordtales.db 개명 권장" pitfall(파일명 참고)을 "Archive.db 유지"
+         결정으로 재작성(다른 데이터베이스와 이름 혼동 방지, 사용자 결정). 지도 본문의 Archive.db 표기는 유지.
+     · 2026-07-20 — (반응형) 마스터 v1.9 .tbl 모바일 가로 스크롤 규칙 인라인 반영(본문·구조 무변경).
      v1.1 · 2026-07-20
        - (개정) 저장 전략 하이브리드 → 풀-DB 확정(사용자 결정): 상태(SAVE)까지 전부 SQLite로.
          테이블 6종(player 1행·guilds·owned_characters·owned_abilities·buildings·archives),
@@ -326,6 +339,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .graph-net .gn-label.big { fill: var(--text); font-size: 11px; font-weight: 600; }
 
 @media (max-width: 720px) {
+  .tbl { display: block; overflow-x: auto; }  /* [v1.9] 좁은 폭 표 자체 가로 스크롤 */
   .content { padding: 0 20px 60px; }
   .hero { padding: 48px 20px 40px; }
   .stat-row, .dd-grid { grid-template-columns: 1fr; }
@@ -393,10 +407,10 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     </div>
 
     <h3>V2의 축 — 계정 공유 vs 길드별</h3>
-    <p>멀티 길드(하이브리드 C)라서 모든 저장 변수에는 <strong>소속 축</strong>이 있습니다. <strong>계정 공유</strong> = Gold · 조각(Shard) · 캐릭터 로스터 · 계정 XP/레벨(가챠 확률 결정). <strong>길드별</strong> = 아카이브 기록 · 길드 XP/레벨 · 카테고리. 소유 결정표(03섹션)의 "축" 열이 이걸 고정합니다.</p>
+    <p>멀티 길드(하이브리드 C)라서 모든 저장 변수에는 <strong>소속 축</strong>이 있습니다. <strong>계정 공유</strong> = Gold · 조각(Shard) · 캐릭터 로스터 · 계정 XP/레벨(가챠 확률 결정). <strong>길드별</strong> = 아카이브 기록 · 길드 XP/레벨 · 대분류 카테고리(길드당 1개). 단, <strong>소분류 카테고리(archive_categories)는 계정 공유</strong> — 카테고리가 2축입니다(12 문서). 소유 결정표(03섹션)의 "축" 열이 이걸 고정합니다.</p>
 
     <div class="callout info"><span class="ic">🗄️</span><p><strong>저장 전략 = 풀-DB (2026-07-20 확정)</strong> — 영속 데이터는 <strong>전부 SQLite <code>Archive.db</code></strong>(09 배관 검증)에 저장합니다. <strong>상태</strong>(재화·로스터·레벨·건물)는 테이블 행을 <code>UPDATE</code>, <strong>기록</strong>(아카이브)은 <code>INSERT</code>로 쌓습니다. 채택 이유: ① 저장소 단일화(이중 저장 정합성 걱정 제거) ② <strong>트랜잭션</strong> — 추출처럼 여러 테이블을 고치는 작업을 <code>BEGIN…COMMIT</code> 하나로 묶어 "중간 상태"가 불가능 ③ DB Browser로 모든 데이터를 눈으로 확인. SaveGame(.sav)은 쓰지 않습니다 — 03·05·07 문서의 SaveGame 기반 설계는 이 지도가 대체하며, 해당 문서 개정은 별도 작업입니다.</p></div>
-    <div class="pitfall tip"><span class="ic">💡</span><p class="pitfall-text" style="margin:0"><strong>파일명 참고</strong> — 실코드(09)의 DB 파일명은 <code>Archive.db</code>인데, 이제 범위가 "아카이브"가 아니라 <strong>계정 전체</strong>이므로 <code>recordtales.db</code>로 개명을 권장합니다(5단계 코드의 <code>TEXT("...")</code> 한 줄 + 기존 파일 삭제).</p></div>
+    <div class="pitfall tip"><span class="ic">💡</span><p class="pitfall-text" style="margin:0"><strong>파일명</strong> — DB 파일명은 <code>Archive.db</code>로 둡니다. 담는 범위는 <strong>계정 전체</strong>(아카이브 외 상태 테이블 포함)지만, 다른 데이터베이스와 이름이 헷갈리지 않도록 <code>Archive.db</code>를 유지하는 결정입니다.</p></div>
 
     <h3>테이블 이름 동기화(구 명칭 매핑)</h3>
     <p>DataTable 이름·컬럼은 <strong>구글 시트가 정본</strong>입니다(05 v0.12에서 전 문서 동기화 완료). 예전 문서·머릿속 이름과 헷갈릴 때 이 표를 보세요.</p>
@@ -443,7 +457,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       </div>
       <div class="vc-var">
         <span class="vv-name">GuildXp[GuildId]</span><span class="vv-type">TMap(캐시)</span><span class="vbadge db">DB</span>
-        <span class="vv-note">길드별 XP/레벨(길드 축, <code>guilds</code> 길드당 1행) — 실제 활동에서만 증가</span>
+        <span class="vv-note">길드별 XP/레벨(길드 축, <code>guilds</code> 길드당 1행) — <strong>12에서 GuildSubsystem으로 이관</strong>(Economy는 player만)</span>
       </div>
     </div>
 
@@ -486,11 +500,11 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <div class="vc-head">
         <span class="vc-domain">Archive</span>
         <span class="vc-file">ArchiveSubsystem<span style="color:var(--ue-header)">.h</span> / <span style="color:var(--ue-source)">.cpp</span></span>
-        <span class="vc-role">SQLite와의 유일한 다리(09 배관)</span>
+        <span class="vc-role">archives 기능 전담(열닫은 11에서 문지기로 이관)</span>
       </div>
       <div class="vc-var">
-        <span class="vv-name">Database</span><span class="vv-type">FSQLiteDatabase</span><span class="vbadge run">RUNTIME</span>
-        <span class="vv-note">Archive.db 연결 핸들 — Initialize에서 열고 Deinitialize에서 닫음</span>
+        <span class="vv-name">Db</span><span class="vv-type">FSQLiteDatabase*</span><span class="vbadge run">RUNTIME</span>
+        <span class="vv-note">문지기(UDatabaseSubsystem)에게 빌린 핸들 — 열닫·소유는 문지기가, 여긴 사용만(11 2단계 수술)</span>
       </div>
       <div class="vc-var">
         <span class="vv-name">archives 행 (기록 1건)</span><span class="vv-type">SQL row</span><span class="vbadge db">DB</span>
@@ -499,12 +513,13 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     </div>
     <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>이름 주의</strong> — 설계 문서(00·01·07)의 <code>URecordSubsystem</code> 역할을 실코드에서는 <code>UArchiveSubsystem</code>(09에서 생성·검증)이 맡습니다. 이 지도는 실코드 이름을 기준으로 합니다.</div></div>
 
-    <h3>Archive.db 테이블 6종 — 영속 데이터의 전체 목록</h3>
-    <p>풀-DB이므로 "껐다 켜도 남는 것"은 전부 이 여섯 테이블 중 하나에 삽니다. 도입은 09의 리듬대로 <strong>한 테이블씩</strong>(쉬운 것부터) 넓힙니다.</p>
+    <h3>Archive.db 테이블 7종 — 영속 데이터의 전체 목록</h3>
+    <p>풀-DB이므로 "껐다 켜도 남는 것"은 전부 이 일곱 테이블 중 하나에 삽니다. 도입은 09의 리듬대로 <strong>한 테이블씩</strong>(쉬운 것부터) 넓힙니다.</p>
     <table class="tbl">
       <tr><th>순서</th><th>테이블</th><th>행 단위</th><th>주요 쓰기</th><th>내용</th></tr>
       <tr><td>1</td><td><code>player</code></td><td><strong>항상 1행</strong></td><td>UPDATE</td><td>Gold · Shards · AccountXp (계정 상태)</td></tr>
-      <tr><td>2</td><td><code>guilds</code></td><td>길드당 1행</td><td>INSERT/UPDATE</td><td>GuildId · Name · GuildXp (길드 축)</td></tr>
+      <tr><td>2</td><td><code>guilds</code></td><td>길드당 1행</td><td>INSERT/UPDATE</td><td>GuildId(AUTOINCREMENT) · Name · <strong>Category(대분류)</strong> · GuildXp · Secured (길드 축) — ✓ 12에서 가동</td></tr>
+      <tr><td>2</td><td><code>archive_categories</code></td><td>소분류당 1행</td><td>INSERT/UPDATE</td><td>Name(PK) · SortOrder — <strong>소분류 공유 풀</strong>(계정 축) — ✓ 12에서 가동</td></tr>
       <tr><td>3</td><td><code>owned_characters</code></td><td>캐릭터당 1행</td><td>INSERT/DELETE</td><td>InstanceId · CharacterRow · Rarity</td></tr>
       <tr><td>3</td><td><code>owned_abilities</code></td><td>능력치당 1행</td><td>INSERT/UPDATE</td><td>InstanceId(<strong>FK</strong>) · Slot · Rarity · Step — 캐릭터 1:N</td></tr>
       <tr><td>4</td><td><code>buildings</code></td><td>건물당 1행</td><td>INSERT/UPDATE</td><td>BuildingRow · Level · 배치 캐릭터</td></tr>
@@ -534,13 +549,13 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><th>값</th><th>주인(쓰기)</th><th>저장소</th><th>축</th><th>근거</th></tr>
       <tr><td>Gold · Shards</td><td><span class="owner o-subsystem">EconomySubsystem</span></td><td><span class="vbadge db">DB</span> <code>player</code></td><td>계정</td><td>모든 길드가 공유하는 재화 — 적립/차감 창구 단일화(1행 UPDATE)</td></tr>
       <tr><td>AccountXp/Level</td><td><span class="owner o-subsystem">EconomySubsystem</span></td><td><span class="vbadge db">DB</span> <code>player</code></td><td>계정</td><td>전 길드 XP 합산 — 가챠 확률의 유일한 입력</td></tr>
-      <tr><td>GuildXp/Level</td><td><span class="owner o-subsystem">EconomySubsystem</span></td><td><span class="vbadge db">DB</span> <code>guilds</code></td><td><strong>길드</strong></td><td>정직한 레벨 — 실제 활동에서만, 길드당 1행</td></tr>
+      <tr><td>GuildXp/Level · 길드 정체성 · 소분류 풀</td><td><span class="owner o-subsystem">GuildSubsystem</span></td><td><span class="vbadge db">DB</span> <code>guilds</code>·<code>archive_categories</code></td><td><strong>길드</strong>/계정</td><td>정직한 레벨 — 실제 활동에서만, 길드당 1행. 12에서 Economy로부터 이관(테이블당 주인 하나)</td></tr>
       <tr><td>OwnedCharacters(등급·개화·단계)</td><td><span class="owner o-subsystem">GachaSubsystem</span></td><td><span class="vbadge db">DB</span> <code>owned_*</code></td><td>계정</td><td>로스터는 계정 공유 — 뽑기/강화/추출 모두 여기서만, 다중 테이블 변경은 트랜잭션</td></tr>
       <tr><td>BuildingStates</td><td><span class="owner o-subsystem">EstateSubsystem</span></td><td><span class="vbadge db">DB</span> <code>buildings</code></td><td>계정</td><td>영지는 계정 단위 홈 화면</td></tr>
       <tr><td>아카이브 기록 · DeletedAt</td><td><span class="owner o-subsystem">ArchiveSubsystem</span></td><td><span class="vbadge db">DB</span></td><td><strong>길드</strong></td><td>누적+검색형 — 행에 GuildId를 새겨 길드 스코프 유지, 소프트 삭제는 UPDATE 한 줄</td></tr>
       <tr><td>가챠·개화·강화·추출 확률/비용</td><td><span class="owner o-savegame">기획(구글 시트)</span></td><td><span class="vbadge row">ROW</span></td><td>—</td><td>코드는 읽기만 — 밸런싱은 시트→CSV 재임포트로</td></tr>
       <tr><td>세션 타이머 · 가챠 후보 3장</td><td><span class="owner o-subsystem">Focus/GachaSubsystem</span></td><td><span class="vbadge run">RUNTIME</span></td><td>—</td><td>결과(기록·캐릭터)만 남기고 과정은 버림</td></tr>
-      <tr><td>DB 열닫 · 트랜잭션 시점</td><td><span class="owner o-instance">GameInstance</span></td><td>—</td><td>—</td><td>Archive.db 열닫과 다중 테이블 트랜잭션의 단일 창구(수명=앱)</td></tr>
+      <tr><td>DB 열닫 · 스키마 · 트랜잭션 시점</td><td><span class="owner o-subsystem">DatabaseSubsystem</span></td><td>—</td><td>—</td><td><strong>DB 문지기</strong>(11에서 분리) — 열닫·CREATE TABLE·다중 테이블 트랜잭션의 단일 창구. 기능 시스템들은 대등하게 의존(수명=앱)</td></tr>
     </table>
   </div>
 
@@ -647,8 +662,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         </div>
       </div>
       <div class="fh-hub">
-        <div class="fn-name">GameInstance</div>
-        <div class="fn-role">DB 열닫·트랜잭션의<br>단일 창구</div>
+        <div class="fn-name">DatabaseSubsystem</div>
+        <div class="fn-role">DB 문지기 — 열닫·스키마·<br>트랜잭션의 단일 창구</div>
       </div>
       <div class="fh-col">
         <div class="fh-node n-db">

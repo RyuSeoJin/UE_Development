@@ -8,6 +8,7 @@
      CHANGELOG — 04-gacha-ability-awakening.html
      RecordTales V2 가챠 · 능력치 개화 (Track B · 02-A 아키텍처 패턴).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     · 2026-07-20 — (반응형) 마스터 v1.9 .tbl 모바일 가로 스크롤 규칙 인라인 반영(본문·구조 무변경).
      v0.9 · 2026-07-20
        - (동기화) DataTable 이름을 구글 시트 확정본으로 일괄 개명 — DT_GachaRateByLevel ·
          DT_Ability_Enhance (상세 매핑: 05 문서 v0.12).
@@ -550,6 +551,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .graph-net .gn-label.big { fill: var(--text); font-size: 11px; font-weight: 600; }
 
 @media (max-width: 720px) {
+  .tbl { display: block; overflow-x: auto; }  /* [v1.9] 좁은 폭 표 자체 가로 스크롤 */
   .content { padding: 0 20px 60px; }
   .hero { padding: 48px 20px 40px; }
   .swatch-grid { grid-template-columns: 1fr 1fr; }

@@ -3,11 +3,40 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RecordTales V2 — 데이터 스키마 명세</title>
+<title>RecordTales V2 — 데이터 스키마 명세 (DataTable · SQLite)</title>
 <!-- ============================================================
      CHANGELOG — 05-data-schema-spec.html
      RecordTales V2 데이터 스키마 명세 (Track B · 02-B 기능 구현 명세).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     v0.16 · 2026-07-20
+       - (구조 반영) 길드 시스템 확정(12 v0.1, 사용자 결정) — 카테고리 2축 모델 채택:
+         · guilds 스키마 교체: Categories(JSON 배열) → Category(대분류 1개, 중복 허용) +
+           CreatedAt(UTC)·SortOrder·Icon·Secured 추가, GuildId는 AUTOINCREMENT(재사용 금지 엔진 보장).
+         · archive_categories(소분류 계정 공유 풀) 신설 — "6테이블"→"7테이블" 표기 일괄 갱신.
+         · archives.Category 의미 = 계정 공유 소분류 태그로 명시. FGuildData 캐시 struct 동기 갱신.
+         · player.NextGuildId 미사용 표기(AUTOINCREMENT 대체). 책임표 guilds 주인 Economy→GuildSubsystem.
+     v0.15 · 2026-07-20
+       - (구조 반영) DB 문지기 분리(11 v0.2, 사용자 결정) — 07 등록·검증의 DB 초기화 주체와
+         책임 배치 결정표의 "DB 열닫·트랜잭션" 주인을 GameInstance → UDatabaseSubsystem으로 갱신.
+         schema.sql 주석의 초기화 주체도 동일 교체.
+     v0.14 · 2026-07-20
+       - (변경) DB 파일명 확정 — recordtales.db 표기 5곳(스키마 SQL 주석·본문·초기화 코드 포함)을
+         전부 Archive.db로 통일(사용자 결정).
+     · 2026-07-20 — (반응형) 마스터 v1.9 .tbl 모바일 가로 스크롤 규칙 인라인 반영(본문·구조 무변경).
+     v0.13 · 2026-07-20
+       - (전면 개정) 저장 계층 SaveGame → 풀-DB(SQLite) 전환 — 03 v0.7·10 문서와 정합.
+         · 01·02: 계층 SAVE/CONFIG → DB/RUNTIME. SaveGame·DeveloperSettings 폐기 명시.
+         · 05 "SaveGame·런타임 struct" → "SQLite 스키마·상태 표현": 6테이블 DDL(PK·FK·Secured BLOB) +
+           메모리 캐시 struct(FOwnedCharacter·FOwnedAbility(+Slot)·FBuildingState·FGuildData·FArchiveRecord —
+           이제 USaveGame 직렬화가 아니라 DB 행 매핑용 RUNTIME). owned_abilities FK(ON DELETE CASCADE),
+           archives DeletedAt NULL 규약, player 단일 행(Id=1) + Secured 컬럼.
+         · 06 "상태 보호 — Secured 인증 암호화" 신설(사용자 요청): FAES 암호화 + MAGIC/CRC 무결성으로
+           SealAccount/OpenAccount 저장·로드·자동 복원 C++ 전문. 키 관리·한계·AES-GCM 대체안 주석.
+         · 07 등록·검증: DataTable 등록 + DB 초기화(CREATE TABLE IF NOT EXISTS·PRAGMA foreign_keys) +
+           스키마 마이그레이션(PRAGMA user_version·ALTER TABLE) + 책임 배치 결정표(테이블→서브시스템).
+         · enum(03)·DataTable 행 10종(04)은 불변.
+       - (스냅샷) 마스터 CSS v1.5 → v1.8 재스냅샷(.vbadge.db 등). Case A(마스터 갱신 없음).
+       - (hero) 배지 "SaveGame 전 필드" → "SQLite 6테이블 + Secured".
      v0.12 · 2026-07-20
        - (동기화) 구글 시트(라이브 밸런스 원본) 실측 기준으로 5개 DataTable의 이름·컬럼·RowName 확정.
          이름: DT_Gacha_Rate_ByLevel→DT_GachaRateByLevel · DT_Character_Rarity_Ability_Open_Chance→
@@ -63,7 +92,7 @@
    UE Design System — Master Stylesheet
    (design-guide-ue-master.css)
    언리얼 에셋 분석 · 아키텍처 설계 문서 공통 토대
-   v1.6  (Dark · Indigo Minimal · Editorial)
+   v1.8  (Dark · Indigo Minimal · Editorial)
 
    사용법
    - 가이드 문서(master-visual / design-template의 01 / 02)는 <link>로 이 파일을 참조.
@@ -71,6 +100,25 @@
      단일 파일로 배포한다. (오프라인 무결성 유지)
 
    변경 이력 (CHANGELOG) — 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+   v1.8 · 2026-07-20
+     - (추가) DB(SQLite) 저장 위치 표기 3종 — 데이터 설계 지도 계열에서 "SQLite DB 파일에
+       사는 데이터"를 구분하기 위함(수명 5종째: SAVE/RUNTIME/CONFIG/ROW/DB).
+       .vbadge.db(수명 배지) · .ls-file.db(변수 여정 파일 칩) · .fh-node.n-db(흐름 전도 노드).
+       색은 기존 --ue-mat(주황) 재사용 — 신규 토큰 없음.
+     - 사유: RecordTales_V2 아카이브 기록의 SQLite 채택(하이브리드: 상태=SaveGame, 기록=DB) —
+       코드/변수 지도 문서(Case B 승인).
+   v1.7 · 2026-07-18
+     - (추가) .checklist — 인터랙티브 진행률 체크리스트: "따라 하며 하나씩 완료를
+       체크"하는 실습형(따라하기) 문서용 컴포넌트. 단계 헤더 클릭/Enter로 완료(.done)
+       토글, 상단 진행률 바(.check-prog>.check-bar>.check-fill)가 완료 수를 즉시 반영.
+       색은 기존 팔레트 재사용(완료=accent-3, 진행 바=accent) — 신규 토큰 없음.
+       내부 클래스: .check-prog/.check-bar/.check-fill/.check-count · .check-step(.done) ·
+       .check-head/.check-tick(.tk-num)/.check-title/.check-why · .check-body
+     - 규칙: 완료 상태는 로컬·비영속(새로고침 시 초기화). 토글 JS는 결과물에 inline
+       (탭/복사 JS와 같은 최소 상호작용 범위). prefers-reduced-motion에서 전환 끔(공통).
+     - (변경) 반응형 블록에 .check-body 좌패딩 폴백 추가.
+     - 사유: SQLite 배관 "따라하기" 문서(Track B · Project/RecordTales, Case B 승인) —
+       원본의 진행률 체크리스트 UX를 다크·인디고 팔레트로 편입.
    v1.6 · 2026-07-10
      - (추가) 블루프린트 에디터 관례색 토큰(--bp-*) — 캔버스/노드/제목 바 5종(이벤트·
        함수 호출·순수 함수·흐름 제어·캐스트)/핀 타입 8종(Exec·Bool·Float·Int·
@@ -498,6 +546,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .vbadge.run  { background: rgba(155,109,255,0.14); color: var(--accent-2); }     /* 런타임 휘발(저장 안 함)   */
 .vbadge.cfg  { background: rgba(56,217,180,0.14);  color: var(--accent-3); }     /* Config/Settings 상수      */
 .vbadge.row  { background: rgba(91,110,250,0.14);  color: var(--accent); }       /* DataTable 행(에디터 데이터)*/
+.vbadge.db   { background: rgba(251,140,90,0.14);  color: var(--ue-mat); }       /* SQLite DB 파일 저장 [v1.8] */
 
 /* ============================================================
    FLOW-HUB — 변수 흐름 연결 전도  [v1.4 신규]
@@ -522,6 +571,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .fh-node.n-instance  { border-left-color: var(--ue-instance); }
 .fh-node.n-table     { border-left-color: var(--accent-3); }
 .fh-node.n-ui        { border-left-color: var(--ue-gamestate); }
+.fh-node.n-db        { border-left-color: var(--ue-mat); }  /* SQLite DB [v1.8] */
 .fh-node .fn-name { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
 .fh-node .fn-role { font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.45; }
 .fh-links { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
@@ -551,6 +601,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .ls-file.cpp   { background: rgba(251,140,90,0.13); color: var(--ue-source); }
 .ls-file.save  { background: rgba(245,158,11,0.13); color: var(--ue-savegame); }
 .ls-file.table { background: rgba(91,110,250,0.13); color: var(--accent); }
+.ls-file.db    { background: rgba(251,140,90,0.13); color: var(--ue-mat); }  /* SQLite DB [v1.8] */
 .ls-title { font-size: 13.5px; font-weight: 700; color: var(--text); }
 .ls-fn { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-muted); }
 .ls-var { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--accent-3); background: var(--surface-2); border: 1px solid var(--border); border-radius: 5px; padding: 4px 10px; display: inline-block; margin: 3px 0 5px; }
@@ -654,7 +705,41 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .bp-graph .bpw.t-class  { stroke: var(--bp-class); }
 .bp-graph .bpg-caption { fill: #8B8F94; font-family: 'Pretendard', 'Noto Sans KR', sans-serif; font-size: 12px; }
 
+/* ============================================================
+   CHECKLIST — 인터랙티브 진행률 체크리스트  [v1.7 신규]
+   "따라 하며 하나씩 완료를 체크"하는 실습형(따라하기) 문서용 컴포넌트.
+   단계 헤더를 클릭(또는 Enter/Space)하면 완료(.done)를 토글하고, 상단 진행률
+   바가 완료 수를 즉시 반영한다. 완료 상태는 로컬·비영속(새로고침 시 초기화).
+   구조:
+     .checklist
+       .check-prog  ( .check-bar > .check-fill  +  .check-count )
+       .check-step(.done)
+         .check-head  ( .check-tick > .tk-num  +  div > .check-title / .check-why )
+         .check-body  ( 본문·codeblock·callout 등 — .check-head 밖이라 클릭이 토글 안 됨 )
+   색은 기존 팔레트만 재사용: 완료 체크=accent-3, 진행 바=accent.
+   ============================================================ */
+.checklist { margin: 20px 0; }
+.check-prog { display: flex; align-items: center; gap: 16px; padding: 13px 16px; margin-bottom: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; }
+.check-bar { flex: 1; min-width: 120px; height: 4px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.check-fill { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 3px; transition: width 0.3s ease; }
+.check-count { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.check-count b { color: var(--accent); font-weight: 600; }
+.check-step { border: 1px solid var(--border); border-radius: 8px; background: var(--surface); margin-bottom: 10px; overflow: hidden; }
+.check-step.done { border-color: rgba(56,217,180,0.35); }
+.check-head { display: flex; gap: 14px; align-items: flex-start; padding: 15px 18px; cursor: pointer; user-select: none; }
+.check-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 8px; }
+.check-tick { flex: none; width: 26px; height: 26px; border: 2px solid var(--border); border-radius: 50%; display: grid; place-items: center; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text-dim); background: var(--surface-2); transition: background 0.18s, border-color 0.18s, color 0.18s; margin-top: 1px; }
+.check-step.done .check-tick { background: var(--accent-3); border-color: var(--accent-3); color: var(--bg); }
+.check-step.done .check-tick .tk-num { display: none; }
+.check-step.done .check-tick::after { content: '✓'; font-size: 14px; font-weight: 700; }
+.check-title { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: 0.01em; }
+.check-step.done .check-title { color: var(--text-muted); text-decoration: line-through; text-decoration-color: var(--text-dim); }
+.check-why { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-dim); margin-top: 3px; line-height: 1.5; }
+.check-body { padding: 0 18px 18px 58px; }
+.check-body > *:first-child { margin-top: 0; }
+
 @media (max-width: 720px) {
+  .tbl { display: block; overflow-x: auto; }  /* [v1.9] 좁은 폭 표 자체 가로 스크롤 */
   .content { padding: 0 20px 60px; }
   .hero { padding: 48px 20px 40px; }
   .swatch-grid { grid-template-columns: 1fr 1fr; }
@@ -672,6 +757,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   .flow-hub { grid-template-columns: 1fr; }
   .fh-hub { min-width: 0; }
   .ls-step { padding-left: 24px; }
+  /* [v1.7] 체크리스트 본문 좌패딩 폴백 */
+  .check-body { padding-left: 18px; }
   nav { padding: 0 16px; gap: 16px; }
   .nav-links { display: none; }
   footer { padding: 20px; }
@@ -679,6 +766,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
+
 <body>
 
 <nav>
@@ -688,20 +776,21 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <a href="#decision">설계 결정</a>
     <a href="#enum">enum</a>
     <a href="#tables">DataTable 10종</a>
-    <a href="#save">SaveGame</a>
+    <a href="#save">SQLite 스키마</a>
+    <a href="#guard">상태 보호</a>
     <a href="#register">등록·검증</a>
   </div>
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">RecordTales V2 &middot; v0.1 &middot; Data Schema Spec</div>
-  <h1>데이터 스키마<br><span>명세</span></h1>
+  <div class="hero-eyebrow">RecordTales V2 &middot; v0.16 &middot; Data Schema Spec</div>
+  <h1>데이터 스키마<br><span>명세 · DataTable · SQLite</span></h1>
   <p class="hero-sub">
-    03(데이터 설계)에서 지도로 본 데이터를, 여기서는 <strong>복붙 가능한 struct 정의</strong>로 전부 풀어 씁니다. DataTable 행 구조체 10종·SaveGame 구조·전역 상수의 모든 컬럼을 타입·의미와 함께 담습니다.
+    03(데이터 설계)에서 지도로 본 데이터를, 여기서는 <strong>복붙 가능한 정의</strong>로 전부 풀어 씁니다. DataTable 행 구조체 10종·<strong>SQLite 7테이블 스키마</strong>·상태 표현·<strong>Secured 인증 암호화</strong>를 타입·의미·코드와 함께 담습니다.
   </p>
   <div class="hero-meta">
     <span class="badge badge-blue">DataTable 행 10종</span>
-    <span class="badge badge-green">SaveGame 전 필드</span>
+    <span class="badge badge-green">SQLite 7테이블 + Secured</span>
     <span class="badge badge-purple">02-B 기능 구현 명세</span>
   </div>
 </div>
@@ -712,10 +801,14 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   <div class="section" id="scope">
     <div class="section-label">01 — 요구사항 / 범위</div>
     <h2>이 문서가 담는 것</h2>
-    <p>Phase 2 게임 레이어의 데이터 스키마 전체입니다. <strong>값(밸런스)은 넣지 않고 구조(컬럼)만</strong> 정의합니다 — 실제 수치는 DataTable/Settings에서 튜닝합니다.</p>
+    <p>Phase 2 게임 레이어의 데이터 스키마 전체입니다. <strong>밸런스 값은 넣지 않고 구조(컬럼)만</strong> 정의합니다 — 실제 수치는 DataTable/CSV에서 튜닝합니다. 영속 상태는 <strong>SaveGame이 아니라 SQLite <code>Archive.db</code></strong>에 담습니다.</p>
     <div class="callout info">
       <span class="ic">&#x1F9ED;</span>
-      <p>세 계층: <span class="vbadge row">ROW</span> DataTable 행 구조체(밸런스, <code>FTableRowBase</code> 상속) · <span class="vbadge save">SAVE</span> SaveGame 구조(내 소유물) · <span class="vbadge cfg">CONFIG</span> DeveloperSettings(전역 상수). 능력치는 <strong>현재 단계만 저장</strong>하고 값은 표에서 조회합니다.</p>
+      <p>두 계층 + 휘발: <span class="vbadge row">ROW</span> DataTable 행 구조체(밸런스, <code>FTableRowBase</code> 상속) · <span class="vbadge db">DB</span> SQLite 테이블(내 상태·기록) · <span class="vbadge run">RUNTIME</span> 메모리 캐시(휘발). 능력치는 <strong>현재 단계만 저장</strong>하고 값은 표에서 조회합니다.</p>
+    </div>
+    <div class="callout warn" style="margin-top:10px">
+      <span class="ic">&#x1F5D1;&#xFE0F;</span>
+      <p><strong>폐기.</strong> 이전 판의 <code>USaveGame(.sav)</code>과 <code>UDeveloperSettings(CONFIG)</code>는 풀-DB 전환으로 <strong>더 이상 쓰지 않습니다</strong>. 상태는 전부 DB 테이블 행으로, 밸런스는 전부 표(ROW)로 갔습니다. (배경: 03 데이터 설계 · 10 코드/변수 지도)</p>
     </div>
   </div>
 
@@ -725,11 +818,16 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <h2>무엇을 어느 계층에</h2>
     <table class="tbl">
       <tr><th>데이터</th><th>계층</th><th>근거</th></tr>
-      <tr><td>능력치 효과값·강화 비용·확률·건물 산출</td><td><span class="owner o-subsystem">ROW</span></td><td>밸런스 — 표만 고쳐 튜닝. 세이브 무변경.</td></tr>
-      <tr><td>보유 캐릭터·능력치 단계·건물 상태·자원·길드·기록</td><td><span class="owner o-savegame">SAVE</span></td><td>내 소유물 — 껐다 켜도 남아야 함.</td></tr>
-      <tr><td>레벨(=시간/3600)</td><td><span class="owner o-gamestate">파생</span></td><td>저장 안 함 — 시간에서 매번 계산(정직함 보장).</td></tr>
-      <tr><td>estate Nx·유휴 캡·초/레벨</td><td><span class="owner o-subsystem">CONFIG</span></td><td>기획자가 에디터에서 조정하는 전역 상수.</td></tr>
+      <tr><td>능력치 효과값·강화 비용·확률·건물 산출</td><td><span class="vbadge row">ROW</span></td><td>밸런스 — 시트→CSV만 고쳐 튜닝. DB 무변경.</td></tr>
+      <tr><td>보유 캐릭터·능력치 단계·건물 상태·자원·길드·기록</td><td><span class="vbadge db">DB</span></td><td>내 상태 — 껐다 켜도 남아야 함. 상태=UPDATE / 기록=INSERT.</td></tr>
+      <tr><td>재화·레벨(치트 유인 값)</td><td><span class="vbadge db">DB</span> + Secured</td><td><code>player</code> 행에 인증 암호화 사본을 함께 저장(06 상태 보호).</td></tr>
+      <tr><td>레벨(=FocusSeconds/3600)</td><td><span class="vbadge run">RUNTIME</span> 파생</td><td>저장 안 함 — 시간에서 매번 계산(정직함 보장).</td></tr>
+      <tr><td>DataTable 캐시·세션 타이머·가챠 후보</td><td><span class="vbadge run">RUNTIME</span></td><td>메모리 휘발 — 결과만 DB에 남기고 과정은 버림.</td></tr>
     </table>
+    <div class="callout tip" style="margin-top:12px">
+      <span class="ic">&#x1F4A1;</span>
+      <p><strong>왜 SaveGame이 아니라 DB인가.</strong> ① 저장소 단일화(이중 저장 정합성 걱정 제거) ② <strong>트랜잭션</strong> — 추출·강화처럼 여러 테이블을 고치는 작업을 <code>BEGIN…COMMIT</code> 하나로 묶어 "조각만 날아가는" 중간 상태 차단 ③ DB Browser로 모든 데이터를 눈으로 확인.</p>
+    </div>
   </div>
 
   <!-- ===== 03 enum ===== -->
@@ -781,7 +879,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <p>모두 <code>FTableRowBase</code>를 상속해야 DataTable의 행 타입으로 지정할 수 있습니다. 값은 에디터/CSV에서 채웁니다.</p>
     <div class="callout info" style="margin:8px 0 16px">
       <span class="ic">&#x1F4A1;</span>
-      <p><strong>코드 상자 표기 규칙:</strong> 아래 10종은 실제로 <strong>단일 헤더 <code>RTTables.h</code> 하나</strong>에 다 들어갑니다 — 한 상자에 담기엔 너무 길어서 <strong>표시 편의상 3개 상자(능력치·캐릭터/가챠·건물)로 나눈 것</strong>일 뿐입니다. 탭 이름이 <code>파일명.h — 부제</code>처럼 <strong>대시(—)</strong>로 이어지면 "같은 파일의 일부 구간", <code>파일A.h / 파일B.h</code>처럼 <strong>슬래시(/)</strong>로 이어지면 "실제로 다른 두 파일"이라는 뜻입니다(05 섹션의 <code>RTSaveGame.h / RTSettings.h</code> 상자 참고).</p>
+      <p><strong>코드 상자 표기 규칙:</strong> 아래 10종은 실제로 <strong>단일 헤더 <code>RTTables.h</code> 하나</strong>에 다 들어갑니다 — 한 상자에 담기엔 너무 길어서 <strong>표시 편의상 3개 상자(능력치·캐릭터/가챠·건물)로 나눈 것</strong>일 뿐입니다. 탭 이름이 <code>파일명.h — 부제</code>처럼 <strong>대시(—)</strong>로 이어지면 "같은 파일의 일부 구간", <code>파일A.h / 파일B.h</code>처럼 <strong>슬래시(/)</strong>로 이어지면 "실제로 다른 두 파일"이라는 뜻입니다.</p>
     </div>
 
     <h3>능력치 — Ability_Type · Ability_Step · Ability_UpgradeCost</h3>
@@ -1068,248 +1166,364 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     </div>
   </div>
 
-  <!-- ===== 05 SaveGame ===== -->
+  <!-- ===== 05 SQLite 스키마 ===== -->
   <div class="section" id="save">
-    <div class="section-label">05 — SaveGame · 런타임 struct</div>
-    <h2>내 소유물 (SAVE)</h2>
-    <div class="callout info" style="margin:8px 0 16px">
-      <span class="ic">&#x1F4A1;</span>
-      <p><strong>코드 상자 표기 규칙(04 참고):</strong> <code>RTSaveTypes.h</code> 상자 2개(인스턴스 struct / 길드·기록 struct)도 <strong>같은 파일 하나</strong>를 표시 편의상 나눈 것입니다. 반면 맨 아래 <code>RTSaveGame.h / RTSettings.h</code> 상자는 <strong>실제로 다른 두 파일</strong>(<code>URecordTalesSaveGame</code>은 RTSaveGame.h, <code>URecordTalesSettings</code>은 RTSettings.h)을 한 상자에 함께 보여준 것 — 슬래시(/)가 그 표시입니다.</p>
-    </div>
+    <div class="section-label">05 — SQLite 스키마 · 상태 표현</div>
+    <h2>내 상태 (DB)</h2>
+    <p>영속 상태는 <code>Archive.db</code> 하나에 <strong>7테이블</strong>로 삽니다. 아래는 각 테이블의 컬럼과, 그 행을 메모리로 읽어 들일 때 쓰는 <strong>캐시 struct</strong>입니다. 캐시 struct는 이제 <code>USaveGame</code> 직렬화가 아니라 <strong>DB 행 ↔ 메모리 매핑</strong>용입니다.</p>
 
-    <h3>인스턴스 struct — 뽑기·배치로 생기는 것</h3>
-
-    <p style="margin-bottom:6px"><strong>FOwnedAbility</strong> <span style="color:var(--text-dim)">· 개화된 능력치 하나(현재 단계만 저장)</span></p>
+    <h3>7테이블 한눈에</h3>
     <table class="tbl">
-      <tr><th>컬럼</th><th>타입</th><th>의미</th></tr>
-      <tr><td><code>AbilityId</code></td><td>FName</td><td>→ DT_Ability_Type / _Step</td></tr>
-      <tr><td><code>CurrentStep</code></td><td>int32</td><td>현재 강화 단계 (값은 표에서 조회)</td></tr>
+      <tr><th>테이블</th><th>행 단위</th><th>축</th><th>주요 컬럼 · 쓰기</th></tr>
+      <tr><td><code>player</code></td><td>항상 1행</td><td>계정</td><td>Gold·Shards·AccountFocusSeconds·<strong>Secured</strong> — UPDATE</td></tr>
+      <tr><td><code>guilds</code></td><td>길드당 1행</td><td>길드</td><td>GuildId(<strong>AUTOINCREMENT</strong>)·GuildName·Category(대분류 1개)·FocusSeconds·CreatedAt·SortOrder·Icon·DeletedAt·<strong>Secured</strong> — INSERT/UPDATE</td></tr>
+      <tr><td><code>archive_categories</code></td><td>소분류당 1행</td><td>계정</td><td>Name(PK)·CreatedAt·SortOrder — 계정 공유 소분류 풀(빈 카테고리 표시·이름 변경용) — INSERT/UPDATE</td></tr>
+      <tr><td><code>owned_characters</code></td><td>캐릭터당 1행</td><td>계정</td><td>InstanceId·CharacterId·Rarity — INSERT/DELETE</td></tr>
+      <tr><td><code>owned_abilities</code></td><td>능력치당 1행</td><td>계정</td><td>InstanceId(<strong>FK</strong>)·Slot·AbilityId·Step — INSERT/UPDATE</td></tr>
+      <tr><td><code>buildings</code></td><td>건물당 1행</td><td>계정</td><td>BuildingId·Level·DeployedInstanceIds — INSERT/UPDATE</td></tr>
+      <tr><td><code>archives</code></td><td>기록당 1행</td><td>길드</td><td>Id·GuildId·Category·Duration·DeletedAt — INSERT/UPDATE</td></tr>
     </table>
+    <div class="callout tip" style="margin-top:4px"><span class="ic">🔗</span><p><strong>owned_abilities → owned_characters 외래키.</strong> <code>ON DELETE CASCADE</code>라 캐릭터 행을 지우면(추출) 그 캐릭터의 능력치 행이 <strong>자동으로 함께 삭제</strong>됩니다. 값(효과·비용)은 저장하지 않고 <code>AbilityId</code>·<code>Step</code>으로 <span class="vbadge row">ROW</span> 표에서 조회합니다.</p></div>
 
-    <p style="margin:14px 0 6px"><strong>FOwnedCharacter</strong> <span style="color:var(--text-dim)">· 내가 뽑아 가진 캐릭터 하나(중복 허용)</span></p>
-    <table class="tbl">
-      <tr><th>컬럼</th><th>타입</th><th>의미</th></tr>
-      <tr><td><code>InstanceId</code></td><td>int32</td><td>고유 번호(건물 배치가 이걸 참조)</td></tr>
-      <tr><td><code>CharacterId</code></td><td>FName</td><td>→ DT_Character</td></tr>
-      <tr><td><code>Rarity</code></td><td>ECharacterRarity</td><td>뽑을 때 롤된 등급</td></tr>
-      <tr><td><code>Abilities</code></td><td>TArray&lt;FOwnedAbility&gt;</td><td>개화된 능력치(최대 4)</td></tr>
-    </table>
-
-    <p style="margin:14px 0 6px"><strong>FBuildingState</strong> <span style="color:var(--text-dim)">· 내 경영 건물 하나</span></p>
-    <table class="tbl">
-      <tr><th>컬럼</th><th>타입</th><th>의미</th></tr>
-      <tr><td><code>BuildingId</code></td><td>FName</td><td>→ DT_Building</td></tr>
-      <tr><td><code>Level</code></td><td>int32</td><td>→ DT_Building_Upgrade</td></tr>
-      <tr><td><code>DeployedInstanceIds</code></td><td>TArray&lt;int32&gt;</td><td>배치된 캐릭터 InstanceId(열린 슬롯만큼)</td></tr>
-      <tr><td><code>LastCollectTime</code></td><td>FDateTime</td><td>유휴 누적 계산 기준(오프라인 캡)</td></tr>
-    </table>
-
-    <p style="margin:14px 0 6px"><strong>FEconomyState</strong> <span style="color:var(--text-dim)">· 자원 2종</span></p>
-    <table class="tbl">
-      <tr><th>컬럼</th><th>타입</th><th>의미</th></tr>
-      <tr><td><code>Gold</code></td><td>int64</td><td>가챠·건물 업그레이드·해금에 씀</td></tr>
-      <tr><td><code>Shards</code></td><td>int64</td><td>능력치 단계 강화에 씀</td></tr>
-    </table>
-
+    <h3>스키마 DDL — <code>CREATE TABLE</code> 6종</h3>
     <div class="codeblock">
       <div class="codeblock-bar">
-        <button class="codeblock-tab tab-h active" type="button">RTSaveTypes.h</button>
+        <button class="codeblock-tab tab-h active" type="button">schema.sql</button>
         <button class="codeblock-copy" type="button">복사</button>
       </div>
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 개화된 능력치 하나 — 현재 단계만 저장(값=DT_Ability_Step, 비용=DT_Ability_Enhance에서 조회)</span>
-<span class="hljs-meta">USTRUCT()</span>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">-- Archive.db — 앱 시작 시 DB 문지기(UDatabaseSubsystem, 11 문서) Initialize에서 IF NOT EXISTS로 만든다</span>
+<span class="hljs-keyword">PRAGMA</span> foreign_keys = <span class="hljs-keyword">ON</span>;   <span class="hljs-comment">-- FK 강제(owned_abilities → owned_characters). 세션마다 켜야 함</span>
+
+<span class="hljs-comment">-- 계정 상태(항상 1행). 재화·레벨원천 + 인증 암호화 사본(06)</span>
+<span class="hljs-keyword">CREATE TABLE IF NOT EXISTS</span> player (
+    Id                  <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">PRIMARY KEY</span> <span class="hljs-keyword">CHECK</span> (Id = <span class="hljs-number">1</span>),  <span class="hljs-comment">-- 단일 행 보장(계정 하나)</span>
+    Gold                <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL DEFAULT</span> <span class="hljs-number">0</span>,
+    Shards              <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL DEFAULT</span> <span class="hljs-number">0</span>,
+    AccountFocusSeconds <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL DEFAULT</span> <span class="hljs-number">0</span>,   <span class="hljs-comment">-- 계정 XP 원천(레벨 = /3600)</span>
+    NextInstanceId      <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL DEFAULT</span> <span class="hljs-number">1</span>,   <span class="hljs-comment">-- 캐릭터 인스턴스 카운터(재사용 없음)</span>
+    NextGuildId         <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL DEFAULT</span> <span class="hljs-number">1</span>,   <span class="hljs-comment">-- (미사용) 길드 번호는 guilds AUTOINCREMENT가 발급 — 12 문서</span>
+    Secured             <span class="hljs-type">BLOB</span>                       <span class="hljs-comment">-- Gold·Shards·Seconds의 인증 암호화 사본(06 상태 보호)</span>
+);
+
+<span class="hljs-comment">-- 길드(길드당 1행). 캐릭터·Gold 없음(계정 공유)</span>
+<span class="hljs-keyword">CREATE TABLE IF NOT EXISTS</span> guilds (
+    GuildId      <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">PRIMARY KEY AUTOINCREMENT</span>, <span class="hljs-comment">-- 재사용 금지를 엔진이 보장(상세: 12 문서 02)</span>
+    GuildName    <span class="hljs-type">TEXT</span>    <span class="hljs-keyword">NOT NULL</span>,
+    Category     <span class="hljs-type">TEXT</span>,                         <span class="hljs-comment">-- 대분류 1개(길드 간 중복 허용 — 2축 카테고리 모델)</span>
+    FocusSeconds <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL DEFAULT</span> <span class="hljs-number">0</span>,  <span class="hljs-comment">-- 길드 레벨 원천(레벨 = /3600, 저장 안 함)</span>
+    CreatedAt    <span class="hljs-type">TEXT</span>    <span class="hljs-keyword">NOT NULL</span>,             <span class="hljs-comment">-- 생성 시각(ISO8601 UTC)</span>
+    SortOrder    <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL DEFAULT</span> <span class="hljs-number">0</span>,  <span class="hljs-comment">-- UI 정렬 순서</span>
+    Icon         <span class="hljs-type">TEXT</span>,                         <span class="hljs-comment">-- UI 아이콘 식별자</span>
+    DeletedAt    <span class="hljs-type">TEXT</span>,                         <span class="hljs-comment">-- 소프트 삭제 시각(NULL = 살아있음, UTC)</span>
+    Secured      <span class="hljs-type">BLOB</span>                          <span class="hljs-comment">-- GuildId+FocusSeconds 봉인(블롭 스왑 방지 — 12 문서 6단계)</span>
+);
+
+<span class="hljs-comment">-- 소분류(Archive_Category) 계정 공유 풀 — 기록(archives.Category)이 이 이름으로 태그(모든 길드 공유)</span>
+<span class="hljs-keyword">CREATE TABLE IF NOT EXISTS</span> archive_categories (
+    Name      <span class="hljs-type">TEXT</span> <span class="hljs-keyword">PRIMARY KEY</span>,               <span class="hljs-comment">-- 이름 자체가 키(중복 자동 차단). 이름 변경은 archives와 한 트랜잭션</span>
+    CreatedAt <span class="hljs-type">TEXT</span> <span class="hljs-keyword">NOT NULL</span>,
+    SortOrder <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL DEFAULT</span> <span class="hljs-number">0</span>      <span class="hljs-comment">-- 목록 표시 순서(관리 UI 대비)</span>
+);
+
+<span class="hljs-comment">-- 보유 캐릭터(캐릭터당 1행). 계정 로스터(계정 공유)</span>
+<span class="hljs-keyword">CREATE TABLE IF NOT EXISTS</span> owned_characters (
+    InstanceId  <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">PRIMARY KEY</span>,           <span class="hljs-comment">-- 고유 번호(건물 배치·능력치가 참조)</span>
+    CharacterId <span class="hljs-type">TEXT</span>    <span class="hljs-keyword">NOT NULL</span>,              <span class="hljs-comment">-- → DT_Character(RowName)</span>
+    Rarity      <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL</span>               <span class="hljs-comment">-- ECharacterRarity(뽑을 때 롤 — 파생 불가, 저장 필수)</span>
+);
+
+<span class="hljs-comment">-- 개화된 능력치(능력치당 1행). 캐릭터 1:N</span>
+<span class="hljs-keyword">CREATE TABLE IF NOT EXISTS</span> owned_abilities (
+    AbilityRowId <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">PRIMARY KEY AUTOINCREMENT</span>,
+    InstanceId   <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL</span>,             <span class="hljs-comment">-- FK → owned_characters</span>
+    Slot         <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL</span>,             <span class="hljs-comment">-- 0~3(4슬롯 중 어디)</span>
+    AbilityId    <span class="hljs-type">TEXT</span>    <span class="hljs-keyword">NOT NULL</span>,             <span class="hljs-comment">-- → DT_Ability_Type(등급·효과는 표 조회)</span>
+    Step         <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL DEFAULT</span> <span class="hljs-number">0</span>,   <span class="hljs-comment">-- 현재 강화 단계(값=DT_Ability_Step에서 조회)</span>
+    <span class="hljs-keyword">FOREIGN KEY</span> (InstanceId) <span class="hljs-keyword">REFERENCES</span> owned_characters(InstanceId) <span class="hljs-keyword">ON DELETE CASCADE</span>
+);
+
+<span class="hljs-comment">-- 경영 건물(건물당 1행). 영지(계정 축)</span>
+<span class="hljs-keyword">CREATE TABLE IF NOT EXISTS</span> buildings (
+    BuildingId          <span class="hljs-type">TEXT</span>    <span class="hljs-keyword">PRIMARY KEY</span>,       <span class="hljs-comment">-- → DT_Building</span>
+    Level               <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL DEFAULT</span> <span class="hljs-number">1</span>,  <span class="hljs-comment">-- → DT_Building_Upgrade</span>
+    DeployedInstanceIds <span class="hljs-type">TEXT</span>,                     <span class="hljs-comment">-- JSON 배열(배치된 캐릭터 InstanceId)</span>
+    LastCollectTime     <span class="hljs-type">TEXT</span>                      <span class="hljs-comment">-- 유휴 누적 기준(오프라인 캡)</span>
+);
+
+<span class="hljs-comment">-- 아카이브 기록(기록당 1행). 길드 축(GuildId 태그) — 09 배관에서 가동 중</span>
+<span class="hljs-keyword">CREATE TABLE IF NOT EXISTS</span> archives (
+    Id              <span class="hljs-type">TEXT</span>    <span class="hljs-keyword">PRIMARY KEY</span>,           <span class="hljs-comment">-- "YYYYMMDDhhmmssSSS-{GUILDID}"(불변)</span>
+    GuildId         <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL</span>,              <span class="hljs-comment">-- 참조·정렬·필터 키</span>
+    Category        <span class="hljs-type">TEXT</span>    <span class="hljs-keyword">NOT NULL</span>,              <span class="hljs-comment">-- 소분류(계정 공유 — archive_categories 풀의 이름 태그)</span>
+    Source          <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL</span>,              <span class="hljs-comment">-- ERecordSource(타이머/스톱워치/퀘스트)</span>
+    CreatedAt       <span class="hljs-type">TEXT</span>    <span class="hljs-keyword">NOT NULL</span>,              <span class="hljs-comment">-- 정렬 정본(문자열 ID 아님)</span>
+    DurationSeconds <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL DEFAULT</span> <span class="hljs-number">0</span>,
+    Title           <span class="hljs-type">TEXT</span>,
+    DeletedAt       <span class="hljs-type">TEXT</span>                          <span class="hljs-comment">-- 소프트 삭제 시각(NULL = 살아있음)</span>
+);</pre></div>
+    </div>
+
+    <h3>메모리 캐시 struct — DB 행을 담는 그릇</h3>
+    <p>DB에서 읽은 행을 담고, UI·시스템이 다루는 런타임 표현입니다. <code>USaveGame</code>이 아니므로 직렬화 매크로가 목적이 아니라 <strong>블루프린트 노출·복사 편의</strong>를 위해 <code>USTRUCT(BlueprintType)</code>로 둡니다. <code>player</code>는 단일 행이라 별도 struct 없이 <code>EconomySubsystem</code>의 멤버로 듭니다.</p>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">RTTypes.h — runtime cache</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 개화된 능력치 하나 — owned_abilities 한 행에 대응. 값·비용은 표에서 조회하므로 안 담는다</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
 <span class="hljs-keyword">struct</span> <span class="hljs-type">FOwnedAbility</span>
 {
     <span class="hljs-meta">GENERATED_BODY()</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">FName</span> AbilityId;        <span class="hljs-comment">// → DT_Ability_Type / _Step</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">int32</span> CurrentStep = <span class="hljs-number">0</span>; <span class="hljs-comment">// 현재 강화 단계</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> Slot = <span class="hljs-number">0</span>;      <span class="hljs-comment">// 0~3(4슬롯 중 어디)</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FName</span> AbilityId;      <span class="hljs-comment">// → DT_Ability_Type / _Step</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> Step = <span class="hljs-number">0</span>;      <span class="hljs-comment">// 현재 강화 단계(값은 표 조회)</span>
 };
 
-<span class="hljs-comment">// 내가 뽑아 가진 캐릭터 하나 — 중복 허용이라 InstanceId로 구분</span>
-<span class="hljs-meta">USTRUCT()</span>
+<span class="hljs-comment">// 보유 캐릭터 하나 — owned_characters 1행 + 그에 딸린 owned_abilities N행을 한데 담는다</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
 <span class="hljs-keyword">struct</span> <span class="hljs-type">FOwnedCharacter</span>
 {
     <span class="hljs-meta">GENERATED_BODY()</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">int32</span> InstanceId = <span class="hljs-number">0</span>;                    <span class="hljs-comment">// 고유 번호(건물 배치가 이걸 참조)</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">FName</span> CharacterId;                        <span class="hljs-comment">// → DT_Character</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">ECharacterRarity</span> Rarity = <span class="hljs-type">ECharacterRarity</span>::Rarity_Normal; <span class="hljs-comment">// 뽑을 때 롤된 등급</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FOwnedAbility</span>&gt; Abilities;        <span class="hljs-comment">// 개화된 능력치(최대 4)</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> InstanceId = <span class="hljs-number">0</span>;               <span class="hljs-comment">// PK(건물 배치가 참조)</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FName</span> CharacterId;                   <span class="hljs-comment">// → DT_Character</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">ECharacterRarity</span> Rarity = <span class="hljs-type">ECharacterRarity</span>::Rarity_Normal; <span class="hljs-comment">// 롤된 등급</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FOwnedAbility</span>&gt; Abilities;   <span class="hljs-comment">// 개화된 능력치(최대 4)</span>
 };
 
-<span class="hljs-comment">// 내 경영 건물 하나</span>
-<span class="hljs-meta">USTRUCT()</span>
+<span class="hljs-comment">// 경영 건물 하나 — buildings 1행</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
 <span class="hljs-keyword">struct</span> <span class="hljs-type">FBuildingState</span>
 {
     <span class="hljs-meta">GENERATED_BODY()</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">FName</span> BuildingId;                     <span class="hljs-comment">// → DT_Building</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">int32</span> Level = <span class="hljs-number">1</span>;                    <span class="hljs-comment">// → DT_Building_Upgrade</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">int32</span>&gt; DeployedInstanceIds; <span class="hljs-comment">// 배치된 캐릭터 InstanceId(열린 슬롯만큼)</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">FDateTime</span> LastCollectTime;           <span class="hljs-comment">// 유휴 누적 계산 기준(오프라인 캡)</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FName</span> BuildingId;                     <span class="hljs-comment">// → DT_Building</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> Level = <span class="hljs-number">1</span>;                    <span class="hljs-comment">// → DT_Building_Upgrade</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">int32</span>&gt; DeployedInstanceIds; <span class="hljs-comment">// 배치 캐릭터 InstanceId</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FDateTime</span> LastCollectTime;           <span class="hljs-comment">// 유휴 누적 기준</span>
 };
 
-<span class="hljs-comment">// 자원 2종</span>
-<span class="hljs-meta">USTRUCT()</span>
-<span class="hljs-keyword">struct</span> <span class="hljs-type">FEconomyState</span>
-{
-    <span class="hljs-meta">GENERATED_BODY()</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">int64</span> Gold = <span class="hljs-number">0</span>;
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">int64</span> Shards = <span class="hljs-number">0</span>;
-};</pre></div>
-    </div>
-
-    <h3>길드 · 기록 struct</h3>
-
-    <p style="margin-bottom:6px"><strong>FGuildData</strong> <span style="color:var(--text-dim)">· 길드 하나(per-guild). 캐릭터·Gold는 없음(계정 공유)</span></p>
-    <table class="tbl">
-      <tr><th>컬럼</th><th>타입</th><th>의미</th></tr>
-      <tr><td><code>GuildId</code></td><td>int32</td><td>생성순 번호(재사용 없음)</td></tr>
-      <tr><td><code>GuildName</code></td><td>FString</td><td>"그림 길드" 등</td></tr>
-      <tr><td><code>Categories</code></td><td>TArray&lt;FString&gt;</td><td>이 길드의 카테고리(Guild→Category 2단)</td></tr>
-      <tr><td><code>FocusSeconds</code></td><td>int32</td><td>누적 집중 시간(초) — 레벨의 원천</td></tr>
-      <tr><td><code>bDeleted</code> · <code>DeletedTime</code></td><td>bool · FDateTime</td><td>소프트 삭제(휴지통) · 삭제 시각</td></tr>
-      <tr><td><code>GetLevel()</code></td><td>int32 (파생)</td><td>FocusSeconds / 3600 — 저장 안 함(정직한 레벨)</td></tr>
-    </table>
-
-    <p style="margin:14px 0 6px"><strong>FArchiveRecord</strong> <span style="color:var(--text-dim)">· 기록 1건. 통합 원장에 저장, (Guild→Category→Source) 태그</span></p>
-    <table class="tbl">
-      <tr><th>컬럼</th><th>타입</th><th>의미</th></tr>
-      <tr><td><code>Id</code></td><td>FString</td><td>"YYYYMMDDhhmmssSSS-{GUILDID}" — 불변</td></tr>
-      <tr><td><code>GuildId</code></td><td>int32</td><td>어느 길드(참조·정렬·필터 키)</td></tr>
-      <tr><td><code>Category</code></td><td>FString</td><td>그 길드 안의 카테고리</td></tr>
-      <tr><td><code>Source</code></td><td>ERecordSource</td><td>타이머 / 스톱워치 / 퀘스트</td></tr>
-      <tr><td><code>CreatedAt</code></td><td>FDateTime</td><td>정렬 정본(문자열 ID 아님)</td></tr>
-      <tr><td><code>DurationSeconds</code> · <code>Title</code></td><td>int32 · FString</td><td>지속 시간 · 제목</td></tr>
-      <tr><td><code>bDeleted</code> · <code>DeletedTime</code></td><td>bool · FDateTime</td><td>소프트 삭제 · 삭제 시각</td></tr>
-    </table>
-
-    <div class="codeblock">
-      <div class="codeblock-bar">
-        <button class="codeblock-tab tab-h active" type="button">RTSaveTypes.h — Guild / Record</button>
-        <button class="codeblock-copy" type="button">복사</button>
-      </div>
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 길드 하나(per-guild) — 계정 세이브의 배열 원소. 캐릭터·Gold는 여기 없음(계정 공유)</span>
-<span class="hljs-meta">USTRUCT()</span>
+<span class="hljs-comment">// 길드 하나 — guilds 1행. 캐릭터·Gold 없음(계정 공유). 레벨은 파생(저장 안 함)</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
 <span class="hljs-keyword">struct</span> <span class="hljs-type">FGuildData</span>
 {
     <span class="hljs-meta">GENERATED_BODY()</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">int32</span> GuildId = <span class="hljs-number">0</span>;             <span class="hljs-comment">// 생성순 번호(재사용 없음)</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">FString</span> GuildName;              <span class="hljs-comment">// "그림 길드" 등</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FString</span>&gt; Categories;   <span class="hljs-comment">// 이 길드의 카테고리(Guild→Category 2단)</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">int32</span> FocusSeconds = <span class="hljs-number">0</span>;        <span class="hljs-comment">// 누적 집중 시간(초) — 레벨의 원천</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">bool</span> bDeleted = <span class="hljs-literal">false</span>;          <span class="hljs-comment">// 소프트 삭제(휴지통)</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">FDateTime</span> DeletedTime;           <span class="hljs-comment">// 삭제 시각(무기한 보존)</span>
-
-    <span class="hljs-comment">// 레벨은 저장 안 함 — 시간에서 파생(60분=1레벨). 정직한 레벨의 핵심</span>
-    <span class="hljs-type">int32</span> <span class="hljs-title">GetLevel</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> FocusSeconds / <span class="hljs-number">3600</span>; }
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> GuildId = <span class="hljs-number">0</span>;        <span class="hljs-comment">// AUTOINCREMENT 발급(재사용 없음)</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> GuildName;
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> Category;         <span class="hljs-comment">// 대분류 1개(길드 간 중복 허용) — 2축 모델</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> FocusSeconds = <span class="hljs-number">0</span>;   <span class="hljs-comment">// 레벨의 원천(기록 삭제와 무관하게 유지)</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FDateTime</span> CreatedAt;       <span class="hljs-comment">// 생성 시각(UTC)</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> SortOrder = <span class="hljs-number">0</span>;      <span class="hljs-comment">// UI 정렬</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> Icon;              <span class="hljs-comment">// UI 아이콘 식별자</span>
+    <span class="hljs-type">int32</span> <span class="hljs-title">GetLevel</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> FocusSeconds / <span class="hljs-number">3600</span>; } <span class="hljs-comment">// 60분=1레벨(정직한 레벨)</span>
 };
 
-<span class="hljs-comment">// 아카이브 기록 1건 — 통합 원장에 저장, (Guild→Category→Source)로 태그</span>
-<span class="hljs-meta">USTRUCT()</span>
+<span class="hljs-comment">// 아카이브 기록 하나 — archives 1행. DeletedAt은 NULL=살아있음이라 bool+시각 대신 Optional</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
 <span class="hljs-keyword">struct</span> <span class="hljs-type">FArchiveRecord</span>
 {
     <span class="hljs-meta">GENERATED_BODY()</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">FString</span> Id;                    <span class="hljs-comment">// "YYYYMMDDhhmmssSSS-{GUILDID}" — 불변</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">int32</span> GuildId = <span class="hljs-number">0</span>;             <span class="hljs-comment">// 어느 길드(참조 키 — 문자열 접미사와 별개로 정렬·필터에 사용)</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">FString</span> Category;              <span class="hljs-comment">// 그 길드 안의 카테고리</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">ERecordSource</span> Source = <span class="hljs-type">ERecordSource</span>::Timer; <span class="hljs-comment">// 타이머/스톱워치/퀘스트</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">FDateTime</span> CreatedAt;            <span class="hljs-comment">// 정렬 정본(문자열 ID 아님)</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">int32</span> DurationSeconds = <span class="hljs-number">0</span>;
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">FString</span> Title;
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">bool</span> bDeleted = <span class="hljs-literal">false</span>;          <span class="hljs-comment">// 소프트 삭제</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">FDateTime</span> DeletedTime;
-};</pre></div>
-    </div>
-
-    <h3>세이브 본체 + 전역 상수</h3>
-
-    <p style="margin-bottom:6px"><strong>URecordTalesSaveGame</strong> <span style="color:var(--text-dim)">· 계정 세이브(계정 공유 + 길드 배열 + 통합 원장)</span></p>
-    <table class="tbl">
-      <tr><th>컬럼</th><th>타입</th><th>의미</th></tr>
-      <tr><td><code>SaveVersion</code></td><td>int32</td><td>구조 변경 시 +1, 로드 시 마이그레이션 분기</td></tr>
-      <tr><td><code>Roster</code></td><td>TArray&lt;FOwnedCharacter&gt;</td><td>계정 공유: 뽑은 캐릭터(무제한)</td></tr>
-      <tr><td><code>Estate</code></td><td>TArray&lt;FBuildingState&gt;</td><td>계정 공유: 영지 건물</td></tr>
-      <tr><td><code>Economy</code></td><td>FEconomyState</td><td>계정 공유: Gold · Shards</td></tr>
-      <tr><td><code>Guilds</code></td><td>TArray&lt;FGuildData&gt;</td><td>길드별 데이터 배열</td></tr>
-      <tr><td><code>Archive</code></td><td>TArray&lt;FArchiveRecord&gt;</td><td>통합 원장(GuildId 태그)</td></tr>
-      <tr><td><code>AccountFocusSeconds</code></td><td>int32</td><td>전 길드 시간 합 → 가챠 확률</td></tr>
-      <tr><td><code>NextInstanceId</code> · <code>NextGuildId</code></td><td>int32 ×2</td><td>인스턴스·길드 번호 카운터(재사용 없음)</td></tr>
-    </table>
-
-    <p style="margin:14px 0 6px"><strong>URecordTalesSettings</strong> <span style="color:var(--text-dim)">· 전역 상수(DeveloperSettings, Project Settings에서 조정)</span></p>
-    <table class="tbl">
-      <tr><th>컬럼</th><th>타입</th><th>의미</th></tr>
-      <tr><td><code>EstateFocusBaseNx</code></td><td>float</td><td>집중 중 기본 산출 배율(영지 규칙)</td></tr>
-      <tr><td><code>IdleOfflineCapHours</code></td><td>float</td><td>유휴 오프라인 누적 상한(시간)</td></tr>
-      <tr><td><code>SecondsPerLevel</code></td><td>int32</td><td>60분=1레벨 (=3600)</td></tr>
-    </table>
-
-    <div class="codeblock">
-      <div class="codeblock-bar">
-        <button class="codeblock-tab tab-h active" type="button">RTSaveGame.h / RTSettings.h</button>
-        <button class="codeblock-copy" type="button">복사</button>
-      </div>
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 계정 세이브 — 계정 공유(로스터·영지·자원) + 길드 배열 + 통합 원장</span>
-<span class="hljs-meta">UCLASS()</span>
-<span class="hljs-keyword">class</span> <span class="hljs-type">URecordTalesSaveGame</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">USaveGame</span>
-{
-    <span class="hljs-meta">GENERATED_BODY()</span>
-<span class="hljs-keyword">public</span>:
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">int32</span> SaveVersion = <span class="hljs-number">3</span>;                 <span class="hljs-comment">// 구조 변경 시 +1, 로드 시 마이그레이션 분기</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FOwnedCharacter</span>&gt; Roster;      <span class="hljs-comment">// 계정 공유: 뽑은 캐릭터(무제한)</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FBuildingState</span>&gt; Estate;       <span class="hljs-comment">// 계정 공유: 영지 건물</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">FEconomyState</span> Economy;                <span class="hljs-comment">// 계정 공유: Gold·Shards</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FGuildData</span>&gt; Guilds;          <span class="hljs-comment">// 길드별 데이터 배열</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FArchiveRecord</span>&gt; Archive;      <span class="hljs-comment">// 통합 원장(GuildId 태그)</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">int32</span> AccountFocusSeconds = <span class="hljs-number">0</span>;         <span class="hljs-comment">// 전 길드 시간 합 → 가챠 확률</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">int32</span> NextInstanceId = <span class="hljs-number">1</span>;              <span class="hljs-comment">// 캐릭터 인스턴스 카운터</span>
-    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">int32</span> NextGuildId = <span class="hljs-number">1</span>;                 <span class="hljs-comment">// 길드 번호 카운터(재사용 없음)</span>
-};
-
-<span class="hljs-comment">// 전역 상수 — 기획자가 Project Settings에서 조정</span>
-<span class="hljs-meta">UCLASS(Config = Game, DefaultConfig)</span>
-<span class="hljs-keyword">class</span> <span class="hljs-type">URecordTalesSettings</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UDeveloperSettings</span>
-{
-    <span class="hljs-meta">GENERATED_BODY()</span>
-<span class="hljs-keyword">public</span>:
-    <span class="hljs-meta">UPROPERTY(EditAnywhere, Config)</span> <span class="hljs-type">float</span> EstateFocusBaseNx = <span class="hljs-number">2.f</span>;   <span class="hljs-comment">// 집중 중 기본 산출 배율(영지 규칙)</span>
-    <span class="hljs-meta">UPROPERTY(EditAnywhere, Config)</span> <span class="hljs-type">float</span> IdleOfflineCapHours = <span class="hljs-number">8.f</span>; <span class="hljs-comment">// 유휴 오프라인 누적 상한(시간)</span>
-    <span class="hljs-meta">UPROPERTY(EditAnywhere, Config)</span> <span class="hljs-type">int32</span> SecondsPerLevel = <span class="hljs-number">3600</span>;   <span class="hljs-comment">// 60분=1레벨</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> Id;                    <span class="hljs-comment">// "YYYYMMDDhhmmssSSS-{GUILDID}"</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> GuildId = <span class="hljs-number">0</span>;
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> Category;
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">ERecordSource</span> Source = <span class="hljs-type">ERecordSource</span>::Timer;
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FDateTime</span> CreatedAt;            <span class="hljs-comment">// 정렬 정본</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> DurationSeconds = <span class="hljs-number">0</span>;
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> Title;
+    <span class="hljs-comment">// 살아있으면 DeletedAt IS NULL, 휴지통이면 시각. 로드 시 bDeleted로 풀어도 됨</span>
 };</pre></div>
     </div>
   </div>
 
-  <!-- ===== 06 등록·검증 ===== -->
+  <!-- ===== 06 상태 보호 ===== -->
+  <div class="section" id="guard">
+    <div class="section-label">06 — 상태 보호</div>
+    <h2>Secured — 인증 암호화 + 자동 복원</h2>
+    <p><code>Archive.db</code>는 유저 PC의 로컬 파일이라 DB Browser로 <code>Gold</code>를 고칠 수 있습니다. 서버 없는 싱글 게임에서 완전 차단은 불가능하지만, <code>player</code>의 재화·레벨을 <strong>인증 암호화한 사본(<code>Secured</code>)</strong>으로 함께 저장해 <strong>"고치면 로드 때 되돌린다"</strong>를 만듭니다. (판정 흐름의 그림은 03 데이터 설계 06 상태 보호 참조.)</p>
+
+    <h3>🚀 이 문서로 작업 시작하기</h3>
+    <div class="callout info"><span class="ic">🧭</span><p><strong>전제 조건</strong> — 05의 SQLite 테이블(특히 <code>player.Secured BLOB</code>)이 있고, 09 배관으로 DB 읽기/쓰기가 된다. 이 절은 그 위에 <strong>봉인/개봉</strong>을 얹습니다.</p></div>
+    <table class="tbl">
+      <tr><th>만들 파일</th><th>방법</th><th>비고</th></tr>
+      <tr><td><code>RTSecured.h / .cpp</code></td><td>클래스 위저드 아님 — 빈 헤더/소스에 자유 함수 2개(<code>SealAccount</code>·<code>OpenAccount</code>)</td><td>또는 <code>EconomySubsystem</code>에 static 헬퍼로 넣어도 됨</td></tr>
+    </table>
+    <div class="callout tip"><span class="ic">💡</span><p><strong>코드 외 작업</strong> — 32바이트 대칭키 1개를 정한다(랜덤 바이트, 소스의 눈에 안 띄는 위치). 모듈 추가 <strong>없음</strong>: <code>FAES</code>·<code>FCrc</code>는 <code>Core</code>에 있어 Build.cs 변경이 필요 없습니다.</p></div>
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>컴파일 주의</strong> — 새 <code>.h</code>를 추가하면 Live Coding 불가(에디터 종료 → 재빌드). 키·MAGIC은 <code>constexpr</code>/<code>static</code>으로 두되, 공통 절차는 위키 『C++ 클래스 생성 · 빌드 워크플로우』.</div></div>
+
+    <h3>봉인 방식 — 평문 페이로드를 AES로 감싼다</h3>
+    <p><code>Secured</code> 블롭 = <strong>암호화(<code>MAGIC</code> │ Gold │ Shards │ Seconds │ <code>CRC32</code>)</strong>. 복호화했을 때 <code>MAGIC</code>과 <code>CRC</code>가 맞아야 "진짜"로 인정합니다 — 블롭을 건드리면 이 검사에서 걸립니다. AES는 <strong>UE 내장 <code>FAES</code>(AES-256)</strong>를 씁니다.</p>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">RTSecured.h</button>
+        <button class="codeblock-tab tab-cpp" type="button">RTSecured.cpp</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// player 행의 치트 유인 값 3개를 하나로 묶은 그릇. 이 값들만 Secured로 보호한다</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-type">FSecuredAccount</span>
+{
+    <span class="hljs-type">int64</span> Gold = <span class="hljs-number">0</span>;
+    <span class="hljs-type">int32</span> Shards = <span class="hljs-number">0</span>;
+    <span class="hljs-type">int64</span> AccountFocusSeconds = <span class="hljs-number">0</span>;
+};
+
+<span class="hljs-comment">// 봉인: 값 → (MAGIC+값+CRC) 평문 → AES 암호화 → BLOB. player.Secured에 바인딩해 저장</span>
+<span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; <span class="hljs-title">SealAccount</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FSecuredAccount</span>&amp; In);
+
+<span class="hljs-comment">// 개봉: BLOB → AES 복호화 → MAGIC·CRC 검사. 성공=true(Out 채움), 실패=false(변조/손상)</span>
+<span class="hljs-type">bool</span> <span class="hljs-title">OpenAccount</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt;&amp; Blob, <span class="hljs-type">FSecuredAccount</span>&amp; Out);</pre></div>
+      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include</span> <span class="hljs-meta"><span class="hljs-string">"RTSecured.h"</span></span>
+<span class="hljs-meta">#include</span> <span class="hljs-meta"><span class="hljs-string">"Misc/AES.h"</span></span>        <span class="hljs-comment">// FAES::EncryptData/DecryptData (AES-256) — Core 모듈</span>
+<span class="hljs-meta">#include</span> <span class="hljs-meta"><span class="hljs-string">"Misc/Crc.h"</span></span>        <span class="hljs-comment">// FCrc::MemCrc32 — 무결성 검사용</span>
+<span class="hljs-meta">#include</span> <span class="hljs-meta"><span class="hljs-string">"Serialization/BufferArchive.h"</span></span>
+<span class="hljs-meta">#include</span> <span class="hljs-meta"><span class="hljs-string">"Serialization/MemoryReader.h"</span></span>
+
+<span class="hljs-comment">// 빌드에 심는 32바이트(256비트) 대칭키. 유출되면 방어가 뚫리므로 눈에 안 띄게 둔다</span>
+<span class="hljs-comment">// (완전 방어는 서버뿐 — 이건 "캐주얼 변조를 자동 복원"이 목표).</span>
+<span class="hljs-keyword">static</span> <span class="hljs-keyword">const</span> <span class="hljs-type">uint8</span> GKey[<span class="hljs-number">32</span>] = { <span class="hljs-comment">/* 32개 무작위 바이트로 채운다 */</span> };
+<span class="hljs-comment">// 복호화 성공 판정용 서명. 복호화 후 이 값이 안 나오면 키 불일치/변조</span>
+<span class="hljs-keyword">static</span> <span class="hljs-keyword">constexpr</span> <span class="hljs-type">uint32</span> SEAL_MAGIC = <span class="hljs-number">0x52544131</span>; <span class="hljs-comment">// 'RTA1'</span>
+
+<span class="hljs-keyword">static</span> <span class="hljs-type">void</span> <span class="hljs-title">MakeKey</span>(<span class="hljs-type">FAES</span>::<span class="hljs-type">FAESKey</span>&amp; K) { <span class="hljs-type">FMemory</span>::Memcpy(K.Key, GKey, <span class="hljs-number">32</span>); }
+
+<span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; <span class="hljs-title">SealAccount</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FSecuredAccount</span>&amp; In)
+{
+    <span class="hljs-comment">// 1) 평문 페이로드 = MAGIC | Gold | Shards | Seconds | CRC32(앞 24바이트)</span>
+    <span class="hljs-type">FBufferArchive</span> Ar;                       <span class="hljs-comment">// 값들을 바이트로 직렬화하는 버퍼</span>
+    <span class="hljs-type">uint32</span> Magic = SEAL_MAGIC;               <span class="hljs-comment">// 개봉 때 이 서명으로 진짜 여부 판정</span>
+    <span class="hljs-type">int64</span> Gold = In.Gold; <span class="hljs-type">int32</span> Shards = In.Shards; <span class="hljs-type">int64</span> Sec = In.AccountFocusSeconds;
+    Ar &lt;&lt; Magic &lt;&lt; Gold &lt;&lt; Shards &lt;&lt; Sec;    <span class="hljs-comment">// 4+8+4+8 = 24바이트</span>
+    <span class="hljs-type">uint32</span> Crc = <span class="hljs-type">FCrc</span>::MemCrc32(Ar.GetData(), Ar.Num()); <span class="hljs-comment">// 지금까지 바이트의 체크섬</span>
+    Ar &lt;&lt; Crc;                               <span class="hljs-comment">// 무결성 태그를 뒤에 붙임(변조 감지용)</span>
+
+    <span class="hljs-comment">// 2) AES 블록(16바이트) 배수로 0 패딩 후 제자리 암호화</span>
+    <span class="hljs-keyword">const</span> <span class="hljs-type">int32</span> Pad = (<span class="hljs-number">16</span> - (Ar.Num() % <span class="hljs-number">16</span>)) % <span class="hljs-number">16</span>;
+    <span class="hljs-keyword">for</span> (<span class="hljs-type">int32</span> i = <span class="hljs-number">0</span>; i &lt; Pad; ++i) { <span class="hljs-type">uint8</span> Z = <span class="hljs-number">0</span>; Ar &lt;&lt; Z; }
+    <span class="hljs-type">FAES</span>::<span class="hljs-type">FAESKey</span> K; MakeKey(K);
+    <span class="hljs-type">FAES</span>::EncryptData(Ar.GetData(), Ar.Num(), K);   <span class="hljs-comment">// 평문 → 암호문(같은 버퍼)</span>
+
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; Out; Out.Append(Ar.GetData(), Ar.Num());
+    <span class="hljs-keyword">return</span> Out;                              <span class="hljs-comment">// → player.Secured BLOB에 저장</span>
+}
+
+<span class="hljs-type">bool</span> <span class="hljs-title">OpenAccount</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt;&amp; Blob, <span class="hljs-type">FSecuredAccount</span>&amp; Out)
+{
+    <span class="hljs-comment">// 블롭이 없거나 블록 배수가 아니면 손상 — 개봉 실패</span>
+    <span class="hljs-keyword">if</span> (Blob.Num() == <span class="hljs-number">0</span> || Blob.Num() % <span class="hljs-number">16</span> != <span class="hljs-number">0</span>) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; Buf = Blob;             <span class="hljs-comment">// 제자리 복호화할 복사본</span>
+    <span class="hljs-type">FAES</span>::<span class="hljs-type">FAESKey</span> K; MakeKey(K);
+    <span class="hljs-type">FAES</span>::DecryptData(Buf.GetData(), Buf.Num(), K); <span class="hljs-comment">// 암호문 → 평문(키 틀리면 쓰레기)</span>
+
+    <span class="hljs-type">FMemoryReader</span> Ar(Buf);
+    <span class="hljs-type">uint32</span> Magic = <span class="hljs-number">0</span>; Ar &lt;&lt; Magic;
+    <span class="hljs-keyword">if</span> (Magic != SEAL_MAGIC) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;   <span class="hljs-comment">// 서명 불일치 → 키 틀림/블롭 변조</span>
+    <span class="hljs-type">int64</span> Gold = <span class="hljs-number">0</span>; <span class="hljs-type">int32</span> Shards = <span class="hljs-number">0</span>; <span class="hljs-type">int64</span> Sec = <span class="hljs-number">0</span>;
+    Ar &lt;&lt; Gold &lt;&lt; Shards &lt;&lt; Sec;
+    <span class="hljs-type">uint32</span> StoredCrc = <span class="hljs-number">0</span>; Ar &lt;&lt; StoredCrc;
+    <span class="hljs-comment">// CRC는 MAGIC~Sec까지 24바이트에 대해 계산했었다 — 그대로 재계산해 비교</span>
+    <span class="hljs-keyword">const</span> <span class="hljs-type">int32</span> PayloadBytes = <span class="hljs-keyword">sizeof</span>(<span class="hljs-type">uint32</span>) + <span class="hljs-keyword">sizeof</span>(<span class="hljs-type">int64</span>) + <span class="hljs-keyword">sizeof</span>(<span class="hljs-type">int32</span>) + <span class="hljs-keyword">sizeof</span>(<span class="hljs-type">int64</span>); <span class="hljs-comment">// 24</span>
+    <span class="hljs-keyword">if</span> (<span class="hljs-type">FCrc</span>::MemCrc32(Buf.GetData(), PayloadBytes) != StoredCrc) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>; <span class="hljs-comment">// 무결성 실패</span>
+
+    Out.Gold = Gold; Out.Shards = Shards; Out.AccountFocusSeconds = Sec;
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;                            <span class="hljs-comment">// 진짜 값 복원 성공</span>
+}</pre></div>
+    </div>
+
+    <h3>저장 · 로드 — 자동 복원이 붙는 곳</h3>
+    <p>저장은 평문 컬럼과 <code>Secured</code>를 <strong>같은 트랜잭션</strong>에서 함께 씁니다. 로드는 <code>OpenAccount</code>로 진짜 값을 얻어 평문과 비교하고, 다르면 <strong>진짜 값으로 덮어(자동 복원)</strong> + 사용자에게 알립니다.</p>
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-cpp active" type="button">EconomySubsystem.cpp — save/load</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 저장 — 재화가 바뀔 때. 평문 3칸 + Secured를 한 UPDATE(한 트랜잭션)로 커밋</span>
+<span class="hljs-type">void</span> <span class="hljs-type">UEconomySubsystem</span>::<span class="hljs-title">SavePlayer</span>()
+{
+    <span class="hljs-keyword">const</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; Sealed = SealAccount({ Gold, Shards, AccountFocusSeconds });
+    <span class="hljs-comment">// UPDATE player SET Gold=?, Shards=?, AccountFocusSeconds=?, Secured=? WHERE Id=1;</span>
+    <span class="hljs-comment">//   ?1..3 = 정수 바인딩, ?4 = Sealed를 BLOB로 바인딩(FSQLitePreparedStatement::SetBindingValue)</span>
+    <span class="hljs-comment">// 다른 테이블도 같이 고치면 BEGIN…COMMIT으로 감싼다(추출·강화).</span>
+}
+
+<span class="hljs-comment">// 로드 — 앱 시작 시 1회. 평문과 Secured를 함께 읽어 검증·복원</span>
+<span class="hljs-type">void</span> <span class="hljs-type">UEconomySubsystem</span>::<span class="hljs-title">LoadPlayer</span>()
+{
+    <span class="hljs-comment">// SELECT Gold, Shards, AccountFocusSeconds, Secured FROM player WHERE Id=1;</span>
+    <span class="hljs-type">int64</span> PlainGold; <span class="hljs-type">int32</span> PlainShards; <span class="hljs-type">int64</span> PlainSec; <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; SecuredBlob;
+    <span class="hljs-comment">// … 위 컬럼들을 읽어 담았다고 하자 …</span>
+
+    <span class="hljs-type">FSecuredAccount</span> Real;
+    <span class="hljs-keyword">if</span> (!OpenAccount(SecuredBlob, Real))
+    {
+        <span class="hljs-comment">// 1) 블롭 자체가 변조/손상 → 진짜 값을 알 수 없음 → 복원 불가</span>
+        <span class="hljs-comment">//    경고 후 새 게임 유도(또는 별도 백업 슬롯에서 복구).</span>
+        HandleSecuredBroken();
+        <span class="hljs-keyword">return</span>;
+    }
+    <span class="hljs-keyword">if</span> (Real.Gold != PlainGold || Real.Shards != PlainShards || Real.AccountFocusSeconds != PlainSec)
+    {
+        <span class="hljs-comment">// 2) 평문만 편집됨 → 진짜(복호화) 값을 채택 = 자동 복원</span>
+        Gold = Real.Gold; Shards = Real.Shards; AccountFocusSeconds = Real.AccountFocusSeconds;
+        SavePlayer();                       <span class="hljs-comment">// 평문을 즉시 재기록해 정합성 회복</span>
+        NotifyRestored();                   <span class="hljs-comment">// "비정상 데이터를 복구했습니다" 안내(알리고 복원)</span>
+    }
+    <span class="hljs-keyword">else</span>
+    {
+        <span class="hljs-comment">// 3) 일치 → 정상. 평문을 그대로 채택</span>
+        Gold = PlainGold; Shards = PlainShards; AccountFocusSeconds = PlainSec;
+    }
+}</pre></div>
+    </div>
+
+    <div class="pitfall" style="margin-top:14px">
+      <span class="ic">&#x26A0;&#xFE0F;</span>
+      <div class="pitfall-text"><strong>한계와 강화안.</strong> ① <strong>키가 클라이언트에 있음</strong> — 키를 추출한 소수는 블롭까지 다시 만들 수 있어 완전 방어는 아닙니다(그건 서버뿐). ② <strong>평문+블롭을 둘 다 파괴</strong>하면 복원 불가 → 새 게임. ③ 더 강한 보증이 필요하면 CRC 대신 <strong>HMAC-SHA256(encrypt-then-MAC)</strong>로 교체합니다. AES-GCM은 UE 기본 API에 없어 외부 라이브러리가 필요하므로 지양합니다. 방치형 싱글에는 이 선(FAES + MAGIC/CRC)이 적정합니다.</div>
+    </div>
+  </div>
+
+  <!-- ===== 07 등록·검증 ===== -->
   <div class="section" id="register">
-    <div class="section-label">06 — 등록 · 검증</div>
-    <h2>표 등록과 확인</h2>
+    <div class="section-label">07 — 등록 · 검증</div>
+    <h2>표 등록 · DB 초기화 · 확인</h2>
 
     <div class="pipe-step">
       <div class="pipe-num">1</div>
-      <div class="pipe-body"><div class="pipe-title">DataTable 에셋 생성</div>
-        <div class="pipe-desc">각 <code>F*Row</code>를 행 타입으로 지정해 DataTable 에셋을 만든다(에디터: Miscellaneous ▸ Data Table ▸ 행 구조체 선택). 값은 여기서/CSV로 채운다.</div></div>
+      <div class="pipe-body"><div class="pipe-title">DataTable 에셋 생성 · 캐시</div>
+        <div class="pipe-desc">각 <code>F*Row</code>를 행 타입으로 지정해 <code>DT_*</code> 애셋을 만들고(에디터: Miscellaneous ▸ Data Table), 값은 시트→CSV로 채운다. 단계·업그레이드처럼 (키+인덱스) 행은 서브시스템 Initialize에서 <code>TMap&lt;FName, TArray&lt;Row&gt;&gt;</code>로 그룹·정렬해 캐시(RowName 조합에 의존하지 않음).</div></div>
     </div>
     <div class="pipe-step">
       <div class="pipe-num">2</div>
-      <div class="pipe-body"><div class="pipe-title">로드 시 캐시</div>
-        <div class="pipe-desc">단계·업그레이드처럼 (키+인덱스) 행은 서브시스템 Initialize에서 <code>TMap&lt;FName, TArray&lt;Row&gt;&gt;</code>로 그룹·정렬해 캐시한다(RowName 조합에 의존하지 않음).</div></div>
+      <div class="pipe-body"><div class="pipe-title">DB 초기화</div>
+        <div class="pipe-desc">DB 문지기 <code>UDatabaseSubsystem</code>(11에서 분리)의 Initialize에서 <code>Archive.db</code>를 열고 <code>PRAGMA foreign_keys = ON</code> → 위 <code>CREATE TABLE IF NOT EXISTS</code> 6종을 순서대로 실행(있으면 건너뜀). 기능 서브시스템들은 <code>InitializeDependency</code>로 문지기에 의존해 핸들을 빌린다. 09 배관의 리듬대로 한 테이블씩 넓힌다.</div></div>
     </div>
     <div class="pipe-step">
       <div class="pipe-num">3</div>
-      <div class="pipe-body"><div class="pipe-title">SaveVersion 마이그레이션</div>
-        <div class="pipe-desc">SaveGame 구조를 바꾸면 <code>SaveVersion += 1</code>. 로드 시 버전 분기로 구 데이터를 새 구조로 변환(예: v2→v3 기록에 GuildId=기본 길드 백필).</div></div>
+      <div class="pipe-body"><div class="pipe-title">스키마 마이그레이션</div>
+        <div class="pipe-desc">출시 후 컬럼을 더할 땐 <code>PRAGMA user_version</code>으로 현재 버전을 읽어 분기하고 <code>ALTER TABLE … ADD COLUMN</code>으로 넓힌 뒤 <code>user_version</code>을 올린다(SaveGame의 <code>SaveVersion</code>을 대체). 개발 중엔 DB 파일을 지우는 게 빠르다(09 초기화 절차).</div></div>
     </div>
+
+    <h3>책임 배치 결정표 — 어느 테이블을 누가 쓰나</h3>
+    <p>같은 값을 두 곳에서 고치면 지도가 무너집니다. <strong>쓰기 주인은 하나</strong>(나머지는 읽기/통지만).</p>
+    <table class="tbl">
+      <tr><th>테이블/값</th><th>주인(쓰기)</th><th>근거</th></tr>
+      <tr><td><code>player</code>(Gold·Shards·XP·Secured)</td><td><span class="owner o-subsystem">EconomySubsystem</span></td><td>재화·XP 적립/차감의 유일한 창구. Secured도 여기서 함께 갱신.</td></tr>
+      <tr><td><code>guilds</code> · <code>archive_categories</code></td><td><span class="owner o-subsystem">GuildSubsystem</span></td><td>길드 정체성·시간·소프트 삭제 + 소분류 풀 관리(12에서 Economy로부터 이관). 정직한 레벨 — 실제 활동에서만.</td></tr>
+      <tr><td><code>owned_characters</code> · <code>owned_abilities</code></td><td><span class="owner o-subsystem">GachaSubsystem</span></td><td>뽑기·강화·추출 모두 여기서만. 다중 테이블은 트랜잭션.</td></tr>
+      <tr><td><code>buildings</code></td><td><span class="owner o-subsystem">EstateSubsystem</span></td><td>영지는 계정 단위 홈 화면.</td></tr>
+      <tr><td><code>archives</code></td><td><span class="owner o-subsystem">ArchiveSubsystem</span></td><td>기록 INSERT·소프트 삭제(DeletedAt) — 09 배관이 담당.</td></tr>
+      <tr><td>DB 열닫 · 스키마 · 트랜잭션 시점</td><td><span class="owner o-subsystem">DatabaseSubsystem</span></td><td><strong>DB 문지기</strong>(11에서 분리) — 연결·CREATE TABLE·다중 테이블 트랜잭션의 단일 창구, 기능 시스템들이 대등하게 의존(수명=앱).</td></tr>
+      <tr><td>밸런스 확률·비용(ROW)</td><td><span class="owner o-savegame">기획(구글 시트)</span></td><td>코드는 읽기만 — 튜닝은 시트→CSV 재임포트.</td></tr>
+    </table>
 
     <div class="callout warn" style="margin-top:16px">
       <span class="ic">&#x26A0;&#xFE0F;</span>
-      <p><strong>확인:</strong> DataTable 행 구조체는 반드시 <code>FTableRowBase</code> 상속. 확률 컬럼들의 합이 100인지 검증. 능력치 효과값을 SaveGame에 복사하지 말 것(단계만 저장, 값은 표 조회). RowName은 조합(AbilityId_Step)이되 조회는 필드(AbilityId·StepIndex)로.</p>
+      <p><strong>확인:</strong> DataTable 행 구조체는 반드시 <code>FTableRowBase</code> 상속 · 확률 컬럼 합 100 검증 · 능력치 효과값을 DB에 복사하지 말 것(<code>Step</code>만 저장, 값은 표 조회) · <code>player</code> 저장 시 <code>Secured</code>를 <strong>같은 트랜잭션에서</strong> 갱신(빼먹으면 로드 때 자동 복원이 옛 값으로 되돌림) · 게임을 한 번 켜고 DB Browser로 7테이블·<code>Secured</code> BLOB이 생겼는지 확인.</p>
     </div>
   </div>
 
 </div>
 
 <footer>
-  <span>RecordTales V2 &middot; 데이터 스키마 명세 v0.1</span>
-  <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.5</span>
+  <span>RecordTales V2 &middot; 데이터 스키마 명세 v0.16</span>
+  <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.8</span>
 </footer>
 
 <script>

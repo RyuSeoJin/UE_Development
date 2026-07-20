@@ -7,6 +7,7 @@
 <!-- ============================================================
      CHANGELOG — design-guide-ue-index.html
      생성 문서 인덱스 + 중앙 용어집(범용 UE 용어 전용). 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md
+     · 2026-07-20 — (반응형) 마스터 v1.9 .tbl 모바일 가로 스크롤 규칙 인라인 반영(본문·구조 무변경).
      v2.18 · 2026-07-10
        - (추가) 문서 목록 framework/에 'Subsystem ↔ SaveGame 연동 — 로드·저장 타이밍 패턴' 등록
          (02-B · Master v1.6 — 조각 문서들을 잇는 배선도 문서)
@@ -501,6 +502,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .compare-box .pills { margin-top: 10px; }
 
 @media (max-width: 720px) {
+  .tbl { display: block; overflow-x: auto; }  /* [v1.9] 좁은 폭 표 자체 가로 스크롤 */
   .content { padding: 0 20px 60px; }
   .hero { padding: 48px 20px 40px; }
   .swatch-grid { grid-template-columns: 1fr 1fr; }

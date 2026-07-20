@@ -8,6 +8,7 @@
      CHANGELOG — ue-timer-world.html
      유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-A 템플릿 · framework/).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     · 2026-07-20 — (반응형) 마스터 v1.9 .tbl 모바일 가로 스크롤 규칙 인라인 반영(본문·구조 무변경).
      v1.2 · 2026-07-10
        - (추가) 코드 섹션 첫머리 "🚀 이 문서로 작업 시작하기" 블록 — 전제 · 만들 파일 표 ·
          코드 외 작업 · 컴파일 주의 (플레이북 v3.9 작성 원칙 소급 적용)
@@ -534,6 +535,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .graph-net .gn-label.big { fill: var(--text); font-size: 11px; font-weight: 600; }
 
 @media (max-width: 720px) {
+  .tbl { display: block; overflow-x: auto; }  /* [v1.9] 좁은 폭 표 자체 가로 스크롤 */
   .content { padding: 0 20px 60px; }
   .hero { padding: 48px 20px 40px; }
   .swatch-grid { grid-template-columns: 1fr 1fr; }

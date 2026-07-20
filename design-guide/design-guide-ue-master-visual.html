@@ -3,10 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>디자인 마스터 (비주얼) — UE 문서 디자인 시스템 v1.9</title>
+<title>디자인 마스터 (비주얼) — UE 문서 디자인 시스템 v1.10</title>
 <link rel="stylesheet" href="design-guide-ue-master.css">
 <!-- ============================================================
      CHANGELOG — design-guide-ue-master-visual.html
+     ---
+     v1.10 · 2026-07-20
+       - (문서화) master.css v1.9 반응형 보완 반영 — 좁은 폭(≤720px)에서 .tbl 표가 body를 밀지 않고
+         자기 상자 안에서 가로 스크롤(.tbl{display:block;overflow-x:auto}). 신규 컴포넌트·색 없음이라
+         별도 데모 없이 CHANGELOG·버전 라벨만 동기화.
+       - (변경) 버전 표기 v1.9 → v1.10 (헤더·hero·footer)
      master.css의 시각 레퍼런스. 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
      v1.9 · 2026-07-20
        - (추가) master.css v1.8 DB(SQLite) 표기 3종 반영 — 07 섹션 수명 배지 문구를 4종→5종으로
@@ -79,7 +85,7 @@
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">Design System · v1.9 · Master Visual</div>
+  <div class="hero-eyebrow">Design System · v1.10 · Master Visual</div>
   <h1>UE 디자인<br><span>마스터</span></h1>
   <p class="hero-sub">
     모든 언리얼 문서(에셋 분석 · 아키텍처 설계)가 공유하는 디자인 마스터입니다. 컬러·타이포·레이아웃·기본 컴포넌트를 한 곳에 고정합니다. 스타일 원본은 <code>design-guide-ue-master.css</code> 한 파일이며, 이 문서는 그 시각 레퍼런스입니다.
@@ -777,7 +783,7 @@
 </div>
 
 <footer>
-  <span>UE 문서 디자인 시스템 · Master v1.9</span>
+  <span>UE 문서 디자인 시스템 · Master v1.10</span>
   <span>기준 디자인: Dark · Indigo Minimal · Editorial</span>
 </footer>
 

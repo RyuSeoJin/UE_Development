@@ -2,7 +2,7 @@
    UE Design System — Master Stylesheet
    (design-guide-ue-master.css)
    언리얼 에셋 분석 · 아키텍처 설계 문서 공통 토대
-   v1.8  (Dark · Indigo Minimal · Editorial)
+   v1.9  (Dark · Indigo Minimal · Editorial)
 
    사용법
    - 가이드 문서(master-visual / design-template의 01 / 02)는 <link>로 이 파일을 참조.
@@ -10,6 +10,12 @@
      단일 파일로 배포한다. (오프라인 무결성 유지)
 
    변경 이력 (CHANGELOG) — 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+   v1.9 · 2026-07-20
+     - (변경) 반응형: 좁은 폭(≤720px)에서 .tbl 표가 body를 가로로 밀지 않도록
+       .tbl { display:block; overflow-x:auto } 추가 — 넓은 표는 페이지 대신 자기 상자 안에서
+       가로 스크롤한다(데이터 설계·스키마 문서의 코드 컬럼 표 대응). 데스크톱(>720px) 무변경.
+       신규 컴포넌트·토큰·색 없음(기존 .tbl의 반응형 동작만 보완).
+     - 사유: RecordTales_V2 스키마 문서 검증 중 좁은 폭 body 가로 오버플로우 발견(사용자 승인).
    v1.8 · 2026-07-20
      - (추가) DB(SQLite) 저장 위치 표기 3종 — 데이터 설계 지도 계열에서 "SQLite DB 파일에
        사는 데이터"를 구분하기 위함(수명 5종째: SAVE/RUNTIME/CONFIG/ROW/DB).
@@ -650,6 +656,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
 @media (max-width: 720px) {
   .content { padding: 0 20px 60px; }
+  /* [v1.9] 좁은 폭에서 넓은 표는 body 대신 자기 상자 안에서 가로 스크롤 */
+  .tbl { display: block; overflow-x: auto; }
   .hero { padding: 48px 20px 40px; }
   .swatch-grid { grid-template-columns: 1fr 1fr; }
   .stat-row, .stat-row-4, .dd-grid, .grid-2, .grid-3 { grid-template-columns: 1fr; }

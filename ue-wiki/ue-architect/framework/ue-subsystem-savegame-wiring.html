@@ -8,6 +8,7 @@
      CHANGELOG — ue-subsystem-savegame-wiring.html
      유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-B 템플릿 · framework/).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     · 2026-07-20 — (반응형) 마스터 v1.9 .tbl 모바일 가로 스크롤 규칙 인라인 반영(본문·구조 무변경).
      v1.0 · 2026-07-10
        - 신규 생성. "조각(SaveGame·Subsystem) 문서는 있는데 배선도가 없다"는 사용자
          피드백으로 기획 — 누가 언제 로드하고, 언제 저장을 부르는지의 연동 패턴 중앙 문서.
@@ -613,6 +614,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .bp-graph .bpg-caption { fill: #8B8F94; font-family: 'Pretendard', 'Noto Sans KR', sans-serif; font-size: 12px; }
 
 @media (max-width: 720px) {
+  .tbl { display: block; overflow-x: auto; }  /* [v1.9] 좁은 폭 표 자체 가로 스크롤 */
   .content { padding: 0 20px 60px; }
   .hero { padding: 48px 20px 40px; }
   .swatch-grid { grid-template-columns: 1fr 1fr; }

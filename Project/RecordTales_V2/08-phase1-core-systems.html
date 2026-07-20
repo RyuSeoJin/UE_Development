@@ -8,6 +8,7 @@
      CHANGELOG — 08-phase1-core-systems.html
      RecordTales V2 Phase 1 코어 시스템 (포커스·퀘스트·UI, V2 조정) (Track B · 02-A).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     · 2026-07-20 — (반응형) 마스터 v1.9 .tbl 모바일 가로 스크롤 규칙 인라인 반영(본문·구조 무변경).
      v0.1 · 2026-07-12
        - 신규 생성. v1 포커스/퀘스트/UI 개념을 V2 맥락으로 재배선(레벨=시간·퀘스트 Gold만·길드 컨텍스트).
        - 마스터 CSS v1.5 전체 inline. 코드는 .codeblock 탭+복사 + 하단 JS. hljs 구워넣기 + 한국어 주석.
@@ -611,6 +612,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .bp-graph .bpg-caption { fill: #8B8F94; font-family: 'Pretendard', 'Noto Sans KR', sans-serif; font-size: 12px; }
 
 @media (max-width: 720px) {
+  .tbl { display: block; overflow-x: auto; }  /* [v1.9] 좁은 폭 표 자체 가로 스크롤 */
   .content { padding: 0 20px 60px; }
   .hero { padding: 48px 20px 40px; }
   .swatch-grid { grid-template-columns: 1fr 1fr; }

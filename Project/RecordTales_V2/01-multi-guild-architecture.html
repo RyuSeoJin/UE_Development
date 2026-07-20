@@ -8,6 +8,8 @@
      CHANGELOG — 01-multi-guild-architecture.html
      RecordTales V2 멀티 길드 아키텍처 (Track B · 02-A 아키텍처 패턴).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     · 2026-07-20 — (동기화) 클래스명 URecordSubsystem → UArchiveSubsystem 통일(09 실코드·07 v0.2·10 지도 기준).
+     · 2026-07-20 — (반응형) 마스터 v1.9 .tbl 모바일 가로 스크롤 규칙 인라인 반영(본문·구조 무변경).
      v0.4 · 2026-07-12
        - (변경) 스켈레톤 <pre class="hljs"> 3건을 .codeblock(파일명 탭 + 복사 버튼)으로 래핑 —
          RecordTalesTypes.h / RecordTalesSaveGame.h / GuildSubsystem.h 단일 탭.
@@ -538,6 +540,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .graph-net .gn-label.big { fill: var(--text); font-size: 11px; font-weight: 600; }
 
 @media (max-width: 720px) {
+  .tbl { display: block; overflow-x: auto; }  /* [v1.9] 좁은 폭 표 자체 가로 스크롤 */
   .content { padding: 0 20px 60px; }
   .hero { padding: 48px 20px 40px; }
   .swatch-grid { grid-template-columns: 1fr 1fr; }
@@ -625,7 +628,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <div class="rel-row">
         <div class="rel-node n-subsystem"><div class="rn-name">UGuildSubsystem</div><div class="rn-role">현재 길드 컨텍스트</div></div>
         <div class="rel-arrow"><span class="ra-label">기록에 GuildId 태그</span><span class="ra-line">&rarr;</span></div>
-        <div class="rel-node n-subsystem" style="border-left-color:var(--accent-3)"><div class="rn-name">URecordSubsystem</div><div class="rn-role">통합 원장(길드별 필터)</div></div>
+        <div class="rel-node n-subsystem" style="border-left-color:var(--accent-3)"><div class="rn-name">UArchiveSubsystem</div><div class="rn-role">통합 원장(길드별 필터)</div></div>
       </div>
       <div class="rel-row">
         <div class="rel-node n-subsystem" style="border-left-color:var(--accent)"><div class="rn-name">UEconomySubsystem</div><div class="rn-role">계정 XP → 확률</div></div>
@@ -642,7 +645,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <div class="legend">
       <span><span class="dot" style="background:var(--ue-subsystem)"></span>UGuildSubsystem (길드별)</span>
       <span><span class="dot" style="background:var(--accent)"></span>UEconomySubsystem (계정)</span>
-      <span><span class="dot" style="background:var(--accent-3)"></span>URecordSubsystem (길드별)</span>
+      <span><span class="dot" style="background:var(--accent-3)"></span>UArchiveSubsystem (길드별)</span>
       <span><span class="dot" style="background:var(--ue-mat)"></span>UGachaSubsystem (계정)</span>
       <span><span class="dot" style="background:var(--ue-gamestate)"></span>UEstateSubsystem (계정)</span>
     </div>
@@ -713,7 +716,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <div class="pipe-num">3</div>
       <div class="pipe-body">
         <div class="pipe-title">기록 생성 → 통합 원장에 태그 저장</div>
-        <div class="pipe-desc"><code>URecordSubsystem</code>이 기록을 만들어 (현재 GuildId &rarr; 카테고리 &rarr; 소스)로 태그해 통합 원장에 저장합니다.</div>
+        <div class="pipe-desc"><code>UArchiveSubsystem</code>이 기록을 만들어 (현재 GuildId &rarr; 카테고리 &rarr; 소스)로 태그해 통합 원장에 저장합니다.</div>
       </div>
     </div>
     <div class="pipe-step">
@@ -726,7 +729,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
     <div class="callout tip" style="margin-top:18px">
       <span class="ic">&#x1F4A1;</span>
-      <p><strong>느슨한 결합.</strong> "시간 적립 → 기록/경제"는 직접 호출보다 <strong>델리게이트(Delegate, 콜백)</strong>로 잇는 것을 권장합니다. <code>UGuildSubsystem</code>이 <code>UEconomySubsystem</code>·<code>URecordSubsystem</code>의 존재를 몰라도 이벤트를 흘려보내면, 나중에 시스템을 추가·교체할 때 수정 범위가 줄어듭니다.</p>
+      <p><strong>느슨한 결합.</strong> "시간 적립 → 기록/경제"는 직접 호출보다 <strong>델리게이트(Delegate, 콜백)</strong>로 잇는 것을 권장합니다. <code>UGuildSubsystem</code>이 <code>UEconomySubsystem</code>·<code>UArchiveSubsystem</code>의 존재를 몰라도 이벤트를 흘려보내면, 나중에 시스템을 추가·교체할 때 수정 범위가 줄어듭니다.</p>
     </div>
   </div>
 

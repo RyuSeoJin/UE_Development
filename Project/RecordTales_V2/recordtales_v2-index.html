@@ -7,6 +7,50 @@
 <!-- ============================================================
      CHANGELOG — recordtales_v2-index.html
      RecordTales V2 프로젝트 허브 (골격). 작업 규약: doc-process/DOC-TRACKS.md (Track B)
+     v0.12 · 2026-07-20
+       - (추가) 문서 목록에 12 길드 시스템 등록(02-B 따라하기, 신규) — guilds(AUTOINCREMENT)·
+         archive_categories(소분류 공유 풀) 테이블 + GuildSubsystem, 카테고리 2축 필터(대분류/소분류/조합),
+         첫 실전 트랜잭션(카테고리 이름 변경), 길드당 Secured(블롭 스왑 방지)까지 8단계.
+       - (구조 반영) 카테고리 2축 모델 확정(사용자 설계) — 대분류=guilds.Category(길드당 1개, 중복 허용) /
+         소분류=archive_categories(계정 공유). DB "6테이블"→"7테이블". guilds 주인 Economy→GuildSubsystem.
+         연동 개정: 05 v0.16 · 03 v0.9 · 10 v1.4 · 07 v0.3.
+       - (용어) 대분류(Guild_Category)·소분류(Archive_Category) 항목 추가.
+       - (footer) 버전 표기 v0.11 → v0.12.
+     v0.11 · 2026-07-20
+       - (구조) DB 문지기 분리(사용자 결정) — UDatabaseSubsystem 신설: Archive.db 열닫·CREATE TABLE·
+         트랜잭션 창구 전담, 기능 시스템(Economy·Archive·이후 Gacha·Estate)은 InitializeDependency로
+         대등하게 의존. 11 v0.2(따라하기 8단계 재편) 주 개정 + 05 v0.15·09 v1.8·10 v1.3 연동 갱신.
+       - (용어) 프로젝트 용어집에 "DB 문지기(UDatabaseSubsystem)" 추가.
+       - (footer) 버전 표기 v0.10 → v0.11.
+     v0.10 · 2026-07-20
+       - (추가) 문서 목록에 11 플레이어 상태 저장 등록(02-B 따라하기, 신규) — player 테이블(1행 UPDATE)
+         + EconomySubsystem + Secured 인증 암호화(FAES+MAGIC/CRC) 자동 복원까지 7단계.
+         검증에 직접 치트 시뮬레이션 포함. 마스터 v1.9 스냅샷.
+       - (동기화) 00·01의 클래스명 URecordSubsystem → UArchiveSubsystem 통일(07 v0.2·09·10 기준).
+       - (용어) 무결성 검사(Secured) 항목에 구현 실습 위치(11) 추가.
+       - (footer) 버전 표기 v0.9 → v0.10.
+     v0.9 · 2026-07-20
+       - (개정 반영) 07 아카이브·기록 ID·소프트 삭제를 풀-DB로 전면 개정 완료(v0.2) — 통합 원장=archives
+         테이블, 소프트 삭제 bDeleted 플래그 → DeletedAt 컬럼(NULL=살아있음), 스켈레톤 클래스
+         URecordSubsystem → UArchiveSubsystem(실코드명 통일), SaveVersion → user_version.
+         이로써 풀-DB 개정 시리즈(03·05·07·10) 완료 — SaveGame 기반 서술 잔존 없음.
+       - (footer) 버전 표기 v0.8 → v0.9.
+     v0.8 · 2026-07-20
+       - (결정) DB 파일명 Archive.db 유지 확정(다른 데이터베이스와 이름 혼동 방지, 사용자 결정) —
+         03·05·09의 recordtales.db 표기를 Archive.db로 통일, 10의 개명 권장 문구 재작성.
+       - (footer) 버전 표기 v0.7 → v0.8.
+     · 2026-07-20 — (반응형) 마스터 v1.9 .tbl 모바일 가로 스크롤 규칙 인라인 반영(본문·구조 무변경).
+     v0.7 · 2026-07-20
+       - (개정 반영) 05 데이터 스키마 명세를 풀-DB(SQLite)로 전면 개정 완료(v0.13) — SaveGame struct 절 →
+         SQLite 6테이블 DDL + 메모리 캐시 struct + Secured 인증 암호화 구현(FAES) + 등록·검증·책임 배치.
+         문서 목록의 05 제목을 "(SQLite 스키마 · Secured)"로 갱신.
+       - (알림) 07 아카이브 개정만 남음(이미 SQLite 기반이라 정합성 확인 위주). 09 recordtales.db 개명은 선택.
+       - (footer) 버전 표기 v0.6 → v0.7.
+     v0.6 · 2026-07-20
+       - (개정 반영) 03 데이터 설계를 풀-DB(SQLite)로 전면 개정 완료(v0.7) — 문서 목록의
+         03 제목 "(DataTable · SaveGame)" → "(DataTable · SQLite DB)"로 갱신.
+       - (용어) 프로젝트 용어집에 "무결성 검사(Secured)" 추가(상태 DB 보호·자동 복원). 05·07은 후속 개정 대상.
+       - (footer) 버전 표기 v0.5 → v0.6.
      v0.5 · 2026-07-20
        - (결정) 저장 전략 풀-DB 확정(사용자 승인) — 영속 데이터 전부 SQLite(Archive.db 테이블 6종:
          player·guilds·owned_characters·owned_abilities·buildings·archives). SaveGame(.sav) 미사용.
@@ -391,6 +435,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .compare-box .pills { margin-top: 10px; }
 
 @media (max-width: 720px) {
+  .tbl { display: block; overflow-x: auto; }  /* [v1.9] 좁은 폭 표 자체 가로 스크롤 */
   .content { padding: 0 20px 60px; }
   .hero { padding: 48px 20px 40px; }
   .swatch-grid { grid-template-columns: 1fr 1fr; }
@@ -464,11 +509,13 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td>가챠 &middot; 능력치 개화 &middot; 조각</td><td>신규</td><td><a href="./04-gacha-ability-awakening.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
       <tr><td>정직한 경제 &middot; 레벨</td><td>재작성</td><td><a href="./06-honest-economy.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
       <tr><td>아카이브 &middot; 기록 ID &middot; 소프트 삭제</td><td>재작성</td><td><a href="./07-archive-record-softdelete.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
-      <tr><td>데이터 설계 (DataTable &middot; SaveGame)</td><td>재작성</td><td><a href="./03-data-design.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
-      <tr><td>데이터 스키마 명세 (컬럼 전수)</td><td>신규</td><td><a href="./05-data-schema-spec.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
+      <tr><td>데이터 설계 (DataTable &middot; SQLite DB)</td><td>재작성</td><td><a href="./03-data-design.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
+      <tr><td>데이터 스키마 명세 (SQLite 스키마 &middot; Secured)</td><td>재작성</td><td><a href="./05-data-schema-spec.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
       <tr><td>포커스 &middot; 퀘스트 &middot; UI (Phase 1 코어)</td><td>이관/개정</td><td><a href="./08-phase1-core-systems.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
       <tr><td>09 SQLite 배관 놓기 (아카이브 배선 실습)</td><td>구현 &middot; 실습</td><td><a href="./09-sqlite-archive-plumbing.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
       <tr><td>10 코드 &amp; 변수 연결 지도 (소유 &middot; 축 &middot; 흐름)</td><td>구현 &middot; 데이터</td><td><a href="./10-code-variable-map.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
+      <tr><td>11 플레이어 상태 저장 (player 테이블 &middot; Secured 무결성)</td><td>구현 &middot; 실습</td><td><a href="./11-player-state-persistence.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
+      <tr><td>12 길드 시스템 (guilds &middot; 2축 카테고리 &middot; Secured)</td><td>구현 &middot; 실습</td><td><a href="./12-guild-subsystem.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
     </table>
   </div>
 
@@ -518,6 +565,10 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td>계정 XP</td><td>전 길드 활동 XP의 합. 가챠 등급 출현 확률을 결정.</td></tr>
       <tr><td>정직한 레벨</td><td>실제 활동에서만 오르는 길드 레벨. 캐릭터&middot;Gold로는 못 올림.</td></tr>
       <tr><td>소프트 삭제 &middot; 휴지통</td><td>삭제해도 데이터를 남겨 휴지통에서 복원 가능. 완전 삭제는 별도.</td></tr>
+      <tr><td>무결성 검사(Secured)</td><td>상태 DB(<code>player</code>)의 재화&middot;레벨을 인증 암호화한 사본(<code>Secured</code> 컬럼)으로 함께 저장해, 유저가 파일을 직접 고치면 로드 시 자동 복원하는 보호. 완전 방어는 아님(키가 클라이언트에 있음). 상세: 03 데이터 설계 06 상태 보호 &middot; 구현 실습: 11 플레이어 상태 저장.</td></tr>
+      <tr><td>대분류(Guild_Category)</td><td>길드의 속성 카테고리 — <strong>길드당 1개</strong>, 길드 간 중복 허용(예: A&middot;C 길드 모두 '캐릭터'). 대분류 필터는 <code>guilds</code>를 거쳐 그 길드들의 기록을 모음. 상세: 12 길드 시스템 02.</td></tr>
+      <tr><td>소분류(Archive_Category)</td><td>기록에 태그하는 카테고리 — <strong>계정 공유 풀</strong>(<code>archive_categories</code>)이라 어느 길드의 기록에든 같은 소분류 사용 가능(예: '애니메이션'). 이름 변경은 풀+기록 두 테이블을 한 트랜잭션으로. 상세: 12 길드 시스템 5단계.</td></tr>
+      <tr><td>DB 문지기(UDatabaseSubsystem)</td><td><code>Archive.db</code>의 열닫&middot;<code>CREATE TABLE</code>&middot;트랜잭션 창구를 전담하는 GameInstanceSubsystem. 게임 기능 없음 — Economy&middot;Archive 등 기능 시스템들이 <code>InitializeDependency</code>로 대등하게 의존해 핸들을 빌려 씀. 구현: 11 플레이어 상태 저장 1~2단계.</td></tr>
     </table>
     <p style="color:var(--text-dim); font-size:13px; margin-top:16px;">※ 이 허브는 골격입니다. 용어&middot;문서는 설계 확정에 따라 확장됩니다. 상세 설계 원장: <code>~/.claude/plans/replicated-weaving-stearns.md</code></p>
   </div>
@@ -525,7 +576,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>RecordTales V2 &middot; 프로젝트 허브 (골격) v0.5</span>
+  <span>RecordTales V2 &middot; 프로젝트 허브 (골격) v0.12</span>
   <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.5</span>
 </footer>
 

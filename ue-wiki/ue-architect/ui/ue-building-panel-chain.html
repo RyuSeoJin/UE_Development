@@ -8,6 +8,7 @@
      CHANGELOG — ue-building-panel-chain.html
      유형 ① 엔진 기능/프레임워크 문서 (Track A · 02-B 템플릿 · ui/).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     · 2026-07-20 — (반응형) 마스터 v1.9 .tbl 모바일 가로 스크롤 규칙 인라인 반영(본문·구조 무변경).
      v1.0 · 2026-07-10
        - 신규 생성. 월드 건물 클릭 → 계층 팝업(패널 체인) UI 구현 명세.
        - 마스터 v1.6 스냅샷 inline. 블루프린트 중심(C++ 탭 없음).
@@ -615,6 +616,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .bp-graph .bpg-caption { fill: #8B8F94; font-family: 'Pretendard', 'Noto Sans KR', sans-serif; font-size: 12px; }
 
 @media (max-width: 720px) {
+  .tbl { display: block; overflow-x: auto; }  /* [v1.9] 좁은 폭 표 자체 가로 스크롤 */
   .content { padding: 0 20px 60px; }
   .hero { padding: 48px 20px 40px; }
   .swatch-grid { grid-template-columns: 1fr 1fr; }

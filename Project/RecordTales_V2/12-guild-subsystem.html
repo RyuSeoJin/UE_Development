@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RecordTales V2 · 12 길드 시스템 — guilds 테이블 + 2축 카테고리 + Secured</title>
+<!-- ============================================================
+     CHANGELOG — 12-guild-subsystem.html
+     RecordTales V2 길드 시스템(따라하기) 명세. 유형 ③ (Track B · 02-B 템플릿).
+     작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v0.1 · 2026-07-20
+       - 신규 생성. 세 번째 배관 — 길드(guilds)와 계정 공유 소분류 풀(archive_categories)을
+         Archive.db에 얹고, GuildSubsystem으로 생성·목록·2축 카테고리 필터·시간 적립(레벨 파생)·
+         소프트 삭제·Secured 보호(블롭 스왑 방지 포함)까지 따라하기 8단계.
+       - 카테고리 2축 모델 확정(사용자 설계): 대분류 = guilds.Category(길드당 1개, 길드 간 중복 허용) /
+         소분류 = archive_categories 공유 풀 + archives.Category 태그(모든 길드 공유).
+         필터는 축별·조합 검색 가능하게 SQL 설계(이후 상세 필터 UI 확장 대비 — 사용자 요청).
+       - Archive_Category 풀 테이블 채택(사용자 결정) — 빈 카테고리 표시·이름 변경·속성 확장 대비.
+         이름 변경은 두 테이블 동시 UPDATE = 시리즈 첫 실전 다중 테이블 트랜잭션(BEGIN…COMMIT).
+       - GuildId 발급 = INTEGER PRIMARY KEY AUTOINCREMENT 채택(사용자 승인) — 재사용 금지를 엔진이
+         보장(sqlite_sequence). player.NextGuildId 카운터는 미사용 전환(05 개정 반영).
+         상세 근거·일반 PK와의 차이를 02 설계 결정에 전용 절로 수록(사용자 요청).
+       - guilds 쓰기 주인 = GuildSubsystem으로 확정(10의 "GuildXp 주인=Economy"를 이관 — 연동 개정).
+       - Secured: 길드당 1블롭, 페이로드에 GuildId 포함 — 행 간 블롭 복사(스왑) 치트 차단.
+       - 전제: 11 완료(문지기 UDatabaseSubsystem·RTSecured 존재). 마스터 CSS v1.9 inline 스냅샷,
+         hljs 구워넣기 + 한국어 '왜' 주석, 탭/복사 + 체크리스트 토글 inline JS. 상대링크 없음.
+     ============================================================ -->
+<style>
+/* ============================================================
+   UE Design System — Master Stylesheet
+   (design-guide-ue-master.css)
+   언리얼 에셋 분석 · 아키텍처 설계 문서 공통 토대
+   v1.9  (Dark · Indigo Minimal · Editorial)
+
+   사용법
+   - 가이드 문서(master-visual / design-template의 01 / 02)는 <link>로 이 파일을 참조.
+   - 실제 결과물 HTML은 이 파일 내용을 <style>에 통째로 복사(inline)하여
+     단일 파일로 배포한다. (오프라인 무결성 유지)
+
+   변경 이력 (CHANGELOG) — 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+   v1.9 · 2026-07-20
+     - (변경) 반응형: 좁은 폭(≤720px)에서 .tbl 표가 body를 가로로 밀지 않도록
+       .tbl { display:block; overflow-x:auto } 추가 — 넓은 표는 페이지 대신 자기 상자 안에서
+       가로 스크롤한다(데이터 설계·스키마 문서의 코드 컬럼 표 대응). 데스크톱(>720px) 무변경.
+       신규 컴포넌트·토큰·색 없음(기존 .tbl의 반응형 동작만 보완).
+     - 사유: RecordTales_V2 스키마 문서 검증 중 좁은 폭 body 가로 오버플로우 발견(사용자 승인).
+   v1.8 · 2026-07-20
+     - (추가) DB(SQLite) 저장 위치 표기 3종 — 데이터 설계 지도 계열에서 "SQLite DB 파일에
+       사는 데이터"를 구분하기 위함(수명 5종째: SAVE/RUNTIME/CONFIG/ROW/DB).
+       .vbadge.db(수명 배지) · .ls-file.db(변수 여정 파일 칩) · .fh-node.n-db(흐름 전도 노드).
+       색은 기존 --ue-mat(주황) 재사용 — 신규 토큰 없음.
+     - 사유: RecordTales_V2 아카이브 기록의 SQLite 채택(하이브리드: 상태=SaveGame, 기록=DB) —
+       코드/변수 지도 문서(Case B 승인).
+   v1.7 · 2026-07-18
+     - (추가) .checklist — 인터랙티브 진행률 체크리스트: "따라 하며 하나씩 완료를
+       체크"하는 실습형(따라하기) 문서용 컴포넌트. 단계 헤더 클릭/Enter로 완료(.done)
+       토글, 상단 진행률 바(.check-prog>.check-bar>.check-fill)가 완료 수를 즉시 반영.
+       색은 기존 팔레트 재사용(완료=accent-3, 진행 바=accent) — 신규 토큰 없음.
+       내부 클래스: .check-prog/.check-bar/.check-fill/.check-count · .check-step(.done) ·
+       .check-head/.check-tick(.tk-num)/.check-title/.check-why · .check-body
+     - 규칙: 완료 상태는 로컬·비영속(새로고침 시 초기화). 토글 JS는 결과물에 inline
+       (탭/복사 JS와 같은 최소 상호작용 범위). prefers-reduced-motion에서 전환 끔(공통).
+     - (변경) 반응형 블록에 .check-body 좌패딩 폴백 추가.
+     - 사유: SQLite 배관 "따라하기" 문서(Track B · Project/RecordTales, Case B 승인) —
+       원본의 진행률 체크리스트 UX를 다크·인디고 팔레트로 편입.
+   v1.6 · 2026-07-10
+     - (추가) 블루프린트 에디터 관례색 토큰(--bp-*) — 캔버스/노드/제목 바 5종(이벤트·
+       함수 호출·순수 함수·흐름 제어·캐스트)/핀 타입 8종(Exec·Bool·Float·Int·
+       String·Vector·Object·Class). UE 에디터의 의미색이므로 .bp-graph 내부 전용.
+     - (추가) .bp-graph — 블루프린트 노드 그래프 컨테이너(UE 에디터 재현, 구워넣은 SVG).
+       SVG 내부 클래스: .bpn-body/.bpn-name/.bpn-sub/.bpn-icon/.bpn-chip/.bpn-chip-text
+       (노드) · .bpp-exec(실행 핀 ▷)/.bpp-pin(데이터 핀 ● + t-* 타입, .off=미연결)/
+       .bpp-label(핀 라벨) · .bpw(와이어: .exec 또는 t-* 타입) · .bpg-caption(캡션)
+     - 규칙: .diagram과 동일 철학 — 생성 시점 SVG 구워넣기(런타임 렌더링 금지).
+       제목 바 그라데이션·격자 패턴은 SVG <defs> 표준 블록(bpg-*)을 각 SVG에 포함.
+     - 사유: 사용자 요청 "구현 방법에 블루프린트 노드 포함 + 에디터와 동일한 디자인"
+       (블루프린트 인터페이스 문서, Case B 승인)
+   v1.5 · 2026-07-07
+     - (추가) .diagram — 구워넣은 SVG 다이어그램 컨테이너(Mermaid 스타일 플로차트).
+       SVG 내부 클래스: .dg-node(+k-* 종류 변형)/.dg-text/.dg-sub/.dg-edge(+lk-* 연결 변형)/.dg-elabel
+     - (추가) .graph-net — 옵시디언 그래프 뷰 스타일 관계망 SVG 컨테이너.
+       SVG 내부 클래스: .gn-node(+k-* 종류 변형)/.gn-edge(+lk-* 연결 변형)/.gn-label(.big)
+     - 규칙: 다이어그램 SVG는 생성 시점에 구워넣고(런타임 렌더링 금지),
+       Mermaid 소스를 .codeblock 단일 탭(*.mmd)으로 병기해 옵시디언 재사용을 보장.
+       연결 색(lk-call/event/save/table)·타입 색(k-*)은 v1.4 팔레트를 그대로 재사용 — 신규 색 없음.
+     - 사유: 사용자 요청 "옵시디언·Mermaid 기법의 시각 표현" (데이터 설계 지도 04 계열 문서용)
+   v1.4 · 2026-07-07
+     - (추가) .var-card — 파일-변수 카드: .h/.cpp 파일 쌍이 소유한 변수 전수 목록
+       (.vc-head/.vc-domain/.vc-file/.vc-role/.vc-var/.vv-name/.vv-type/.vv-note)
+     - (추가) .vbadge.save/.run/.cfg/.row — 변수 수명 배지
+       (SaveGame 저장 / 런타임 휘발 / Config 상수 / DataTable 행 — 기존 팔레트 재사용)
+     - (추가) .flow-hub + .flow-legend — 변수 흐름 연결 전도(허브형 N:N 전도).
+       연결 유형 4색 재사용: 호출(.lk-call=accent) / 델리게이트(.lk-event=pink) /
+       직렬화(.lk-save=ue-savegame) / 조회(.lk-table=accent-3)
+     - (추가) .lane-seq — 변수 여정 시퀀스: 파일 레인 칩(.ls-file)과 변수 변화(.ls-var)로
+       변수 하나의 이동 경로를 단계 추적
+     - (변경) 반응형 블록에 .flow-hub 1열 폴백 · .vc-var 플렉스 폴백 · .ls-step 여백 축소 추가
+     - 사유: 데이터 설계 지도 템플릿(design-template/04-ue-data-map.html, Case C) 전용 컴포넌트
+   v1.3 · 2026-07-02
+     - (변경) 폴더 재구조화: 템플릿(01·02) → design-template/(루트),
+       규약(DOC-GENERATION-PLAYBOOK.md) → doc-process/(루트) 이동. 스타일 변경 없음.
+   v1.2 · 2026-07-01
+     - (추가) .compare-box — 좌우 병렬 비교 카드 (Spawning vs Loading 등)
+     - (추가) .grid-3 — 3열 그리드
+     - (추가) .stat-row-4 — 4열 통계 카드
+     - (추가) .pill.pink / .pill.red — 핑크·레드 pill 변형
+     - (변경) 반응형 블록에 .stat-row-4, .grid-3 1열 폴백 추가
+   v1.1 · 2026-07-01
+     - 파일명 ue-design-system.css → design-guide-ue-master.css
+     - 프레임워크 클래스 컬러 맵 추가
+       (--ue-gamemode/gamestate/controller/pawn/instance/savegame/subsystem)
+     - 파일 타입 컬러 맵 추가 (--ue-header/source/macro)
+     - .h/.cpp 코드 탭(.codeblock) + highlight.js(hljs-*) 다크·인디고 테마
+     - 클래스 관계도(.rel-map) / 책임 배치 결정표(.tbl .owner) 스타일 추가
+     - .tree 에 프레임워크 클래스 색(.c-*), .pitfall.tip, .filetag 추가
+   v1.0
+     - 최초 에셋 분석 디자인 가이드 토큰·컴포넌트
+       (원본 design-guide-ue-asset-structure.html에서 파생, 원본 파일은 2026-07-01 삭제)
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Pretendard:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* --- 기본 토큰 --- */
+  --bg: #0D0F1A;
+  --surface: #13162A;
+  --surface-2: #1A1F38;
+  --border: #252B4A;
+  --accent: #5B6EFA;
+  --accent-2: #9B6DFF;
+  --accent-3: #38D9B4;
+  --text: #E4E8FF;
+  --text-muted: #7B82A6;
+  --text-dim: #4A5080;
+  --amber: #F59E0B;
+  --pink: #E040FB;
+  --red: #F87171;
+
+  /* --- 에셋 타입 컬러 맵 (에셋 분석 문서 전용) --- */
+  --ue-folder: #F59E0B;
+  --ue-bp:     #5B6EFA;
+  --ue-enum:   #9B6DFF;
+  --ue-mat:    #FB8C5A;
+  --ue-tex:    #38D9B4;
+  --ue-demo:   #6BD98E;
+
+  /* --- 프레임워크 클래스 컬러 맵 (C++ 아키텍처 문서 전용, v1.1 신규) ---
+     역할이 다른 프레임워크 클래스를 트리·관계도·태그에서 일관되게 구분한다.
+     새 클래스 계열이 필요하면 여기에 1개 추가하고 00-foundation 색상표에 기록. */
+  --ue-gamemode:   #5B6EFA;  /* GameMode / GameModeBase — 규칙·권한(서버 전용)      */
+  --ue-gamestate:  #7B9CFF;  /* GameState / GameStateBase — 공유 상태(전원 복제)     */
+  --ue-controller: #38D9B4;  /* PlayerController — 입력·의도(플레이어별)             */
+  --ue-pawn:       #6BD98E;  /* Pawn / Character — 물리적 표현·조종 대상            */
+  --ue-instance:   #9B6DFF;  /* GameInstance — 세션 전역·영속                       */
+  --ue-savegame:   #F59E0B;  /* SaveGame — 디스크 직렬화                            */
+  --ue-subsystem:  #E040FB;  /* Subsystem / Manager — 수명 범위형 서비스            */
+
+  /* --- 파일 타입 컬러 맵 (코드 탭·파일 태그, v1.1 신규) --- */
+  --ue-header: #38D9B4;      /* .h  헤더(선언)   */
+  --ue-source: #FB8C5A;      /* .cpp 소스(구현)  */
+  --ue-macro:  #FB8C5A;      /* UCLASS / UPROPERTY / UFUNCTION 등 리플렉션 매크로 */
+
+  /* --- 블루프린트 에디터 관례색 (.bp-graph 전용, v1.6 신규) ---
+     UE 블루프린트 에디터의 노드·핀 색 관례를 그대로 재현하는 의미색.
+     인디고 팔레트와 성격이 다르므로 .bp-graph SVG 내부에서만 사용한다
+     (본문 UI·다른 컴포넌트에 유출 금지). */
+  --bp-canvas:  #26282A;     /* 그래프 에디터 캔버스 배경                          */
+  --bp-grid:    #2B2D2F;     /* 캔버스 격자선(소, 16px)                            */
+  --bp-grid-2:  #1D1F21;     /* 캔버스 격자선(대, 80px)                            */
+  --bp-node:    #17181A;     /* 노드 본체                                          */
+  --bp-event:   #A03232;     /* 제목 바 — 이벤트(빨강)                             */
+  --bp-call:    #2E6FB4;     /* 제목 바 — 함수 호출·인터페이스 메시지(파랑)        */
+  --bp-pure:    #3F9142;     /* 제목 바 — 순수 함수(초록, 실행 핀 없음)            */
+  --bp-flow:    #787878;     /* 제목 바 — 흐름 제어 Branch/Sequence 등(회색)       */
+  --bp-cast:    #38808F;     /* 제목 바 — 캐스트(청록)                             */
+  --bp-exec:    #E2E2E2;     /* 실행 핀 ▷ · 실행 와이어(흰색)                      */
+  --bp-bool:    #A31515;     /* Boolean 핀(적갈색)                                 */
+  --bp-float:   #9FE838;     /* Float 핀(연두)                                     */
+  --bp-int:     #26E0A8;     /* Integer 핀(청록)                                   */
+  --bp-string:  #F535C8;     /* String 핀(자홍)                                    */
+  --bp-vector:  #F6C21C;     /* Vector 핀(노랑)                                    */
+  --bp-object:  #0A84FF;     /* Object 참조 핀(파랑)                               */
+  --bp-class:   #8A5CD6;     /* Class·Interface 참조 핀(보라)                      */
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+  font-size: 15px; line-height: 1.7; -webkit-font-smoothing: antialiased;
+}
+
+/* NAV */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(13,15,26,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px; display: flex; align-items: center; gap: 32px; height: 52px;
+}
+.nav-logo { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em; white-space: nowrap; }
+.nav-links { display: flex; gap: 22px; flex-wrap: wrap; }
+.nav-links a { color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 500; transition: color 0.2s; }
+.nav-links a:hover { color: var(--text); }
+.nav-links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+
+/* HERO */
+.hero { padding: 72px 48px 56px; max-width: 920px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+.hero-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: var(--accent); text-transform: uppercase; margin-bottom: 20px; }
+.hero h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 20px; }
+.hero h1 span { color: var(--accent); }
+.hero-sub { font-size: 16px; color: var(--text-muted); max-width: 660px; line-height: 1.75; }
+.hero-meta { margin-top: 28px; display: flex; gap: 10px; flex-wrap: wrap; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; border: 1px solid; }
+.badge-blue { color: var(--accent); border-color: var(--accent); background: rgba(91,110,250,0.08); }
+.badge-green { color: var(--accent-3); border-color: var(--accent-3); background: rgba(56,217,180,0.08); }
+.badge-purple { color: var(--accent-2); border-color: var(--accent-2); background: rgba(155,109,255,0.08); }
+
+/* CONTENT / SECTION */
+.content { max-width: 920px; margin: 0 auto; padding: 0 48px 80px; }
+.section { padding: 52px 0 0; border-top: 1px solid var(--border); margin-top: 52px; }
+.section:first-child { margin-top: 0; padding-top: 48px; border-top: none; }
+.section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 12px; }
+.section h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 20px; }
+.section h3 { font-size: 15px; font-weight: 700; color: var(--text); margin: 30px 0 10px; letter-spacing: 0.01em; }
+.section p { color: var(--text-muted); margin-bottom: 14px; line-height: 1.8; }
+.section p strong { color: var(--text); font-weight: 600; }
+
+code { font-family: 'IBM Plex Mono', monospace; font-size: 0.86em; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; color: var(--accent-3); }
+
+/* SWATCHES */
+.swatch-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 22px 0; }
+.swatch { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.swatch .chip { height: 56px; }
+.swatch .meta { padding: 10px 12px; }
+.swatch .vn { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text); font-weight: 600; }
+.swatch .hx { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--text-dim); }
+.swatch .role { font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+
+/* TYPE SCALE */
+.type-row { display: flex; align-items: baseline; gap: 18px; padding: 14px 0; border-bottom: 1px solid rgba(37,43,74,0.5); }
+.type-row:last-child { border-bottom: none; }
+.type-spec { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-dim); min-width: 150px; flex-shrink: 0; }
+.ts-h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; }
+.ts-h2 { font-size: 22px; font-weight: 700; }
+.ts-h3 { font-size: 15px; font-weight: 700; }
+.ts-body { font-size: 15px; color: var(--text-muted); }
+.ts-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); }
+.ts-code { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--accent-3); }
+
+/* CALLOUT */
+.callout { display: flex; gap: 12px; align-items: flex-start; border-radius: 8px; padding: 14px 16px; margin: 18px 0; border: 1px solid var(--border); background: var(--surface-2); font-size: 13.5px; line-height: 1.65; }
+.callout .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.callout p { margin: 0; color: var(--text-muted); }
+.callout p strong { color: var(--text); }
+.callout.info { border-left: 3px solid var(--accent); }
+.callout.tip  { border-left: 3px solid var(--accent-3); }
+.callout.warn { border-left: 3px solid var(--amber); }
+
+/* COMPONENT DEMO FRAME */
+.demo { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 16px 0; }
+.demo-head { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 7px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); }
+.demo-body { padding: 22px; }
+
+/* CODE SNIPPET (수동 escape HTML · 의사코드/마크업 예시용) */
+.snip { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 12px 0 22px; }
+.snip-head { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 8px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+.code-dot { width: 8px; height: 8px; border-radius: 50%; }
+.snip pre { padding: 14px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-muted); line-height: 1.75; overflow-x: auto; white-space: pre; }
+.snip pre .tag { color: var(--accent); }
+.snip pre .atr { color: var(--ue-mat); }
+.snip pre .val { color: var(--accent-3); }
+.snip pre .cm  { color: var(--text-dim); }
+
+/* ============================================================
+   CODE BLOCK — 실제 C++/H (탭 전환 + 복사 + 구워넣은 하이라이팅)  [v1.1 신규]
+   - highlight.js 호환 클래스명(hljs-*)을 사용해, 생성 시점에 span을 미리 박아 넣는다.
+   - .h / .cpp 는 탭으로 전환, 각 패널당 <pre class="hljs"> 하나.
+   ============================================================ */
+.codeblock { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 16px 0 24px; }
+.codeblock-bar { display: flex; align-items: stretch; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.codeblock-tab {
+  padding: 9px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600;
+  color: var(--text-dim); background: transparent; border: none; border-right: 1px solid var(--border);
+  cursor: pointer; transition: color 0.15s, background 0.15s; box-shadow: inset 0 -2px 0 transparent;
+}
+.codeblock-tab:hover { color: var(--text-muted); }
+.codeblock-tab.active { color: var(--text); background: var(--surface); }
+.codeblock-tab.tab-h.active   { box-shadow: inset 0 -2px 0 var(--ue-header); }
+.codeblock-tab.tab-cpp.active { box-shadow: inset 0 -2px 0 var(--ue-source); }
+.codeblock-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.codeblock-copy {
+  margin-left: auto; align-self: center; margin-right: 8px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600;
+  color: var(--text-muted); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 5px; padding: 4px 10px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+}
+.codeblock-copy:hover { color: var(--text); border-color: var(--accent); }
+.codeblock-copy.copied { color: var(--accent-3); border-color: var(--accent-3); }
+.codeblock-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.codeblock-panel { display: none; }
+.codeblock-panel.active { display: block; }
+.codeblock pre { padding: 16px 18px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.75; overflow-x: auto; white-space: pre; }
+
+/* highlight.js 테마 — 다크·인디고 팔레트 매핑 */
+.hljs { color: var(--text-muted); background: var(--surface); }
+.hljs-comment, .hljs-quote { color: var(--text-dim); font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-section { color: var(--accent); font-weight: 500; }        /* class, return, virtual, const, if ... */
+.hljs-literal, .hljs-symbol, .hljs-bullet { color: var(--accent-2); }                                /* true / false / nullptr */
+.hljs-number { color: var(--accent-2); }                                                             /* 숫자 */
+.hljs-string, .hljs-attr, .hljs-attribute, .hljs-name { color: var(--ue-demo); }                     /* 문자열 */
+.hljs-type, .hljs-class .hljs-title, .hljs-title.class_, .hljs-built_in { color: var(--accent-3); }  /* FVector, AActor, TArray ... */
+.hljs-title, .hljs-title.function_, .hljs-function .hljs-title { color: var(--text); }               /* 함수 이름 */
+.hljs-params { color: var(--text-muted); }
+.hljs-meta, .hljs-meta .hljs-keyword { color: var(--ue-macro); font-weight: 600; }                   /* #include, UCLASS/UPROPERTY/UFUNCTION */
+.hljs-meta .hljs-string { color: var(--ue-demo); }                                                   /* #include "..." 경로 */
+.hljs-property, .hljs-variable { color: var(--text); }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 700; }
+
+/* 파일 태그 (본문 인라인 · .h / .cpp 표기용) */
+.filetag { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 3px; }
+.filetag.h   { background: rgba(56,217,180,0.14); color: var(--ue-header); }
+.filetag.cpp { background: rgba(251,140,90,0.14);  color: var(--ue-source); }
+
+/* the live mini-components */
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 4px; }
+.stat-label { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+.a-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; border-top: 2px solid var(--ue-bp); }
+.a-card .ic { font-size: 22px; margin-bottom: 10px; }
+.a-card .a-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.a-card .a-id { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--accent); margin-bottom: 8px; }
+.a-card .a-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+.tt { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 3px; }
+.tt-bool { background: rgba(91,110,250,0.14); color: var(--accent); }
+.tt-enum { background: rgba(251,140,90,0.14); color: var(--ue-mat); }
+.tt-del  { background: rgba(224,64,251,0.12); color: var(--pink); }
+
+.pills { display: flex; flex-wrap: wrap; gap: 7px; }
+.pill { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; padding: 3px 12px; border-radius: 20px; border: 1px solid; }
+.pill.blue { color: var(--accent); border-color: rgba(91,110,250,0.4); background: rgba(91,110,250,0.08); }
+.pill.purple { color: var(--accent-2); border-color: rgba(155,109,255,0.4); background: rgba(155,109,255,0.08); }
+.pill.green { color: var(--accent-3); border-color: rgba(56,217,180,0.4); background: rgba(56,217,180,0.08); }
+.pill.pink { color: var(--pink); border-color: rgba(224,64,251,0.4); background: rgba(224,64,251,0.08); }   /* [v1.2 신규] */
+.pill.red { color: var(--red); border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.08); }    /* [v1.2 신규] */
+
+.arch { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: stretch; }
+.arch-layer { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 16px 14px; }
+.arch-arrow { display: flex; align-items: center; justify-content: center; padding: 0 8px; color: var(--text-dim); font-size: 16px; }
+.arch-tag { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 7px; color: var(--accent); }
+.arch-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.arch-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+
+.tbl { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 13px; }
+.tbl th { background: var(--surface-2); color: var(--text-muted); font-weight: 600; font-size: 12px; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+.tbl td { padding: 10px 14px; color: var(--text-muted); border-bottom: 1px solid rgba(37,43,74,0.5); vertical-align: top; line-height: 1.55; }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl td:first-child { color: var(--text); }
+.tbl td code, .tbl th code { background: transparent; border: none; padding: 0; color: var(--accent); }
+
+.tree { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.9; color: var(--text-dim); white-space: pre; overflow-x: auto; }
+.tree .folder { color: var(--ue-folder); font-weight: 600; }
+.tree .bp { color: var(--ue-bp); } .tree .enum { color: var(--ue-enum); }
+.tree .mat { color: var(--ue-mat); } .tree .tex { color: var(--ue-tex); }
+.tree .note { color: var(--text-muted); }
+/* 클래스 계층 트리에서 쓰는 프레임워크 색 (에셋 트리와 동일 컴포넌트 재사용) */
+.tree .c-gamemode { color: var(--ue-gamemode); font-weight: 600; }
+.tree .c-gamestate { color: var(--ue-gamestate); font-weight: 600; }
+.tree .c-controller { color: var(--ue-controller); font-weight: 600; }
+.tree .c-pawn { color: var(--ue-pawn); font-weight: 600; }
+.tree .c-instance { color: var(--ue-instance); font-weight: 600; }
+.tree .c-savegame { color: var(--ue-savegame); font-weight: 600; }
+.tree .c-subsystem { color: var(--ue-subsystem); font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); }
+.legend .dot { width: 9px; height: 9px; border-radius: 2px; }
+
+/* ============================================================
+   CLASS RELATIONSHIP — 클래스 관계(소유·possess·참조) 행  [v1.1 신규]
+   ============================================================ */
+.rel-map { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
+.rel-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+.rel-node {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 14px; border-left: 3px solid var(--text-dim);
+}
+.rel-node .rn-name { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.rel-node .rn-role { font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.4; }
+.rel-node.n-gamemode   { border-left-color: var(--ue-gamemode); }
+.rel-node.n-gamestate  { border-left-color: var(--ue-gamestate); }
+.rel-node.n-controller { border-left-color: var(--ue-controller); }
+.rel-node.n-pawn       { border-left-color: var(--ue-pawn); }
+.rel-node.n-instance   { border-left-color: var(--ue-instance); }
+.rel-node.n-savegame   { border-left-color: var(--ue-savegame); }
+.rel-node.n-subsystem  { border-left-color: var(--ue-subsystem); }
+.rel-arrow { display: flex; flex-direction: column; align-items: center; color: var(--text-dim); min-width: 84px; }
+.rel-arrow .ra-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--accent); letter-spacing: 0.04em; white-space: nowrap; }
+.rel-arrow .ra-line { font-size: 15px; line-height: 1; }
+
+/* ============================================================
+   DECISION TABLE — 책임 배치 결정표  [v1.1 신규]
+   "이 데이터/기능을 어느 클래스에 둘까"를 근거와 함께.
+   .tbl 을 기반으로 첫 열에 클래스 색 점을 붙인다.
+   ============================================================ */
+.tbl .owner { display: inline-flex; align-items: center; gap: 7px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.tbl .owner::before { content: ''; width: 9px; height: 9px; border-radius: 2px; background: var(--text-dim); flex-shrink: 0; }
+.tbl .owner.o-gamemode::before   { background: var(--ue-gamemode); }
+.tbl .owner.o-gamestate::before  { background: var(--ue-gamestate); }
+.tbl .owner.o-controller::before { background: var(--ue-controller); }
+.tbl .owner.o-pawn::before       { background: var(--ue-pawn); }
+.tbl .owner.o-instance::before   { background: var(--ue-instance); }
+.tbl .owner.o-savegame::before   { background: var(--ue-savegame); }
+.tbl .owner.o-subsystem::before  { background: var(--ue-subsystem); }
+
+.pipe-step { display: grid; grid-template-columns: 36px 1fr; gap: 0 16px; position: relative; }
+.pipe-step::before { content: ''; position: absolute; left: 17px; top: 36px; bottom: -1px; width: 2px; background: var(--border); }
+.pipe-step:last-child::before { display: none; }
+.pipe-num { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--surface-2); }
+.pipe-body { padding: 6px 0 22px; }
+.pipe-title { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+.pipe-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+.pitfall { display: flex; gap: 14px; align-items: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; border-left: 3px solid var(--amber); }
+.pitfall.tip { border-left-color: var(--accent-3); }
+.pitfall .ic { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+.pitfall-text { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
+.pitfall-text strong { color: var(--text); }
+
+/* DO / DON'T */
+.dd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 22px 0; }
+.dd { border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; background: var(--surface-2); }
+.dd.do { border-left: 3px solid var(--accent-3); }
+.dd.dont { border-left: 3px solid var(--red); }
+.dd h4 { font-size: 13px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.dd.do h4 { color: var(--accent-3); }
+.dd.dont h4 { color: var(--red); }
+.dd ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.dd li { font-size: 12.5px; color: var(--text-muted); line-height: 1.55; padding-left: 16px; position: relative; }
+.dd li::before { content: ''; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; border-radius: 50%; }
+.dd.do li::before { background: var(--accent-3); }
+.dd.dont li::before { background: var(--red); }
+
+footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920px; margin: 0 auto; font-size: 12px; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+/* ============================================================
+   GRID-3 — 3열 그리드  [v1.2 신규]
+   ============================================================ */
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+/* ============================================================
+   STAT-ROW-4 — 4열 통계 카드  [v1.2 신규]
+   ============================================================ */
+.stat-row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.stat-row-4 .stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+
+/* ============================================================
+   COMPARE-BOX — 좌우 병렬 비교 카드  [v1.2 신규]
+   .grid-2 안에 2개를 넣어 Spawning vs Loading 등 비교에 사용.
+   ============================================================ */
+.compare-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
+.compare-box h4 { font-size: 14px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+.compare-box p { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 10px; }
+.compare-box .pills { margin-top: 10px; }
+
+/* ============================================================
+   VAR-CARD — 파일-변수 카드  [v1.4 신규]
+   "이 .h/.cpp 파일 쌍에 어떤 변수가 사는가"를 전수 목록으로 보여준다.
+   행 구성: 변수명 · 타입 · 수명 배지(.vbadge) · 한 줄 설명.
+   데이터 설계 지도 템플릿(04)의 파일 지도 섹션 전용.
+   ============================================================ */
+.var-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 14px 0; }
+.var-card .vc-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 11px 16px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.var-card .vc-domain { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); }
+.var-card .vc-file { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; font-weight: 600; color: var(--text); }
+.var-card .vc-role { font-size: 11.5px; color: var(--text-muted); margin-left: auto; }
+.var-card .vc-var { display: grid; grid-template-columns: minmax(150px, 1.05fr) minmax(120px, 0.95fr) auto 1.4fr; gap: 4px 14px; align-items: baseline; padding: 8px 16px; border-bottom: 1px solid rgba(37,43,74,0.45); }
+.var-card .vc-var:last-child { border-bottom: none; }
+.vc-var .vv-name { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; font-weight: 600; color: var(--text); }
+.vc-var .vv-type { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--accent-3); }
+.vc-var .vv-note { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+/* 변수 수명 배지 — 이 변수가 어디까지 살아남는가 (기존 팔레트 재사용) */
+.vbadge { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; padding: 1px 7px; border-radius: 3px; text-transform: uppercase; white-space: nowrap; }
+.vbadge.save { background: rgba(245,158,11,0.14);  color: var(--ue-savegame); }  /* SaveGame으로 디스크 저장  */
+.vbadge.run  { background: rgba(155,109,255,0.14); color: var(--accent-2); }     /* 런타임 휘발(저장 안 함)   */
+.vbadge.cfg  { background: rgba(56,217,180,0.14);  color: var(--accent-3); }     /* Config/Settings 상수      */
+.vbadge.row  { background: rgba(91,110,250,0.14);  color: var(--accent); }       /* DataTable 행(에디터 데이터)*/
+.vbadge.db   { background: rgba(251,140,90,0.14);  color: var(--ue-mat); }       /* SQLite DB 파일 저장 [v1.8] */
+
+/* ============================================================
+   FLOW-HUB — 변수 흐름 연결 전도  [v1.4 신규]
+   허브(중앙) 노드를 사이에 두고 좌 → 중 → 우로 데이터가 흐르는 N:N 전도.
+   각 노드의 연결은 색 칩(.fh-link)으로 표기하고, 색 의미는 .flow-legend가 고정한다.
+   연결 유형 4색: 호출(call)=accent · 델리게이트(event)=pink ·
+                  직렬화(save)=ue-savegame · 조회(table)=accent-3
+   ============================================================ */
+.flow-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 12px 0; }
+.flow-legend span { display: inline-flex; align-items: center; gap: 7px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-muted); }
+.flow-legend .lk { width: 18px; height: 3px; border-radius: 2px; flex-shrink: 0; }
+.flow-legend .lk.lk-call  { background: var(--accent); }
+.flow-legend .lk.lk-event { background: var(--pink); }
+.flow-legend .lk.lk-save  { background: var(--ue-savegame); }
+.flow-legend .lk.lk-table { background: var(--accent-3); }
+
+.flow-hub { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: center; margin: 16px 0; }
+.fh-col { display: flex; flex-direction: column; gap: 10px; }
+.fh-node { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; border-left: 3px solid var(--text-dim); }
+.fh-node.n-subsystem { border-left-color: var(--ue-subsystem); }
+.fh-node.n-savegame  { border-left-color: var(--ue-savegame); }
+.fh-node.n-instance  { border-left-color: var(--ue-instance); }
+.fh-node.n-table     { border-left-color: var(--accent-3); }
+.fh-node.n-ui        { border-left-color: var(--ue-gamestate); }
+.fh-node.n-db        { border-left-color: var(--ue-mat); }  /* SQLite DB [v1.8] */
+.fh-node .fn-name { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.fh-node .fn-role { font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.45; }
+.fh-links { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+.fh-link { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 3px; border: 1px solid; white-space: nowrap; }
+.fh-link.lk-call  { color: var(--accent);      border-color: rgba(91,110,250,0.45);  background: rgba(91,110,250,0.08); }
+.fh-link.lk-event { color: var(--pink);        border-color: rgba(224,64,251,0.45);  background: rgba(224,64,251,0.08); }
+.fh-link.lk-save  { color: var(--ue-savegame); border-color: rgba(245,158,11,0.45);  background: rgba(245,158,11,0.08); }
+.fh-link.lk-table { color: var(--accent-3);    border-color: rgba(56,217,180,0.45);  background: rgba(56,217,180,0.08); }
+.fh-hub { background: var(--surface-2); border: 1px solid var(--accent); border-radius: 10px; padding: 16px 18px; text-align: center; min-width: 190px; box-shadow: 0 0 0 3px rgba(91,110,250,0.10); }
+.fh-hub .fn-name { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: var(--text); }
+.fh-hub .fn-role { font-size: 11px; color: var(--text-muted); margin-top: 3px; line-height: 1.5; }
+
+/* ============================================================
+   LANE-SEQ — 변수 여정 시퀀스  [v1.4 신규]
+   변수 하나가 "어느 파일의 어느 함수"를 거쳐 어떻게 변하는지 단계로 추적.
+   .ls-file 칩 = 그 단계가 일어나는 파일(레인), .ls-var = 변수 변화 표기.
+   파일 칩 색: .h=teal · .cpp=orange · SaveGame=amber · DataTable=indigo
+   ============================================================ */
+.lane-seq { display: flex; flex-direction: column; margin: 16px 0; }
+.ls-step { position: relative; padding: 0 0 22px 28px; }
+.ls-step::before { content: ''; position: absolute; left: 6px; top: 20px; bottom: -2px; width: 2px; background: var(--border); }
+.ls-step:last-child::before { display: none; }
+.ls-step:last-child { padding-bottom: 0; }
+.ls-step::after { content: ''; position: absolute; left: 1px; top: 7px; width: 8px; height: 8px; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--accent); }
+.ls-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 5px; }
+.ls-file { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 3px; background: rgba(56,217,180,0.13); color: var(--ue-header); }
+.ls-file.cpp   { background: rgba(251,140,90,0.13); color: var(--ue-source); }
+.ls-file.save  { background: rgba(245,158,11,0.13); color: var(--ue-savegame); }
+.ls-file.table { background: rgba(91,110,250,0.13); color: var(--accent); }
+.ls-file.db    { background: rgba(251,140,90,0.13); color: var(--ue-mat); }  /* SQLite DB [v1.8] */
+.ls-title { font-size: 13.5px; font-weight: 700; color: var(--text); }
+.ls-fn { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-muted); }
+.ls-var { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--accent-3); background: var(--surface-2); border: 1px solid var(--border); border-radius: 5px; padding: 4px 10px; display: inline-block; margin: 3px 0 5px; }
+.ls-desc { font-size: 12.5px; color: var(--text-muted); line-height: 1.65; }
+
+/* ============================================================
+   DIAGRAM — 구워넣은 SVG 다이어그램 (Mermaid 스타일)  [v1.5 신규]
+   생성 시점에 렌더링된 inline SVG를 담는다. 런타임 렌더링 스크립트 금지.
+   Mermaid 소스는 .codeblock 단일 탭(*.mmd)으로 병기한다(옵시디언 재사용).
+   SVG 내부는 아래 클래스만 사용: 노드 .dg-node(+종류 k-*),
+   텍스트 .dg-text/.dg-sub, 엣지 .dg-edge(+연결 lk-*), 엣지 라벨 .dg-elabel
+   ============================================================ */
+.diagram { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin: 16px 0; overflow-x: auto; }
+.diagram svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.diagram .dg-node { fill: var(--surface-2); stroke: var(--border); stroke-width: 1.3; }
+.diagram .dg-node.k-subsystem { stroke: var(--ue-subsystem); }
+.diagram .dg-node.k-savegame  { stroke: var(--ue-savegame); }
+.diagram .dg-node.k-instance  { stroke: var(--ue-instance); }
+.diagram .dg-node.k-table     { stroke: var(--accent-3); }
+.diagram .dg-node.k-ui        { stroke: var(--ue-gamestate); }
+.diagram .dg-node.k-config    { stroke: var(--ue-demo); }
+.diagram .dg-node.k-decision  { stroke: var(--accent); fill: rgba(91,110,250,0.07); }
+.diagram .dg-text { fill: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; }
+.diagram .dg-sub { fill: var(--text-muted); font-family: 'Pretendard', sans-serif; font-size: 10.5px; }
+.diagram .dg-edge { stroke: var(--text-dim); stroke-width: 1.5; fill: none; }
+.diagram .dg-edge.lk-call  { stroke: var(--accent); }
+.diagram .dg-edge.lk-event { stroke: var(--pink); stroke-dasharray: 5 4; }
+.diagram .dg-edge.lk-save  { stroke: var(--ue-savegame); }
+.diagram .dg-edge.lk-table { stroke: var(--accent-3); }
+.diagram .dg-elabel { fill: var(--text-muted); font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; }
+
+/* ============================================================
+   GRAPH-NET — 옵시디언 그래프 뷰 스타일 관계망  [v1.5 신규]
+   파일/시스템을 별자리처럼 잇는 정적 SVG. 노드 크기 = 연결 수,
+   노드 색 = 타입(k-*), 엣지 색 = 연결 유형(lk-*, .flow-legend와 동일 의미).
+   ============================================================ */
+.graph-net { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin: 16px 0; overflow-x: auto; }
+.graph-net svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.graph-net .gn-edge { stroke: var(--text-dim); stroke-opacity: 0.4; stroke-width: 1.2; fill: none; }
+.graph-net .gn-edge.lk-call  { stroke: var(--accent); stroke-opacity: 0.55; }
+.graph-net .gn-edge.lk-event { stroke: var(--pink); stroke-opacity: 0.55; stroke-dasharray: 4 4; }
+.graph-net .gn-edge.lk-save  { stroke: var(--ue-savegame); stroke-opacity: 0.5; }
+.graph-net .gn-edge.lk-table { stroke: var(--accent-3); stroke-opacity: 0.55; }
+.graph-net .gn-node { stroke-width: 1.6; }
+.graph-net .gn-node.k-subsystem { fill: rgba(224,64,251,0.16);  stroke: var(--ue-subsystem); }
+.graph-net .gn-node.k-savegame  { fill: rgba(245,158,11,0.16);  stroke: var(--ue-savegame); }
+.graph-net .gn-node.k-instance  { fill: rgba(155,109,255,0.16); stroke: var(--ue-instance); }
+.graph-net .gn-node.k-table     { fill: rgba(56,217,180,0.14);  stroke: var(--accent-3); }
+.graph-net .gn-node.k-ui        { fill: rgba(123,156,255,0.14); stroke: var(--ue-gamestate); }
+.graph-net .gn-node.k-config    { fill: rgba(107,217,142,0.14); stroke: var(--ue-demo); }
+.graph-net .gn-label { fill: var(--text-muted); font-family: 'IBM Plex Mono', monospace; font-size: 10px; text-anchor: middle; }
+.graph-net .gn-label.big { fill: var(--text); font-size: 11px; font-weight: 600; }
+
+/* ============================================================
+   BP-GRAPH — 블루프린트 노드 그래프 (UE 에디터 재현)  [v1.6 신규]
+   블루프린트 에디터의 노드·핀·와이어를 생성 시점 SVG로 구워넣는다
+   (.diagram과 동일 철학 — 런타임 렌더링 스크립트 금지).
+
+   사용 규칙
+   - 제목 바 그라데이션(bpg-event/call/pure/flow/cast)·격자 패턴(bpg-grid/grid80)·
+     그림자(bpg-shadow)는 SVG <defs> 표준 블록을 각 SVG에 포함해 쓴다
+     (master-visual 09 데모의 defs를 그대로 복사). 제목 바 fill은
+     CSS가 아니라 fill="url(#bpg-…)" 속성으로 지정한다(그라데이션이 CSS 클래스에
+     덮이지 않게 하기 위함).
+   - 노드 종류(제목 바 색): 이벤트=빨강 · 함수 호출/인터페이스 메시지=파랑 ·
+     순수 함수=초록(실행 핀 없음) · 흐름 제어=회색 · 캐스트=청록.
+   - 핀: 실행 핀 ▷(.bpp-exec) · 데이터 핀 ●(.bpp-pin + t-* 타입 색).
+     미연결 핀은 .off(외곽선만). 와이어(.bpw)는 실행=.exec(흰색·굵게),
+     데이터=핀과 같은 t-* 색.
+   - 변수 Get/Set 캡슐: .bpn-body에 rx=15 + 좌측 타입 색 스트립(rect)로 표현.
+   ============================================================ */
+.bp-graph { background: var(--bp-canvas); border: 1px solid var(--border); border-radius: 10px; margin: 16px 0; overflow-x: auto; }
+.bp-graph svg { display: block; max-width: 100%; height: auto; margin: 0 auto; min-width: 560px; }
+.bp-graph .bpn-body { fill: var(--bp-node); fill-opacity: 0.97; stroke: #050505; }
+.bp-graph .bpn-name { fill: #F4F4F4; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; font-weight: 600; }
+.bp-graph .bpn-sub  { fill: #B9D2EA; font-family: 'Pretendard', 'Noto Sans KR', sans-serif; font-size: 8.5px; }
+.bp-graph .bpn-icon { fill: #EDEDED; font-size: 11px; }
+.bp-graph .bpn-chip { fill: #101113; stroke: #3A3C40; }
+.bp-graph .bpn-chip-text { fill: #D8D8D8; font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; }
+.bp-graph .bpp-exec { fill: var(--bp-exec); }
+.bp-graph .bpp-pin { stroke-width: 1.6; }
+.bp-graph .bpp-pin.t-bool   { fill: var(--bp-bool);   stroke: var(--bp-bool); }
+.bp-graph .bpp-pin.t-float  { fill: var(--bp-float);  stroke: var(--bp-float); }
+.bp-graph .bpp-pin.t-int    { fill: var(--bp-int);    stroke: var(--bp-int); }
+.bp-graph .bpp-pin.t-string { fill: var(--bp-string); stroke: var(--bp-string); }
+.bp-graph .bpp-pin.t-vector { fill: var(--bp-vector); stroke: var(--bp-vector); }
+.bp-graph .bpp-pin.t-object { fill: var(--bp-object); stroke: var(--bp-object); }
+.bp-graph .bpp-pin.t-class  { fill: var(--bp-class);  stroke: var(--bp-class); }
+/* 미연결 핀 — 외곽선만 (t-* 뒤에 선언해 fill을 이긴다) */
+.bp-graph .bpp-pin.off  { fill: none; }
+.bp-graph .bpp-exec.off { fill: none; stroke: var(--bp-exec); stroke-width: 1.4; }
+.bp-graph .bpp-label { fill: #C9C9C9; font-family: 'IBM Plex Mono', monospace; font-size: 10px; }
+.bp-graph .bpw { fill: none; stroke-width: 1.8; }
+.bp-graph .bpw.exec     { stroke: var(--bp-exec); stroke-width: 2.2; }
+.bp-graph .bpw.t-bool   { stroke: var(--bp-bool); }
+.bp-graph .bpw.t-float  { stroke: var(--bp-float); }
+.bp-graph .bpw.t-int    { stroke: var(--bp-int); }
+.bp-graph .bpw.t-string { stroke: var(--bp-string); }
+.bp-graph .bpw.t-vector { stroke: var(--bp-vector); }
+.bp-graph .bpw.t-object { stroke: var(--bp-object); }
+.bp-graph .bpw.t-class  { stroke: var(--bp-class); }
+.bp-graph .bpg-caption { fill: #8B8F94; font-family: 'Pretendard', 'Noto Sans KR', sans-serif; font-size: 12px; }
+
+/* ============================================================
+   CHECKLIST — 인터랙티브 진행률 체크리스트  [v1.7 신규]
+   "따라 하며 하나씩 완료를 체크"하는 실습형(따라하기) 문서용 컴포넌트.
+   단계 헤더를 클릭(또는 Enter/Space)하면 완료(.done)를 토글하고, 상단 진행률
+   바가 완료 수를 즉시 반영한다. 완료 상태는 로컬·비영속(새로고침 시 초기화).
+   구조:
+     .checklist
+       .check-prog  ( .check-bar > .check-fill  +  .check-count )
+       .check-step(.done)
+         .check-head  ( .check-tick > .tk-num  +  div > .check-title / .check-why )
+         .check-body  ( 본문·codeblock·callout 등 — .check-head 밖이라 클릭이 토글 안 됨 )
+   색은 기존 팔레트만 재사용: 완료 체크=accent-3, 진행 바=accent.
+   ============================================================ */
+.checklist { margin: 20px 0; }
+.check-prog { display: flex; align-items: center; gap: 16px; padding: 13px 16px; margin-bottom: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; }
+.check-bar { flex: 1; min-width: 120px; height: 4px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.check-fill { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 3px; transition: width 0.3s ease; }
+.check-count { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.check-count b { color: var(--accent); font-weight: 600; }
+.check-step { border: 1px solid var(--border); border-radius: 8px; background: var(--surface); margin-bottom: 10px; overflow: hidden; }
+.check-step.done { border-color: rgba(56,217,180,0.35); }
+.check-head { display: flex; gap: 14px; align-items: flex-start; padding: 15px 18px; cursor: pointer; user-select: none; }
+.check-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 8px; }
+.check-tick { flex: none; width: 26px; height: 26px; border: 2px solid var(--border); border-radius: 50%; display: grid; place-items: center; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text-dim); background: var(--surface-2); transition: background 0.18s, border-color 0.18s, color 0.18s; margin-top: 1px; }
+.check-step.done .check-tick { background: var(--accent-3); border-color: var(--accent-3); color: var(--bg); }
+.check-step.done .check-tick .tk-num { display: none; }
+.check-step.done .check-tick::after { content: '✓'; font-size: 14px; font-weight: 700; }
+.check-title { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: 0.01em; }
+.check-step.done .check-title { color: var(--text-muted); text-decoration: line-through; text-decoration-color: var(--text-dim); }
+.check-why { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-dim); margin-top: 3px; line-height: 1.5; }
+.check-body { padding: 0 18px 18px 58px; }
+.check-body > *:first-child { margin-top: 0; }
+
+@media (max-width: 720px) {
+  .content { padding: 0 20px 60px; }
+  /* [v1.9] 좁은 폭에서 넓은 표는 body 대신 자기 상자 안에서 가로 스크롤 */
+  .tbl { display: block; overflow-x: auto; }
+  .hero { padding: 48px 20px 40px; }
+  .swatch-grid { grid-template-columns: 1fr 1fr; }
+  .stat-row, .stat-row-4, .dd-grid, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .arch { grid-template-columns: 1fr; }
+  .arch-arrow { transform: rotate(90deg); padding: 4px 0; }
+  .rel-row { grid-template-columns: 1fr; text-align: left; }
+  .rel-arrow { flex-direction: row; gap: 8px; min-width: 0; padding: 2px 0; }
+  .rel-arrow .ra-line { transform: rotate(90deg); }
+  .type-row { flex-direction: column; gap: 6px; }
+  .type-spec { min-width: 0; }
+  /* [v1.4] 데이터 설계 지도 컴포넌트 폴백 */
+  .var-card .vc-var { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+  .vc-var .vv-note { width: 100%; }
+  .flow-hub { grid-template-columns: 1fr; }
+  .fh-hub { min-width: 0; }
+  .ls-step { padding-left: 24px; }
+  /* [v1.7] 체크리스트 본문 좌패딩 폴백 */
+  .check-body { padding-left: 18px; }
+  nav { padding: 0 16px; gap: 16px; }
+  .nav-links { display: none; }
+  footer { padding: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+</style>
+</head>
+
+<body>
+
+<nav>
+  <div class="nav-logo">RECORDTALES V2 &middot; GUILD</div>
+  <div class="nav-links">
+    <a href="#scope">범위</a>
+    <a href="#decision">설계 결정</a>
+    <a href="#steps">따라하기</a>
+    <a href="#verify">검증</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">RecordTales V2 &middot; Doc 12 &middot; Guild Subsystem</div>
+  <h1>길드 시스템<br><span>guilds 테이블 + 2축 카테고리 + Secured</span></h1>
+  <p class="hero-sub">
+    세 번째 배관 — <strong>길드</strong>(이름·대분류 카테고리·활동 시간·소프트 삭제)와 <strong>계정 공유 소분류 풀</strong>(<code>archive_categories</code>)을 <code>Archive.db</code>에 얹습니다. <code>GuildSubsystem</code>으로 생성·목록·<strong>2축 카테고리 필터</strong>·시간 적립(레벨 파생)·Secured 보호까지 잇고, 카테고리 이름 변경에서 <strong>시리즈 첫 실전 다중 테이블 트랜잭션</strong>을 경험합니다.
+  </p>
+  <div class="hero-meta">
+    <span class="badge badge-blue">AUTOINCREMENT 발급</span>
+    <span class="badge badge-green">2축 카테고리 필터</span>
+    <span class="badge badge-purple">따라하기 8단계</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- ===== 01 범위 ===== -->
+  <div class="section" id="scope">
+    <div class="section-label">01 — 요구사항 / 범위</div>
+    <h2>무엇이 되면 성공인가</h2>
+    <table class="tbl">
+      <tr><th>목표</th><th>확인 방법</th></tr>
+      <tr><td>① 길드가 <strong>만들어지고 남는다</strong> — 이름·대분류·생성 시각, 껐다 켜도 유지</td><td>재시작 후 Get Guilds / DB Browser</td></tr>
+      <tr><td>② <strong>2축 필터</strong>가 된다 — 대분류(길드)로도, 소분류(기록 태그)로도 검색</td><td>4단계 SQL을 DB Browser에서 실행</td></tr>
+      <tr><td>③ 소분류 풀을 <strong>관리</strong>한다 — 빈 카테고리 추가·이름 변경(트랜잭션)</td><td>5단계 후 두 테이블 동시 변경 확인</td></tr>
+      <tr><td>④ 길드 레벨이 <strong>파생</strong>된다 — 시간 적립 → ÷3600</td><td><code>GetGuildLevel()</code> 값 확인</td></tr>
+      <tr><td>⑤ 위조가 <strong>무효</strong>가 된다 — 시간 수정·블롭 스왑 모두 게임이 거부/복원</td><td>검증 섹션의 치트 시뮬레이션 2종</td></tr>
+    </table>
+
+    <h3>🚀 이 문서로 작업 시작하기</h3>
+    <div class="callout info"><span class="ic">🧭</span><p><strong>전제 조건</strong> — <strong>11 완료</strong>: 문지기 <code>UDatabaseSubsystem</code>이 DB를 열고, <code>RTSecured</code>(봉인/개봉)가 존재하는 상태. C++ 공통 절차는 위키 『C++ 클래스 생성 · 빌드 워크플로우』.</p></div>
+    <table class="tbl">
+      <tr><th>만들 파일</th><th>부모 클래스 (위저드 검색어)</th><th>비고</th></tr>
+      <tr><td><code>GuildSubsystem.h / .cpp</code></td><td><strong>GameInstanceSubsystem</strong></td><td>guilds·archive_categories의 쓰기 주인</td></tr>
+      <tr><td><code>DatabaseSubsystem.cpp</code></td><td>—</td><td><strong>새 파일 아님</strong> — <code>CreateTables()</code>에 테이블 2종 추가(1단계)</td></tr>
+      <tr><td><code>RTSecured.h / .cpp</code></td><td>—</td><td><strong>새 파일 아님</strong> — 길드 시간 봉인 함수 2개 추가(6단계)</td></tr>
+      <tr><td><code>RTTypes.h</code></td><td>—</td><td><strong>새 파일 아님</strong> — <code>FGuildData</code>를 새 스키마(단수 Category 등)로 갱신(2단계)</td></tr>
+    </table>
+    <div class="callout tip"><span class="ic">💡</span><p><strong>코드 외 작업</strong> — <strong>없음.</strong> 플러그인·Build.cs·DB Browser 모두 09~11 그대로입니다.</p></div>
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>컴파일 주의</strong> — 새 헤더 1쌍(GuildSubsystem)이 생기므로 <strong>Live Coding 불가</strong>: 에디터 종료 → IDE 빌드 → 재실행. 이후 <code>.cpp</code> 내부 수정은 Live Coding 가능.</div></div>
+  </div>
+
+  <!-- ===== 02 설계 결정 ===== -->
+  <div class="section" id="decision">
+    <div class="section-label">02 — 설계 결정</div>
+    <h2>왜 이렇게 만드나</h2>
+
+    <h3>카테고리 2축 모델 — 대분류는 길드에, 소분류는 계정에</h3>
+    <p>카테고리가 <strong>두 축</strong>으로 나뉩니다. <strong>대분류</strong>(<code>guilds.Category</code>)는 길드의 속성으로 <strong>길드당 1개</strong>(길드 간 중복 허용), <strong>소분류</strong>(<code>Archive_Category</code>)는 <strong>모든 길드가 공유</strong>하는 계정 풀로 기록마다 태그됩니다.</p>
+    <table class="tbl">
+      <tr><th>예시</th><th>대분류 (guilds.Category)</th><th>소분류 태그 가능</th></tr>
+      <tr><td>A 길드</td><td>캐릭터</td><td rowspan="3">'애니메이션' 등 — <strong>공유 풀에서 어느 길드든 사용</strong></td></tr>
+      <tr><td>B 길드</td><td>배경</td></tr>
+      <tr><td>C 길드</td><td>캐릭터 <span style="color:var(--text-dim)">(A와 중복 OK)</span></td></tr>
+    </table>
+    <p style="margin-top:8px">필터 "<strong>캐릭터</strong>"(대분류) → A·C 길드의 기록. 필터 "<strong>애니메이션</strong>"(소분류) → A·B·C 전체의 해당 기록. 이후 <strong>필터 UI가 어느 축으로 검색할지 상세 구분·조합</strong>할 예정이므로, 4단계의 조회 SQL을 축별 조각으로 조립할 수 있게 설계합니다.</p>
+
+    <h3>GuildId 발급 — 왜 AUTOINCREMENT인가 (상세)</h3>
+    <p>SQLite에서 <code>INTEGER PRIMARY KEY</code>와 <code>INTEGER PRIMARY KEY <strong>AUTOINCREMENT</strong></code>는 비슷해 보이지만 <strong>번호 재사용 규칙이 다릅니다.</strong></p>
+    <table class="tbl">
+      <tr><th>구분</th><th>INTEGER PRIMARY KEY (일반)</th><th>+ AUTOINCREMENT</th></tr>
+      <tr><td>번호 발급</td><td>현재 존재하는 최대 rowid + 1</td><td><strong>역대</strong> 최대값 + 1 (<code>sqlite_sequence</code> 테이블에 기록)</td></tr>
+      <tr><td>행 삭제 후</td><td>⚠️ 마지막 행을 지우면 <strong>그 번호가 재사용될 수 있음</strong></td><td>✅ 지워도 <strong>영구히 재사용 안 됨</strong>(단조 증가)</td></tr>
+      <tr><td>비용</td><td>—</td><td><code>sqlite_sequence</code> 1행 관리 — 이 규모에선 무시 가능</td></tr>
+    </table>
+    <p>왜 재사용 금지가 중요한가 — <code>archives</code>의 모든 기록이 <code>GuildId</code>로 태그되고 기록 ID 접미사에도 길드번호가 박힙니다(07 문서). 길드를 <strong>완전 삭제(Purge)</strong>한 뒤 그 번호가 새 길드에 재발급되면, <strong>과거 기록이 남의 길드 것으로 오인</strong>됩니다. AUTOINCREMENT는 이 금지를 코드가 아니라 <strong>DB 엔진이 보장</strong>하게 합니다.</p>
+    <div class="callout tip" style="margin-top:8px"><span class="ic">💡</span><p><strong>부수 효과 두 가지.</strong> ① 기존 설계의 <code>player.NextGuildId</code> 카운터는 <strong>미사용</strong>이 됩니다 — GuildSubsystem이 Economy에 번호를 빌리러 갈 필요가 없어져 결합이 사라집니다(05 개정 반영). ② DB Browser에 <code>sqlite_sequence</code>라는 테이블이 새로 보이는데, 이건 AUTOINCREMENT의 장부입니다 — <strong>지우면 번호가 되감겨 재사용 금지가 깨지니 절대 삭제 금지.</strong></p></div>
+
+    <h3>나머지 결정</h3>
+    <table class="tbl">
+      <tr><th>결정</th><th>내용</th><th>근거</th></tr>
+      <tr><td>소분류 풀 테이블 채택</td><td><code>archive_categories</code>(계정 공유 목록) 신설 — 기록은 지금처럼 <code>archives.Category</code>에 이름 태그</td><td><strong>빈 카테고리</strong>(기록 없이 미리 생성)를 목록에 보이게 + 이름 변경·속성(정렬 등) 확장 대비(사용자 결정)</td></tr>
+      <tr><td>guilds 쓰기 주인</td><td><span class="owner o-subsystem">GuildSubsystem</span> — 이름·카테고리·시간·소프트 삭제 전부</td><td>테이블당 주인 하나. 기존 지도(10)의 "길드 XP 주인=Economy"를 이관(Economy는 <code>player</code>만)</td></tr>
+      <tr><td>길드 레벨은 저장 안 함</td><td><code>레벨 = FocusSeconds / 3600</code> 파생</td><td>정직한 레벨. 단 <code>FocusSeconds</code> 자체는 저장 — <strong>기록을 소프트 삭제해도 레벨은 유지</strong>되어야 하므로 기록 합계로 파생하지 않는다</td></tr>
+      <tr><td>Secured = 길드당 1블롭 + <strong>GuildId 포함</strong></td><td>봉인 페이로드에 <code>GuildId</code>를 같이 넣음</td><td>시간만 봉인하면 <strong>다른 길드 행의 블롭을 복사(스왑)</strong>하는 치트가 통함 — GuildId 불일치로 거부(6단계)</td></tr>
+      <tr><td>시각은 UTC</td><td><code>CreatedAt</code>·<code>DeletedAt</code> = ISO8601 UTC</td><td>시간대·서머타임에 흔들리지 않는 정렬·비교(위키 『신뢰 시간』 참조)</td></tr>
+    </table>
+  </div>
+
+  <!-- ===== 03 따라하기 ===== -->
+  <div class="section" id="steps">
+    <div class="section-label">03 — 따라하기</div>
+    <h2>8단계 — 테이블 추가에서 스왑 방어까지</h2>
+    <p>09~11처럼 위에서부터 순서대로. 각 단계 제목을 클릭하면 완료 체크됩니다.</p>
+
+    <div class="checklist">
+      <div class="check-prog">
+        <div class="check-bar"><span class="check-fill"></span></div>
+        <div class="check-count"><b>0</b> / 8 단계</div>
+      </div>
+
+      <!-- 1 -->
+      <div class="check-step">
+        <div class="check-head" tabindex="0" role="button" aria-pressed="false">
+          <div class="check-tick"><span class="tk-num">1</span></div>
+          <div><div class="check-title">문지기에 테이블 2종 추가</div><div class="check-why">guilds(AUTOINCREMENT) + archive_categories(공유 풀)</div></div>
+        </div>
+        <div class="check-body">
+          <p>11에서 만든 문지기의 <code>CreateTables()</code>에 이어 붙입니다(<code>player</code> 생성 다음 줄).</p>
+          <div class="codeblock">
+            <div class="codeblock-bar">
+              <button class="codeblock-tab tab-cpp active" type="button">DatabaseSubsystem.cpp — CreateTables에 추가</button>
+              <button class="codeblock-copy" type="button">복사</button>
+            </div>
+            <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// ③ guilds — 길드(길드당 1행). AUTOINCREMENT: 삭제해도 GuildId 영구 미재사용(02 설계 결정 상세)</span>
+Database.<span class="hljs-title">Execute</span>(<span class="hljs-built_in">TEXT</span>(
+    <span class="hljs-string">"CREATE TABLE IF NOT EXISTS guilds ("</span>
+    <span class="hljs-string">"  GuildId      INTEGER PRIMARY KEY AUTOINCREMENT,"</span>  <span class="hljs-comment">// 재사용 금지를 엔진이 보장</span>
+    <span class="hljs-string">"  GuildName    TEXT    NOT NULL,"</span>
+    <span class="hljs-string">"  Category     TEXT,"</span>                                <span class="hljs-comment">// 대분류 1개(길드 간 중복 허용)</span>
+    <span class="hljs-string">"  FocusSeconds INTEGER NOT NULL DEFAULT 0,"</span>          <span class="hljs-comment">// 누적 활동 초 → 레벨=÷3600 파생</span>
+    <span class="hljs-string">"  CreatedAt    TEXT    NOT NULL,"</span>                    <span class="hljs-comment">// 생성 시각(ISO8601 UTC)</span>
+    <span class="hljs-string">"  SortOrder    INTEGER NOT NULL DEFAULT 0,"</span>          <span class="hljs-comment">// UI 정렬 순서</span>
+    <span class="hljs-string">"  Icon         TEXT,"</span>                                <span class="hljs-comment">// UI 아이콘 식별자</span>
+    <span class="hljs-string">"  DeletedAt    TEXT,"</span>                                <span class="hljs-comment">// 소프트 삭제(NULL=살아있음)</span>
+    <span class="hljs-string">"  Secured      BLOB"</span>                                 <span class="hljs-comment">// GuildId+FocusSeconds 봉인(6단계)</span>
+    <span class="hljs-string">");"</span>));
+
+<span class="hljs-comment">// ④ archive_categories — 소분류(계정 공유 풀). 이름 자체가 키:</span>
+<span class="hljs-comment">//    기록(archives.Category)이 이름 문자열로 태그하므로 그대로 조인·비교 가능</span>
+Database.<span class="hljs-title">Execute</span>(<span class="hljs-built_in">TEXT</span>(
+    <span class="hljs-string">"CREATE TABLE IF NOT EXISTS archive_categories ("</span>
+    <span class="hljs-string">"  Name      TEXT PRIMARY KEY,"</span>       <span class="hljs-comment">// 카테고리 이름(중복 자동 차단)</span>
+    <span class="hljs-string">"  CreatedAt TEXT NOT NULL,"</span>
+    <span class="hljs-string">"  SortOrder INTEGER NOT NULL DEFAULT 0"</span>  <span class="hljs-comment">// 목록 표시 순서(향후 관리 UI 대비)</span>
+    <span class="hljs-string">");"</span>));</pre></div>
+          </div>
+          <div class="callout tip" style="margin-top:8px"><span class="ic">💡</span><p>실행 후 DB Browser에 <code>sqlite_sequence</code> 테이블이 새로 생깁니다 — AUTOINCREMENT의 번호 장부(정상)이며 <strong>삭제 금지</strong>입니다(02 참조).</p></div>
+        </div>
+      </div>
+
+      <!-- 2 -->
+      <div class="check-step">
+        <div class="check-head" tabindex="0" role="button" aria-pressed="false">
+          <div class="check-tick"><span class="tk-num">2</span></div>
+          <div><div class="check-title">FGuildData 갱신 + GuildSubsystem 뼈대</div><div class="check-why">단수 Category 스키마 반영 · 문지기 의존은 이제 관례</div></div>
+        </div>
+        <div class="check-body">
+          <p>먼저 <code>RTTypes.h</code>의 <code>FGuildData</code>를 새 스키마로 갱신합니다(기존 <code>Categories</code> 배열 → 단수 <code>Category</code> — 2축 모델 확정에 따름). 그다음 <code>GuildSubsystem</code>을 생성합니다.</p>
+          <div class="codeblock">
+            <div class="codeblock-bar">
+              <button class="codeblock-tab tab-h active" type="button">RTTypes.h — FGuildData 교체</button>
+              <button class="codeblock-tab tab-h" type="button">GuildSubsystem.h</button>
+              <button class="codeblock-tab tab-cpp" type="button">GuildSubsystem.cpp — Initialize</button>
+              <button class="codeblock-copy" type="button">복사</button>
+            </div>
+            <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 길드 하나 — guilds 1행의 메모리 캐시. 캐릭터·Gold는 여기 없음(계정 공유)</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-type">FGuildData</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> GuildId = <span class="hljs-number">0</span>;        <span class="hljs-comment">// AUTOINCREMENT 발급(재사용 없음)</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> GuildName;
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> Category;         <span class="hljs-comment">// 대분류 1개(길드 간 중복 허용) — 구 Categories 배열 대체</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> FocusSeconds = <span class="hljs-number">0</span>;   <span class="hljs-comment">// 레벨의 원천(기록 삭제와 무관하게 유지)</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FDateTime</span> CreatedAt;       <span class="hljs-comment">// UTC</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> SortOrder = <span class="hljs-number">0</span>;      <span class="hljs-comment">// UI 정렬</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> Icon;              <span class="hljs-comment">// UI 아이콘 식별자</span>
+
+    <span class="hljs-type">int32</span> <span class="hljs-title">GetLevel</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> FocusSeconds / <span class="hljs-number">3600</span>; } <span class="hljs-comment">// 60분=1레벨(저장 안 함)</span>
+};</pre></div>
+            <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
+<span class="hljs-meta">#include</span> <span class="hljs-meta"><span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span></span>
+<span class="hljs-meta">#include</span> <span class="hljs-meta"><span class="hljs-string">"RTTypes.h"</span></span>                   <span class="hljs-comment">// FGuildData</span>
+<span class="hljs-meta">#include</span> <span class="hljs-meta"><span class="hljs-string">"GuildSubsystem.generated.h"</span></span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-type">FSQLiteDatabase</span>;
+
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> <span class="hljs-type">UGuildSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection) <span class="hljs-keyword">override</span>;
+
+    <span class="hljs-comment">// 길드 생성 — 새 GuildId 반환(실패 시 -1). Category = 대분류(중복 허용)</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-type">int32</span> <span class="hljs-title">CreateGuild</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Name, <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Category);
+    <span class="hljs-comment">// 살아있는 길드 목록(SortOrder 정렬) — 캐시 반환</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintPure)</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FGuildData</span>&gt; <span class="hljs-title">GetGuilds</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> Guilds; }
+
+    <span class="hljs-comment">// 시간 적립(세션 종료 시 Focus 쪽에서 호출) + 레벨 파생 조회</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">AddFocusSeconds</span>(<span class="hljs-type">int32</span> GuildId, <span class="hljs-type">int32</span> Seconds);
+    <span class="hljs-meta">UFUNCTION(BlueprintPure)</span> <span class="hljs-type">int32</span> <span class="hljs-title">GetGuildLevel</span>(<span class="hljs-type">int32</span> GuildId) <span class="hljs-keyword">const</span>;
+
+    <span class="hljs-comment">// 소프트 삭제 / 복원 — 행은 남기고 DeletedAt만(07 문서 규약)</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">SoftDeleteGuild</span>(<span class="hljs-type">int32</span> GuildId);
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">RestoreGuild</span>(<span class="hljs-type">int32</span> GuildId);
+
+    <span class="hljs-comment">// 소분류(계정 공유 풀) 관리</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">AddArchiveCategory</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Name);
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">RenameArchiveCategory</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; OldName, <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; NewName);
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FString</span>&gt; <span class="hljs-title">GetArchiveCategories</span>() <span class="hljs-keyword">const</span>;
+
+<span class="hljs-keyword">private</span>:
+    <span class="hljs-keyword">void</span> <span class="hljs-title">LoadGuilds</span>();                <span class="hljs-comment">// 시작 시 1회 — SELECT + Secured 검증·복원(6단계)</span>
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FGuildData</span>&gt; Guilds;      <span class="hljs-comment">// 메모리 캐시(RUNTIME) — 진실은 DB</span>
+    <span class="hljs-type">FSQLiteDatabase</span>* Db = <span class="hljs-literal">nullptr</span>;   <span class="hljs-comment">// 문지기에게 빌린 핸들</span>
+};</pre></div>
+            <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include</span> <span class="hljs-meta"><span class="hljs-string">"GuildSubsystem.h"</span></span>
+<span class="hljs-meta">#include</span> <span class="hljs-meta"><span class="hljs-string">"DatabaseSubsystem.h"</span></span>
+<span class="hljs-meta">#include</span> <span class="hljs-meta"><span class="hljs-string">"SQLiteDatabase.h"</span></span>
+<span class="hljs-meta">#include</span> <span class="hljs-meta"><span class="hljs-string">"SQLitePreparedStatement.h"</span></span>
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UGuildSubsystem</span>::<span class="hljs-title">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection)
+{
+    Super::<span class="hljs-title">Initialize</span>(Collection);
+    <span class="hljs-comment">// 문지기 먼저 — 11의 Economy·Archive와 완전히 같은 관례(대칭이 곧 구조의 힘)</span>
+    <span class="hljs-type">UDatabaseSubsystem</span>* Gate = Collection.InitializeDependency&lt;<span class="hljs-type">UDatabaseSubsystem</span>&gt;();
+    Db = Gate ? Gate-&gt;<span class="hljs-title">GetDb</span>() : <span class="hljs-literal">nullptr</span>;
+    <span class="hljs-keyword">if</span> (Db &amp;&amp; Db-&gt;<span class="hljs-title">IsValid</span>()) <span class="hljs-title">LoadGuilds</span>();
+}</pre></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3 -->
+      <div class="check-step">
+        <div class="check-head" tabindex="0" role="button" aria-pressed="false">
+          <div class="check-tick"><span class="tk-num">3</span></div>
+          <div><div class="check-title">CreateGuild + 목록 로드</div><div class="check-why">INSERT → 엔진이 준 새 번호 받기(GetLastInsertRowId)</div></div>
+        </div>
+        <div class="check-body">
+          <div class="codeblock">
+            <div class="codeblock-bar">
+              <button class="codeblock-tab tab-cpp active" type="button">GuildSubsystem.cpp — 생성·로드</button>
+              <button class="codeblock-copy" type="button">복사</button>
+            </div>
+            <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-type">int32</span> <span class="hljs-type">UGuildSubsystem</span>::<span class="hljs-title">CreateGuild</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Name, <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Category)
+{
+    <span class="hljs-keyword">if</span> (!Db || !Db-&gt;<span class="hljs-title">IsValid</span>() || Name.<span class="hljs-title">IsEmpty</span>()) <span class="hljs-keyword">return</span> -<span class="hljs-number">1</span>;
+
+    <span class="hljs-type">FSQLitePreparedStatement</span> Stmt;
+    <span class="hljs-comment">// GuildId는 넣지 않는다 — AUTOINCREMENT가 발급(넣으면 엔진 보장을 스스로 깨는 셈)</span>
+    Stmt.<span class="hljs-title">Create</span>(*Db, <span class="hljs-built_in">TEXT</span>(
+        <span class="hljs-string">"INSERT INTO guilds (GuildName, Category, CreatedAt) VALUES (?1, ?2, ?3);"</span>));
+    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">1</span>, Name);
+    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">2</span>, Category);
+    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">3</span>, <span class="hljs-type">FDateTime</span>::<span class="hljs-title">UtcNow</span>().<span class="hljs-title">ToIso8601</span>()); <span class="hljs-comment">// UTC 고정(02 결정)</span>
+    <span class="hljs-keyword">const</span> <span class="hljs-type">bool</span> bOk = Stmt.<span class="hljs-title">Execute</span>();
+    Stmt.<span class="hljs-title">Destroy</span>();
+    <span class="hljs-keyword">if</span> (!bOk) <span class="hljs-keyword">return</span> -<span class="hljs-number">1</span>;
+
+    <span class="hljs-comment">// 방금 INSERT가 받은 번호 = 이 연결의 마지막 rowid. 이걸 캐시·UI가 쓴다</span>
+    <span class="hljs-keyword">const</span> <span class="hljs-type">int32</span> NewId = (<span class="hljs-type">int32</span>)Db-&gt;<span class="hljs-title">GetLastInsertRowId</span>();
+    <span class="hljs-title">LoadGuilds</span>();                     <span class="hljs-comment">// 캐시 재적재(단순·확실 — 길드 수가 적어 비용 무시 가능)</span>
+    <span class="hljs-keyword">return</span> NewId;
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UGuildSubsystem</span>::<span class="hljs-title">LoadGuilds</span>()
+{
+    Guilds.<span class="hljs-title">Reset</span>();
+    <span class="hljs-type">FSQLitePreparedStatement</span> Stmt;
+    <span class="hljs-comment">// 살아있는 길드만(DeletedAt IS NULL), UI 정렬 순서 → 생성 순 보조 정렬</span>
+    Stmt.<span class="hljs-title">Create</span>(*Db, <span class="hljs-built_in">TEXT</span>(
+        <span class="hljs-string">"SELECT GuildId, GuildName, Category, FocusSeconds, CreatedAt, SortOrder, Icon, Secured "</span>
+        <span class="hljs-string">"FROM guilds WHERE DeletedAt IS NULL ORDER BY SortOrder, GuildId;"</span>));
+    <span class="hljs-keyword">while</span> (Stmt.<span class="hljs-title">Step</span>() == <span class="hljs-type">ESQLitePreparedStatementStepResult</span>::Row)
+    {
+        <span class="hljs-type">FGuildData</span> G; <span class="hljs-type">FString</span> IsoTime; <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; Blob;
+        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">0</span>, G.GuildId);
+        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">1</span>, G.GuildName);
+        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">2</span>, G.Category);
+        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">3</span>, G.FocusSeconds);
+        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">4</span>, IsoTime);
+        <span class="hljs-type">FDateTime</span>::<span class="hljs-title">ParseIso8601</span>(*IsoTime, G.CreatedAt);   <span class="hljs-comment">// TEXT → FDateTime</span>
+        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">5</span>, G.SortOrder);
+        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">6</span>, G.Icon);
+        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">7</span>, Blob);              <span class="hljs-comment">// Secured — 검증은 6단계에서 이 자리에 추가</span>
+        Guilds.<span class="hljs-title">Add</span>(G);
+    }
+    Stmt.<span class="hljs-title">Destroy</span>();
+}</pre></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 -->
+      <div class="check-step">
+        <div class="check-head" tabindex="0" role="button" aria-pressed="false">
+          <div class="check-tick"><span class="tk-num">4</span></div>
+          <div><div class="check-title">2축 카테고리 필터 SQL</div><div class="check-why">대분류=길드를 거쳐, 소분류=기록을 직접 — 조합도 가능</div></div>
+        </div>
+        <div class="check-body">
+          <p>두 축은 <strong>거치는 테이블이 다릅니다</strong> — 대분류는 <code>guilds</code>를 JOIN해서 거르고, 소분류는 <code>archives.Category</code>를 직접 거릅니다. 이후 상세 필터 UI가 "어느 축으로 검색할지"를 고르거나 <strong>두 축을 조합</strong>할 예정이므로, WHERE 조각을 축별로 조립하는 구조를 권장합니다.</p>
+          <div class="codeblock">
+            <div class="codeblock-bar">
+              <button class="codeblock-tab tab-h active" type="button">filter-queries.sql</button>
+              <button class="codeblock-copy" type="button">복사</button>
+            </div>
+            <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">-- 공통 뼈대: 기록 + 소속 길드. 살아있는 것만(길드가 휴지통이면 그 기록도 자동으로 숨음)</span>
+<span class="hljs-keyword">SELECT</span> a.* <span class="hljs-keyword">FROM</span> archives a
+<span class="hljs-keyword">JOIN</span> guilds g <span class="hljs-keyword">ON</span> g.GuildId = a.GuildId
+<span class="hljs-keyword">WHERE</span> g.DeletedAt <span class="hljs-keyword">IS NULL</span> <span class="hljs-keyword">AND</span> a.DeletedAt <span class="hljs-keyword">IS NULL</span>
+<span class="hljs-comment">-- ▼ 아래 조각을 필터 UI 선택에 따라 덧붙인다 ▼</span>
+
+<span class="hljs-comment">-- 축 1) 대분류(Guild_Category) 필터: '캐릭터' → A·C 길드의 기록</span>
+  <span class="hljs-keyword">AND</span> g.Category = <span class="hljs-string">'캐릭터'</span>
+
+<span class="hljs-comment">-- 축 2) 소분류(Archive_Category) 필터: '애니메이션' → 전 길드에서 태그된 기록</span>
+  <span class="hljs-keyword">AND</span> a.Category = <span class="hljs-string">'애니메이션'</span>
+
+<span class="hljs-comment">-- 조합) 상세 필터: 두 축을 함께 — '캐릭터' 길드들의 '애니메이션' 기록만</span>
+  <span class="hljs-keyword">AND</span> g.Category = <span class="hljs-string">'캐릭터'</span> <span class="hljs-keyword">AND</span> a.Category = <span class="hljs-string">'애니메이션'</span>
+
+<span class="hljs-keyword">ORDER BY</span> a.CreatedAt <span class="hljs-keyword">DESC</span>;   <span class="hljs-comment">-- 정렬은 항상 CreatedAt 컬럼(문자열 ID 아님 — 07 규약)</span></pre></div>
+          </div>
+          <div class="callout tip" style="margin-top:8px"><span class="ic">💡</span><p><strong>코드에서는</strong> — 조회 함수를 <code>GetRecords(옵션: 대분류, 소분류)</code> 하나로 두고, 넘어온 옵션에 따라 위 WHERE 조각을 바인딩으로 덧붙이면 상세 필터 UI가 어떤 조합을 요구해도 SQL 하나로 대응됩니다.</p></div>
+        </div>
+      </div>
+
+      <!-- 5 -->
+      <div class="check-step">
+        <div class="check-head" tabindex="0" role="button" aria-pressed="false">
+          <div class="check-tick"><span class="tk-num">5</span></div>
+          <div><div class="check-title">소분류 풀 관리 — 첫 실전 트랜잭션</div><div class="check-why">이름 변경은 풀+기록 두 테이블을 한 덩어리로</div></div>
+        </div>
+        <div class="check-body">
+          <p>추가는 한 테이블이라 단순하지만, <strong>이름 변경은 두 테이블</strong>(풀의 정의 + 기록의 태그)을 함께 고쳐야 합니다 — 03·05 문서에서 설계로만 보던 <code>BEGIN…COMMIT</code>이 처음 실전 투입되는 지점입니다.</p>
+          <div class="codeblock">
+            <div class="codeblock-bar">
+              <button class="codeblock-tab tab-cpp active" type="button">GuildSubsystem.cpp — 풀 관리</button>
+              <button class="codeblock-copy" type="button">복사</button>
+            </div>
+            <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-keyword">void</span> <span class="hljs-type">UGuildSubsystem</span>::<span class="hljs-title">AddArchiveCategory</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Name)
+{
+    <span class="hljs-keyword">if</span> (!Db || !Db-&gt;<span class="hljs-title">IsValid</span>() || Name.<span class="hljs-title">IsEmpty</span>()) <span class="hljs-keyword">return</span>;
+    <span class="hljs-type">FSQLitePreparedStatement</span> Stmt;
+    <span class="hljs-comment">// OR IGNORE: 같은 이름이 이미 있으면 조용히 무시(Name이 PK라 중복은 어차피 거부됨)</span>
+    Stmt.<span class="hljs-title">Create</span>(*Db, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"INSERT OR IGNORE INTO archive_categories (Name, CreatedAt) VALUES (?1, ?2);"</span>));
+    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">1</span>, Name);
+    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">2</span>, <span class="hljs-type">FDateTime</span>::<span class="hljs-title">UtcNow</span>().<span class="hljs-title">ToIso8601</span>());
+    Stmt.<span class="hljs-title">Execute</span>();
+    Stmt.<span class="hljs-title">Destroy</span>();
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UGuildSubsystem</span>::<span class="hljs-title">RenameArchiveCategory</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; OldName, <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; NewName)
+{
+    <span class="hljs-keyword">if</span> (!Db || !Db-&gt;<span class="hljs-title">IsValid</span>() || OldName == NewName || NewName.<span class="hljs-title">IsEmpty</span>()) <span class="hljs-keyword">return</span>;
+
+    <span class="hljs-comment">// 풀(이름 정의)과 기록(태그)이 어긋나면 필터가 깨진다 — 두 UPDATE를 한 덩어리로 묶는다.</span>
+    <span class="hljs-comment">// 중간에 크래시해도 COMMIT 전이면 둘 다 원상 복귀: "풀만 새 이름, 기록은 옛 이름" 상태가 불가능</span>
+    Db-&gt;<span class="hljs-title">Execute</span>(<span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"BEGIN TRANSACTION;"</span>));
+    {
+        <span class="hljs-type">FSQLitePreparedStatement</span> S1;
+        S1.<span class="hljs-title">Create</span>(*Db, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"UPDATE archive_categories SET Name = ?1 WHERE Name = ?2;"</span>));
+        S1.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">1</span>, NewName); S1.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">2</span>, OldName);
+        S1.<span class="hljs-title">Execute</span>(); S1.<span class="hljs-title">Destroy</span>();
+
+        <span class="hljs-type">FSQLitePreparedStatement</span> S2;
+        S2.<span class="hljs-title">Create</span>(*Db, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"UPDATE archives SET Category = ?1 WHERE Category = ?2;"</span>));
+        S2.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">1</span>, NewName); S2.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">2</span>, OldName);
+        S2.<span class="hljs-title">Execute</span>(); S2.<span class="hljs-title">Destroy</span>();
+    }
+    Db-&gt;<span class="hljs-title">Execute</span>(<span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"COMMIT;"</span>));
+}
+
+<span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FString</span>&gt; <span class="hljs-type">UGuildSubsystem</span>::<span class="hljs-title">GetArchiveCategories</span>() <span class="hljs-keyword">const</span>
+{
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FString</span>&gt; Out;
+    <span class="hljs-keyword">if</span> (!Db || !Db-&gt;<span class="hljs-title">IsValid</span>()) <span class="hljs-keyword">return</span> Out;
+    <span class="hljs-type">FSQLitePreparedStatement</span> Stmt;
+    <span class="hljs-comment">// 풀 테이블이 정본 — 기록이 없는 "빈 카테고리"도 목록에 나온다(풀 채택의 이유)</span>
+    Stmt.<span class="hljs-title">Create</span>(*Db, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"SELECT Name FROM archive_categories ORDER BY SortOrder, Name;"</span>));
+    <span class="hljs-keyword">while</span> (Stmt.<span class="hljs-title">Step</span>() == <span class="hljs-type">ESQLitePreparedStatementStepResult</span>::Row)
+    { <span class="hljs-type">FString</span> N; Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">0</span>, N); Out.<span class="hljs-title">Add</span>(N); }
+    Stmt.<span class="hljs-title">Destroy</span>();
+    <span class="hljs-keyword">return</span> Out;
+}</pre></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6 -->
+      <div class="check-step">
+        <div class="check-head" tabindex="0" role="button" aria-pressed="false">
+          <div class="check-tick"><span class="tk-num">6</span></div>
+          <div><div class="check-title">시간 적립 + Secured — 블롭 스왑까지 막기</div><div class="check-why">페이로드에 GuildId를 넣어 "남의 블롭 붙여넣기"를 거부</div></div>
+        </div>
+        <div class="check-body">
+          <p>11의 <code>RTSecured</code>에 길드용 봉인/개봉을 <strong>추가</strong>합니다. 핵심 차이: player는 행이 하나지만 길드는 여러 행이라, <strong>시간만 봉인하면 "시간 많은 길드의 블롭을 다른 길드 행에 복사"하는 치트</strong>가 통합니다. 페이로드에 <code>GuildId</code>를 함께 봉인해 행과 블롭을 묶습니다.</p>
+          <div class="codeblock">
+            <div class="codeblock-bar">
+              <button class="codeblock-tab tab-h active" type="button">RTSecured.h — 추가</button>
+              <button class="codeblock-tab tab-cpp" type="button">RTSecured.cpp — 추가</button>
+              <button class="codeblock-tab tab-cpp" type="button">GuildSubsystem.cpp — 적립·검증</button>
+              <button class="codeblock-copy" type="button">복사</button>
+            </div>
+            <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 길드 시간 봉인 — GuildId를 페이로드에 포함해 행↔블롭을 묶는다(스왑 치트 차단)</span>
+<span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; <span class="hljs-title">SealGuildTime</span>(<span class="hljs-type">int32</span> GuildId, <span class="hljs-type">int64</span> FocusSeconds);
+
+<span class="hljs-comment">// 개봉 — MAGIC·CRC에 더해 "이 행의 GuildId가 맞는지"까지 검사. 하나라도 어긋나면 false</span>
+<span class="hljs-type">bool</span> <span class="hljs-title">OpenGuildTime</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt;&amp; Blob, <span class="hljs-type">int32</span> ExpectedGuildId, <span class="hljs-type">int64</span>&amp; OutFocusSeconds);</pre></div>
+            <div class="codeblock-panel"><pre class="hljs"><span class="hljs-comment">// 길드용 서명 — 계정용(RTA1)과 다른 값이라 서로의 블롭을 바꿔치기해도 개봉 실패</span>
+<span class="hljs-keyword">static</span> <span class="hljs-keyword">constexpr</span> <span class="hljs-type">uint32</span> GUILD_MAGIC = <span class="hljs-number">0x52544731</span>;   <span class="hljs-comment">// 'RTG1'</span>
+
+<span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; <span class="hljs-title">SealGuildTime</span>(<span class="hljs-type">int32</span> GuildId, <span class="hljs-type">int64</span> FocusSeconds)
+{
+    <span class="hljs-comment">// 페이로드 = MAGIC | GuildId | FocusSeconds | CRC — 이하 AES 절차는 SealAccount(11)와 동일</span>
+    <span class="hljs-type">FBufferArchive</span> Ar;
+    <span class="hljs-type">uint32</span> Magic = GUILD_MAGIC;
+    Ar &lt;&lt; Magic &lt;&lt; GuildId &lt;&lt; FocusSeconds;           <span class="hljs-comment">// 4+4+8 = 16바이트</span>
+    <span class="hljs-type">uint32</span> Crc = <span class="hljs-type">FCrc</span>::<span class="hljs-title">MemCrc32</span>(Ar.<span class="hljs-title">GetData</span>(), Ar.<span class="hljs-title">Num</span>());
+    Ar &lt;&lt; Crc;
+    <span class="hljs-keyword">const</span> <span class="hljs-type">int32</span> Pad = (<span class="hljs-number">16</span> - (Ar.<span class="hljs-title">Num</span>() % <span class="hljs-number">16</span>)) % <span class="hljs-number">16</span>;
+    <span class="hljs-keyword">for</span> (<span class="hljs-type">int32</span> i = <span class="hljs-number">0</span>; i &lt; Pad; ++i) { <span class="hljs-type">uint8</span> Z = <span class="hljs-number">0</span>; Ar &lt;&lt; Z; }
+    <span class="hljs-type">FAES</span>::<span class="hljs-type">FAESKey</span> K; <span class="hljs-title">MakeKey</span>(K);                       <span class="hljs-comment">// 11과 같은 키 재사용</span>
+    <span class="hljs-type">FAES</span>::<span class="hljs-title">EncryptData</span>(Ar.<span class="hljs-title">GetData</span>(), Ar.<span class="hljs-title">Num</span>(), K);
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; Out; Out.<span class="hljs-title">Append</span>(Ar.<span class="hljs-title">GetData</span>(), Ar.<span class="hljs-title">Num</span>());
+    <span class="hljs-keyword">return</span> Out;
+}
+
+<span class="hljs-type">bool</span> <span class="hljs-title">OpenGuildTime</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt;&amp; Blob, <span class="hljs-type">int32</span> ExpectedGuildId, <span class="hljs-type">int64</span>&amp; OutFocusSeconds)
+{
+    <span class="hljs-keyword">if</span> (Blob.<span class="hljs-title">Num</span>() == <span class="hljs-number">0</span> || Blob.<span class="hljs-title">Num</span>() % <span class="hljs-number">16</span> != <span class="hljs-number">0</span>) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; Buf = Blob;
+    <span class="hljs-type">FAES</span>::<span class="hljs-type">FAESKey</span> K; <span class="hljs-title">MakeKey</span>(K);
+    <span class="hljs-type">FAES</span>::<span class="hljs-title">DecryptData</span>(Buf.<span class="hljs-title">GetData</span>(), Buf.<span class="hljs-title">Num</span>(), K);
+
+    <span class="hljs-type">FMemoryReader</span> Ar(Buf);
+    <span class="hljs-type">uint32</span> Magic = <span class="hljs-number">0</span>; Ar &lt;&lt; Magic;
+    <span class="hljs-keyword">if</span> (Magic != GUILD_MAGIC) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;          <span class="hljs-comment">// 키 틀림/변조/계정 블롭 바꿔치기</span>
+    <span class="hljs-type">int32</span> SealedGuildId = <span class="hljs-number">0</span>; <span class="hljs-type">int64</span> Focus = <span class="hljs-number">0</span>;
+    Ar &lt;&lt; SealedGuildId &lt;&lt; Focus;
+    <span class="hljs-type">uint32</span> StoredCrc = <span class="hljs-number">0</span>; Ar &lt;&lt; StoredCrc;
+    <span class="hljs-keyword">if</span> (<span class="hljs-type">FCrc</span>::<span class="hljs-title">MemCrc32</span>(Buf.<span class="hljs-title">GetData</span>(), <span class="hljs-number">16</span>) != StoredCrc) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+    <span class="hljs-keyword">if</span> (SealedGuildId != ExpectedGuildId) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>; <span class="hljs-comment">// ★ 스왑 방지 — 다른 행의 블롭이면 여기서 거부</span>
+
+    OutFocusSeconds = Focus;
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+}</pre></div>
+            <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include</span> <span class="hljs-meta"><span class="hljs-string">"RTSecured.h"</span></span>
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UGuildSubsystem</span>::<span class="hljs-title">AddFocusSeconds</span>(<span class="hljs-type">int32</span> GuildId, <span class="hljs-type">int32</span> Seconds)
+{
+    <span class="hljs-keyword">if</span> (Seconds &lt;= <span class="hljs-number">0</span> || !Db || !Db-&gt;<span class="hljs-title">IsValid</span>()) <span class="hljs-keyword">return</span>;
+    <span class="hljs-type">FGuildData</span>* G = Guilds.<span class="hljs-title">FindByPredicate</span>([=](<span class="hljs-keyword">const</span> <span class="hljs-type">FGuildData</span>&amp; X){ <span class="hljs-keyword">return</span> X.GuildId == GuildId; });
+    <span class="hljs-keyword">if</span> (!G) <span class="hljs-keyword">return</span>;                       <span class="hljs-comment">// 휴지통 길드엔 적립 불가(캐시=살아있는 것만)</span>
+    G-&gt;FocusSeconds += Seconds;
+
+    <span class="hljs-comment">// 평문+봉인을 같은 UPDATE로 — 11의 SavePlayer와 동일한 원칙</span>
+    <span class="hljs-keyword">const</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; Sealed = <span class="hljs-title">SealGuildTime</span>(GuildId, G-&gt;FocusSeconds);
+    <span class="hljs-type">FSQLitePreparedStatement</span> Stmt;
+    Stmt.<span class="hljs-title">Create</span>(*Db, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"UPDATE guilds SET FocusSeconds = ?1, Secured = ?2 WHERE GuildId = ?3;"</span>));
+    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">1</span>, G-&gt;FocusSeconds);
+    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">2</span>, Sealed);
+    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">3</span>, GuildId);
+    Stmt.<span class="hljs-title">Execute</span>();
+    Stmt.<span class="hljs-title">Destroy</span>();
+}
+
+<span class="hljs-comment">// LoadGuilds의 행 루프 끝(7번 컬럼 Blob을 읽은 자리)에 검증·복원을 추가한다:</span>
+<span class="hljs-comment">//   int64 Real = 0;</span>
+<span class="hljs-comment">//   if (Blob.Num() == 0)                { /* 첫 저장 전 — 통과(첫 적립 때 봉인 생성) */ }</span>
+<span class="hljs-comment">//   else if (!OpenGuildTime(Blob, G.GuildId, Real)) {  // 손상/스왑 → 시간을 0으로(복원 불가 갈래)</span>
+<span class="hljs-comment">//       UE_LOG(LogTemp, Warning, TEXT("[Guild %d] Secured 손상/불일치 — 시간 초기화"), G.GuildId);</span>
+<span class="hljs-comment">//       G.FocusSeconds = 0;  /* + 재봉인 UPDATE */ }</span>
+<span class="hljs-comment">//   else if (Real != G.FocusSeconds)    {  // 평문만 편집 → 진짜 값으로 자동 복원 + 재기록</span>
+<span class="hljs-comment">//       UE_LOG(LogTemp, Warning, TEXT("[Guild %d] 비정상 시간 감지 — 복구"), G.GuildId);</span>
+<span class="hljs-comment">//       G.FocusSeconds = (int32)Real;   /* + 평문 재기록 UPDATE */ }</span></pre></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7 -->
+      <div class="check-step">
+        <div class="check-head" tabindex="0" role="button" aria-pressed="false">
+          <div class="check-tick"><span class="tk-num">7</span></div>
+          <div><div class="check-title">소프트 삭제 / 복원</div><div class="check-why">행은 남기고 DeletedAt만 — 기록은 JOIN이 자동으로 숨긴다</div></div>
+        </div>
+        <div class="check-body">
+          <div class="codeblock">
+            <div class="codeblock-bar">
+              <button class="codeblock-tab tab-cpp active" type="button">GuildSubsystem.cpp — 휴지통</button>
+              <button class="codeblock-copy" type="button">복사</button>
+            </div>
+            <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-keyword">void</span> <span class="hljs-type">UGuildSubsystem</span>::<span class="hljs-title">SoftDeleteGuild</span>(<span class="hljs-type">int32</span> GuildId)
+{
+    <span class="hljs-keyword">if</span> (!Db || !Db-&gt;<span class="hljs-title">IsValid</span>()) <span class="hljs-keyword">return</span>;
+    <span class="hljs-type">FSQLitePreparedStatement</span> Stmt;
+    <span class="hljs-comment">// 행 삭제가 아니라 시각 기록 — 07 규약. 이 길드의 기록 행은 건드리지 않는다:</span>
+    <span class="hljs-comment">// 4단계 조회 SQL의 "g.DeletedAt IS NULL" 조건이 그 기록들을 자동으로 함께 숨긴다(복원하면 함께 복귀)</span>
+    Stmt.<span class="hljs-title">Create</span>(*Db, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"UPDATE guilds SET DeletedAt = ?1 WHERE GuildId = ?2;"</span>));
+    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">1</span>, <span class="hljs-type">FDateTime</span>::<span class="hljs-title">UtcNow</span>().<span class="hljs-title">ToIso8601</span>());
+    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">2</span>, GuildId);
+    Stmt.<span class="hljs-title">Execute</span>();
+    Stmt.<span class="hljs-title">Destroy</span>();
+    <span class="hljs-title">LoadGuilds</span>();   <span class="hljs-comment">// 캐시에서 사라짐(살아있는 것만 담으므로)</span>
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UGuildSubsystem</span>::<span class="hljs-title">RestoreGuild</span>(<span class="hljs-type">int32</span> GuildId)
+{
+    <span class="hljs-keyword">if</span> (!Db || !Db-&gt;<span class="hljs-title">IsValid</span>()) <span class="hljs-keyword">return</span>;
+    <span class="hljs-type">FSQLitePreparedStatement</span> Stmt;
+    Stmt.<span class="hljs-title">Create</span>(*Db, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"UPDATE guilds SET DeletedAt = NULL WHERE GuildId = ?1;"</span>)); <span class="hljs-comment">// 되살림 = NULL</span>
+    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">1</span>, GuildId);
+    Stmt.<span class="hljs-title">Execute</span>();
+    Stmt.<span class="hljs-title">Destroy</span>();
+    <span class="hljs-title">LoadGuilds</span>();
+}</pre></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 8 -->
+      <div class="check-step">
+        <div class="check-head" tabindex="0" role="button" aria-pressed="false">
+          <div class="check-tick"><span class="tk-num">8</span></div>
+          <div><div class="check-title">BP 왕복 확인</div><div class="check-why">생성→적립→레벨→재시작 유지까지 한 바퀴</div></div>
+        </div>
+        <div class="check-body">
+          <p>빌드 후(새 헤더 — 에디터 종료 → IDE 빌드 → 재실행) 레벨 블루프린트에서:</p>
+          <table class="tbl">
+            <tr><th>순서</th><th>할 일</th><th>기대 결과</th></tr>
+            <tr><td>①</td><td><code>Create Guild("그림 길드","캐릭터")</code> → 반환값 Print</td><td><code>1</code> (첫 길드)</td></tr>
+            <tr><td>②</td><td><code>Add Focus Seconds(1, 7200)</code> → <code>Get Guild Level(1)</code> Print</td><td><code>2</code></td></tr>
+            <tr><td>③</td><td><code>Add Archive Category("애니메이션")</code> → <code>Get Archive Categories</code> 길이 Print</td><td><code>1</code> — 기록 없이도 목록에 존재(빈 카테고리)</td></tr>
+            <tr><td>④</td><td>PIE 종료 → 재실행(생성 노드는 끊고) → <code>Get Guilds</code> 길이·레벨 Print</td><td>길드 1개·레벨 <code>2</code> 유지</td></tr>
+            <tr><td>⑤</td><td><code>Soft Delete Guild(1)</code> → <code>Get Guilds</code> 길이 → <code>Restore Guild(1)</code></td><td><code>0</code> → 복원 후 <code>1</code></td></tr>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /checklist -->
+  </div>
+
+  <!-- ===== 04 검증 ===== -->
+  <div class="section" id="verify">
+    <div class="section-label">04 — 검증</div>
+    <h2>치트 2종까지 눈으로 확인</h2>
+
+    <div class="pipe-step">
+      <div class="pipe-num">1</div>
+      <div class="pipe-body"><div class="pipe-title">DB Browser — 테이블 3종 확인</div>
+        <div class="pipe-desc"><code>guilds</code>(생성한 길드 행 + <code>Secured</code> BLOB), <code>archive_categories</code>('애니메이션' 행), 그리고 <code>sqlite_sequence</code>(guilds의 번호 장부)가 보여야 합니다. 길드를 하나 더 만들고 <strong>완전 삭제해도 다음 길드가 그 번호를 건너뛰는지</strong>(AUTOINCREMENT) 확인해 보세요.</div></div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">2</div>
+      <div class="pipe-body"><div class="pipe-title">치트 ① — 시간 위조</div>
+        <div class="pipe-desc">게임 종료 → DB Browser로 <code>guilds.FocusSeconds</code>를 <code>999999</code>로 수정 → Write Changes → 재실행. 출력 로그에 <code>비정상 시간 감지 — 복구</code>가 찍히고 레벨이 원래대로면 성공.</div></div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">3</div>
+      <div class="pipe-body"><div class="pipe-title">치트 ② — 블롭 스왑</div>
+        <div class="pipe-desc">길드 2개를 만들어 한쪽만 시간을 쌓은 뒤, 게임 종료 → 시간 많은 행의 <code>Secured</code> BLOB을 복사해 <strong>다른 길드 행에 붙여넣기</strong> → 재실행. <code>Secured 손상/불일치</code> 로그와 함께 그 길드 시간이 초기화되면(페이로드의 GuildId 불일치 거부) 성공 — 스왑 방어가 작동한 것입니다.</div></div>
+    </div>
+
+    <h3>막혔을 때</h3>
+    <table class="tbl">
+      <tr><th>증상</th><th>원인</th><th>처방</th></tr>
+      <tr><td><code>CreateGuild</code>가 항상 <code>-1</code></td><td>INSERT 실패 — 테이블 없음/이름 빈 값</td><td>1단계 SQL이 문지기 <code>CreateTables()</code>에 들어갔는지, <code>[DB] 준비 완료</code> 로그 확인</td></tr>
+      <tr><td>번호가 재사용됨</td><td><code>AUTOINCREMENT</code> 누락 또는 <code>sqlite_sequence</code>를 지움</td><td>개발 중이면 DB 파일 삭제 후 재생성(09 절차) — 키워드는 <code>INTEGER PRIMARY KEY AUTOINCREMENT</code> 철자 그대로여야 함</td></tr>
+      <tr><td>이름 변경 후 필터가 반쪽만 나옴</td><td>풀만/기록만 바뀜 — 트랜잭션 없이 UPDATE 하나만 실행</td><td>5단계 <code>RenameArchiveCategory</code>처럼 <code>BEGIN…COMMIT</code>으로 두 UPDATE를 묶었는지 확인</td></tr>
+      <tr><td>재시작하면 길드가 사라짐</td><td><code>LoadGuilds</code>가 안 불림 — Db null</td><td>2단계 <code>InitializeDependency</code>·출력 로그 순서(<code>[DB] 준비 완료</code> 먼저) 확인</td></tr>
+      <tr><td>스왑했는데 안 걸림</td><td>봉인 페이로드에 GuildId를 안 넣음</td><td>6단계 <code>SealGuildTime</code>/<code>OpenGuildTime</code>의 GuildId 비교 줄(★) 확인</td></tr>
+      <tr><td>휴지통 길드에 시간이 적립됨</td><td>캐시 밖 GuildId로 직접 UPDATE</td><td>적립은 반드시 <code>AddFocusSeconds()</code> 경유(캐시에 없으면 조용히 무시되는 게 정상)</td></tr>
+    </table>
+
+    <div class="callout tip" style="margin-top:14px">
+      <span class="ic">✅</span>
+      <p><strong>여기까지 되면</strong> — 길드 생성·2축 필터·소분류 풀 관리(트랜잭션)·레벨 파생·소프트 삭제·스왑 방어까지 완성입니다. 다음 배관은 <code>owned_characters</code>·<code>owned_abilities</code>(가챠 로스터 — FK <code>ON DELETE CASCADE</code>가 처음 실전 투입)이며, 같은 리듬으로 문지기 <code>CreateTables()</code>에 추가 → 기능 서브시스템 순으로 넓힙니다.</p>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <span>RecordTales V2 &middot; Doc 12 길드 시스템 v0.1</span>
+  <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.9</span>
+</footer>
+
+<script>
+(function () {
+  /* 코드블록 탭 전환 + 복사 */
+  document.querySelectorAll('.codeblock').forEach(function (block) {
+    var tabs = block.querySelectorAll('.codeblock-tab');
+    var panels = block.querySelectorAll('.codeblock-panel');
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () {
+        tabs.forEach(function (t) { t.classList.remove('active'); });
+        panels.forEach(function (p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        if (panels[i]) panels[i].classList.add('active');
+      });
+    });
+    var copyBtn = block.querySelector('.codeblock-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function () {
+        var pre = block.querySelector('.codeblock-panel.active pre');
+        if (!pre) return;
+        var text = pre.innerText;
+        var done = function () {
+          copyBtn.textContent = '복사됨 ✓';
+          copyBtn.classList.add('copied');
+          setTimeout(function () {
+            copyBtn.textContent = '복사';
+            copyBtn.classList.remove('copied');
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () { fallbackCopy(text, done); });
+        } else {
+          fallbackCopy(text, done);
+        }
+      });
+    }
+  });
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+
+  /* 진행률 체크리스트 — 헤더 클릭/Enter로 완료 토글 + 진행률 반영 (로컬·비영속) */
+  document.querySelectorAll('.checklist').forEach(function (list) {
+    var steps = [].slice.call(list.querySelectorAll('.check-step'));
+    var fill  = list.querySelector('.check-fill');
+    var count = list.querySelector('.check-count b');
+    function refresh() {
+      var done = steps.filter(function (s) { return s.classList.contains('done'); }).length;
+      if (count) count.textContent = done;
+      if (fill)  fill.style.width = (steps.length ? done / steps.length * 100 : 0) + '%';
+    }
+    steps.forEach(function (step) {
+      var head = step.querySelector('.check-head');
+      if (!head) return;
+      function toggle() {
+        step.classList.toggle('done');
+        head.setAttribute('aria-pressed', String(step.classList.contains('done')));
+        refresh();
+      }
+      head.addEventListener('click', toggle);
+      head.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+      });
+    });
+    refresh();
+  });
+})();
+</script>
+
+</body>
+</html>

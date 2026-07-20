@@ -9,6 +9,7 @@
      UMG 팔레트 위젯 레퍼런스 문서 (02-A 아키텍처 패턴 — 카탈로그형 변형,
      섹션 흡수·축약 허용 조항 적용: 분류별 레퍼런스 구성).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     · 2026-07-20 — (반응형) 마스터 v1.9 .tbl 모바일 가로 스크롤 규칙 인라인 반영(본문·구조 무변경).
      v1.0 · 2026-07-03
        - (추가) 최초 작성. 팔레트 분류 체계·전 위젯 공통 속성(Visibility),
          패널 위젯(배치 결정표 + 상세), 일반 위젯, 입력 위젯,
@@ -380,6 +381,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 .compare-box .pills { margin-top: 10px; }
 
 @media (max-width: 720px) {
+  .tbl { display: block; overflow-x: auto; }  /* [v1.9] 좁은 폭 표 자체 가로 스크롤 */
   .content { padding: 0 20px 60px; }
   .hero { padding: 48px 20px 40px; }
   .swatch-grid { grid-template-columns: 1fr 1fr; }
