@@ -8,6 +8,11 @@
      CHANGELOG — 05-data-schema-spec.html
      RecordTales V2 데이터 스키마 명세 (Track B · 02-B 기능 구현 명세).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     v0.17 · 2026-07-21
+       - (변경) 사용자 결정: 소분류 카테고리에 플레이어 지정 속성 2종 추가 —
+         archive_categories 스키마에 Color("RRGGBBAA" 헥스 TEXT, 기본 'FFFFFFFF')·Icon(TEXT) 컬럼.
+       - (추가) 캐시 struct에 FArchiveCategory(Name·FLinearColor Color·Icon) 신설 — RTTypes.h 소속.
+         7테이블 표의 archive_categories 행 동기 갱신. 연동 개정: 13 v1.1 · 12 v0.2.
      v0.16 · 2026-07-20
        - (구조 반영) 길드 시스템 확정(12 v0.1, 사용자 결정) — 카테고리 2축 모델 채택:
          · guilds 스키마 교체: Categories(JSON 배열) → Category(대분류 1개, 중복 허용) +
@@ -1177,7 +1182,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><th>테이블</th><th>행 단위</th><th>축</th><th>주요 컬럼 · 쓰기</th></tr>
       <tr><td><code>player</code></td><td>항상 1행</td><td>계정</td><td>Gold·Shards·AccountFocusSeconds·<strong>Secured</strong> — UPDATE</td></tr>
       <tr><td><code>guilds</code></td><td>길드당 1행</td><td>길드</td><td>GuildId(<strong>AUTOINCREMENT</strong>)·GuildName·Category(대분류 1개)·FocusSeconds·CreatedAt·SortOrder·Icon·DeletedAt·<strong>Secured</strong> — INSERT/UPDATE</td></tr>
-      <tr><td><code>archive_categories</code></td><td>소분류당 1행</td><td>계정</td><td>Name(PK)·CreatedAt·SortOrder — 계정 공유 소분류 풀(빈 카테고리 표시·이름 변경용) — INSERT/UPDATE</td></tr>
+      <tr><td><code>archive_categories</code></td><td>소분류당 1행</td><td>계정</td><td>Name(PK)·<strong>Color·Icon</strong>(플레이어 지정)·CreatedAt·SortOrder — 계정 공유 소분류 풀(빈 카테고리 표시·이름 변경용) — INSERT/UPDATE</td></tr>
       <tr><td><code>owned_characters</code></td><td>캐릭터당 1행</td><td>계정</td><td>InstanceId·CharacterId·Rarity — INSERT/DELETE</td></tr>
       <tr><td><code>owned_abilities</code></td><td>능력치당 1행</td><td>계정</td><td>InstanceId(<strong>FK</strong>)·Slot·AbilityId·Step — INSERT/UPDATE</td></tr>
       <tr><td><code>buildings</code></td><td>건물당 1행</td><td>계정</td><td>BuildingId·Level·DeployedInstanceIds — INSERT/UPDATE</td></tr>
@@ -1221,6 +1226,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <span class="hljs-comment">-- 소분류(Archive_Category) 계정 공유 풀 — 기록(archives.Category)이 이 이름으로 태그(모든 길드 공유)</span>
 <span class="hljs-keyword">CREATE TABLE IF NOT EXISTS</span> archive_categories (
     Name      <span class="hljs-type">TEXT</span> <span class="hljs-keyword">PRIMARY KEY</span>,               <span class="hljs-comment">-- 이름 자체가 키(중복 자동 차단). 이름 변경은 archives와 한 트랜잭션</span>
+    Color     <span class="hljs-type">TEXT</span> <span class="hljs-keyword">NOT NULL DEFAULT</span> <span class="hljs-string">'FFFFFFFF'</span>, <span class="hljs-comment">-- 플레이어 지정 색 — "RRGGBBAA" 헥스(FColor::ToHex/FromHex)</span>
+    Icon      <span class="hljs-type">TEXT</span>,                             <span class="hljs-comment">-- 플레이어 지정 아이콘 식별자(guilds.Icon과 동일 방식)</span>
     CreatedAt <span class="hljs-type">TEXT</span> <span class="hljs-keyword">NOT NULL</span>,
     SortOrder <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL DEFAULT</span> <span class="hljs-number">0</span>      <span class="hljs-comment">-- 목록 표시 순서(관리 UI 대비)</span>
 );
@@ -1315,6 +1322,16 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> SortOrder = <span class="hljs-number">0</span>;      <span class="hljs-comment">// UI 정렬</span>
     <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> Icon;              <span class="hljs-comment">// UI 아이콘 식별자</span>
     <span class="hljs-type">int32</span> <span class="hljs-title">GetLevel</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> FocusSeconds / <span class="hljs-number">3600</span>; } <span class="hljs-comment">// 60분=1레벨(정직한 레벨)</span>
+};
+
+<span class="hljs-comment">// 소분류 카테고리 하나 — archive_categories 1행. 이름·색·아이콘이 UI에 항상 쌍으로 다닌다</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-type">FArchiveCategory</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> Name;         <span class="hljs-comment">// 플레이어가 정한 이름(PK)</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FLinearColor</span> Color = <span class="hljs-type">FLinearColor</span>::White; <span class="hljs-comment">// DB엔 "RRGGBBAA" TEXT — 로드 시 FColor::FromHex로 복원</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> Icon;         <span class="hljs-comment">// 플레이어가 고른 아이콘 식별자</span>
 };
 
 <span class="hljs-comment">// 아카이브 기록 하나 — archives 1행. DeletedAt은 NULL=살아있음이라 bool+시각 대신 Optional</span>
@@ -1522,7 +1539,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>RecordTales V2 &middot; 데이터 스키마 명세 v0.16</span>
+  <span>RecordTales V2 &middot; 데이터 스키마 명세 v0.17</span>
   <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.8</span>
 </footer>
 

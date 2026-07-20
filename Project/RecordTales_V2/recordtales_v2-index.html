@@ -7,6 +7,35 @@
 <!-- ============================================================
      CHANGELOG — recordtales_v2-index.html
      RecordTales V2 프로젝트 허브 (골격). 작업 규약: doc-process/DOC-TRACKS.md (Track B)
+     v0.16 · 2026-07-21
+       - (추가) 문서 목록에 ★ 마스터 페이지(recordtales_v2-masterpage.html) 등록 —
+         저장 계층 통합 자립형 문서(사용자 요청: 참조 없이 이 파일만으로 작업 완료 가능).
+         01 전체 지도(3계층·7테이블·2축·DT 5종) + 02 워크플로우 + 03 파일 6종 전체 코드
+         (RTTypes·DatabaseSubsystem·RTSecured·Archive·Economy·Guild) + 04 규칙·검증 9종.
+         기준 스냅샷: 05 v0.17 · 11 v0.2 · 12 v0.2 · 13 v1.1 · 14 v1.0.
+         (통일) 카테고리 이름 변경 트랜잭션을 문지기 창구 경유로 통일 — 12는 후속 개정 대상.
+       - (footer) 버전 표기 v0.15 → v0.16.
+     v0.15 · 2026-07-21
+       - (구조 반영) 소분류 카테고리에 플레이어 지정 Color·Icon 추가(사용자 결정) —
+         archive_categories 스키마 확장 + FArchiveCategory 캐시 struct 신설.
+         연동 개정: 05 v0.17(DDL·struct 정본) · 13 v1.1(CreateTables) · 12 v0.2(관리 함수·BP 검증).
+       - (footer) 버전 표기 v0.14 → v0.15.
+     v0.14 · 2026-07-20
+       - (추가) 문서 목록에 14 저장 계층 재구축 등록(02-B 따라하기, 신규) — 09 실구현을
+         수술 대신 철거 후 문지기 구조로 재구축(사용자 결정): 철거 지도 + 문지기(13 참조) +
+         RTTypes.h(ERecordSource·FArchiveRecord) + ArchiveSubsystem 최종형(기록 ID 발급·
+         최종 스키마 INSERT/SELECT·소프트 삭제/복원)까지 8단계.
+       - (연동) 09 v1.9 — 범용 절차의 ue-wiki 이식 안내 callout 추가(문서는 참조 기준점으로 유지).
+         범용판은 중앙 허브 data/ 『SQLite 배관 — 한 컬럼 왕복부터』(v2.19)로 등록됨.
+       - (footer) 버전 표기 v0.13 → v0.14.
+     v0.13 · 2026-07-20
+       - (추가) 문서 목록에 13 DatabaseSubsystem 등록(02-B 따라하기, 신규) — 11·12·05·10에 흩어진
+         DB 문지기 내용의 구현 통합 정본: 7테이블 CreateTables(FK 순서) + 트랜잭션 창구
+         (Begin/Commit/Rollback, 10·12 소유 결정표의 "트랜잭션 시점=문지기"를 코드로 승격) +
+         기능 서브시스템 연결 관례(InitializeDependency 2줄)까지 8단계.
+       - (용어) "DB 문지기(UDatabaseSubsystem)" 정의의 구현 참조를 13(통합 정본)으로 갱신
+         (분리 배경은 11 유지).
+       - (footer) 버전 표기 v0.12 → v0.13.
      v0.12 · 2026-07-20
        - (추가) 문서 목록에 12 길드 시스템 등록(02-B 따라하기, 신규) — guilds(AUTOINCREMENT)·
          archive_categories(소분류 공유 풀) 테이블 + GuildSubsystem, 카테고리 2축 필터(대분류/소분류/조합),
@@ -516,6 +545,9 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td>10 코드 &amp; 변수 연결 지도 (소유 &middot; 축 &middot; 흐름)</td><td>구현 &middot; 데이터</td><td><a href="./10-code-variable-map.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
       <tr><td>11 플레이어 상태 저장 (player 테이블 &middot; Secured 무결성)</td><td>구현 &middot; 실습</td><td><a href="./11-player-state-persistence.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
       <tr><td>12 길드 시스템 (guilds &middot; 2축 카테고리 &middot; Secured)</td><td>구현 &middot; 실습</td><td><a href="./12-guild-subsystem.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
+      <tr><td>13 DatabaseSubsystem (DB 문지기 &middot; 7테이블 스키마 &middot; 트랜잭션 창구)</td><td>구현 &middot; 실습</td><td><a href="./13-database-subsystem.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
+      <tr><td>14 저장 계층 재구축 (09 철거 &middot; 문지기 구조 &middot; Archive 최종형)</td><td>구현 &middot; 실습</td><td><a href="./14-storage-rebuild.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
+      <tr><td><strong>★ 마스터 페이지</strong> — 저장 계층 통합 (구조 지도 + 전 파일 .h/.cpp 완성본, 자립형)</td><td>통합 &middot; 스냅샷</td><td><a href="./recordtales_v2-masterpage.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
     </table>
   </div>
 
@@ -568,7 +600,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td>무결성 검사(Secured)</td><td>상태 DB(<code>player</code>)의 재화&middot;레벨을 인증 암호화한 사본(<code>Secured</code> 컬럼)으로 함께 저장해, 유저가 파일을 직접 고치면 로드 시 자동 복원하는 보호. 완전 방어는 아님(키가 클라이언트에 있음). 상세: 03 데이터 설계 06 상태 보호 &middot; 구현 실습: 11 플레이어 상태 저장.</td></tr>
       <tr><td>대분류(Guild_Category)</td><td>길드의 속성 카테고리 — <strong>길드당 1개</strong>, 길드 간 중복 허용(예: A&middot;C 길드 모두 '캐릭터'). 대분류 필터는 <code>guilds</code>를 거쳐 그 길드들의 기록을 모음. 상세: 12 길드 시스템 02.</td></tr>
       <tr><td>소분류(Archive_Category)</td><td>기록에 태그하는 카테고리 — <strong>계정 공유 풀</strong>(<code>archive_categories</code>)이라 어느 길드의 기록에든 같은 소분류 사용 가능(예: '애니메이션'). 이름 변경은 풀+기록 두 테이블을 한 트랜잭션으로. 상세: 12 길드 시스템 5단계.</td></tr>
-      <tr><td>DB 문지기(UDatabaseSubsystem)</td><td><code>Archive.db</code>의 열닫&middot;<code>CREATE TABLE</code>&middot;트랜잭션 창구를 전담하는 GameInstanceSubsystem. 게임 기능 없음 — Economy&middot;Archive 등 기능 시스템들이 <code>InitializeDependency</code>로 대등하게 의존해 핸들을 빌려 씀. 구현: 11 플레이어 상태 저장 1~2단계.</td></tr>
+      <tr><td>DB 문지기(UDatabaseSubsystem)</td><td><code>Archive.db</code>의 열닫&middot;<code>CREATE TABLE</code>&middot;트랜잭션 창구를 전담하는 GameInstanceSubsystem. 게임 기능 없음 — Economy&middot;Archive 등 기능 시스템들이 <code>InitializeDependency</code>로 대등하게 의존해 핸들을 빌려 씀. 구현 정본: 13 DatabaseSubsystem(7테이블 통합&middot;트랜잭션 창구), 분리 배경: 11 플레이어 상태 저장 1~2단계.</td></tr>
     </table>
     <p style="color:var(--text-dim); font-size:13px; margin-top:16px;">※ 이 허브는 골격입니다. 용어&middot;문서는 설계 확정에 따라 확장됩니다. 상세 설계 원장: <code>~/.claude/plans/replicated-weaving-stearns.md</code></p>
   </div>
@@ -576,7 +608,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>RecordTales V2 &middot; 프로젝트 허브 (골격) v0.12</span>
+  <span>RecordTales V2 &middot; 프로젝트 허브 (골격) v0.16</span>
   <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.5</span>
 </footer>
 

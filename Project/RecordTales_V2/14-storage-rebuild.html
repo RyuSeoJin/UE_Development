@@ -1,37 +1,22 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RecordTales V2 · 12 길드 시스템 — guilds 테이블 + 2축 카테고리 + Secured</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RecordTales V2 · 14 저장 계층 재구축 — 처음부터 문지기 구조로</title>
 <!-- ============================================================
-     CHANGELOG — 12-guild-subsystem.html
-     RecordTales V2 길드 시스템(따라하기) 명세. 유형 ③ (Track B · 02-B 템플릿).
-     작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
-     v0.2 · 2026-07-21
-       - (변경) 사용자 결정(05 v0.17 연동): 소분류 카테고리에 플레이어 지정 Color·Icon 추가 —
-         · 1단계 archive_categories DDL에 Color("RRGGBBAA" 헥스 TEXT)·Icon(TEXT) 컬럼.
-         · 2단계 RTTypes.h에 FArchiveCategory(Name·FLinearColor·Icon) struct 추가.
-         · AddArchiveCategory 시그니처(Name, Color, Icon) 및 INSERT 4컬럼으로 확장,
-           GetArchiveCategories 반환형 TArray<FString> → TArray<FArchiveCategory>
-           (헥스 ↔ FLinearColor 변환: ToFColor().ToHex() / FColor::FromHex).
-     v0.1 · 2026-07-20
-       - 신규 생성. 세 번째 배관 — 길드(guilds)와 계정 공유 소분류 풀(archive_categories)을
-         Archive.db에 얹고, GuildSubsystem으로 생성·목록·2축 카테고리 필터·시간 적립(레벨 파생)·
-         소프트 삭제·Secured 보호(블롭 스왑 방지 포함)까지 따라하기 8단계.
-       - 카테고리 2축 모델 확정(사용자 설계): 대분류 = guilds.Category(길드당 1개, 길드 간 중복 허용) /
-         소분류 = archive_categories 공유 풀 + archives.Category 태그(모든 길드 공유).
-         필터는 축별·조합 검색 가능하게 SQL 설계(이후 상세 필터 UI 확장 대비 — 사용자 요청).
-       - Archive_Category 풀 테이블 채택(사용자 결정) — 빈 카테고리 표시·이름 변경·속성 확장 대비.
-         이름 변경은 두 테이블 동시 UPDATE = 시리즈 첫 실전 다중 테이블 트랜잭션(BEGIN…COMMIT).
-       - GuildId 발급 = INTEGER PRIMARY KEY AUTOINCREMENT 채택(사용자 승인) — 재사용 금지를 엔진이
-         보장(sqlite_sequence). player.NextGuildId 카운터는 미사용 전환(05 개정 반영).
-         상세 근거·일반 PK와의 차이를 02 설계 결정에 전용 절로 수록(사용자 요청).
-       - guilds 쓰기 주인 = GuildSubsystem으로 확정(10의 "GuildXp 주인=Economy"를 이관 — 연동 개정).
-       - Secured: 길드당 1블롭, 페이로드에 GuildId 포함 — 행 간 블롭 복사(스왑) 치트 차단.
-       - 전제: 11 완료(문지기 UDatabaseSubsystem·RTSecured 존재). 마스터 CSS v1.9 inline 스냅샷,
-         hljs 구워넣기 + 한국어 '왜' 주석, 탭/복사 + 체크리스트 토글 inline JS. 상대링크 없음.
+     CHANGELOG — 14-storage-rebuild.html
+     RecordTales V2 · 09 배관 구현을 걷어내고 문지기 구조로 처음부터 재구축하는
+     따라하기(템플릿 02-B). 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.0 · 2026-07-20
+       - 최초 생성 — 사용자 결정: 09 실구현(ArchiveSubsystem 겸직·한 컬럼 archives)은
+         수술(전환)하지 않고 철거 후 재구축. 문지기 구축은 13 문서를 정본으로 참조(요약만),
+         이 문서의 신규 내용 = ArchiveSubsystem 최종형: 기록 ID 발급(07 규칙
+         YYYYMMDDhhmmssSSS-{GUILDID}) · CreateArchive/GetArchives(05 최종 스키마) ·
+         소프트 삭제/복원(DeletedAt UPDATE). RTTypes.h(ERecordSource·FArchiveRecord) 포함.
+       - 마스터 CSS v1.9 inline 스냅샷. .checklist·.codeblock 탭+복사 JS inline.
      ============================================================ -->
+
 <style>
 /* ============================================================
    UE Design System — Master Stylesheet
@@ -716,14 +701,12 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   footer { padding: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-
 </style>
 </head>
-
 <body>
 
 <nav>
-  <div class="nav-logo">RECORDTALES V2 &middot; GUILD</div>
+  <div class="nav-logo">RECORDTALES V2 · 14 재구축</div>
   <div class="nav-links">
     <a href="#scope">범위</a>
     <a href="#decision">설계 결정</a>
@@ -733,88 +716,84 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">RecordTales V2 &middot; Doc 12 &middot; Guild Subsystem</div>
-  <h1>길드 시스템<br><span>guilds 테이블 + 2축 카테고리 + Secured</span></h1>
+  <div class="hero-eyebrow">RecordTales V2 · Doc 14 · Storage Rebuild</div>
+  <h1>저장 계층 재구축<br><span>09를 걷어내고</span> 문지기 구조로</h1>
   <p class="hero-sub">
-    세 번째 배관 — <strong>길드</strong>(이름·대분류 카테고리·활동 시간·소프트 삭제)와 <strong>계정 공유 소분류 풀</strong>(<code>archive_categories</code>)을 <code>Archive.db</code>에 얹습니다. <code>GuildSubsystem</code>으로 생성·목록·<strong>2축 카테고리 필터</strong>·시간 적립(레벨 파생)·Secured 보호까지 잇고, 카테고리 이름 변경에서 <strong>시리즈 첫 실전 다중 테이블 트랜잭션</strong>을 경험합니다.
+    09에서 만든 배관(겸직 <code>ArchiveSubsystem</code> + 한 컬럼 <code>archives</code>)은 <strong>실현 가능성을 증명하는 스파이크</strong>였습니다. 그 코드를 고쳐 쓰는 대신 <strong>깨끗이 걷어내고</strong>, 확정 설계(문지기 + 7테이블 + 기록 ID + 소프트 삭제) 그대로 처음부터 다시 짓습니다. 문지기 구축은 <strong>13 문서가 정본</strong>이고, 이 문서의 새 내용은 <strong><code>ArchiveSubsystem</code> 최종형</strong>입니다.
   </p>
   <div class="hero-meta">
-    <span class="badge badge-blue">AUTOINCREMENT 발급</span>
-    <span class="badge badge-green">2축 카테고리 필터</span>
-    <span class="badge badge-purple">따라하기 8단계</span>
+    <span class="badge badge-blue">유형 ③ 프로젝트 문서</span>
+    <span class="badge badge-green">템플릿 02-B 기능 구현</span>
+    <span class="badge badge-purple">따라하기 · 8단계</span>
   </div>
 </div>
 
 <div class="content">
 
-  <!-- ===== 01 범위 ===== -->
+  <!-- ============================== 01 범위 -->
   <div class="section" id="scope">
     <div class="section-label">01 — 요구사항 / 범위</div>
     <h2>무엇이 되면 성공인가</h2>
     <table class="tbl">
       <tr><th>목표</th><th>확인 방법</th></tr>
-      <tr><td>① 길드가 <strong>만들어지고 남는다</strong> — 이름·대분류·생성 시각, 껐다 켜도 유지</td><td>재시작 후 Get Guilds / DB Browser</td></tr>
-      <tr><td>② <strong>2축 필터</strong>가 된다 — 대분류(길드)로도, 소분류(기록 태그)로도 검색</td><td>4단계 SQL을 DB Browser에서 실행</td></tr>
-      <tr><td>③ 소분류 풀을 <strong>관리</strong>한다 — 빈 카테고리 추가·이름 변경(트랜잭션)</td><td>5단계 후 두 테이블 동시 변경 확인</td></tr>
-      <tr><td>④ 길드 레벨이 <strong>파생</strong>된다 — 시간 적립 → ÷3600</td><td><code>GetGuildLevel()</code> 값 확인</td></tr>
-      <tr><td>⑤ 위조가 <strong>무효</strong>가 된다 — 시간 수정·블롭 스왑 모두 게임이 거부/복원</td><td>검증 섹션의 치트 시뮬레이션 2종</td></tr>
+      <tr><td>① 09의 옛 배관 흔적이 <strong>0</strong>이 된다 — 겸직 코드·한 컬럼 <code>archives</code>·옛 <code>Archive.db</code></td><td>ArchiveSubsystem에 <code>Open</code>/<code>CREATE TABLE</code> 없음, DB Browser에 옛 스키마 없음</td></tr>
+      <tr><td>② 문지기가 가동된다 — <strong>7테이블 자동 생성</strong>(13 문서)</td><td>출력 로그 <code>[DB] 준비 완료</code> + DB Browser 테이블 7종</td></tr>
+      <tr><td>③ <code>ArchiveSubsystem</code> 최종형 — <strong>기록 ID 규칙 + 최종 스키마 + 소프트 삭제</strong></td><td><code>archives</code> 행의 <code>Id</code>가 <code>YYYYMMDDhhmmssSSS-{GUILDID}</code> 형식</td></tr>
+      <tr><td>④ BP 왕복이 된다 — 만들고 → 읽고 → 휴지통 → 복원</td><td>8단계의 BP 시나리오</td></tr>
     </table>
 
     <h3>🚀 이 문서로 작업 시작하기</h3>
-    <div class="callout info"><span class="ic">🧭</span><p><strong>전제 조건</strong> — <strong>11 완료</strong>: 문지기 <code>UDatabaseSubsystem</code>이 DB를 열고, <code>RTSecured</code>(봉인/개봉)가 존재하는 상태. C++ 공통 절차는 위키 『C++ 클래스 생성 · 빌드 워크플로우』.</p></div>
+    <div class="callout info">
+      <span class="ic">🧭</span>
+      <p><strong>① 전제 조건</strong><br>
+      · <strong>09 경험</strong> — 코드는 버리지만 지식(플러그인·Build.cs·빌드 리듬·DB Browser)은 그대로 씁니다. 플러그인·<code>Build.cs</code> 모듈은 이미 돼 있으므로 <strong>다시 할 필요 없습니다.</strong><br>
+      · <strong>13 문서를 옆에 펴 두세요</strong> — 문지기(<code>UDatabaseSubsystem</code>) 코드는 이 문서에서 반복하지 않고 13을 정본으로 참조합니다(2단계).<br>
+      · 스키마 정본 = <strong>05 데이터 스키마 명세</strong>, 기록 ID·소프트 삭제 규칙 정본 = <strong>07 아카이브 문서</strong>. C++ 공통 절차는 위키 『C++ 클래스 생성 · 빌드 워크플로우』.</p>
+    </div>
+
+    <p style="margin-top:18px"><strong>② 만들 파일</strong></p>
     <table class="tbl">
-      <tr><th>만들 파일</th><th>부모 클래스 (위저드 검색어)</th><th>비고</th></tr>
-      <tr><td><code>GuildSubsystem.h / .cpp</code></td><td><strong>GameInstanceSubsystem</strong></td><td>guilds·archive_categories의 쓰기 주인</td></tr>
-      <tr><td><code>DatabaseSubsystem.cpp</code></td><td>—</td><td><strong>새 파일 아님</strong> — <code>CreateTables()</code>에 테이블 2종 추가(1단계)</td></tr>
-      <tr><td><code>RTSecured.h / .cpp</code></td><td>—</td><td><strong>새 파일 아님</strong> — 길드 시간 봉인 함수 2개 추가(6단계)</td></tr>
-      <tr><td><code>RTTypes.h</code></td><td>—</td><td><strong>새 파일 아님</strong> — <code>FGuildData</code>를 새 스키마(단수 Category 등)로 갱신(2단계)</td></tr>
+      <tr><th>파일</th><th>부모 클래스 (위저드 검색어)</th><th>비고</th></tr>
+      <tr><td><code>DatabaseSubsystem.h / .cpp</code></td><td><strong>GameInstanceSubsystem</strong></td><td>신규 — <strong>13 문서 1~5단계 그대로</strong>(2단계에서 요약)</td></tr>
+      <tr><td><code>RTTypes.h</code></td><td><strong>None</strong>(빈 헤더)</td><td>신규 — <code>ERecordSource</code>·<code>FArchiveRecord</code>(05 정본, 3단계)</td></tr>
+      <tr><td><code>ArchiveSubsystem.h / .cpp</code></td><td>—</td><td><strong>새 파일 아님 — 내용 전체 교체.</strong> 09의 코드를 지우고 4~7단계의 최종형으로 다시 채움</td></tr>
     </table>
-    <div class="callout tip"><span class="ic">💡</span><p><strong>코드 외 작업</strong> — <strong>없음.</strong> 플러그인·Build.cs·DB Browser 모두 09~11 그대로입니다.</p></div>
-    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>컴파일 주의</strong> — 새 헤더 1쌍(GuildSubsystem)이 생기므로 <strong>Live Coding 불가</strong>: 에디터 종료 → IDE 빌드 → 재실행. 이후 <code>.cpp</code> 내부 수정은 Live Coding 가능.</div></div>
+
+    <div class="callout tip"><span class="ic">💡</span><p><strong>③ 코드 외 작업</strong> — 딱 하나: <strong>옛 <code>Saved/Archive.db</code> 삭제</strong>(+ <code>*.db-wal</code>·<code>*.db-shm</code>·<code>*.db-journal</code>). 1단계 철거 체크리스트에 포함돼 있습니다. 플러그인·Build.cs·DB Browser는 09 그대로 유지 — 새로 만질 것 없음.</p></div>
+
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>④ 컴파일 주의</strong> — 새 <code>UCLASS</code>/<code>USTRUCT</code>/<code>UENUM</code> 헤더가 여럿 생기므로 <strong>Live Coding 불가</strong>: 에디터 완전 종료 → IDE 빌드 → 재실행. 또한 옛 <code>Create Archive</code> BP 노드는 함수 시그니처가 바뀌어 <strong>빌드 후 끊어집니다</strong> — 8단계에서 새로 배치합니다(정상).</div></div>
   </div>
 
-  <!-- ===== 02 설계 결정 ===== -->
+  <!-- ============================== 02 설계 결정 -->
   <div class="section" id="decision">
     <div class="section-label">02 — 설계 결정</div>
-    <h2>왜 이렇게 만드나</h2>
-
-    <h3>카테고리 2축 모델 — 대분류는 길드에, 소분류는 계정에</h3>
-    <p>카테고리가 <strong>두 축</strong>으로 나뉩니다. <strong>대분류</strong>(<code>guilds.Category</code>)는 길드의 속성으로 <strong>길드당 1개</strong>(길드 간 중복 허용), <strong>소분류</strong>(<code>Archive_Category</code>)는 <strong>모든 길드가 공유</strong>하는 계정 풀로 기록마다 태그됩니다.</p>
-    <table class="tbl">
-      <tr><th>예시</th><th>대분류 (guilds.Category)</th><th>소분류 태그 가능</th></tr>
-      <tr><td>A 길드</td><td>캐릭터</td><td rowspan="3">'애니메이션' 등 — <strong>공유 풀에서 어느 길드든 사용</strong></td></tr>
-      <tr><td>B 길드</td><td>배경</td></tr>
-      <tr><td>C 길드</td><td>캐릭터 <span style="color:var(--text-dim)">(A와 중복 OK)</span></td></tr>
-    </table>
-    <p style="margin-top:8px">필터 "<strong>캐릭터</strong>"(대분류) → A·C 길드의 기록. 필터 "<strong>애니메이션</strong>"(소분류) → A·B·C 전체의 해당 기록. 이후 <strong>필터 UI가 어느 축으로 검색할지 상세 구분·조합</strong>할 예정이므로, 4단계의 조회 SQL을 축별 조각으로 조립할 수 있게 설계합니다.</p>
-
-    <h3>GuildId 발급 — 왜 AUTOINCREMENT인가 (상세)</h3>
-    <p>SQLite에서 <code>INTEGER PRIMARY KEY</code>와 <code>INTEGER PRIMARY KEY <strong>AUTOINCREMENT</strong></code>는 비슷해 보이지만 <strong>번호 재사용 규칙이 다릅니다.</strong></p>
-    <table class="tbl">
-      <tr><th>구분</th><th>INTEGER PRIMARY KEY (일반)</th><th>+ AUTOINCREMENT</th></tr>
-      <tr><td>번호 발급</td><td>현재 존재하는 최대 rowid + 1</td><td><strong>역대</strong> 최대값 + 1 (<code>sqlite_sequence</code> 테이블에 기록)</td></tr>
-      <tr><td>행 삭제 후</td><td>⚠️ 마지막 행을 지우면 <strong>그 번호가 재사용될 수 있음</strong></td><td>✅ 지워도 <strong>영구히 재사용 안 됨</strong>(단조 증가)</td></tr>
-      <tr><td>비용</td><td>—</td><td><code>sqlite_sequence</code> 1행 관리 — 이 규모에선 무시 가능</td></tr>
-    </table>
-    <p>왜 재사용 금지가 중요한가 — <code>archives</code>의 모든 기록이 <code>GuildId</code>로 태그되고 기록 ID 접미사에도 길드번호가 박힙니다(07 문서). 길드를 <strong>완전 삭제(Purge)</strong>한 뒤 그 번호가 새 길드에 재발급되면, <strong>과거 기록이 남의 길드 것으로 오인</strong>됩니다. AUTOINCREMENT는 이 금지를 코드가 아니라 <strong>DB 엔진이 보장</strong>하게 합니다.</p>
-    <div class="callout tip" style="margin-top:8px"><span class="ic">💡</span><p><strong>부수 효과 두 가지.</strong> ① 기존 설계의 <code>player.NextGuildId</code> 카운터는 <strong>미사용</strong>이 됩니다 — GuildSubsystem이 Economy에 번호를 빌리러 갈 필요가 없어져 결합이 사라집니다(05 개정 반영). ② DB Browser에 <code>sqlite_sequence</code>라는 테이블이 새로 보이는데, 이건 AUTOINCREMENT의 장부입니다 — <strong>지우면 번호가 되감겨 재사용 금지가 깨지니 절대 삭제 금지.</strong></p></div>
-
-    <h3>나머지 결정</h3>
+    <h2>왜 고치지 않고 다시 짓나</h2>
     <table class="tbl">
       <tr><th>결정</th><th>내용</th><th>근거</th></tr>
-      <tr><td>소분류 풀 테이블 채택</td><td><code>archive_categories</code>(계정 공유 목록) 신설 — 기록은 지금처럼 <code>archives.Category</code>에 이름 태그</td><td><strong>빈 카테고리</strong>(기록 없이 미리 생성)를 목록에 보이게 + 이름 변경·속성(정렬 등) 확장 대비(사용자 결정)</td></tr>
-      <tr><td>guilds 쓰기 주인</td><td><span class="owner o-subsystem">GuildSubsystem</span> — 이름·카테고리·시간·소프트 삭제 전부</td><td>테이블당 주인 하나. 기존 지도(10)의 "길드 XP 주인=Economy"를 이관(Economy는 <code>player</code>만)</td></tr>
-      <tr><td>길드 레벨은 저장 안 함</td><td><code>레벨 = FocusSeconds / 3600</code> 파생</td><td>정직한 레벨. 단 <code>FocusSeconds</code> 자체는 저장 — <strong>기록을 소프트 삭제해도 레벨은 유지</strong>되어야 하므로 기록 합계로 파생하지 않는다</td></tr>
-      <tr><td>Secured = 길드당 1블롭 + <strong>GuildId 포함</strong></td><td>봉인 페이로드에 <code>GuildId</code>를 같이 넣음</td><td>시간만 봉인하면 <strong>다른 길드 행의 블롭을 복사(스왑)</strong>하는 치트가 통함 — GuildId 불일치로 거부(6단계)</td></tr>
-      <tr><td>시각은 UTC</td><td><code>CreatedAt</code>·<code>DeletedAt</code> = ISO8601 UTC</td><td>시간대·서머타임에 흔들리지 않는 정렬·비교(위키 『신뢰 시간』 참조)</td></tr>
+      <tr><td><strong>수술 대신 재구축</strong></td><td>09 코드를 단계적으로 전환하지 않고 걷어낸 뒤 새로 작성</td><td>09는 배관 검증용 스파이크 — 남길 자산이 한 컬럼 스키마와 겸직 구조뿐이라, 고치는 비용 &gt; 새로 쓰는 비용. 배관 지식(플러그인·빌드·도구)은 코드가 아니라 머리에 남아 있음</td></tr>
+      <tr><td>문지기 코드는 13 참조</td><td>이 문서는 <code>UDatabaseSubsystem</code> 코드를 반복하지 않음</td><td>정본 이원화 방지 — 같은 코드가 두 문서에 있으면 한쪽만 고쳐지는 사고가 남(연결은 허브 담당)</td></tr>
+      <tr><td>기록 ID = <code>YYYYMMDDhhmmssSSS-{GUILDID}</code></td><td>UTC ms 정밀 시각 + 길드 번호(최소 6자리 zero-pad, 초과 시 확장)</td><td>07 규칙 — ms 정밀로 동시 생성 충돌 회피, 길드 번호로 소속 식별. <strong>정렬은 이 문자열이 아니라 <code>CreatedAt</code> 컬럼으로</strong></td></tr>
+      <tr><td>소프트 삭제 = UPDATE 한 줄</td><td>행을 지우지 않고 <code>DeletedAt</code>에 시각을 찍음(NULL = 살아있음)</td><td>휴지통 복원 가능 + 무기한 보존(07). 일반 조회는 <code>DeletedAt IS NULL</code> 필터</td></tr>
+      <tr><td>enum·날짜의 저장 형태</td><td><code>Source</code>는 INTEGER로, <code>CreatedAt</code>은 ISO8601 TEXT로 저장</td><td>SQLite엔 enum·날짜 타입이 없음 — 넣을 때 변환(int 캐스트/<code>ToIso8601</code>), 읽을 때 복원(캐스트/<code>ParseIso8601</code>)</td></tr>
+    </table>
+
+    <h3>철거 지도 — 남기는 것 vs 지우는 것</h3>
+    <table class="tbl">
+      <tr><th>대상</th><th>처분</th><th>이유</th></tr>
+      <tr><td>플러그인 <code>SQLiteSupport</code> · <code>.uproject</code> 항목</td><td><span class="badge badge-green">유지</span></td><td>배관 인프라 — 재구축에도 그대로 필요</td></tr>
+      <tr><td><code>Build.cs</code>의 <code>SQLiteCore</code>·<code>SQLiteSupport</code></td><td><span class="badge badge-green">유지</span></td><td>링크 의존 — 재구축에도 그대로 필요</td></tr>
+      <tr><td>DB Browser for SQLite</td><td><span class="badge badge-green">유지</span></td><td>검증 도구는 계속 씀</td></tr>
+      <tr><td><code>ArchiveSubsystem.h/.cpp</code>의 <strong>내용</strong></td><td><span class="badge badge-purple">교체</span></td><td>파일(클래스 이름)은 유지, 안의 코드는 4~7단계 최종형으로 전부 다시 씀</td></tr>
+      <tr><td><code>Saved/Archive.db</code>(+wal·shm·journal)</td><td><span class="badge badge-blue">삭제</span></td><td>한 컬럼 <code>archives</code>가 남아 있으면 <code>IF NOT EXISTS</code>가 새 스키마를 만들어 주지 않음</td></tr>
+      <tr><td>테스트 BP의 옛 <code>Create Archive</code> 노드</td><td><span class="badge badge-blue">삭제</span></td><td>시그니처가 바뀌어 끊어짐 — 8단계에서 새로 배치</td></tr>
     </table>
   </div>
 
-  <!-- ===== 03 따라하기 ===== -->
+  <!-- ============================== 03 따라하기 -->
   <div class="section" id="steps">
     <div class="section-label">03 — 따라하기</div>
-    <h2>8단계 — 테이블 추가에서 스왑 방어까지</h2>
-    <p>09~11처럼 위에서부터 순서대로. 각 단계 제목을 클릭하면 완료 체크됩니다.</p>
+    <h2>8단계 — 철거에서 휴지통 왕복까지</h2>
+    <p>위에서부터 순서대로. 각 단계 제목을 클릭하면 완료 체크됩니다(이 브라우저에만 남고 저장되지는 않습니다).</p>
 
     <div class="checklist">
       <div class="check-prog">
@@ -826,41 +805,17 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <div class="check-step">
         <div class="check-head" tabindex="0" role="button" aria-pressed="false">
           <div class="check-tick"><span class="tk-num">1</span></div>
-          <div><div class="check-title">문지기에 테이블 2종 추가</div><div class="check-why">guilds(AUTOINCREMENT) + archive_categories(공유 풀)</div></div>
+          <div><div class="check-title">철거 — 옛 배관 걷어내기</div><div class="check-why">02의 철거 지도대로 — 인프라는 남기고 스파이크만 제거</div></div>
         </div>
         <div class="check-body">
-          <p>11에서 만든 문지기의 <code>CreateTables()</code>에 이어 붙입니다(<code>player</code> 생성 다음 줄).</p>
-          <div class="codeblock">
-            <div class="codeblock-bar">
-              <button class="codeblock-tab tab-cpp active" type="button">DatabaseSubsystem.cpp — CreateTables에 추가</button>
-              <button class="codeblock-copy" type="button">복사</button>
-            </div>
-            <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// ③ guilds — 길드(길드당 1행). AUTOINCREMENT: 삭제해도 GuildId 영구 미재사용(02 설계 결정 상세)</span>
-Database.<span class="hljs-title">Execute</span>(<span class="hljs-built_in">TEXT</span>(
-    <span class="hljs-string">"CREATE TABLE IF NOT EXISTS guilds ("</span>
-    <span class="hljs-string">"  GuildId      INTEGER PRIMARY KEY AUTOINCREMENT,"</span>  <span class="hljs-comment">// 재사용 금지를 엔진이 보장</span>
-    <span class="hljs-string">"  GuildName    TEXT    NOT NULL,"</span>
-    <span class="hljs-string">"  Category     TEXT,"</span>                                <span class="hljs-comment">// 대분류 1개(길드 간 중복 허용)</span>
-    <span class="hljs-string">"  FocusSeconds INTEGER NOT NULL DEFAULT 0,"</span>          <span class="hljs-comment">// 누적 활동 초 → 레벨=÷3600 파생</span>
-    <span class="hljs-string">"  CreatedAt    TEXT    NOT NULL,"</span>                    <span class="hljs-comment">// 생성 시각(ISO8601 UTC)</span>
-    <span class="hljs-string">"  SortOrder    INTEGER NOT NULL DEFAULT 0,"</span>          <span class="hljs-comment">// UI 정렬 순서</span>
-    <span class="hljs-string">"  Icon         TEXT,"</span>                                <span class="hljs-comment">// UI 아이콘 식별자</span>
-    <span class="hljs-string">"  DeletedAt    TEXT,"</span>                                <span class="hljs-comment">// 소프트 삭제(NULL=살아있음)</span>
-    <span class="hljs-string">"  Secured      BLOB"</span>                                 <span class="hljs-comment">// GuildId+FocusSeconds 봉인(6단계)</span>
-    <span class="hljs-string">");"</span>));
-
-<span class="hljs-comment">// ④ archive_categories — 소분류(계정 공유 풀). 이름 자체가 키:</span>
-<span class="hljs-comment">//    기록(archives.Category)이 이름 문자열로 태그하므로 그대로 조인·비교 가능</span>
-Database.<span class="hljs-title">Execute</span>(<span class="hljs-built_in">TEXT</span>(
-    <span class="hljs-string">"CREATE TABLE IF NOT EXISTS archive_categories ("</span>
-    <span class="hljs-string">"  Name      TEXT PRIMARY KEY,"</span>       <span class="hljs-comment">// 카테고리 이름(중복 자동 차단)</span>
-    <span class="hljs-string">"  Color     TEXT NOT NULL DEFAULT 'FFFFFFFF',"</span>  <span class="hljs-comment">// 플레이어 지정 색 — "RRGGBBAA" 헥스</span>
-    <span class="hljs-string">"  Icon      TEXT,"</span>                   <span class="hljs-comment">// 플레이어 지정 아이콘 식별자</span>
-    <span class="hljs-string">"  CreatedAt TEXT NOT NULL,"</span>
-    <span class="hljs-string">"  SortOrder INTEGER NOT NULL DEFAULT 0"</span>  <span class="hljs-comment">// 목록 표시 순서(향후 관리 UI 대비)</span>
-    <span class="hljs-string">");"</span>));</pre></div>
-          </div>
-          <div class="callout tip" style="margin-top:8px"><span class="ic">💡</span><p>실행 후 DB Browser에 <code>sqlite_sequence</code> 테이블이 새로 생깁니다 — AUTOINCREMENT의 번호 장부(정상)이며 <strong>삭제 금지</strong>입니다(02 참조).</p></div>
+          <table class="tbl">
+            <tr><th>순서</th><th>할 일</th></tr>
+            <tr><td>1</td><td>에디터·게임 <strong>완전 종료</strong>(파일 잠금 해제)</td></tr>
+            <tr><td>2</td><td><code>ArchiveSubsystem.h</code>를 열어 <strong>내용 전부 삭제</strong>(파일은 남김 — 4단계에서 새로 채움). <code>.cpp</code>도 동일</td></tr>
+            <tr><td>3</td><td>파일 탐색기에서 <code>[프로젝트]/Saved/</code>의 <code>Archive.db</code> + <code>*.db-wal</code>·<code>*.db-shm</code>·<code>*.db-journal</code> <strong>삭제</strong></td></tr>
+            <tr><td>4</td><td>레벨 BP 등에서 옛 <code>Create Archive</code>/<code>Get Archives</code> 노드가 있으면 <strong>삭제</strong>(끊어질 예정이라 미리 정리)</td></tr>
+          </table>
+          <div class="callout tip"><span class="ic">🔎</span><p><strong>확인</strong> — 플러그인·Build.cs는 <strong>건드리지 않았고</strong>, <code>Saved/</code>에 <code>.db</code> 계열 파일이 없다. 이 상태에선 빌드가 잠시 깨져 있어도 정상입니다(4단계까지 가면 복구).</p></div>
         </div>
       </div>
 
@@ -868,93 +823,19 @@ Database.<span class="hljs-title">Execute</span>(<span class="hljs-built_in">TEX
       <div class="check-step">
         <div class="check-head" tabindex="0" role="button" aria-pressed="false">
           <div class="check-tick"><span class="tk-num">2</span></div>
-          <div><div class="check-title">FGuildData 갱신 + GuildSubsystem 뼈대</div><div class="check-why">단수 Category 스키마 반영 · 문지기 의존은 이제 관례</div></div>
+          <div><div class="check-title">문지기 구축 — 13 문서 1~5단계 수행</div><div class="check-why">코드 정본은 13 — 여기서는 지도만</div></div>
         </div>
         <div class="check-body">
-          <p>먼저 <code>RTTypes.h</code>의 <code>FGuildData</code>를 새 스키마로 갱신합니다(기존 <code>Categories</code> 배열 → 단수 <code>Category</code> — 2축 모델 확정에 따름). 그다음 <code>GuildSubsystem</code>을 생성합니다.</p>
-          <div class="codeblock">
-            <div class="codeblock-bar">
-              <button class="codeblock-tab tab-h active" type="button">RTTypes.h — FGuildData 교체</button>
-              <button class="codeblock-tab tab-h" type="button">GuildSubsystem.h</button>
-              <button class="codeblock-tab tab-cpp" type="button">GuildSubsystem.cpp — Initialize</button>
-              <button class="codeblock-copy" type="button">복사</button>
-            </div>
-            <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 길드 하나 — guilds 1행의 메모리 캐시. 캐릭터·Gold는 여기 없음(계정 공유)</span>
-<span class="hljs-meta">USTRUCT(BlueprintType)</span>
-<span class="hljs-keyword">struct</span> <span class="hljs-type">FGuildData</span>
-{
-    <span class="hljs-meta">GENERATED_BODY()</span>
-    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> GuildId = <span class="hljs-number">0</span>;        <span class="hljs-comment">// AUTOINCREMENT 발급(재사용 없음)</span>
-    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> GuildName;
-    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> Category;         <span class="hljs-comment">// 대분류 1개(길드 간 중복 허용) — 구 Categories 배열 대체</span>
-    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> FocusSeconds = <span class="hljs-number">0</span>;   <span class="hljs-comment">// 레벨의 원천(기록 삭제와 무관하게 유지)</span>
-    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FDateTime</span> CreatedAt;       <span class="hljs-comment">// UTC</span>
-    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> SortOrder = <span class="hljs-number">0</span>;      <span class="hljs-comment">// UI 정렬</span>
-    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> Icon;              <span class="hljs-comment">// UI 아이콘 식별자</span>
-
-    <span class="hljs-type">int32</span> <span class="hljs-title">GetLevel</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> FocusSeconds / <span class="hljs-number">3600</span>; } <span class="hljs-comment">// 60분=1레벨(저장 안 함)</span>
-};
-
-<span class="hljs-comment">// 소분류 카테고리 하나 — archive_categories 1행. 이름·색·아이콘이 UI에 항상 쌍으로 다닌다(05 v0.17)</span>
-<span class="hljs-meta">USTRUCT(BlueprintType)</span>
-<span class="hljs-keyword">struct</span> <span class="hljs-type">FArchiveCategory</span>
-{
-    <span class="hljs-meta">GENERATED_BODY()</span>
-    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> Name;         <span class="hljs-comment">// 플레이어가 정한 이름(PK)</span>
-    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FLinearColor</span> Color = <span class="hljs-type">FLinearColor</span>::White; <span class="hljs-comment">// DB엔 "RRGGBBAA" TEXT</span>
-    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> Icon;         <span class="hljs-comment">// 플레이어가 고른 아이콘 식별자</span>
-};</pre></div>
-            <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
-<span class="hljs-meta">#include</span> <span class="hljs-meta"><span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span></span>
-<span class="hljs-meta">#include</span> <span class="hljs-meta"><span class="hljs-string">"RTTypes.h"</span></span>                   <span class="hljs-comment">// FGuildData</span>
-<span class="hljs-meta">#include</span> <span class="hljs-meta"><span class="hljs-string">"GuildSubsystem.generated.h"</span></span>
-
-<span class="hljs-keyword">class</span> <span class="hljs-type">FSQLiteDatabase</span>;
-
-<span class="hljs-meta">UCLASS()</span>
-<span class="hljs-keyword">class</span> <span class="hljs-type">UGuildSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
-{
-    <span class="hljs-meta">GENERATED_BODY()</span>
-<span class="hljs-keyword">public</span>:
-    <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection) <span class="hljs-keyword">override</span>;
-
-    <span class="hljs-comment">// 길드 생성 — 새 GuildId 반환(실패 시 -1). Category = 대분류(중복 허용)</span>
-    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-type">int32</span> <span class="hljs-title">CreateGuild</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Name, <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Category);
-    <span class="hljs-comment">// 살아있는 길드 목록(SortOrder 정렬) — 캐시 반환</span>
-    <span class="hljs-meta">UFUNCTION(BlueprintPure)</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FGuildData</span>&gt; <span class="hljs-title">GetGuilds</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> Guilds; }
-
-    <span class="hljs-comment">// 시간 적립(세션 종료 시 Focus 쪽에서 호출) + 레벨 파생 조회</span>
-    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">AddFocusSeconds</span>(<span class="hljs-type">int32</span> GuildId, <span class="hljs-type">int32</span> Seconds);
-    <span class="hljs-meta">UFUNCTION(BlueprintPure)</span> <span class="hljs-type">int32</span> <span class="hljs-title">GetGuildLevel</span>(<span class="hljs-type">int32</span> GuildId) <span class="hljs-keyword">const</span>;
-
-    <span class="hljs-comment">// 소프트 삭제 / 복원 — 행은 남기고 DeletedAt만(07 문서 규약)</span>
-    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">SoftDeleteGuild</span>(<span class="hljs-type">int32</span> GuildId);
-    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">RestoreGuild</span>(<span class="hljs-type">int32</span> GuildId);
-
-    <span class="hljs-comment">// 소분류(계정 공유 풀) 관리</span>
-    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">AddArchiveCategory</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Name, <span class="hljs-type">FLinearColor</span> Color, <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Icon);
-    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-keyword">void</span> <span class="hljs-title">RenameArchiveCategory</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; OldName, <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; NewName);
-    <span class="hljs-meta">UFUNCTION(BlueprintCallable)</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FArchiveCategory</span>&gt; <span class="hljs-title">GetArchiveCategories</span>() <span class="hljs-keyword">const</span>;   <span class="hljs-comment">// 이름·색·아이콘 묶음(FArchiveCategory)</span>
-
-<span class="hljs-keyword">private</span>:
-    <span class="hljs-keyword">void</span> <span class="hljs-title">LoadGuilds</span>();                <span class="hljs-comment">// 시작 시 1회 — SELECT + Secured 검증·복원(6단계)</span>
-    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FGuildData</span>&gt; Guilds;      <span class="hljs-comment">// 메모리 캐시(RUNTIME) — 진실은 DB</span>
-    <span class="hljs-type">FSQLiteDatabase</span>* Db = <span class="hljs-literal">nullptr</span>;   <span class="hljs-comment">// 문지기에게 빌린 핸들</span>
-};</pre></div>
-            <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include</span> <span class="hljs-meta"><span class="hljs-string">"GuildSubsystem.h"</span></span>
-<span class="hljs-meta">#include</span> <span class="hljs-meta"><span class="hljs-string">"DatabaseSubsystem.h"</span></span>
-<span class="hljs-meta">#include</span> <span class="hljs-meta"><span class="hljs-string">"SQLiteDatabase.h"</span></span>
-<span class="hljs-meta">#include</span> <span class="hljs-meta"><span class="hljs-string">"SQLitePreparedStatement.h"</span></span>
-
-<span class="hljs-keyword">void</span> <span class="hljs-type">UGuildSubsystem</span>::<span class="hljs-title">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection)
-{
-    Super::<span class="hljs-title">Initialize</span>(Collection);
-    <span class="hljs-comment">// 문지기 먼저 — 11의 Economy·Archive와 완전히 같은 관례(대칭이 곧 구조의 힘)</span>
-    <span class="hljs-type">UDatabaseSubsystem</span>* Gate = Collection.InitializeDependency&lt;<span class="hljs-type">UDatabaseSubsystem</span>&gt;();
-    Db = Gate ? Gate-&gt;<span class="hljs-title">GetDb</span>() : <span class="hljs-literal">nullptr</span>;
-    <span class="hljs-keyword">if</span> (Db &amp;&amp; Db-&gt;<span class="hljs-title">IsValid</span>()) <span class="hljs-title">LoadGuilds</span>();
-}</pre></div>
-          </div>
+          <p><strong>13 DatabaseSubsystem 문서</strong>를 열고 1~5단계를 그대로 수행하세요. 요약 지도:</p>
+          <table class="tbl">
+            <tr><th>13의 단계</th><th>결과물</th><th>핵심 확인</th></tr>
+            <tr><td>1 클래스 생성</td><td><code>DatabaseSubsystem.h/.cpp</code></td><td>부모 = GameInstanceSubsystem</td></tr>
+            <tr><td>2 헤더</td><td><code>GetDb()</code> + 트랜잭션 3함수 선언</td><td><code>RECORDTALES_API</code>는 위저드 생성분 그대로</td></tr>
+            <tr><td>3 열닫</td><td><code>Open</code>·<code>PRAGMA foreign_keys</code>·<code>Close</code></td><td>경로 = <code>Saved/Archive.db</code></td></tr>
+            <tr><td>4 CreateTables</td><td><strong>7테이블 FK 순서 생성</strong></td><td><code>archives</code>는 처음부터 <strong>최종 스키마</strong>(05 정본) — 1단계에서 옛 DB를 지웠으니 깨끗하게 생성됨</td></tr>
+            <tr><td>5 트랜잭션 3함수</td><td>Begin/Commit/Rollback</td><td>중첩 방지 플래그 포함</td></tr>
+          </table>
+          <div class="callout info"><span class="ic">🚪</span><p>09와 달리 이번엔 <strong>처음부터 문지기가 DB를 소유</strong>합니다 — ArchiveSubsystem은 이제 DB를 열지 않고, 다음 단계들에서 "빌려 쓰는" 쪽으로만 작성됩니다.</p></div>
         </div>
       </div>
 
@@ -962,59 +843,43 @@ Database.<span class="hljs-title">Execute</span>(<span class="hljs-built_in">TEX
       <div class="check-step">
         <div class="check-head" tabindex="0" role="button" aria-pressed="false">
           <div class="check-tick"><span class="tk-num">3</span></div>
-          <div><div class="check-title">CreateGuild + 목록 로드</div><div class="check-why">INSERT → 엔진이 준 새 번호 받기(GetLastInsertRowId)</div></div>
+          <div><div class="check-title">RTTypes.h — 기록의 그릇 만들기</div><div class="check-why">ERecordSource + FArchiveRecord(05 정본)</div></div>
         </div>
         <div class="check-body">
+          <p>에디터에서 <code>도구 &gt; 새로운 C++ 클래스</code> → <strong>None</strong>(빈 클래스) → 이름 <code>RTTypes</code>. 생성된 <span class="filetag h">RTTypes.h</span>를 아래로 교체하세요(<code>.cpp</code>는 include 한 줄만 남으면 됩니다).</p>
           <div class="codeblock">
             <div class="codeblock-bar">
-              <button class="codeblock-tab tab-cpp active" type="button">GuildSubsystem.cpp — 생성·로드</button>
+              <button class="codeblock-tab tab-h active" type="button">RTTypes.h</button>
               <button class="codeblock-copy" type="button">복사</button>
             </div>
-            <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-type">int32</span> <span class="hljs-type">UGuildSubsystem</span>::<span class="hljs-title">CreateGuild</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Name, <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Category)
+            <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// RTTypes.h — DB 행을 담는 런타임 캐시 struct들 (스키마 정본은 05 문서)</span>
+<span class="hljs-meta">#pragma once</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"CoreMinimal.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"RTTypes.generated.h"</span>   <span class="hljs-comment">// UENUM·USTRUCT를 쓰므로 필요 — 항상 맨 마지막</span>
+
+<span class="hljs-comment">// 기록이 어디서 왔나 — archives.Source 컬럼(INTEGER)에 대응.</span>
+<span class="hljs-comment">// 순서를 바꾸면 기존 DB의 숫자와 어긋나므로 뒤에만 추가할 것</span>
+<span class="hljs-meta">UENUM(BlueprintType)</span>
+<span class="hljs-keyword">enum</span> <span class="hljs-keyword">class</span> <span class="hljs-type">ERecordSource</span> : <span class="hljs-type">uint8</span>
 {
-    <span class="hljs-keyword">if</span> (!Db || !Db-&gt;<span class="hljs-title">IsValid</span>() || Name.<span class="hljs-title">IsEmpty</span>()) <span class="hljs-keyword">return</span> -<span class="hljs-number">1</span>;
+    Timer,       <span class="hljs-comment">// 집중 타이머</span>
+    Stopwatch,   <span class="hljs-comment">// 스톱워치</span>
+    Quest        <span class="hljs-comment">// 퀘스트 완료</span>
+};
 
-    <span class="hljs-type">FSQLitePreparedStatement</span> Stmt;
-    <span class="hljs-comment">// GuildId는 넣지 않는다 — AUTOINCREMENT가 발급(넣으면 엔진 보장을 스스로 깨는 셈)</span>
-    Stmt.<span class="hljs-title">Create</span>(*Db, <span class="hljs-built_in">TEXT</span>(
-        <span class="hljs-string">"INSERT INTO guilds (GuildName, Category, CreatedAt) VALUES (?1, ?2, ?3);"</span>));
-    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">1</span>, Name);
-    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">2</span>, Category);
-    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">3</span>, <span class="hljs-type">FDateTime</span>::<span class="hljs-title">UtcNow</span>().<span class="hljs-title">ToIso8601</span>()); <span class="hljs-comment">// UTC 고정(02 결정)</span>
-    <span class="hljs-keyword">const</span> <span class="hljs-type">bool</span> bOk = Stmt.<span class="hljs-title">Execute</span>();
-    Stmt.<span class="hljs-title">Destroy</span>();
-    <span class="hljs-keyword">if</span> (!bOk) <span class="hljs-keyword">return</span> -<span class="hljs-number">1</span>;
-
-    <span class="hljs-comment">// 방금 INSERT가 받은 번호 = 이 연결의 마지막 rowid. 이걸 캐시·UI가 쓴다</span>
-    <span class="hljs-keyword">const</span> <span class="hljs-type">int32</span> NewId = (<span class="hljs-type">int32</span>)Db-&gt;<span class="hljs-title">GetLastInsertRowId</span>();
-    <span class="hljs-title">LoadGuilds</span>();                     <span class="hljs-comment">// 캐시 재적재(단순·확실 — 길드 수가 적어 비용 무시 가능)</span>
-    <span class="hljs-keyword">return</span> NewId;
-}
-
-<span class="hljs-keyword">void</span> <span class="hljs-type">UGuildSubsystem</span>::<span class="hljs-title">LoadGuilds</span>()
+<span class="hljs-comment">// 아카이브 기록 하나 — archives 1행의 메모리 표현. GetArchives는 살아있는 기록만 담아 반환</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-type">FArchiveRecord</span>
 {
-    Guilds.<span class="hljs-title">Reset</span>();
-    <span class="hljs-type">FSQLitePreparedStatement</span> Stmt;
-    <span class="hljs-comment">// 살아있는 길드만(DeletedAt IS NULL), UI 정렬 순서 → 생성 순 보조 정렬</span>
-    Stmt.<span class="hljs-title">Create</span>(*Db, <span class="hljs-built_in">TEXT</span>(
-        <span class="hljs-string">"SELECT GuildId, GuildName, Category, FocusSeconds, CreatedAt, SortOrder, Icon, Secured "</span>
-        <span class="hljs-string">"FROM guilds WHERE DeletedAt IS NULL ORDER BY SortOrder, GuildId;"</span>));
-    <span class="hljs-keyword">while</span> (Stmt.<span class="hljs-title">Step</span>() == <span class="hljs-type">ESQLitePreparedStatementStepResult</span>::Row)
-    {
-        <span class="hljs-type">FGuildData</span> G; <span class="hljs-type">FString</span> IsoTime; <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; Blob;
-        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">0</span>, G.GuildId);
-        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">1</span>, G.GuildName);
-        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">2</span>, G.Category);
-        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">3</span>, G.FocusSeconds);
-        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">4</span>, IsoTime);
-        <span class="hljs-type">FDateTime</span>::<span class="hljs-title">ParseIso8601</span>(*IsoTime, G.CreatedAt);   <span class="hljs-comment">// TEXT → FDateTime</span>
-        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">5</span>, G.SortOrder);
-        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">6</span>, G.Icon);
-        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">7</span>, Blob);              <span class="hljs-comment">// Secured — 검증은 6단계에서 이 자리에 추가</span>
-        Guilds.<span class="hljs-title">Add</span>(G);
-    }
-    Stmt.<span class="hljs-title">Destroy</span>();
-}</pre></div>
+    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> Id;                    <span class="hljs-comment">// "YYYYMMDDhhmmssSSS-{GUILDID}" — 발급 후 불변</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> GuildId = <span class="hljs-number">0</span>;            <span class="hljs-comment">// 길드 스코프 태그(필터 키)</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> Category;              <span class="hljs-comment">// 소분류(계정 공유 풀의 이름)</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">ERecordSource</span> Source = <span class="hljs-type">ERecordSource</span>::Timer;
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FDateTime</span> CreatedAt;           <span class="hljs-comment">// 정렬 정본(문자열 Id로 정렬 금지 — 07 규칙)</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> DurationSeconds = <span class="hljs-number">0</span>;
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> Title;
+};</pre></div>
           </div>
         </div>
       </div>
@@ -1023,33 +888,52 @@ Database.<span class="hljs-title">Execute</span>(<span class="hljs-built_in">TEX
       <div class="check-step">
         <div class="check-head" tabindex="0" role="button" aria-pressed="false">
           <div class="check-tick"><span class="tk-num">4</span></div>
-          <div><div class="check-title">2축 카테고리 필터 SQL</div><div class="check-why">대분류=길드를 거쳐, 소분류=기록을 직접 — 조합도 가능</div></div>
+          <div><div class="check-title">ArchiveSubsystem.h — 최종형 헤더</div><div class="check-why">DB를 소유하지 않는다 — 빌린 포인터 + 기능 4개</div></div>
         </div>
         <div class="check-body">
-          <p>두 축은 <strong>거치는 테이블이 다릅니다</strong> — 대분류는 <code>guilds</code>를 JOIN해서 거르고, 소분류는 <code>archives.Category</code>를 직접 거릅니다. 이후 상세 필터 UI가 "어느 축으로 검색할지"를 고르거나 <strong>두 축을 조합</strong>할 예정이므로, WHERE 조각을 축별로 조립하는 구조를 권장합니다.</p>
+          <p>1단계에서 비워 둔 <span class="filetag h">ArchiveSubsystem.h</span>를 아래로 채웁니다. 09와의 결정적 차이: <code>FSQLiteDatabase</code> <strong>값 멤버가 없습니다</strong> — 문지기에게 빌린 포인터뿐입니다.</p>
           <div class="codeblock">
             <div class="codeblock-bar">
-              <button class="codeblock-tab tab-h active" type="button">filter-queries.sql</button>
+              <button class="codeblock-tab tab-h active" type="button">ArchiveSubsystem.h</button>
               <button class="codeblock-copy" type="button">복사</button>
             </div>
-            <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">-- 공통 뼈대: 기록 + 소속 길드. 살아있는 것만(길드가 휴지통이면 그 기록도 자동으로 숨음)</span>
-<span class="hljs-keyword">SELECT</span> a.* <span class="hljs-keyword">FROM</span> archives a
-<span class="hljs-keyword">JOIN</span> guilds g <span class="hljs-keyword">ON</span> g.GuildId = a.GuildId
-<span class="hljs-keyword">WHERE</span> g.DeletedAt <span class="hljs-keyword">IS NULL</span> <span class="hljs-keyword">AND</span> a.DeletedAt <span class="hljs-keyword">IS NULL</span>
-<span class="hljs-comment">-- ▼ 아래 조각을 필터 UI 선택에 따라 덧붙인다 ▼</span>
+            <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// ArchiveSubsystem.h — archives 기능 전담(열닫·스키마는 문지기의 일)</span>
+<span class="hljs-meta">#pragma once</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"RTTypes.h"</span>                     <span class="hljs-comment">// FArchiveRecord / ERecordSource (3단계)</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"ArchiveSubsystem.generated.h"</span>
 
-<span class="hljs-comment">-- 축 1) 대분류(Guild_Category) 필터: '캐릭터' → A·C 길드의 기록</span>
-  <span class="hljs-keyword">AND</span> g.Category = <span class="hljs-string">'캐릭터'</span>
+<span class="hljs-keyword">class</span> <span class="hljs-type">FSQLiteDatabase</span>;   <span class="hljs-comment">// 전방 선언 — 포인터만 들므로 실제 include는 .cpp에서</span>
 
-<span class="hljs-comment">-- 축 2) 소분류(Archive_Category) 필터: '애니메이션' → 전 길드에서 태그된 기록</span>
-  <span class="hljs-keyword">AND</span> a.Category = <span class="hljs-string">'애니메이션'</span>
+<span class="hljs-meta">UCLASS()</span>
+<span class="hljs-keyword">class</span> <span class="hljs-type">RECORDTALES_API</span> <span class="hljs-type">UArchiveSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
 
-<span class="hljs-comment">-- 조합) 상세 필터: 두 축을 함께 — '캐릭터' 길드들의 '애니메이션' 기록만</span>
-  <span class="hljs-keyword">AND</span> g.Category = <span class="hljs-string">'캐릭터'</span> <span class="hljs-keyword">AND</span> a.Category = <span class="hljs-string">'애니메이션'</span>
+<span class="hljs-keyword">public</span>:
+    <span class="hljs-comment">// 게임 시작 시 자동 호출 — 문지기를 먼저 초기화시키고 핸들을 빌린다</span>
+    <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection) <span class="hljs-keyword">override</span>;
 
-<span class="hljs-keyword">ORDER BY</span> a.CreatedAt <span class="hljs-keyword">DESC</span>;   <span class="hljs-comment">-- 정렬은 항상 CreatedAt 컬럼(문자열 ID 아님 — 07 규약)</span></pre></div>
+    <span class="hljs-comment">// 기록 1건 생성. 반환 = 발급된 기록 Id(실패 시 빈 문자열)</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category=<span class="hljs-string">"Archive"</span>)</span>
+    <span class="hljs-type">FString</span> <span class="hljs-title">CreateArchive</span>(<span class="hljs-type">int32</span> GuildId, <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Category, <span class="hljs-type">ERecordSource</span> Source,
+                          <span class="hljs-type">int32</span> DurationSeconds, <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Title);
+
+    <span class="hljs-comment">// 살아있는 기록을 최신순으로. GuildId = -1이면 전체 길드(기념비 뷰)</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category=<span class="hljs-string">"Archive"</span>)</span>
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FArchiveRecord</span>&gt; <span class="hljs-title">GetArchives</span>(<span class="hljs-type">int32</span> GuildId = -<span class="hljs-number">1</span>);
+
+    <span class="hljs-comment">// 소프트 삭제/복원 — 행을 지우지 않고 DeletedAt만 갱신(07 규칙)</span>
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category=<span class="hljs-string">"Archive"</span>)</span>
+    <span class="hljs-type">bool</span> <span class="hljs-title">SoftDeleteArchive</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Id);
+    <span class="hljs-meta">UFUNCTION(BlueprintCallable, Category=<span class="hljs-string">"Archive"</span>)</span>
+    <span class="hljs-type">bool</span> <span class="hljs-title">RestoreArchive</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Id);
+
+<span class="hljs-keyword">private</span>:
+    <span class="hljs-type">FString</span> <span class="hljs-title">MakeArchiveId</span>(<span class="hljs-type">int32</span> GuildId) <span class="hljs-keyword">const</span>;   <span class="hljs-comment">// 07 규칙의 기록 ID 발급(5단계)</span>
+    <span class="hljs-type">FSQLiteDatabase</span>* Db = <span class="hljs-literal">nullptr</span>;                <span class="hljs-comment">// 문지기에게 빌린 핸들(소유 아님 — Close 금지)</span>
+};</pre></div>
           </div>
-          <div class="callout tip" style="margin-top:8px"><span class="ic">💡</span><p><strong>코드에서는</strong> — 조회 함수를 <code>GetRecords(옵션: 대분류, 소분류)</code> 하나로 두고, 넘어온 옵션에 따라 위 WHERE 조각을 바인딩으로 덧붙이면 상세 필터 UI가 어떤 조합을 요구해도 SQL 하나로 대응됩니다.</p></div>
         </div>
       </div>
 
@@ -1057,71 +941,64 @@ Database.<span class="hljs-title">Execute</span>(<span class="hljs-built_in">TEX
       <div class="check-step">
         <div class="check-head" tabindex="0" role="button" aria-pressed="false">
           <div class="check-tick"><span class="tk-num">5</span></div>
-          <div><div class="check-title">소분류 풀 관리 — 첫 실전 트랜잭션</div><div class="check-why">이름 변경은 풀+기록 두 테이블을 한 덩어리로</div></div>
+          <div><div class="check-title">기록 ID 발급 + CreateArchive</div><div class="check-why">07 규칙을 코드로 — UTC ms 시각 + 길드 번호</div></div>
         </div>
         <div class="check-body">
-          <p>추가는 한 테이블이라 단순하지만, <strong>이름 변경은 두 테이블</strong>(풀의 정의 + 기록의 태그)을 함께 고쳐야 합니다 — 03·05 문서에서 설계로만 보던 <code>BEGIN…COMMIT</code>이 처음 실전 투입되는 지점입니다.</p>
+          <p><span class="filetag cpp">ArchiveSubsystem.cpp</span>를 아래로 시작합니다. <code>Initialize</code>는 13의 연결 관례 2줄이고, 새 내용은 <code>MakeArchiveId</code>와 <code>CreateArchive</code>입니다.</p>
           <div class="codeblock">
             <div class="codeblock-bar">
-              <button class="codeblock-tab tab-cpp active" type="button">GuildSubsystem.cpp — 풀 관리</button>
+              <button class="codeblock-tab tab-cpp active" type="button">ArchiveSubsystem.cpp — 연결·ID·생성</button>
               <button class="codeblock-copy" type="button">복사</button>
             </div>
-            <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-keyword">void</span> <span class="hljs-type">UGuildSubsystem</span>::<span class="hljs-title">AddArchiveCategory</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Name, <span class="hljs-type">FLinearColor</span> Color, <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Icon)
+            <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#include</span> <span class="hljs-string">"ArchiveSubsystem.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"DatabaseSubsystem.h"</span>          <span class="hljs-comment">// 문지기 — GetDb()</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"SQLiteDatabase.h"</span>             <span class="hljs-comment">// FSQLiteDatabase 실체(전방 선언 해소)</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"SQLitePreparedStatement.h"</span>    <span class="hljs-comment">// 쿼리 실행 도구</span>
+
+<span class="hljs-keyword">void</span> <span class="hljs-type">UArchiveSubsystem</span>::<span class="hljs-title">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection)
 {
-    <span class="hljs-keyword">if</span> (!Db || !Db-&gt;<span class="hljs-title">IsValid</span>() || Name.<span class="hljs-title">IsEmpty</span>()) <span class="hljs-keyword">return</span>;
+    <span class="hljs-type">Super</span>::<span class="hljs-title">Initialize</span>(Collection);
+
+    <span class="hljs-comment">// 연결 관례 2줄(13 문서 6단계) — 문지기를 먼저 초기화시키고 핸들을 빌린다</span>
+    <span class="hljs-type">UDatabaseSubsystem</span>* Gate = Collection.InitializeDependency&lt;<span class="hljs-type">UDatabaseSubsystem</span>&gt;();
+    Db = Gate ? Gate-&gt;<span class="hljs-title">GetDb</span>() : <span class="hljs-literal">nullptr</span>;
+}
+
+<span class="hljs-type">FString</span> <span class="hljs-type">UArchiveSubsystem</span>::<span class="hljs-title">MakeArchiveId</span>(<span class="hljs-type">int32</span> GuildId) <span class="hljs-keyword">const</span>
+{
+    <span class="hljs-comment">// 07 규칙: YYYYMMDDhhmmssSSS-{GUILDID} — ms 정밀로 같은 순간의 충돌을 회피</span>
+    <span class="hljs-keyword">const</span> <span class="hljs-type">FDateTime</span> Now = <span class="hljs-type">FDateTime</span>::<span class="hljs-title">UtcNow</span>();   <span class="hljs-comment">// 시간대 혼선을 피해 항상 UTC</span>
+    <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span> Stamp = <span class="hljs-type">FString</span>::<span class="hljs-title">Printf</span>(<span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"%04d%02d%02d%02d%02d%02d%03d"</span>),
+        Now.<span class="hljs-title">GetYear</span>(), Now.<span class="hljs-title">GetMonth</span>(), Now.<span class="hljs-title">GetDay</span>(),
+        Now.<span class="hljs-title">GetHour</span>(), Now.<span class="hljs-title">GetMinute</span>(), Now.<span class="hljs-title">GetSecond</span>(), Now.<span class="hljs-title">GetMillisecond</span>());
+
+    <span class="hljs-comment">// 길드 번호는 최소 6자리 zero-pad — 999999를 넘으면 %d가 자릿수를 자연 확장(07 규칙 그대로)</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-type">FString</span>::<span class="hljs-title">Printf</span>(<span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"%s-%06d"</span>), *Stamp, GuildId);
+}
+
+<span class="hljs-type">FString</span> <span class="hljs-type">UArchiveSubsystem</span>::<span class="hljs-title">CreateArchive</span>(<span class="hljs-type">int32</span> GuildId, <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Category,
+    <span class="hljs-type">ERecordSource</span> Source, <span class="hljs-type">int32</span> DurationSeconds, <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Title)
+{
+    <span class="hljs-keyword">if</span> (!Db || !Db-&gt;<span class="hljs-title">IsValid</span>()) <span class="hljs-keyword">return</span> <span class="hljs-type">FString</span>();   <span class="hljs-comment">// DB 실패 시 빈 Id — 호출부는 IsEmpty로 판별</span>
+
+    <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span> Id = <span class="hljs-title">MakeArchiveId</span>(GuildId);
+    <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span> CreatedAt = <span class="hljs-type">FDateTime</span>::<span class="hljs-title">UtcNow</span>().<span class="hljs-title">ToIso8601</span>();   <span class="hljs-comment">// TEXT 컬럼엔 ISO8601 문자열로</span>
+
     <span class="hljs-type">FSQLitePreparedStatement</span> Stmt;
-    <span class="hljs-comment">// OR IGNORE: 같은 이름이 이미 있으면 조용히 무시(Name이 PK라 중복은 어차피 거부됨)</span>
     Stmt.<span class="hljs-title">Create</span>(*Db, <span class="hljs-built_in">TEXT</span>(
-        <span class="hljs-string">"INSERT OR IGNORE INTO archive_categories (Name, Color, Icon, CreatedAt) VALUES (?1, ?2, ?3, ?4);"</span>));
-    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">1</span>, Name);
-    <span class="hljs-comment">// SQLite엔 색 타입이 없다 — FLinearColor → "RRGGBBAA" 헥스 문자열로 변환해 TEXT 컬럼에</span>
-    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">2</span>, Color.<span class="hljs-title">ToFColor</span>(<span class="hljs-literal">true</span>).<span class="hljs-title">ToHex</span>());
-    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">3</span>, Icon);
-    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">4</span>, <span class="hljs-type">FDateTime</span>::<span class="hljs-title">UtcNow</span>().<span class="hljs-title">ToIso8601</span>());
+        <span class="hljs-string">"INSERT INTO archives (Id, GuildId, Category, Source, CreatedAt, DurationSeconds, Title) "</span>
+        <span class="hljs-string">"VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7);"</span>));   <span class="hljs-comment">// DeletedAt은 넣지 않음 → NULL = 살아있음</span>
+    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">1</span>, Id);
+    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">2</span>, GuildId);
+    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">3</span>, Category);
+    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">4</span>, (<span class="hljs-type">int32</span>)Source);   <span class="hljs-comment">// enum → INTEGER 컬럼(02 설계 결정)</span>
+    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">5</span>, CreatedAt);
+    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">6</span>, DurationSeconds);
+    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">7</span>, Title);
     Stmt.<span class="hljs-title">Execute</span>();
-    Stmt.<span class="hljs-title">Destroy</span>();
-}
+    Stmt.<span class="hljs-title">Destroy</span>();   <span class="hljs-comment">// 준비된 문은 명시적으로 정리(핸들 누수 방지)</span>
 
-<span class="hljs-keyword">void</span> <span class="hljs-type">UGuildSubsystem</span>::<span class="hljs-title">RenameArchiveCategory</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; OldName, <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; NewName)
-{
-    <span class="hljs-keyword">if</span> (!Db || !Db-&gt;<span class="hljs-title">IsValid</span>() || OldName == NewName || NewName.<span class="hljs-title">IsEmpty</span>()) <span class="hljs-keyword">return</span>;
-
-    <span class="hljs-comment">// 풀(이름 정의)과 기록(태그)이 어긋나면 필터가 깨진다 — 두 UPDATE를 한 덩어리로 묶는다.</span>
-    <span class="hljs-comment">// 중간에 크래시해도 COMMIT 전이면 둘 다 원상 복귀: "풀만 새 이름, 기록은 옛 이름" 상태가 불가능</span>
-    Db-&gt;<span class="hljs-title">Execute</span>(<span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"BEGIN TRANSACTION;"</span>));
-    {
-        <span class="hljs-type">FSQLitePreparedStatement</span> S1;
-        S1.<span class="hljs-title">Create</span>(*Db, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"UPDATE archive_categories SET Name = ?1 WHERE Name = ?2;"</span>));
-        S1.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">1</span>, NewName); S1.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">2</span>, OldName);
-        S1.<span class="hljs-title">Execute</span>(); S1.<span class="hljs-title">Destroy</span>();
-
-        <span class="hljs-type">FSQLitePreparedStatement</span> S2;
-        S2.<span class="hljs-title">Create</span>(*Db, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"UPDATE archives SET Category = ?1 WHERE Category = ?2;"</span>));
-        S2.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">1</span>, NewName); S2.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">2</span>, OldName);
-        S2.<span class="hljs-title">Execute</span>(); S2.<span class="hljs-title">Destroy</span>();
-    }
-    Db-&gt;<span class="hljs-title">Execute</span>(<span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"COMMIT;"</span>));
-}
-
-<span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FArchiveCategory</span>&gt; <span class="hljs-type">UGuildSubsystem</span>::<span class="hljs-title">GetArchiveCategories</span>() <span class="hljs-keyword">const</span>
-{
-    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FArchiveCategory</span>&gt; Out;
-    <span class="hljs-keyword">if</span> (!Db || !Db-&gt;<span class="hljs-title">IsValid</span>()) <span class="hljs-keyword">return</span> Out;
-    <span class="hljs-type">FSQLitePreparedStatement</span> Stmt;
-    <span class="hljs-comment">// 풀 테이블이 정본 — 기록이 없는 "빈 카테고리"도 목록에 나온다(풀 채택의 이유)</span>
-    Stmt.<span class="hljs-title">Create</span>(*Db, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"SELECT Name, Color, Icon FROM archive_categories ORDER BY SortOrder, Name;"</span>));
-    <span class="hljs-keyword">while</span> (Stmt.<span class="hljs-title">Step</span>() == <span class="hljs-type">ESQLitePreparedStatementStepResult</span>::Row)
-    {
-        <span class="hljs-type">FArchiveCategory</span> C; <span class="hljs-type">FString</span> Hex;
-        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">0</span>, C.Name);
-        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">1</span>, Hex);
-        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">2</span>, C.Icon);
-        <span class="hljs-comment">// "RRGGBBAA" 헥스 TEXT → FLinearColor 복원(저장 때의 역변환)</span>
-        C.Color = <span class="hljs-type">FLinearColor</span>::<span class="hljs-title">FromSRGBColor</span>(<span class="hljs-type">FColor</span>::<span class="hljs-title">FromHex</span>(Hex));
-        Out.<span class="hljs-title">Add</span>(C);
-    }
-    Stmt.<span class="hljs-title">Destroy</span>();
-    <span class="hljs-keyword">return</span> Out;
+    <span class="hljs-keyword">return</span> Id;
 }</pre></div>
           </div>
         </div>
@@ -1131,90 +1008,49 @@ Database.<span class="hljs-title">Execute</span>(<span class="hljs-built_in">TEX
       <div class="check-step">
         <div class="check-head" tabindex="0" role="button" aria-pressed="false">
           <div class="check-tick"><span class="tk-num">6</span></div>
-          <div><div class="check-title">시간 적립 + Secured — 블롭 스왑까지 막기</div><div class="check-why">페이로드에 GuildId를 넣어 "남의 블롭 붙여넣기"를 거부</div></div>
+          <div><div class="check-title">GetArchives — 필터와 정렬</div><div class="check-why">살아있는 기록만 · 길드 필터 · 날짜 정렬</div></div>
         </div>
         <div class="check-body">
-          <p>11의 <code>RTSecured</code>에 길드용 봉인/개봉을 <strong>추가</strong>합니다. 핵심 차이: player는 행이 하나지만 길드는 여러 행이라, <strong>시간만 봉인하면 "시간 많은 길드의 블롭을 다른 길드 행에 복사"하는 치트</strong>가 통합니다. 페이로드에 <code>GuildId</code>를 함께 봉인해 행과 블롭을 묶습니다.</p>
           <div class="codeblock">
             <div class="codeblock-bar">
-              <button class="codeblock-tab tab-h active" type="button">RTSecured.h — 추가</button>
-              <button class="codeblock-tab tab-cpp" type="button">RTSecured.cpp — 추가</button>
-              <button class="codeblock-tab tab-cpp" type="button">GuildSubsystem.cpp — 적립·검증</button>
+              <button class="codeblock-tab tab-cpp active" type="button">ArchiveSubsystem.cpp — GetArchives</button>
               <button class="codeblock-copy" type="button">복사</button>
             </div>
-            <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 길드 시간 봉인 — GuildId를 페이로드에 포함해 행↔블롭을 묶는다(스왑 치트 차단)</span>
-<span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; <span class="hljs-title">SealGuildTime</span>(<span class="hljs-type">int32</span> GuildId, <span class="hljs-type">int64</span> FocusSeconds);
-
-<span class="hljs-comment">// 개봉 — MAGIC·CRC에 더해 "이 행의 GuildId가 맞는지"까지 검사. 하나라도 어긋나면 false</span>
-<span class="hljs-type">bool</span> <span class="hljs-title">OpenGuildTime</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt;&amp; Blob, <span class="hljs-type">int32</span> ExpectedGuildId, <span class="hljs-type">int64</span>&amp; OutFocusSeconds);</pre></div>
-            <div class="codeblock-panel"><pre class="hljs"><span class="hljs-comment">// 길드용 서명 — 계정용(RTA1)과 다른 값이라 서로의 블롭을 바꿔치기해도 개봉 실패</span>
-<span class="hljs-keyword">static</span> <span class="hljs-keyword">constexpr</span> <span class="hljs-type">uint32</span> GUILD_MAGIC = <span class="hljs-number">0x52544731</span>;   <span class="hljs-comment">// 'RTG1'</span>
-
-<span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; <span class="hljs-title">SealGuildTime</span>(<span class="hljs-type">int32</span> GuildId, <span class="hljs-type">int64</span> FocusSeconds)
+            <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FArchiveRecord</span>&gt; <span class="hljs-type">UArchiveSubsystem</span>::<span class="hljs-title">GetArchives</span>(<span class="hljs-type">int32</span> GuildId)
 {
-    <span class="hljs-comment">// 페이로드 = MAGIC | GuildId | FocusSeconds | CRC — 이하 AES 절차는 SealAccount(11)와 동일</span>
-    <span class="hljs-type">FBufferArchive</span> Ar;
-    <span class="hljs-type">uint32</span> Magic = GUILD_MAGIC;
-    Ar &lt;&lt; Magic &lt;&lt; GuildId &lt;&lt; FocusSeconds;           <span class="hljs-comment">// 4+4+8 = 16바이트</span>
-    <span class="hljs-type">uint32</span> Crc = <span class="hljs-type">FCrc</span>::<span class="hljs-title">MemCrc32</span>(Ar.<span class="hljs-title">GetData</span>(), Ar.<span class="hljs-title">Num</span>());
-    Ar &lt;&lt; Crc;
-    <span class="hljs-keyword">const</span> <span class="hljs-type">int32</span> Pad = (<span class="hljs-number">16</span> - (Ar.<span class="hljs-title">Num</span>() % <span class="hljs-number">16</span>)) % <span class="hljs-number">16</span>;
-    <span class="hljs-keyword">for</span> (<span class="hljs-type">int32</span> i = <span class="hljs-number">0</span>; i &lt; Pad; ++i) { <span class="hljs-type">uint8</span> Z = <span class="hljs-number">0</span>; Ar &lt;&lt; Z; }
-    <span class="hljs-type">FAES</span>::<span class="hljs-type">FAESKey</span> K; <span class="hljs-title">MakeKey</span>(K);                       <span class="hljs-comment">// 11과 같은 키 재사용</span>
-    <span class="hljs-type">FAES</span>::<span class="hljs-title">EncryptData</span>(Ar.<span class="hljs-title">GetData</span>(), Ar.<span class="hljs-title">Num</span>(), K);
-    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; Out; Out.<span class="hljs-title">Append</span>(Ar.<span class="hljs-title">GetData</span>(), Ar.<span class="hljs-title">Num</span>());
-    <span class="hljs-keyword">return</span> Out;
-}
+    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FArchiveRecord</span>&gt; Out;
+    <span class="hljs-keyword">if</span> (!Db || !Db-&gt;<span class="hljs-title">IsValid</span>()) <span class="hljs-keyword">return</span> Out;
 
-<span class="hljs-type">bool</span> <span class="hljs-title">OpenGuildTime</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt;&amp; Blob, <span class="hljs-type">int32</span> ExpectedGuildId, <span class="hljs-type">int64</span>&amp; OutFocusSeconds)
-{
-    <span class="hljs-keyword">if</span> (Blob.<span class="hljs-title">Num</span>() == <span class="hljs-number">0</span> || Blob.<span class="hljs-title">Num</span>() % <span class="hljs-number">16</span> != <span class="hljs-number">0</span>) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
-    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; Buf = Blob;
-    <span class="hljs-type">FAES</span>::<span class="hljs-type">FAESKey</span> K; <span class="hljs-title">MakeKey</span>(K);
-    <span class="hljs-type">FAES</span>::<span class="hljs-title">DecryptData</span>(Buf.<span class="hljs-title">GetData</span>(), Buf.<span class="hljs-title">Num</span>(), K);
-
-    <span class="hljs-type">FMemoryReader</span> Ar(Buf);
-    <span class="hljs-type">uint32</span> Magic = <span class="hljs-number">0</span>; Ar &lt;&lt; Magic;
-    <span class="hljs-keyword">if</span> (Magic != GUILD_MAGIC) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;          <span class="hljs-comment">// 키 틀림/변조/계정 블롭 바꿔치기</span>
-    <span class="hljs-type">int32</span> SealedGuildId = <span class="hljs-number">0</span>; <span class="hljs-type">int64</span> Focus = <span class="hljs-number">0</span>;
-    Ar &lt;&lt; SealedGuildId &lt;&lt; Focus;
-    <span class="hljs-type">uint32</span> StoredCrc = <span class="hljs-number">0</span>; Ar &lt;&lt; StoredCrc;
-    <span class="hljs-keyword">if</span> (<span class="hljs-type">FCrc</span>::<span class="hljs-title">MemCrc32</span>(Buf.<span class="hljs-title">GetData</span>(), <span class="hljs-number">16</span>) != StoredCrc) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
-    <span class="hljs-keyword">if</span> (SealedGuildId != ExpectedGuildId) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>; <span class="hljs-comment">// ★ 스왑 방지 — 다른 행의 블롭이면 여기서 거부</span>
-
-    OutFocusSeconds = Focus;
-    <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
-}</pre></div>
-            <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include</span> <span class="hljs-meta"><span class="hljs-string">"RTSecured.h"</span></span>
-
-<span class="hljs-keyword">void</span> <span class="hljs-type">UGuildSubsystem</span>::<span class="hljs-title">AddFocusSeconds</span>(<span class="hljs-type">int32</span> GuildId, <span class="hljs-type">int32</span> Seconds)
-{
-    <span class="hljs-keyword">if</span> (Seconds &lt;= <span class="hljs-number">0</span> || !Db || !Db-&gt;<span class="hljs-title">IsValid</span>()) <span class="hljs-keyword">return</span>;
-    <span class="hljs-type">FGuildData</span>* G = Guilds.<span class="hljs-title">FindByPredicate</span>([=](<span class="hljs-keyword">const</span> <span class="hljs-type">FGuildData</span>&amp; X){ <span class="hljs-keyword">return</span> X.GuildId == GuildId; });
-    <span class="hljs-keyword">if</span> (!G) <span class="hljs-keyword">return</span>;                       <span class="hljs-comment">// 휴지통 길드엔 적립 불가(캐시=살아있는 것만)</span>
-    G-&gt;FocusSeconds += Seconds;
-
-    <span class="hljs-comment">// 평문+봉인을 같은 UPDATE로 — 11의 SavePlayer와 동일한 원칙</span>
-    <span class="hljs-keyword">const</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; Sealed = <span class="hljs-title">SealGuildTime</span>(GuildId, G-&gt;FocusSeconds);
     <span class="hljs-type">FSQLitePreparedStatement</span> Stmt;
-    Stmt.<span class="hljs-title">Create</span>(*Db, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"UPDATE guilds SET FocusSeconds = ?1, Secured = ?2 WHERE GuildId = ?3;"</span>));
-    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">1</span>, G-&gt;FocusSeconds);
-    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">2</span>, Sealed);
-    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">3</span>, GuildId);
-    Stmt.<span class="hljs-title">Execute</span>();
-    Stmt.<span class="hljs-title">Destroy</span>();
-}
+    <span class="hljs-comment">// DeletedAt IS NULL = 살아있는 기록만(휴지통 제외).</span>
+    <span class="hljs-comment">// (?1 = -1 OR GuildId = ?1) = 쿼리 하나로 "전체 보기"와 "길드 필터"를 겸용</span>
+    Stmt.<span class="hljs-title">Create</span>(*Db, <span class="hljs-built_in">TEXT</span>(
+        <span class="hljs-string">"SELECT Id, GuildId, Category, Source, CreatedAt, DurationSeconds, Title "</span>
+        <span class="hljs-string">"FROM archives WHERE DeletedAt IS NULL AND (?1 = -1 OR GuildId = ?1) "</span>
+        <span class="hljs-string">"ORDER BY CreatedAt DESC;"</span>));   <span class="hljs-comment">// 정렬은 날짜 컬럼으로 — 문자열 Id 정렬 금지(07 규칙)</span>
+    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">1</span>, GuildId);
 
-<span class="hljs-comment">// LoadGuilds의 행 루프 끝(7번 컬럼 Blob을 읽은 자리)에 검증·복원을 추가한다:</span>
-<span class="hljs-comment">//   int64 Real = 0;</span>
-<span class="hljs-comment">//   if (Blob.Num() == 0)                { /* 첫 저장 전 — 통과(첫 적립 때 봉인 생성) */ }</span>
-<span class="hljs-comment">//   else if (!OpenGuildTime(Blob, G.GuildId, Real)) {  // 손상/스왑 → 시간을 0으로(복원 불가 갈래)</span>
-<span class="hljs-comment">//       UE_LOG(LogTemp, Warning, TEXT("[Guild %d] Secured 손상/불일치 — 시간 초기화"), G.GuildId);</span>
-<span class="hljs-comment">//       G.FocusSeconds = 0;  /* + 재봉인 UPDATE */ }</span>
-<span class="hljs-comment">//   else if (Real != G.FocusSeconds)    {  // 평문만 편집 → 진짜 값으로 자동 복원 + 재기록</span>
-<span class="hljs-comment">//       UE_LOG(LogTemp, Warning, TEXT("[Guild %d] 비정상 시간 감지 — 복구"), G.GuildId);</span>
-<span class="hljs-comment">//       G.FocusSeconds = (int32)Real;   /* + 평문 재기록 UPDATE */ }</span></pre></div>
+    <span class="hljs-keyword">while</span> (Stmt.<span class="hljs-title">Step</span>() == <span class="hljs-type">ESQLitePreparedStatementStepResult</span>::Row)
+    {
+        <span class="hljs-type">FArchiveRecord</span> R;
+        <span class="hljs-type">int32</span> SourceInt = <span class="hljs-number">0</span>; <span class="hljs-type">FString</span> CreatedAtStr;
+        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">0</span>, R.Id);              <span class="hljs-comment">// 컬럼 인덱스 = SELECT 나열 순서(0부터)</span>
+        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">1</span>, R.GuildId);
+        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">2</span>, R.Category);
+        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">3</span>, SourceInt);
+        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">4</span>, CreatedAtStr);
+        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">5</span>, R.DurationSeconds);
+        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">6</span>, R.Title);
+
+        R.Source = (<span class="hljs-type">ERecordSource</span>)SourceInt;                    <span class="hljs-comment">// INTEGER → enum 복원</span>
+        <span class="hljs-type">FDateTime</span>::<span class="hljs-title">ParseIso8601</span>(*CreatedAtStr, R.CreatedAt);    <span class="hljs-comment">// TEXT → FDateTime 복원</span>
+        Out.<span class="hljs-title">Add</span>(R);
+    }
+    Stmt.<span class="hljs-title">Destroy</span>();
+    <span class="hljs-keyword">return</span> Out;
+}</pre></div>
           </div>
+          <div class="callout tip"><span class="ic">💡</span><p><strong>휴지통 뷰가 필요해지면</strong> — 같은 쿼리에서 <code>DeletedAt IS NULL</code>을 <code>DeletedAt IS NOT NULL</code>로 바꾼 <code>GetDeletedArchives()</code>를 추가하면 됩니다(07의 "삭제 항목은 휴지통 열 때만 로드" 원칙). 이 문서 범위에선 생략합니다.</p></div>
         </div>
       </div>
 
@@ -1222,37 +1058,41 @@ Database.<span class="hljs-title">Execute</span>(<span class="hljs-built_in">TEX
       <div class="check-step">
         <div class="check-head" tabindex="0" role="button" aria-pressed="false">
           <div class="check-tick"><span class="tk-num">7</span></div>
-          <div><div class="check-title">소프트 삭제 / 복원</div><div class="check-why">행은 남기고 DeletedAt만 — 기록은 JOIN이 자동으로 숨긴다</div></div>
+          <div><div class="check-title">소프트 삭제 · 복원</div><div class="check-why">DELETE 없이 UPDATE 한 줄 — 그래서 복원이 가능</div></div>
         </div>
         <div class="check-body">
           <div class="codeblock">
             <div class="codeblock-bar">
-              <button class="codeblock-tab tab-cpp active" type="button">GuildSubsystem.cpp — 휴지통</button>
+              <button class="codeblock-tab tab-cpp active" type="button">ArchiveSubsystem.cpp — 삭제·복원</button>
               <button class="codeblock-copy" type="button">복사</button>
             </div>
-            <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-keyword">void</span> <span class="hljs-type">UGuildSubsystem</span>::<span class="hljs-title">SoftDeleteGuild</span>(<span class="hljs-type">int32</span> GuildId)
+            <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-type">bool</span> <span class="hljs-type">UArchiveSubsystem</span>::<span class="hljs-title">SoftDeleteArchive</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Id)
 {
-    <span class="hljs-keyword">if</span> (!Db || !Db-&gt;<span class="hljs-title">IsValid</span>()) <span class="hljs-keyword">return</span>;
+    <span class="hljs-keyword">if</span> (!Db || !Db-&gt;<span class="hljs-title">IsValid</span>()) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+
     <span class="hljs-type">FSQLitePreparedStatement</span> Stmt;
-    <span class="hljs-comment">// 행 삭제가 아니라 시각 기록 — 07 규약. 이 길드의 기록 행은 건드리지 않는다:</span>
-    <span class="hljs-comment">// 4단계 조회 SQL의 "g.DeletedAt IS NULL" 조건이 그 기록들을 자동으로 함께 숨긴다(복원하면 함께 복귀)</span>
-    Stmt.<span class="hljs-title">Create</span>(*Db, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"UPDATE guilds SET DeletedAt = ?1 WHERE GuildId = ?2;"</span>));
-    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">1</span>, <span class="hljs-type">FDateTime</span>::<span class="hljs-title">UtcNow</span>().<span class="hljs-title">ToIso8601</span>());
-    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">2</span>, GuildId);
-    Stmt.<span class="hljs-title">Execute</span>();
+    <span class="hljs-comment">// 행을 지우지 않는다 — DeletedAt에 시각을 찍으면 "휴지통" 상태.</span>
+    <span class="hljs-comment">// AND DeletedAt IS NULL: 이미 휴지통인 기록의 삭제 시각을 덮어쓰지 않기 위한 가드</span>
+    Stmt.<span class="hljs-title">Create</span>(*Db, <span class="hljs-built_in">TEXT</span>(
+        <span class="hljs-string">"UPDATE archives SET DeletedAt = ?2 WHERE Id = ?1 AND DeletedAt IS NULL;"</span>));
+    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">1</span>, Id);
+    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">2</span>, <span class="hljs-type">FDateTime</span>::<span class="hljs-title">UtcNow</span>().<span class="hljs-title">ToIso8601</span>());
+    <span class="hljs-keyword">const</span> <span class="hljs-type">bool</span> bOk = Stmt.<span class="hljs-title">Execute</span>();
     Stmt.<span class="hljs-title">Destroy</span>();
-    <span class="hljs-title">LoadGuilds</span>();   <span class="hljs-comment">// 캐시에서 사라짐(살아있는 것만 담으므로)</span>
+    <span class="hljs-keyword">return</span> bOk;
 }
 
-<span class="hljs-keyword">void</span> <span class="hljs-type">UGuildSubsystem</span>::<span class="hljs-title">RestoreGuild</span>(<span class="hljs-type">int32</span> GuildId)
+<span class="hljs-type">bool</span> <span class="hljs-type">UArchiveSubsystem</span>::<span class="hljs-title">RestoreArchive</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FString</span>&amp; Id)
 {
-    <span class="hljs-keyword">if</span> (!Db || !Db-&gt;<span class="hljs-title">IsValid</span>()) <span class="hljs-keyword">return</span>;
+    <span class="hljs-keyword">if</span> (!Db || !Db-&gt;<span class="hljs-title">IsValid</span>()) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+
     <span class="hljs-type">FSQLitePreparedStatement</span> Stmt;
-    Stmt.<span class="hljs-title">Create</span>(*Db, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"UPDATE guilds SET DeletedAt = NULL WHERE GuildId = ?1;"</span>)); <span class="hljs-comment">// 되살림 = NULL</span>
-    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">1</span>, GuildId);
-    Stmt.<span class="hljs-title">Execute</span>();
+    Stmt.<span class="hljs-title">Create</span>(*Db, <span class="hljs-built_in">TEXT</span>(
+        <span class="hljs-string">"UPDATE archives SET DeletedAt = NULL WHERE Id = ?1;"</span>));   <span class="hljs-comment">// NULL로 되돌리면 부활</span>
+    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">1</span>, Id);
+    <span class="hljs-keyword">const</span> <span class="hljs-type">bool</span> bOk = Stmt.<span class="hljs-title">Execute</span>();
     Stmt.<span class="hljs-title">Destroy</span>();
-    <span class="hljs-title">LoadGuilds</span>();
+    <span class="hljs-keyword">return</span> bOk;
 }</pre></div>
           </div>
         </div>
@@ -1262,67 +1102,51 @@ Database.<span class="hljs-title">Execute</span>(<span class="hljs-built_in">TEX
       <div class="check-step">
         <div class="check-head" tabindex="0" role="button" aria-pressed="false">
           <div class="check-tick"><span class="tk-num">8</span></div>
-          <div><div class="check-title">BP 왕복 확인</div><div class="check-why">생성→적립→레벨→재시작 유지까지 한 바퀴</div></div>
+          <div><div class="check-title">빌드 & 왕복 확인</div><div class="check-why">만들고 → 읽고 → 휴지통 → 복원까지 한 바퀴</div></div>
         </div>
         <div class="check-body">
-          <p>빌드 후(새 헤더 — 에디터 종료 → IDE 빌드 → 재실행) 레벨 블루프린트에서:</p>
+          <p>에디터 완전 종료 → VS <strong>Development Editor / Win64</strong> 빌드 → 에디터 재실행. 그다음 레벨 BP에서 한 바퀴:</p>
           <table class="tbl">
-            <tr><th>순서</th><th>할 일</th><th>기대 결과</th></tr>
-            <tr><td>①</td><td><code>Create Guild("그림 길드","캐릭터")</code> → 반환값 Print</td><td><code>1</code> (첫 길드)</td></tr>
-            <tr><td>②</td><td><code>Add Focus Seconds(1, 7200)</code> → <code>Get Guild Level(1)</code> Print</td><td><code>2</code></td></tr>
-            <tr><td>③</td><td><code>Add Archive Category("애니메이션", 색상 핀에서 아무 색, "icon_star")</code> → <code>Get Archive Categories</code> 길이 Print</td><td><code>1</code> — 기록 없이도 목록에 존재(빈 카테고리). Break로 Color·Icon도 확인 가능</td></tr>
-            <tr><td>④</td><td>PIE 종료 → 재실행(생성 노드는 끊고) → <code>Get Guilds</code> 길이·레벨 Print</td><td>길드 1개·레벨 <code>2</code> 유지</td></tr>
-            <tr><td>⑤</td><td><code>Soft Delete Guild(1)</code> → <code>Get Guilds</code> 길이 → <code>Restore Guild(1)</code></td><td><code>0</code> → 복원 후 <code>1</code></td></tr>
+            <tr><th>순서</th><th>BP 호출</th><th>기대 결과</th></tr>
+            <tr><td>①</td><td><code>Get Game Instance Subsystem(Archive)</code> → <code>Create Archive</code>(GuildId=1, Category="테스트", Source=Timer, Duration=1500, Title="첫 기록") → 반환 Id를 Print</td><td><code>20260720…-000001</code> 형식의 Id</td></tr>
+            <tr><td>②</td><td><code>Get Archives(-1)</code> → For Each → Break → Title Print</td><td>"첫 기록" 출력</td></tr>
+            <tr><td>③</td><td><code>Soft Delete Archive</code>(①의 Id) → 다시 <code>Get Archives(-1)</code></td><td>출력 <strong>없음</strong>(휴지통으로 감)</td></tr>
+            <tr><td>④</td><td><code>Restore Archive</code>(①의 Id) → 다시 <code>Get Archives(-1)</code></td><td>"첫 기록" <strong>부활</strong></td></tr>
           </table>
+          <div class="callout tip"><span class="ic">🔬</span><p><strong>눈으로 확인</strong> — DB Browser로 <code>Saved/Archive.db</code>를 열면 ③ 직후 행이 <strong>사라진 게 아니라 <code>DeletedAt</code>에 시각이 찍혀</strong> 있고, ④ 후엔 다시 NULL입니다. 테이블 7종 + <code>sqlite_sequence</code>도 함께 확인하세요.</p></div>
         </div>
       </div>
 
     </div><!-- /checklist -->
   </div>
 
-  <!-- ===== 04 검증 ===== -->
+  <!-- ============================== 04 검증 -->
   <div class="section" id="verify">
-    <div class="section-label">04 — 검증</div>
-    <h2>치트 2종까지 눈으로 확인</h2>
-
-    <div class="pipe-step">
-      <div class="pipe-num">1</div>
-      <div class="pipe-body"><div class="pipe-title">DB Browser — 테이블 3종 확인</div>
-        <div class="pipe-desc"><code>guilds</code>(생성한 길드 행 + <code>Secured</code> BLOB), <code>archive_categories</code>('애니메이션' 행), 그리고 <code>sqlite_sequence</code>(guilds의 번호 장부)가 보여야 합니다. 길드를 하나 더 만들고 <strong>완전 삭제해도 다음 길드가 그 번호를 건너뛰는지</strong>(AUTOINCREMENT) 확인해 보세요.</div></div>
-    </div>
-    <div class="pipe-step">
-      <div class="pipe-num">2</div>
-      <div class="pipe-body"><div class="pipe-title">치트 ① — 시간 위조</div>
-        <div class="pipe-desc">게임 종료 → DB Browser로 <code>guilds.FocusSeconds</code>를 <code>999999</code>로 수정 → Write Changes → 재실행. 출력 로그에 <code>비정상 시간 감지 — 복구</code>가 찍히고 레벨이 원래대로면 성공.</div></div>
-    </div>
-    <div class="pipe-step">
-      <div class="pipe-num">3</div>
-      <div class="pipe-body"><div class="pipe-title">치트 ② — 블롭 스왑</div>
-        <div class="pipe-desc">길드 2개를 만들어 한쪽만 시간을 쌓은 뒤, 게임 종료 → 시간 많은 행의 <code>Secured</code> BLOB을 복사해 <strong>다른 길드 행에 붙여넣기</strong> → 재실행. <code>Secured 손상/불일치</code> 로그와 함께 그 길드 시간이 초기화되면(페이로드의 GuildId 불일치 거부) 성공 — 스왑 방어가 작동한 것입니다.</div></div>
-    </div>
-
-    <h3>막혔을 때</h3>
+    <div class="section-label">04 — 검증 &amp; 트러블슈팅</div>
+    <h2>막혔을 때 — 재구축 특유의 에러들</h2>
     <table class="tbl">
-      <tr><th>증상</th><th>원인</th><th>처방</th></tr>
-      <tr><td><code>CreateGuild</code>가 항상 <code>-1</code></td><td>INSERT 실패 — 테이블 없음/이름 빈 값</td><td>1단계 SQL이 문지기 <code>CreateTables()</code>에 들어갔는지, <code>[DB] 준비 완료</code> 로그 확인</td></tr>
-      <tr><td>번호가 재사용됨</td><td><code>AUTOINCREMENT</code> 누락 또는 <code>sqlite_sequence</code>를 지움</td><td>개발 중이면 DB 파일 삭제 후 재생성(09 절차) — 키워드는 <code>INTEGER PRIMARY KEY AUTOINCREMENT</code> 철자 그대로여야 함</td></tr>
-      <tr><td>이름 변경 후 필터가 반쪽만 나옴</td><td>풀만/기록만 바뀜 — 트랜잭션 없이 UPDATE 하나만 실행</td><td>5단계 <code>RenameArchiveCategory</code>처럼 <code>BEGIN…COMMIT</code>으로 두 UPDATE를 묶었는지 확인</td></tr>
-      <tr><td>재시작하면 길드가 사라짐</td><td><code>LoadGuilds</code>가 안 불림 — Db null</td><td>2단계 <code>InitializeDependency</code>·출력 로그 순서(<code>[DB] 준비 완료</code> 먼저) 확인</td></tr>
-      <tr><td>스왑했는데 안 걸림</td><td>봉인 페이로드에 GuildId를 안 넣음</td><td>6단계 <code>SealGuildTime</code>/<code>OpenGuildTime</code>의 GuildId 비교 줄(★) 확인</td></tr>
-      <tr><td>휴지통 길드에 시간이 적립됨</td><td>캐시 밖 GuildId로 직접 UPDATE</td><td>적립은 반드시 <code>AddFocusSeconds()</code> 경유(캐시에 없으면 조용히 무시되는 게 정상)</td></tr>
+      <tr><th style="min-width:230px">증상</th><th>원인 &amp; 해결</th></tr>
+      <tr><td><code>table archives has no column named GuildId</code></td><td><strong>옛 <code>Archive.db</code>를 안 지웠음</strong> — 한 컬럼 archives가 남아 있어 <code>IF NOT EXISTS</code>가 새 스키마를 안 만듦 → 1단계 3번(.db+wal/shm 삭제) 후 재실행</td></tr>
+      <tr><td><code>NOT NULL constraint failed: archives.Category</code> 등</td><td>옛 코드(title만 INSERT)가 남아 있거나 인자 누락 → 5단계 <code>CreateArchive</code>로 교체됐는지, BP에서 모든 핀을 채웠는지 확인</td></tr>
+      <tr><td>BP 노드가 빨갛게 끊어짐</td><td>함수 시그니처 변경(정상) → 옛 노드 삭제 후 새 <code>Create Archive</code>(핀 5개)를 다시 배치</td></tr>
+      <tr><td><code>[DB] 준비 완료</code> 로그가 없음</td><td>문지기 미완성 → 2단계(13 문서 1~5단계)로 돌아가 확인</td></tr>
+      <tr><td>ArchiveSubsystem의 <code>Db</code>가 항상 nullptr</td><td><code>InitializeDependency</code> 줄 누락(5단계 Initialize) → 로그에서 <code>[DB] 준비 완료</code>가 먼저 찍히는지 확인</td></tr>
+      <tr><td><code>Cannot open include file: 'RTTypes.h'</code></td><td>3단계 파일이 다른 폴더(플랫/분리 레이아웃)에 생김 → <code>Public/</code>에 있는지 확인 후 재빌드</td></tr>
+      <tr><td>기록이 최신순이 아님</td><td><code>ORDER BY CreatedAt DESC</code> 누락, 또는 Id 문자열로 정렬 중 → 6단계 쿼리 확인(07 규칙: 정렬은 날짜 컬럼)</td></tr>
+      <tr><td><code>unresolved external</code> / include 에러</td><td>SQLite 모듈·빌드 문제 → 위키 『UE SQLite 배관』 트러블슈팅 표(원 09와 동일)</td></tr>
     </table>
 
     <div class="callout tip" style="margin-top:14px">
       <span class="ic">✅</span>
-      <p><strong>여기까지 되면</strong> — 길드 생성·2축 필터·소분류 풀 관리(트랜잭션)·레벨 파생·소프트 삭제·스왑 방어까지 완성입니다. 다음 배관은 <code>owned_characters</code>·<code>owned_abilities</code>(가챠 로스터 — FK <code>ON DELETE CASCADE</code>가 처음 실전 투입)이며, 같은 리듬으로 문지기 <code>CreateTables()</code>에 추가 → 기능 서브시스템 순으로 넓힙니다.</p>
+      <p><strong>여기까지 되면</strong> — 옛 스파이크는 사라지고(①), 문지기 + 7테이블(②) 위에서 기록의 생성·조회·휴지통·복원(③④)이 전부 돕니다. V2 저장 계층의 뼈대가 완성된 것입니다. 다음 확장은 익숙한 리듬 그대로: <strong>11(플레이어 상태 저장)</strong>로 Economy를, <strong>12(길드 시스템)</strong>로 Guild를 같은 연결 관례 위에 얹으면 됩니다 — 두 문서의 문지기 선행 조건은 이 문서로 이미 충족돼 있습니다.</p>
     </div>
   </div>
 
 </div>
 
 <footer>
-  <span>RecordTales V2 &middot; Doc 12 길드 시스템 v0.2</span>
-  <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.9</span>
+  <span>RecordTales V2 · Doc 14 저장 계층 재구축 v1.0</span>
+  <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.9</span>
 </footer>
 
 <script>

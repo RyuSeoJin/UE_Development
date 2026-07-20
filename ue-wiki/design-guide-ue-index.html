@@ -3,10 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>문서 허브 & 용어집 — UE 문서 디자인 시스템 v2.18</title>
+<title>문서 허브 & 용어집 — UE 문서 디자인 시스템 v2.19</title>
 <!-- ============================================================
      CHANGELOG — design-guide-ue-index.html
      생성 문서 인덱스 + 중앙 용어집(범용 UE 용어 전용). 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md
+     v2.19 · 2026-07-20
+       - (추가) 문서 목록 data/에 'SQLite 배관 — 한 컬럼 왕복부터' 등록
+         (02-B · Master v1.9 — Project/RecordTales_V2 09의 범용 내용을 일반화 이식,
+         예제: notes 테이블 + UNoteSubsystem. 사용자 승인)
+       - (추가) 용어집에 3개 신규 용어 (SQLite, Prepared Statement, PRAGMA)
+       - (동기화) 제목·footer 버전 표기를 CHANGELOG와 일치시킴 (footer v2.8 → v2.19)
      · 2026-07-20 — (반응형) 마스터 v1.9 .tbl 모바일 가로 스크롤 규칙 인라인 반영(본문·구조 무변경).
      v2.18 · 2026-07-10
        - (추가) 문서 목록 framework/에 'Subsystem ↔ SaveGame 연동 — 로드·저장 타이밍 패턴' 등록
@@ -599,6 +605,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>SaveGame — 디스크에 살아남는 데이터</code></td><td>2026-07-07</td><td><a href="./ue-architect/data/ue-savegame.html" style="color:var(--accent)">열기 →</a></td></tr>
       <tr><td><code>소프트 레퍼런스 — 필요할 때만 로드하는 에셋 참조</code></td><td>2026-07-07</td><td><a href="./ue-architect/data/ue-soft-object-references.html" style="color:var(--accent)">열기 →</a></td></tr>
       <tr><td><code>DeveloperSettings — 코드 밖에서 조정하는 밸런스 상수</code></td><td>2026-07-07</td><td><a href="./ue-architect/data/ue-developer-settings.html" style="color:var(--accent)">열기 →</a></td></tr>
+      <tr><td><code>SQLite 배관 — 한 컬럼 왕복부터</code></td><td>2026-07-20</td><td><a href="./ue-architect/data/ue-sqlite-plumbing.html" style="color:var(--accent)">열기 →</a></td></tr>
     </table>
 
     <h3>렌더링 — 머티리얼·셰이딩·포스트 프로세스 <code>rendering/</code></h3>
@@ -707,6 +714,9 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>직렬화 (Serialization)</code></td><td>메모리 객체를 <strong>파일(바이트 줄)로 변환</strong> — SaveGame에선 UPROPERTY 멤버만 참여</td><td><a href="./ue-architect/data/ue-savegame.html#term-serialization" style="color:var(--accent)">SaveGame →</a></td></tr>
       <tr><td><code>세이브 슬롯 (Slot)</code></td><td>세이브 파일 하나의 주소 — <strong>슬롯 이름 + UserIndex</strong> 조합 (.sav)</td><td><a href="./ue-architect/data/ue-savegame.html#term-save-slot" style="color:var(--accent)">SaveGame →</a></td></tr>
       <tr><td><code>세이브 마이그레이션</code></td><td>세이브 <strong>구조 변경 후에도 구버전 파일을 살리는</strong> 버전 분기(SaveVersion) 작업</td><td><a href="./ue-architect/data/ue-savegame.html#term-save-migration" style="color:var(--accent)">SaveGame →</a></td></tr>
+      <tr><td><code>SQLite</code></td><td>서버 없이 <strong>파일 하나</strong>로 동작하는 경량 DB — 엔진에 플러그인(SQLiteCore)으로 내장</td><td><a href="./ue-architect/data/ue-sqlite-plumbing.html#term-sqlite" style="color:var(--accent)">SQLite 배관 →</a></td></tr>
+      <tr><td><code>Prepared Statement</code></td><td>SQL 틀을 미리 컴파일하고 <strong>값만 바인딩</strong>(?1)하는 실행 방식 — 인젝션·이스케이프 사고 원천 차단</td><td><a href="./ue-architect/data/ue-sqlite-plumbing.html#term-prepared-statement" style="color:var(--accent)">SQLite 배관 →</a></td></tr>
+      <tr><td><code>PRAGMA</code></td><td>SQLite <strong>동작 설정 명령</strong> — 예: foreign_keys=ON(외래키 검사, 연결마다 다시 켜야 함)</td><td><a href="./ue-architect/data/ue-sqlite-plumbing.html#term-pragma" style="color:var(--accent)">SQLite 배관 →</a></td></tr>
       <tr><td><code>FTimerManager</code></td><td>"N초 뒤 이 함수 호출" 예약 접수처 — <strong>World 소속</strong>이라 레벨 이동 시 예약 소멸</td><td><a href="./ue-architect/framework/ue-timer-world.html#term-timer-manager" style="color:var(--accent)">타이머와 World →</a></td></tr>
       <tr><td><code>FTimerHandle</code></td><td>타이머 예약 번호표 — 취소·조회·일시정지에 필요하므로 <strong>멤버로 보관</strong></td><td><a href="./ue-architect/framework/ue-timer-world.html#term-timer-handle" style="color:var(--accent)">타이머와 World →</a></td></tr>
       <tr><td><code>FDateTime / FTimespan</code></td><td>특정 <strong>시각</strong>과 두 시각 사이의 <strong>구간</strong> — 내부는 틱 정수라 비교·저장이 안전</td><td><a href="./ue-architect/core-cpp/ue-datetime.html#term-fdatetime" style="color:var(--accent)">FDateTime →</a></td></tr>
@@ -749,7 +759,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>UE 문서 디자인 시스템 · Hub &amp; Glossary v2.8</span>
+  <span>UE 문서 디자인 시스템 · Hub &amp; Glossary v2.19</span>
   <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.3</span>
 </footer>
 
