@@ -8,6 +8,21 @@
      CHANGELOG — 05-data-schema-spec.html
      RecordTales V2 데이터 스키마 명세 (Track B · 02-B 기능 구현 명세).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     v0.19 · 2026-07-22
+       - (변경) 구판 잔재 수정: DDL 소제목·07 초기화 설명의 "CREATE TABLE 6종" → 7종
+         (v0.17에서 archive_categories 추가 시 갱신 누락 — 실제 DDL은 7종으로 이미 정확).
+       - (버전) eyebrow·footer v0.18 → v0.19.
+     v0.18 · 2026-07-22
+       - (추가) 레벨업 1회성 보상(사용자 결정: 계정 레벨만 · Gold 중심 + 5레벨 마일스톤 조각).
+         레벨은 여전히 비저장(파생) — 새 저장값은 player.LastRewardedLevel(보상 수령 이력) 하나.
+         · DataTable 11종째 DT_Level_Reward(FLevelRewardRow: Reward_Gold·Reward_Shards,
+           RowName=계정 레벨 1~20, 초과 레벨은 마지막 행 반복 지급 — plateau 관례) 등록.
+         · player DDL에 LastRewardedLevel INTEGER NOT NULL DEFAULT 0 추가, Secured 봉인
+           4번째 값으로 편입(FSecuredAccount·Seal/OpenAccount 페이로드 24→28바이트,
+           SavePlayer/LoadPlayer 바인딩·비교·복원 갱신).
+         · "10종" 표기 전부 11종으로 갱신. 초안 수치 원장 = 구글 드라이브 폴더
+           "RecordTales V2 — 밸런스 DataTable 초안".
+       - (버전) hero eyebrow v0.16(이전 개정 누락분) → v0.18, footer v0.17 → v0.18.
      v0.17 · 2026-07-21
        - (변경) 사용자 결정: 소분류 카테고리에 플레이어 지정 속성 2종 추가 —
          archive_categories 스키마에 Color("RRGGBBAA" 헥스 TEXT, 기본 'FFFFFFFF')·Icon(TEXT) 컬럼.
@@ -780,7 +795,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <a href="#scope">범위</a>
     <a href="#decision">설계 결정</a>
     <a href="#enum">enum</a>
-    <a href="#tables">DataTable 10종</a>
+    <a href="#tables">DataTable 11종</a>
     <a href="#save">SQLite 스키마</a>
     <a href="#guard">상태 보호</a>
     <a href="#register">등록·검증</a>
@@ -788,13 +803,13 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">RecordTales V2 &middot; v0.16 &middot; Data Schema Spec</div>
+  <div class="hero-eyebrow">RecordTales V2 &middot; v0.19 &middot; Data Schema Spec</div>
   <h1>데이터 스키마<br><span>명세 · DataTable · SQLite</span></h1>
   <p class="hero-sub">
-    03(데이터 설계)에서 지도로 본 데이터를, 여기서는 <strong>복붙 가능한 정의</strong>로 전부 풀어 씁니다. DataTable 행 구조체 10종·<strong>SQLite 7테이블 스키마</strong>·상태 표현·<strong>Secured 인증 암호화</strong>를 타입·의미·코드와 함께 담습니다.
+    03(데이터 설계)에서 지도로 본 데이터를, 여기서는 <strong>복붙 가능한 정의</strong>로 전부 풀어 씁니다. DataTable 행 구조체 11종·<strong>SQLite 7테이블 스키마</strong>·상태 표현·<strong>Secured 인증 암호화</strong>를 타입·의미·코드와 함께 담습니다.
   </p>
   <div class="hero-meta">
-    <span class="badge badge-blue">DataTable 행 10종</span>
+    <span class="badge badge-blue">DataTable 행 11종</span>
     <span class="badge badge-green">SQLite 7테이블 + Secured</span>
     <span class="badge badge-purple">02-B 기능 구현 명세</span>
   </div>
@@ -877,14 +892,14 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     </div>
   </div>
 
-  <!-- ===== 04 DataTable 10종 ===== -->
+  <!-- ===== 04 DataTable 11종 ===== -->
   <div class="section" id="tables">
-    <div class="section-label">04 — DataTable 행 구조체 10종</div>
+    <div class="section-label">04 — DataTable 행 구조체 11종</div>
     <h2>밸런스 표 (ROW)</h2>
     <p>모두 <code>FTableRowBase</code>를 상속해야 DataTable의 행 타입으로 지정할 수 있습니다. 값은 에디터/CSV에서 채웁니다.</p>
     <div class="callout info" style="margin:8px 0 16px">
       <span class="ic">&#x1F4A1;</span>
-      <p><strong>코드 상자 표기 규칙:</strong> 아래 10종은 실제로 <strong>단일 헤더 <code>RTTables.h</code> 하나</strong>에 다 들어갑니다 — 한 상자에 담기엔 너무 길어서 <strong>표시 편의상 3개 상자(능력치·캐릭터/가챠·건물)로 나눈 것</strong>일 뿐입니다. 탭 이름이 <code>파일명.h — 부제</code>처럼 <strong>대시(—)</strong>로 이어지면 "같은 파일의 일부 구간", <code>파일A.h / 파일B.h</code>처럼 <strong>슬래시(/)</strong>로 이어지면 "실제로 다른 두 파일"이라는 뜻입니다.</p>
+      <p><strong>코드 상자 표기 규칙:</strong> 아래 11종은 실제로 <strong>단일 헤더 <code>RTTables.h</code> 하나</strong>에 다 들어갑니다 — 한 상자에 담기엔 너무 길어서 <strong>표시 편의상 4개 상자(능력치·캐릭터/가챠·건물·레벨 보상)로 나눈 것</strong>일 뿐입니다. 탭 이름이 <code>파일명.h — 부제</code>처럼 <strong>대시(—)</strong>로 이어지면 "같은 파일의 일부 구간", <code>파일A.h / 파일B.h</code>처럼 <strong>슬래시(/)</strong>로 이어지면 "실제로 다른 두 파일"이라는 뜻입니다.</p>
     </div>
 
     <h3>능력치 — Ability_Type · Ability_Step · Ability_UpgradeCost</h3>
@@ -1169,6 +1184,31 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-meta">UPROPERTY(EditAnywhere)</span> <span class="hljs-type">int64</span> UpgradeCost = <span class="hljs-number">0</span>;   <span class="hljs-comment">// 다음 레벨 비용(Gold)</span>
 };</pre></div>
     </div>
+
+    <h3>레벨 보상 — Level_Reward</h3>
+
+    <p style="margin-bottom:6px"><strong>DT_Level_Reward</strong> <span style="color:var(--text-dim)">· RowName = 계정 레벨(1~20) · 초과 레벨은 마지막 행 반복 지급(가챠 plateau와 같은 관례) · 지급 이력은 <code>player.LastRewardedLevel</code>이 담당</span></p>
+    <table class="tbl">
+      <tr><th>컬럼</th><th>타입</th><th>의미</th></tr>
+      <tr><td><code>Reward_Gold</code></td><td>int64</td><td>그 레벨 달성 시 지급 Gold (초안: 100×레벨)</td></tr>
+      <tr><td><code>Reward_Shards</code></td><td>int32</td><td>마일스톤 조각 (초안: 5레벨마다 5/10/15/20, 그 외 0)</td></tr>
+    </table>
+    <div class="callout info" style="margin-top:10px"><span class="ic">&#x1F9ED;</span><p><strong>레벨은 여전히 저장하지 않습니다.</strong> 이 표가 생겨도 원칙은 그대로입니다 — 레벨업 순간의 <strong>1회성 지급 이력</strong>(몇 레벨 보상까지 받았나)만 <code>player.LastRewardedLevel</code>로 저장합니다(05 DDL·06 상태 보호). 지급 루프: <code>while (LastRewardedLevel &lt; 초&divide;3600) { ++LastRewardedLevel; 표 조회 &rarr; 지급 }</code> — 한 세션에 여러 레벨을 넘어도 순차 지급되고, 표 조회·지급·UPDATE가 한 트랜잭션이라 이중 지급이 없습니다.</p></div>
+
+    <div class="codeblock">
+      <div class="codeblock-bar">
+        <button class="codeblock-tab tab-h active" type="button">RTTables.h — LevelReward</button>
+        <button class="codeblock-copy" type="button">복사</button>
+      </div>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// DT_Level_Reward — 계정 레벨업 1회성 보상. RowName = 레벨(1~20), 초과 레벨은 마지막 행 반복</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-type">FLevelRewardRow</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">FTableRowBase</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere)</span> <span class="hljs-type">int64</span> Reward_Gold = <span class="hljs-number">0</span>;   <span class="hljs-comment">// 그 레벨 달성 시 지급 Gold — player.Gold와 같은 int64</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere)</span> <span class="hljs-type">int32</span> Reward_Shards = <span class="hljs-number">0</span>; <span class="hljs-comment">// 마일스톤 조각(없는 레벨은 0)</span>
+};</pre></div>
+    </div>
   </div>
 
   <!-- ===== 05 SQLite 스키마 ===== -->
@@ -1180,7 +1220,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <h3>7테이블 한눈에</h3>
     <table class="tbl">
       <tr><th>테이블</th><th>행 단위</th><th>축</th><th>주요 컬럼 · 쓰기</th></tr>
-      <tr><td><code>player</code></td><td>항상 1행</td><td>계정</td><td>Gold·Shards·AccountFocusSeconds·<strong>Secured</strong> — UPDATE</td></tr>
+      <tr><td><code>player</code></td><td>항상 1행</td><td>계정</td><td>Gold·Shards·AccountFocusSeconds·LastRewardedLevel·<strong>Secured</strong> — UPDATE</td></tr>
       <tr><td><code>guilds</code></td><td>길드당 1행</td><td>길드</td><td>GuildId(<strong>AUTOINCREMENT</strong>)·GuildName·Category(대분류 1개)·FocusSeconds·CreatedAt·SortOrder·Icon·DeletedAt·<strong>Secured</strong> — INSERT/UPDATE</td></tr>
       <tr><td><code>archive_categories</code></td><td>소분류당 1행</td><td>계정</td><td>Name(PK)·<strong>Color·Icon</strong>(플레이어 지정)·CreatedAt·SortOrder — 계정 공유 소분류 풀(빈 카테고리 표시·이름 변경용) — INSERT/UPDATE</td></tr>
       <tr><td><code>owned_characters</code></td><td>캐릭터당 1행</td><td>계정</td><td>InstanceId·CharacterId·Rarity — INSERT/DELETE</td></tr>
@@ -1190,7 +1230,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     </table>
     <div class="callout tip" style="margin-top:4px"><span class="ic">🔗</span><p><strong>owned_abilities → owned_characters 외래키.</strong> <code>ON DELETE CASCADE</code>라 캐릭터 행을 지우면(추출) 그 캐릭터의 능력치 행이 <strong>자동으로 함께 삭제</strong>됩니다. 값(효과·비용)은 저장하지 않고 <code>AbilityId</code>·<code>Step</code>으로 <span class="vbadge row">ROW</span> 표에서 조회합니다.</p></div>
 
-    <h3>스키마 DDL — <code>CREATE TABLE</code> 6종</h3>
+    <h3>스키마 DDL — <code>CREATE TABLE</code> 7종</h3>
     <div class="codeblock">
       <div class="codeblock-bar">
         <button class="codeblock-tab tab-h active" type="button">schema.sql</button>
@@ -1205,9 +1245,10 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     Gold                <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL DEFAULT</span> <span class="hljs-number">0</span>,
     Shards              <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL DEFAULT</span> <span class="hljs-number">0</span>,
     AccountFocusSeconds <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL DEFAULT</span> <span class="hljs-number">0</span>,   <span class="hljs-comment">-- 계정 XP 원천(레벨 = /3600)</span>
+    LastRewardedLevel   <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL DEFAULT</span> <span class="hljs-number">0</span>,   <span class="hljs-comment">-- 레벨업 보상 수령 이력(레벨 자체는 비저장 — 파생)</span>
     NextInstanceId      <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL DEFAULT</span> <span class="hljs-number">1</span>,   <span class="hljs-comment">-- 캐릭터 인스턴스 카운터(재사용 없음)</span>
     NextGuildId         <span class="hljs-type">INTEGER</span> <span class="hljs-keyword">NOT NULL DEFAULT</span> <span class="hljs-number">1</span>,   <span class="hljs-comment">-- (미사용) 길드 번호는 guilds AUTOINCREMENT가 발급 — 12 문서</span>
-    Secured             <span class="hljs-type">BLOB</span>                       <span class="hljs-comment">-- Gold·Shards·Seconds의 인증 암호화 사본(06 상태 보호)</span>
+    Secured             <span class="hljs-type">BLOB</span>                       <span class="hljs-comment">-- Gold·Shards·Seconds·LastRewardedLevel의 인증 암호화 사본(06 상태 보호)</span>
 );
 
 <span class="hljs-comment">-- 길드(길드당 1행). 캐릭터·Gold 없음(계정 공유)</span>
@@ -1367,19 +1408,20 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>컴파일 주의</strong> — 새 <code>.h</code>를 추가하면 Live Coding 불가(에디터 종료 → 재빌드). 키·MAGIC은 <code>constexpr</code>/<code>static</code>으로 두되, 공통 절차는 위키 『C++ 클래스 생성 · 빌드 워크플로우』.</div></div>
 
     <h3>봉인 방식 — 평문 페이로드를 AES로 감싼다</h3>
-    <p><code>Secured</code> 블롭 = <strong>암호화(<code>MAGIC</code> │ Gold │ Shards │ Seconds │ <code>CRC32</code>)</strong>. 복호화했을 때 <code>MAGIC</code>과 <code>CRC</code>가 맞아야 "진짜"로 인정합니다 — 블롭을 건드리면 이 검사에서 걸립니다. AES는 <strong>UE 내장 <code>FAES</code>(AES-256)</strong>를 씁니다.</p>
+    <p><code>Secured</code> 블롭 = <strong>암호화(<code>MAGIC</code> │ Gold │ Shards │ Seconds │ LastRewarded │ <code>CRC32</code>)</strong>. 복호화했을 때 <code>MAGIC</code>과 <code>CRC</code>가 맞아야 "진짜"로 인정합니다 — 블롭을 건드리면 이 검사에서 걸립니다. AES는 <strong>UE 내장 <code>FAES</code>(AES-256)</strong>를 씁니다.</p>
     <div class="codeblock">
       <div class="codeblock-bar">
         <button class="codeblock-tab tab-h active" type="button">RTSecured.h</button>
         <button class="codeblock-tab tab-cpp" type="button">RTSecured.cpp</button>
         <button class="codeblock-copy" type="button">복사</button>
       </div>
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// player 행의 치트 유인 값 3개를 하나로 묶은 그릇. 이 값들만 Secured로 보호한다</span>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// player 행의 치트 유인 값 4개를 하나로 묶은 그릇. 이 값들만 Secured로 보호한다</span>
 <span class="hljs-keyword">struct</span> <span class="hljs-type">FSecuredAccount</span>
 {
     <span class="hljs-type">int64</span> Gold = <span class="hljs-number">0</span>;
     <span class="hljs-type">int32</span> Shards = <span class="hljs-number">0</span>;
     <span class="hljs-type">int64</span> AccountFocusSeconds = <span class="hljs-number">0</span>;
+    <span class="hljs-type">int32</span> LastRewardedLevel = <span class="hljs-number">0</span>;      <span class="hljs-comment">// 보상 수령 이력 — 되돌리면 재수령 치트가 되므로 함께 봉인</span>
 };
 
 <span class="hljs-comment">// 봉인: 값 → (MAGIC+값+CRC) 평문 → AES 암호화 → BLOB. player.Secured에 바인딩해 저장</span>
@@ -1403,11 +1445,11 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
 <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; <span class="hljs-title">SealAccount</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FSecuredAccount</span>&amp; In)
 {
-    <span class="hljs-comment">// 1) 평문 페이로드 = MAGIC | Gold | Shards | Seconds | CRC32(앞 24바이트)</span>
+    <span class="hljs-comment">// 1) 평문 페이로드 = MAGIC | Gold | Shards | Seconds | LastRewarded | CRC32(앞 28바이트)</span>
     <span class="hljs-type">FBufferArchive</span> Ar;                       <span class="hljs-comment">// 값들을 바이트로 직렬화하는 버퍼</span>
     <span class="hljs-type">uint32</span> Magic = SEAL_MAGIC;               <span class="hljs-comment">// 개봉 때 이 서명으로 진짜 여부 판정</span>
-    <span class="hljs-type">int64</span> Gold = In.Gold; <span class="hljs-type">int32</span> Shards = In.Shards; <span class="hljs-type">int64</span> Sec = In.AccountFocusSeconds;
-    Ar &lt;&lt; Magic &lt;&lt; Gold &lt;&lt; Shards &lt;&lt; Sec;    <span class="hljs-comment">// 4+8+4+8 = 24바이트</span>
+    <span class="hljs-type">int64</span> Gold = In.Gold; <span class="hljs-type">int32</span> Shards = In.Shards; <span class="hljs-type">int64</span> Sec = In.AccountFocusSeconds; <span class="hljs-type">int32</span> LastRw = In.LastRewardedLevel;
+    Ar &lt;&lt; Magic &lt;&lt; Gold &lt;&lt; Shards &lt;&lt; Sec &lt;&lt; LastRw; <span class="hljs-comment">// 4+8+4+8+4 = 28바이트</span>
     <span class="hljs-type">uint32</span> Crc = <span class="hljs-type">FCrc</span>::MemCrc32(Ar.GetData(), Ar.Num()); <span class="hljs-comment">// 지금까지 바이트의 체크섬</span>
     Ar &lt;&lt; Crc;                               <span class="hljs-comment">// 무결성 태그를 뒤에 붙임(변조 감지용)</span>
 
@@ -1432,14 +1474,14 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-type">FMemoryReader</span> Ar(Buf);
     <span class="hljs-type">uint32</span> Magic = <span class="hljs-number">0</span>; Ar &lt;&lt; Magic;
     <span class="hljs-keyword">if</span> (Magic != SEAL_MAGIC) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;   <span class="hljs-comment">// 서명 불일치 → 키 틀림/블롭 변조</span>
-    <span class="hljs-type">int64</span> Gold = <span class="hljs-number">0</span>; <span class="hljs-type">int32</span> Shards = <span class="hljs-number">0</span>; <span class="hljs-type">int64</span> Sec = <span class="hljs-number">0</span>;
-    Ar &lt;&lt; Gold &lt;&lt; Shards &lt;&lt; Sec;
+    <span class="hljs-type">int64</span> Gold = <span class="hljs-number">0</span>; <span class="hljs-type">int32</span> Shards = <span class="hljs-number">0</span>; <span class="hljs-type">int64</span> Sec = <span class="hljs-number">0</span>; <span class="hljs-type">int32</span> LastRw = <span class="hljs-number">0</span>;
+    Ar &lt;&lt; Gold &lt;&lt; Shards &lt;&lt; Sec &lt;&lt; LastRw;
     <span class="hljs-type">uint32</span> StoredCrc = <span class="hljs-number">0</span>; Ar &lt;&lt; StoredCrc;
-    <span class="hljs-comment">// CRC는 MAGIC~Sec까지 24바이트에 대해 계산했었다 — 그대로 재계산해 비교</span>
-    <span class="hljs-keyword">const</span> <span class="hljs-type">int32</span> PayloadBytes = <span class="hljs-keyword">sizeof</span>(<span class="hljs-type">uint32</span>) + <span class="hljs-keyword">sizeof</span>(<span class="hljs-type">int64</span>) + <span class="hljs-keyword">sizeof</span>(<span class="hljs-type">int32</span>) + <span class="hljs-keyword">sizeof</span>(<span class="hljs-type">int64</span>); <span class="hljs-comment">// 24</span>
+    <span class="hljs-comment">// CRC는 MAGIC~LastRw까지 28바이트에 대해 계산했었다 — 그대로 재계산해 비교</span>
+    <span class="hljs-keyword">const</span> <span class="hljs-type">int32</span> PayloadBytes = <span class="hljs-keyword">sizeof</span>(<span class="hljs-type">uint32</span>) + <span class="hljs-keyword">sizeof</span>(<span class="hljs-type">int64</span>) + <span class="hljs-keyword">sizeof</span>(<span class="hljs-type">int32</span>) + <span class="hljs-keyword">sizeof</span>(<span class="hljs-type">int64</span>) + <span class="hljs-keyword">sizeof</span>(<span class="hljs-type">int32</span>); <span class="hljs-comment">// 28</span>
     <span class="hljs-keyword">if</span> (<span class="hljs-type">FCrc</span>::MemCrc32(Buf.GetData(), PayloadBytes) != StoredCrc) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>; <span class="hljs-comment">// 무결성 실패</span>
 
-    Out.Gold = Gold; Out.Shards = Shards; Out.AccountFocusSeconds = Sec;
+    Out.Gold = Gold; Out.Shards = Shards; Out.AccountFocusSeconds = Sec; Out.LastRewardedLevel = LastRw;
     <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;                            <span class="hljs-comment">// 진짜 값 복원 성공</span>
 }</pre></div>
     </div>
@@ -1451,20 +1493,20 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <button class="codeblock-tab tab-cpp active" type="button">EconomySubsystem.cpp — save/load</button>
         <button class="codeblock-copy" type="button">복사</button>
       </div>
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 저장 — 재화가 바뀔 때. 평문 3칸 + Secured를 한 UPDATE(한 트랜잭션)로 커밋</span>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 저장 — 재화·보상 이력이 바뀔 때. 평문 4칸 + Secured를 한 UPDATE(한 트랜잭션)로 커밋</span>
 <span class="hljs-type">void</span> <span class="hljs-type">UEconomySubsystem</span>::<span class="hljs-title">SavePlayer</span>()
 {
-    <span class="hljs-keyword">const</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; Sealed = SealAccount({ Gold, Shards, AccountFocusSeconds });
-    <span class="hljs-comment">// UPDATE player SET Gold=?, Shards=?, AccountFocusSeconds=?, Secured=? WHERE Id=1;</span>
-    <span class="hljs-comment">//   ?1..3 = 정수 바인딩, ?4 = Sealed를 BLOB로 바인딩(FSQLitePreparedStatement::SetBindingValue)</span>
+    <span class="hljs-keyword">const</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; Sealed = SealAccount({ Gold, Shards, AccountFocusSeconds, LastRewardedLevel });
+    <span class="hljs-comment">// UPDATE player SET Gold=?, Shards=?, AccountFocusSeconds=?, LastRewardedLevel=?, Secured=? WHERE Id=1;</span>
+    <span class="hljs-comment">//   ?1..4 = 정수 바인딩, ?5 = Sealed를 BLOB로 바인딩(FSQLitePreparedStatement::SetBindingValue)</span>
     <span class="hljs-comment">// 다른 테이블도 같이 고치면 BEGIN…COMMIT으로 감싼다(추출·강화).</span>
 }
 
 <span class="hljs-comment">// 로드 — 앱 시작 시 1회. 평문과 Secured를 함께 읽어 검증·복원</span>
 <span class="hljs-type">void</span> <span class="hljs-type">UEconomySubsystem</span>::<span class="hljs-title">LoadPlayer</span>()
 {
-    <span class="hljs-comment">// SELECT Gold, Shards, AccountFocusSeconds, Secured FROM player WHERE Id=1;</span>
-    <span class="hljs-type">int64</span> PlainGold; <span class="hljs-type">int32</span> PlainShards; <span class="hljs-type">int64</span> PlainSec; <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; SecuredBlob;
+    <span class="hljs-comment">// SELECT Gold, Shards, AccountFocusSeconds, LastRewardedLevel, Secured FROM player WHERE Id=1;</span>
+    <span class="hljs-type">int64</span> PlainGold; <span class="hljs-type">int32</span> PlainShards; <span class="hljs-type">int64</span> PlainSec; <span class="hljs-type">int32</span> PlainLastRw; <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; SecuredBlob;
     <span class="hljs-comment">// … 위 컬럼들을 읽어 담았다고 하자 …</span>
 
     <span class="hljs-type">FSecuredAccount</span> Real;
@@ -1475,17 +1517,17 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         HandleSecuredBroken();
         <span class="hljs-keyword">return</span>;
     }
-    <span class="hljs-keyword">if</span> (Real.Gold != PlainGold || Real.Shards != PlainShards || Real.AccountFocusSeconds != PlainSec)
+    <span class="hljs-keyword">if</span> (Real.Gold != PlainGold || Real.Shards != PlainShards || Real.AccountFocusSeconds != PlainSec || Real.LastRewardedLevel != PlainLastRw)
     {
         <span class="hljs-comment">// 2) 평문만 편집됨 → 진짜(복호화) 값을 채택 = 자동 복원</span>
-        Gold = Real.Gold; Shards = Real.Shards; AccountFocusSeconds = Real.AccountFocusSeconds;
+        Gold = Real.Gold; Shards = Real.Shards; AccountFocusSeconds = Real.AccountFocusSeconds; LastRewardedLevel = Real.LastRewardedLevel;
         SavePlayer();                       <span class="hljs-comment">// 평문을 즉시 재기록해 정합성 회복</span>
         NotifyRestored();                   <span class="hljs-comment">// "비정상 데이터를 복구했습니다" 안내(알리고 복원)</span>
     }
     <span class="hljs-keyword">else</span>
     {
         <span class="hljs-comment">// 3) 일치 → 정상. 평문을 그대로 채택</span>
-        Gold = PlainGold; Shards = PlainShards; AccountFocusSeconds = PlainSec;
+        Gold = PlainGold; Shards = PlainShards; AccountFocusSeconds = PlainSec; LastRewardedLevel = PlainLastRw;
     }
 }</pre></div>
     </div>
@@ -1509,7 +1551,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <div class="pipe-step">
       <div class="pipe-num">2</div>
       <div class="pipe-body"><div class="pipe-title">DB 초기화</div>
-        <div class="pipe-desc">DB 문지기 <code>UDatabaseSubsystem</code>(11에서 분리)의 Initialize에서 <code>Archive.db</code>를 열고 <code>PRAGMA foreign_keys = ON</code> → 위 <code>CREATE TABLE IF NOT EXISTS</code> 6종을 순서대로 실행(있으면 건너뜀). 기능 서브시스템들은 <code>InitializeDependency</code>로 문지기에 의존해 핸들을 빌린다. 09 배관의 리듬대로 한 테이블씩 넓힌다.</div></div>
+        <div class="pipe-desc">DB 문지기 <code>UDatabaseSubsystem</code>(11에서 분리)의 Initialize에서 <code>Archive.db</code>를 열고 <code>PRAGMA foreign_keys = ON</code> → 위 <code>CREATE TABLE IF NOT EXISTS</code> 7종을 순서대로 실행(있으면 건너뜀). 기능 서브시스템들은 <code>InitializeDependency</code>로 문지기에 의존해 핸들을 빌린다. 09 배관의 리듬대로 한 테이블씩 넓힌다.</div></div>
     </div>
     <div class="pipe-step">
       <div class="pipe-num">3</div>
@@ -1539,7 +1581,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>RecordTales V2 &middot; 데이터 스키마 명세 v0.17</span>
+  <span>RecordTales V2 &middot; 데이터 스키마 명세 v0.19</span>
   <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.8</span>
 </footer>
 

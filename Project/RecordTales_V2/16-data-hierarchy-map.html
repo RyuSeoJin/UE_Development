@@ -10,6 +10,12 @@
      지도(템플릿 04 데이터 설계 지도). 배치 근거는 03, 변수·여정은 10, 컬럼 정본은 05,
      구현 방식은 15가 담당 — 이 문서는 "조망"만 담고 겹치는 내용은 이름으로만 참조한다.
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.1 · 2026-07-22
+       - (동기화) 레벨업 1회성 보상 신설(05 v0.18) 반영 — DataTable 10종 → 11종:
+         개요도 SVG·Mermaid 소스·위계 트리·ROW 카탈로그에 DT_Level_Reward 추가,
+         DB 카탈로그 player에 LastRewardedLevel 컬럼, 참조선에
+         player.LastRewardedLevel ↔ DT_Level_Reward 행 추가.
+       - (footer) v1.0 → v1.1.
      v1.0 · 2026-07-21
        - 최초 생성 (사용자 확인 ①② 완료 · Case A · 04 데이터 설계 지도).
          01 지도 읽는 법(배지·계층 색) → 02 전체 위계(구워넣은 SVG 개요도 + .mmd 병기 +
@@ -725,7 +731,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   <div class="hero-eyebrow">RecordTales V2 &middot; v1.0 &middot; Data Hierarchy Map</div>
   <h1>전체 데이터<br><span>위계 지도</span></h1>
   <p class="hero-sub">
-    V2의 모든 데이터를 <strong>계층 &rarr; 그룹 &rarr; 항목</strong> 위계로 한 장에 내려다봅니다 — ROW(밸런스 표 10종) &middot; DB(<code>Archive.db</code> 7테이블) &middot; RUNTIME(캐시 struct &middot; 파생값). 이 문서는 <strong>조망 전용</strong>입니다: 배치 근거는 03, 변수 &middot; 여정은 10, 컬럼 정본은 05, 구현 방식은 15가 담당합니다.
+    V2의 모든 데이터를 <strong>계층 &rarr; 그룹 &rarr; 항목</strong> 위계로 한 장에 내려다봅니다 — ROW(밸런스 표 11종) &middot; DB(<code>Archive.db</code> 7테이블) &middot; RUNTIME(캐시 struct &middot; 파생값). 이 문서는 <strong>조망 전용</strong>입니다: 배치 근거는 03, 변수 &middot; 여정은 10, 컬럼 정본은 05, 구현 방식은 15가 담당합니다.
   </p>
   <div class="hero-meta">
     <span class="badge badge-blue">계층 &rarr; 그룹 &rarr; 항목</span>
@@ -784,7 +790,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <text class="dg-text" x="500" y="37" text-anchor="middle">폐기 — USaveGame &middot; Settings</text>
         <text class="dg-sub" x="500" y="53" text-anchor="middle">풀-DB 전환으로 더는 안 씀</text>
         <rect class="dg-node k-table" x="30" y="120" width="270" height="76" rx="8"/>
-        <text class="dg-text" x="165" y="145" text-anchor="middle">ROW — DataTable 10종</text>
+        <text class="dg-text" x="165" y="145" text-anchor="middle">ROW — DataTable 11종</text>
         <text class="dg-sub" x="165" y="164" text-anchor="middle">밸런스 &middot; FTableRowBase &middot; 읽기 전용</text>
         <text class="dg-sub" x="165" y="181" text-anchor="middle">능력치 3 &middot; 캐릭터/가챠 5 &middot; 건물 2</text>
         <rect class="dg-node k-subsystem" x="340" y="120" width="270" height="76" rx="8"/>
@@ -813,7 +819,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       </div>
       <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">%% 데이터 3계층 개요 — 옵시디언/GitHub에 붙여 넣으면 같은 그림이 렌더링됩니다</span>
 <span class="hljs-keyword">flowchart</span> TD
-  SHEET[<span class="hljs-string">"구글 시트 (기획) — 밸런스 원본"</span>] -- <span class="hljs-string">"CSV 내보내기 · 재임포트"</span> --&gt; ROW[<span class="hljs-string">"ROW — DataTable 10종 (읽기 전용)"</span>]
+  SHEET[<span class="hljs-string">"구글 시트 (기획) — 밸런스 원본"</span>] -- <span class="hljs-string">"CSV 내보내기 · 재임포트"</span> --&gt; ROW[<span class="hljs-string">"ROW — DataTable 11종 (읽기 전용)"</span>]
   GONE[<span class="hljs-string">"폐기 — USaveGame · UDeveloperSettings"</span>]
   ROW -- <span class="hljs-string">"표 조회"</span> --&gt; RUN[<span class="hljs-string">"RUNTIME — 메모리 캐시 · 파생값"</span>]
   DB[<span class="hljs-string">"DB — Archive.db 7테이블 (문지기 소유)"</span>] -- <span class="hljs-string">"로드 (앱 시작 1회)"</span> --&gt; RUN
@@ -828,11 +834,12 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
     <div class="tree"><span class="note">// RecordTales V2 데이터 전체 — 계층 → 그룹 → 항목 (2026-07-21, 05 v0.17 기준)</span>
 RecordTales V2 데이터
-├─ ROW — 밸런스 (DataTable 10종, RTTables.h)
+├─ ROW — 밸런스 (DataTable 11종, RTTables.h)
 │  ├─ 능력치      DT_Ability_Type / DT_Ability_Step / DT_Ability_Enhance
 │  ├─ 캐릭터·가챠  DT_Character / DT_GachaRateByLevel / DT_Character_Ability_OpenChance
 │  │              / DT_Character_Ability_GradeChance / DT_Character_Extract
-│  └─ 건물        DT_Building / DT_Building_Upgrade
+│  ├─ 건물        DT_Building / DT_Building_Upgrade
+│  └─ 레벨 보상    DT_Level_Reward
 ├─ DB — 영속 상태 (Saved/Archive.db, 7테이블)
 │  ├─ 계정 축     player(항상 1행) / owned_characters / owned_abilities / buildings / archive_categories
 │  ├─ 길드 축     guilds / archives
@@ -856,7 +863,7 @@ RecordTales V2 데이터
     <div class="var-card">
       <div class="vc-head">
         <span class="vc-domain">Static</span>
-        <span class="vc-file">ROW — DataTable 10종 <span style="color:var(--ue-header)">(밸런스)</span></span>
+        <span class="vc-file">ROW — DataTable 11종 <span style="color:var(--ue-header)">(밸런스)</span></span>
         <span class="vc-role">기획이 시트로 채우는 마스터 데이터 · 코드는 읽기만</span>
       </div>
       <div class="vc-var"><span class="vv-name">DT_Ability_Type</span><span class="vv-type">Table</span><span class="vbadge row">ROW</span>
@@ -879,6 +886,8 @@ RecordTales V2 데이터
         <span class="vv-note">행=건물 id — 이름 &middot; 타입 &middot; 테마 &middot; 해금 조건 &middot; 최대 슬롯</span></div>
       <div class="vc-var"><span class="vv-name">DT_Building_Upgrade</span><span class="vv-type">Table</span><span class="vbadge row">ROW</span>
         <span class="vv-note">행=건물+레벨 — 기본 산출 &middot; 열린 슬롯 &middot; 업그레이드 비용(건물별 개별 곡선)</span></div>
+      <div class="vc-var"><span class="vv-name">DT_Level_Reward</span><span class="vv-type">Table</span><span class="vbadge row">ROW</span>
+        <span class="vv-note">행=계정 레벨(1~20) — 레벨업 1회성 보상 Gold &middot; 마일스톤 조각(초과 레벨은 마지막 행 반복)</span></div>
     </div>
 
     <div class="var-card">
@@ -888,7 +897,7 @@ RecordTales V2 데이터
         <span class="vc-role">플레이어 진행이 사는 곳 · 상태=UPDATE / 기록=INSERT · 쓰기 주인은 테이블당 하나</span>
       </div>
       <div class="vc-var"><span class="vv-name">player</span><span class="vv-type">계정 &middot; 1행</span><span class="vbadge db">DB</span>
-        <span class="vv-note">Gold &middot; Shards &middot; AccountFocusSeconds &middot; Secured — 주인: Economy</span></div>
+        <span class="vv-note">Gold &middot; Shards &middot; AccountFocusSeconds &middot; LastRewardedLevel(보상 수령 이력) &middot; Secured — 주인: Economy</span></div>
       <div class="vc-var"><span class="vv-name">guilds</span><span class="vv-type">길드당 1행</span><span class="vbadge db">DB</span>
         <span class="vv-note">GuildId(AUTOINCREMENT) &middot; 대분류 1개 &middot; FocusSeconds &middot; DeletedAt(소프트 삭제) &middot; Secured — 주인: Guild</span></div>
       <div class="vc-var"><span class="vv-name">archive_categories</span><span class="vv-type">소분류당 1행</span><span class="vbadge db">DB</span>
@@ -949,7 +958,8 @@ RecordTales V2 데이터
       <tr><td><code>buildings.DeployedInstanceIds</code></td><td><code>owned_characters.InstanceId</code></td><td>배치 캐릭터를 번호로 가리킴(JSON 배열 — FK 아님, 코드가 정합성 관리)</td></tr>
       <tr><td><code>archives.GuildId</code></td><td><code>guilds.GuildId</code></td><td>기록의 길드 태그 — 길드별 필터와 전체 조망을 동시에</td></tr>
       <tr><td><code>archives.Category</code></td><td><code>archive_categories.Name</code></td><td>소분류 태그 — 계정 공유 풀의 이름을 가리킴(이름 변경은 한 트랜잭션)</td></tr>
-      <tr><td><code>DT_GachaRateByLevel</code> RowName</td><td><code>player.AccountFocusSeconds</code></td><td>계정 레벨(초&divide;3600)이 표의 행을 고름 — DB가 표를 "선택"하는 유일한 역방향</td></tr>
+      <tr><td><code>DT_GachaRateByLevel</code> RowName</td><td><code>player.AccountFocusSeconds</code></td><td>계정 레벨(초&divide;3600)이 표의 행을 고름 — DB가 표를 "선택"하는 역방향</td></tr>
+      <tr><td><code>player.LastRewardedLevel</code></td><td><code>DT_Level_Reward</code> RowName</td><td>레벨업 보상 수령 이력 — 다음 미수령 레벨의 행을 찾아 지급(초과 레벨은 마지막 행 반복)</td></tr>
     </table>
 
     <div class="callout tip" style="margin-top:16px">
@@ -989,7 +999,7 @@ RecordTales V2 데이터
 </div>
 
 <footer>
-  <span>RecordTales V2 &middot; 전체 데이터 위계 지도 v1.0</span>
+  <span>RecordTales V2 &middot; 전체 데이터 위계 지도 v1.1</span>
   <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.9</span>
 </footer>
 

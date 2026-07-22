@@ -15,7 +15,15 @@
       "Bash(grep -noE '.{0,25}\\(SaveGame|SaveVersion|USaveGame|\\\\.sav|TArray<FArchiveRecord>|bDeleted|Archive\\\\.db|recordtales\\\\.db|SQLite|INSERT|DELETE|DeletedAt|UPDATE\\).{0,25}' Project/RecordTales_V2/07-archive-record-softdelete.html)",
       "Bash(grep -noE '.{0,60}URecordSubsystem.{0,60}' Project/RecordTales_V2/00-recordtales-v2-overview.html)",
       "Bash(grep -noE '.{0,60}URecordSubsystem.{0,60}' Project/RecordTales_V2/01-multi-guild-architecture.html)",
-      "Bash(grep -noE '.{0,40}길드별.{0,60}' Project/RecordTales_V2/10-code-variable-map.html)"
+      "Bash(grep -noE '.{0,40}길드별.{0,60}' Project/RecordTales_V2/10-code-variable-map.html)",
+      "Bash(python3 build_balance_xlsx.py)",
+      "Bash(python3 \"/Users/dane.jeong/Library/Application Support/Claude/local-agent-mode-sessions/skills-plugin/6d4763fd-cc72-4955-9f50-5ec6d0819c52/45ffadf3-6f19-4825-90a7-90b3fb425423/skills/xlsx/scripts/recalc.py\" RecordTales_V2_Balance_Draft.xlsx)",
+      "Bash(pip3 install *)",
+      "Bash(sed -i '' 's/make_sheet\\(\"DT_Character_Ability_GradeChance\",/make_sheet\\(\"DT_Char_Ability_GradeChance\",/; s/DT_Character_Ability_GradeChance!/DT_Char_Ability_GradeChance!/g' build_balance_xlsx.py)",
+      "Bash(sed -i '' 's|r = put\\(r, \"임포트\"|r = put\\(r, \"탭 이름 예외\", \"DT_Char_Ability_GradeChance 탭의 정식 DataTable 이름은 DT_Character_Ability_GradeChance \\(xlsx 31자 제한으로 탭만 축약 — CSV 내보내기 후 에셋은 정식 이름으로\\).\"\\)\\\\n    r = put\\(r, \"임포트\"|' build_balance_xlsx.py)",
+      "Bash(base64 -i RecordTales_V2_Balance_Draft.xlsx -o balance.b64)",
+      "mcp__2d52f20d-a2ae-4bd7-9f30-ab043a1e11ad__create_file",
+      "mcp__2d52f20d-a2ae-4bd7-9f30-ab043a1e11ad__read_file_content"
     ]
   }
 }

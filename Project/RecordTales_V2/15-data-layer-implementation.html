@@ -10,6 +10,15 @@
      한눈에 잇는 통합 해설(템플릿 02-A). 상세 절차 정본은 05·09·11·12·13·14가 담당하며
      이 문서는 계층별 구현체·절차·핵심 스켈레톤만 담는다.
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.2 · 2026-07-22
+       - (동기화) 레벨업 1회성 보상 신설(05 v0.18)에 따라 DataTable 표기 10종 → 11종
+         (DT_Level_Reward 추가 — 개념 표·관계도·절차·착수 블록·코드 주석). 구조 변경 없음.
+       - (footer) v1.1 → v1.2.
+     v1.1 · 2026-07-21
+       - (변경) 04 구현 절차 DB 3단계 설명의 긴 코드 토큰
+         Collection.InitializeDependency<UDatabaseSubsystem>() 에 <wbr> 삽입 —
+         좁은 폭(모바일)에서 페이지 가로 오버플로우 방지. 내용 변화 없음.
+       - (footer) v1.0 → v1.1.
      v1.0 · 2026-07-21
        - 최초 생성 (사용자 확인 ①② 완료 · Case A · 02-A 아키텍처 패턴).
          01 개념(계층별 구현체 + 핵심 용어) → 02 관계(.rel-map 구현체 연결) →
@@ -749,7 +758,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr>
         <td><strong>ROW</strong> — 밸런스 표</td>
         <td>행 구조체(<code>FTableRowBase</code> 상속) + DataTable 에셋 + CSV</td>
-        <td><code>RTTables.h</code> &middot; 콘텐츠의 <code>DT_*</code> 에셋 10종 &middot; 구글 시트</td>
+        <td><code>RTTables.h</code> &middot; 콘텐츠의 <code>DT_*</code> 에셋 11종 &middot; 구글 시트</td>
       </tr>
       <tr>
         <td><strong>DB</strong> — 영속 상태</td>
@@ -792,12 +801,12 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <div class="rel-row">
         <div class="rel-node n-subsystem"><div class="rn-name">구글 시트 (기획)</div><div class="rn-role">밸런스 수치의 원본</div></div>
         <div class="rel-arrow"><span class="ra-label">CSV 내보내기 &rarr; 재임포트</span><span class="ra-line">&rarr;</span></div>
-        <div class="rel-node n-subsystem" style="border-left-color:var(--ue-mat)"><div class="rn-name">DT_* 에셋 10종</div><div class="rn-role">ROW — 값이 사는 곳</div></div>
+        <div class="rel-node n-subsystem" style="border-left-color:var(--ue-mat)"><div class="rn-name">DT_* 에셋 11종</div><div class="rn-role">ROW — 값이 사는 곳</div></div>
       </div>
       <div class="rel-row">
         <div class="rel-node n-subsystem" style="border-left-color:var(--ue-mat)"><div class="rn-name">RTTables.h (F*Row)</div><div class="rn-role">행 구조체 = 표의 스키마</div></div>
         <div class="rel-arrow"><span class="ra-label">행 타입 지정 (FTableRowBase)</span><span class="ra-line">&rarr;</span></div>
-        <div class="rel-node n-subsystem" style="border-left-color:var(--ue-mat)"><div class="rn-name">DT_* 에셋 10종</div><div class="rn-role">컬럼명 = 프로퍼티명 계약</div></div>
+        <div class="rel-node n-subsystem" style="border-left-color:var(--ue-mat)"><div class="rn-name">DT_* 에셋 11종</div><div class="rn-role">컬럼명 = 프로퍼티명 계약</div></div>
       </div>
       <div class="rel-row">
         <div class="rel-node n-subsystem" style="border-left-color:var(--accent)"><div class="rn-name">UDatabaseSubsystem</div><div class="rn-role">DB 문지기 — 단독 소유</div></div>
@@ -872,7 +881,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <div class="pipe-step">
       <div class="pipe-num">1</div>
       <div class="pipe-body"><div class="pipe-title">행 구조체 선언 — <code>RTTables.h</code></div>
-        <div class="pipe-desc"><code>FTableRowBase</code>를 상속한 <code>USTRUCT(BlueprintType)</code> 10종. 프로퍼티는 <code>UPROPERTY(EditAnywhere)</code>로 열어 에디터 &middot; CSV가 채울 수 있게 합니다. 프로퍼티 이름은 <strong>CSV 헤더와 철자까지 동일</strong>해야 임포트가 매칭됩니다.</div></div>
+        <div class="pipe-desc"><code>FTableRowBase</code>를 상속한 <code>USTRUCT(BlueprintType)</code> 11종. 프로퍼티는 <code>UPROPERTY(EditAnywhere)</code>로 열어 에디터 &middot; CSV가 채울 수 있게 합니다. 프로퍼티 이름은 <strong>CSV 헤더와 철자까지 동일</strong>해야 임포트가 매칭됩니다.</div></div>
     </div>
     <div class="pipe-step">
       <div class="pipe-num">2</div>
@@ -943,7 +952,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
     <table class="tbl">
       <tr><th>파일</th><th>부모 클래스 (위저드 검색어)</th><th>비고</th></tr>
-      <tr><td><code>RTTables.h</code> &middot; <code>RTTypes.h</code></td><td>위저드 아님 — 빈 헤더</td><td>ROW 행 구조체 10종 / enum + RUNTIME 캐시 struct 6종</td></tr>
+      <tr><td><code>RTTables.h</code> &middot; <code>RTTypes.h</code></td><td>위저드 아님 — 빈 헤더</td><td>ROW 행 구조체 11종 / enum + RUNTIME 캐시 struct 6종</td></tr>
       <tr><td><code>DatabaseSubsystem.h/.cpp</code></td><td><code>GameInstanceSubsystem</code></td><td>DB 문지기 — 열닫 &middot; 스키마 &middot; 트랜잭션 (정본: 13)</td></tr>
       <tr><td>기능 서브시스템 5종 <code>.h/.cpp</code></td><td><code>GameInstanceSubsystem</code></td><td>Economy &middot; Guild &middot; Gacha &middot; Estate &middot; Archive — 2줄 관례로 문지기에 연결</td></tr>
       <tr><td><code>RTSecured.h/.cpp</code></td><td>위저드 아님 — 자유 함수 2개</td><td><code>SealAccount</code> / <code>OpenAccount</code> (정본: 05 &sect;06)</td></tr>
@@ -951,7 +960,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
     <div class="callout tip" style="margin-top:10px">
       <span class="ic">&#x1F4A1;</span>
-      <p><strong>코드 외 작업</strong> — ① 편집 &gt; 플러그인에서 <code>SQLiteSupport</code> 활성화(1회) ② 콘텐츠 브라우저에서 <code>DT_*</code> 에셋 10종 생성 + CSV 임포트 ③ 검증용 DB Browser for SQLite 설치(선택). 클래스 위저드 &middot; Build.cs &middot; 컴파일 공통 절차는 위키 『C++ 클래스 생성 &middot; 빌드 워크플로우』를 따릅니다.</p>
+      <p><strong>코드 외 작업</strong> — ① 편집 &gt; 플러그인에서 <code>SQLiteSupport</code> 활성화(1회) ② 콘텐츠 브라우저에서 <code>DT_*</code> 에셋 11종 생성 + CSV 임포트 ③ 검증용 DB Browser for SQLite 설치(선택). 클래스 위저드 &middot; Build.cs &middot; 컴파일 공통 절차는 위키 『C++ 클래스 생성 &middot; 빌드 워크플로우』를 따릅니다.</p>
     </div>
 
     <div class="pitfall" style="margin-top:10px">
@@ -967,7 +976,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <button class="codeblock-copy" type="button">복사</button>
       </div>
       <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// ROW 행 구조체 — FTableRowBase를 상속해야 에디터가 "DataTable의 행 타입"으로 인정한다</span>
-<span class="hljs-comment">// (10종 전부 이 형태 — 여기서는 DT_Ability_Step 하나만 발췌. 전체 정본: 05 문서)</span>
+<span class="hljs-comment">// (11종 전부 이 형태 — 여기서는 DT_Ability_Step 하나만 발췌. 전체 정본: 05 문서)</span>
 <span class="hljs-meta">USTRUCT(BlueprintType)</span>
 <span class="hljs-keyword">struct</span> <span class="hljs-type">FAbilityStepRow</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">FTableRowBase</span>
 {
@@ -1144,7 +1153,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>RecordTales V2 &middot; 데이터 3계층 구현 해설 v1.0</span>
+  <span>RecordTales V2 &middot; 데이터 3계층 구현 해설 v1.2</span>
   <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.9</span>
 </footer>
 

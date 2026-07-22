@@ -7,6 +7,24 @@
 <!-- ============================================================
      CHANGELOG — recordtales_v2-index.html
      RecordTales V2 프로젝트 허브 (골격). 작업 규약: doc-process/DOC-TRACKS.md (Track B)
+     v0.19 · 2026-07-22
+       - (구조 반영) 레벨업 1회성 보상 신설(사용자 결정: 계정 레벨만 · Gold + 5레벨 마일스톤 조각) —
+         레벨 비저장 원칙 유지, 신규 저장값은 player.LastRewardedLevel(수령 이력, Secured 4번째 값).
+         DataTable 11종째 DT_Level_Reward(초과 레벨=마지막 행 반복, plateau 관례).
+         연동 개정: 05 v0.18(DDL·Secured·표 등록 정본) · 06 v0.4(레벨 규칙 4단계) ·
+         15 v1.2 · 16 v1.1(표기·카탈로그·참조선). 초안 수치 원장 = 구글 드라이브 폴더
+         "RecordTales V2 — 밸런스 DataTable 초안"(시트 11종 + README).
+         ★ 마스터 페이지는 후속 개정 대상(Economy 코드·RTSecured·지도에 미반영).
+       - (용어) "레벨업 보상(LastRewardedLevel)" 추가.
+       - (footer) 버전 표기 v0.18 → v0.19.
+     v0.18 · 2026-07-21
+       - (추가) 문서 목록에 16 전체 데이터 위계 지도 등록(04 데이터 설계 지도, 신규) —
+         전체 데이터를 계층→그룹→항목 위계로 한 장 조망: 구워넣은 SVG 개요도(+.mmd 병기)
+         + 위계 트리 + 계층 카탈로그(.var-card ×3) + 참조선(DB→ROW·FK·struct↔테이블).
+         배치 근거(03)·변수/여정(10)·컬럼 정본(05)·구현 방식(15)은 참조로만 언급.
+       - (용어) "데이터 3계층" 정의에 위계 조망 참조(16) 추가.
+       - (연동) 15 v1.1 — 좁은 폭 가로 오버플로우 방지(<wbr> 삽입, 내용 무변경).
+       - (footer) 버전 표기 v0.17 → v0.18.
      v0.17 · 2026-07-21
        - (추가) 문서 목록에 15 데이터 3계층 구현 해설 등록(02-A, 신규) — ROW·DB·RUNTIME이
          각각 무엇으로(행 구조체+DT 에셋+CSV / SQLite 플러그인+문지기 / 서브시스템 멤버)
@@ -555,6 +573,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td>13 DatabaseSubsystem (DB 문지기 &middot; 7테이블 스키마 &middot; 트랜잭션 창구)</td><td>구현 &middot; 실습</td><td><a href="./13-database-subsystem.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
       <tr><td>14 저장 계층 재구축 (09 철거 &middot; 문지기 구조 &middot; Archive 최종형)</td><td>구현 &middot; 실습</td><td><a href="./14-storage-rebuild.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
       <tr><td>15 데이터 3계층 구현 해설 (ROW &middot; DB &middot; RUNTIME — 무엇으로 &middot; 어떻게)</td><td>해설 &middot; 아키텍처</td><td><a href="./15-data-layer-implementation.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
+      <tr><td>16 전체 데이터 위계 지도 (계층 &rarr; 그룹 &rarr; 항목 한 장 조망 &middot; 참조선)</td><td>해설 &middot; 데이터</td><td><a href="./16-data-hierarchy-map.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
       <tr><td><strong>★ 마스터 페이지</strong> — 저장 계층 통합 (구조 지도 + 전 파일 .h/.cpp 완성본, 자립형)</td><td>통합 &middot; 스냅샷</td><td><a href="./recordtales_v2-masterpage.html" style="color:var(--accent)">열기 &rarr;</a></td></tr>
     </table>
   </div>
@@ -609,7 +628,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td>대분류(Guild_Category)</td><td>길드의 속성 카테고리 — <strong>길드당 1개</strong>, 길드 간 중복 허용(예: A&middot;C 길드 모두 '캐릭터'). 대분류 필터는 <code>guilds</code>를 거쳐 그 길드들의 기록을 모음. 상세: 12 길드 시스템 02.</td></tr>
       <tr><td>소분류(Archive_Category)</td><td>기록에 태그하는 카테고리 — <strong>계정 공유 풀</strong>(<code>archive_categories</code>)이라 어느 길드의 기록에든 같은 소분류 사용 가능(예: '애니메이션'). 이름 변경은 풀+기록 두 테이블을 한 트랜잭션으로. 상세: 12 길드 시스템 5단계.</td></tr>
       <tr><td>DB 문지기(UDatabaseSubsystem)</td><td><code>Archive.db</code>의 열닫&middot;<code>CREATE TABLE</code>&middot;트랜잭션 창구를 전담하는 GameInstanceSubsystem. 게임 기능 없음 — Economy&middot;Archive 등 기능 시스템들이 <code>InitializeDependency</code>로 대등하게 의존해 핸들을 빌려 씀. 구현 정본: 13 DatabaseSubsystem(7테이블 통합&middot;트랜잭션 창구), 분리 배경: 11 플레이어 상태 저장 1~2단계.</td></tr>
-      <tr><td>데이터 3계층(ROW &middot; DB &middot; RUNTIME)</td><td>데이터를 소유 주체로 나누는 V2 저장 구조 — <strong>ROW</strong>=밸런스 표(기획 소유, <code>FTableRowBase</code> 구조체 + DataTable 에셋 + CSV), <strong>DB</strong>=영속 상태(<code>Saved/Archive.db</code> 7테이블, 문지기가 소유), <strong>RUNTIME</strong>=메모리 캐시&middot;파생값(저장 안 함, 레벨=시간&divide;3600). 배치 판별 질문: "누가 이 값을 소유하는가". 구현 해설: 15 데이터 3계층 구현 해설 &middot; 스키마 정본: 05.</td></tr>
+      <tr><td>데이터 3계층(ROW &middot; DB &middot; RUNTIME)</td><td>데이터를 소유 주체로 나누는 V2 저장 구조 — <strong>ROW</strong>=밸런스 표(기획 소유, <code>FTableRowBase</code> 구조체 + DataTable 에셋 + CSV), <strong>DB</strong>=영속 상태(<code>Saved/Archive.db</code> 7테이블, 문지기가 소유), <strong>RUNTIME</strong>=메모리 캐시&middot;파생값(저장 안 함, 레벨=시간&divide;3600). 배치 판별 질문: "누가 이 값을 소유하는가". 구현 해설: 15 데이터 3계층 구현 해설 &middot; 위계 조망: 16 전체 데이터 위계 지도 &middot; 스키마 정본: 05.</td></tr>
+      <tr><td>레벨업 보상(LastRewardedLevel)</td><td>계정 레벨이 오를 때마다 지급되는 1회성 보상(Gold + 5레벨 마일스톤 조각, 표: <code>DT_Level_Reward</code> — 표 초과 레벨은 마지막 행 반복). 레벨 자체는 여전히 저장하지 않으며, <strong>수령 이력</strong>(<code>player.LastRewardedLevel</code>)만 저장하고 Secured로 봉인. 시간 적립과 같은 트랜잭션이라 다중 레벨 상승에도 이중 지급 없음. 정본: 05 v0.18 &middot; 원칙: 06 v0.4.</td></tr>
     </table>
     <p style="color:var(--text-dim); font-size:13px; margin-top:16px;">※ 이 허브는 골격입니다. 용어&middot;문서는 설계 확정에 따라 확장됩니다. 상세 설계 원장: <code>~/.claude/plans/replicated-weaving-stearns.md</code></p>
   </div>
@@ -617,7 +637,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>RecordTales V2 &middot; 프로젝트 허브 (골격) v0.17</span>
+  <span>RecordTales V2 &middot; 프로젝트 허브 (골격) v0.19</span>
   <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.5</span>
 </footer>
 

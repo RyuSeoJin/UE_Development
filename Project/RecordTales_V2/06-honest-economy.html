@@ -9,6 +9,12 @@
      RecordTales V2 정직한 경제 · 레벨 (Track B · 02-A 아키텍처 패턴).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
      · 2026-07-20 — (반응형) 마스터 v1.9 .tbl 모바일 가로 스크롤 규칙 인라인 반영(본문·구조 무변경).
+     v0.4 · 2026-07-22
+       - (추가) 03 레벨 규칙에 4단계 "레벨업 1회성 보상" 신설(사용자 결정) — 계정 레벨업마다
+         Gold(+5레벨 마일스톤 조각) 지급, 표=DT_Level_Reward(11종째), 이력=player.LastRewardedLevel
+         (Secured 봉인 4번째 값). 레벨 비저장 원칙은 유지 — 저장하는 것은 수령 이력뿐.
+         스키마·코드 정본: 05 v0.18.
+       - (버전) hero eyebrow·footer v0.1(이전 개정 누락분) → v0.4.
      v0.3 · 2026-07-20
        - (동기화) DT_Gacha_Rate_ByLevel → DT_GachaRateByLevel (구글 시트 확정본, 05 문서 v0.12).
      v0.2 · 2026-07-15
@@ -656,7 +662,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">RecordTales V2 &middot; v0.1 &middot; Honest Economy</div>
+  <div class="hero-eyebrow">RecordTales V2 &middot; v0.4 &middot; Honest Economy</div>
   <h1>정직한 경제<br><span>· 레벨</span></h1>
   <p class="hero-sub">
     레벨은 오직 <strong>실제 집중 시간</strong>으로만 오릅니다 — <strong>60분 = 1레벨</strong>. 캐릭터·Gold로는 못 올려, 레벨이 곧 "그 도메인에 투자한 시간"의 거울이 됩니다. Gold·조각·XP의 흐름과 해금을 다룹니다.
@@ -721,6 +727,11 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <div class="pipe-num">3</div>
       <div class="pipe-body"><div class="pipe-title">가챠 확률은 plateau</div>
         <div class="pipe-desc">계정 레벨이 무한히 올라도 확률이 무한히 좋아지면 안 되므로, <strong>어느 레벨부터 확률이 고정</strong>됩니다(표의 상한 이후 flat). 무한 시간이 무한 확률로 가지 않게.</div></div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">4</div>
+      <div class="pipe-body"><div class="pipe-title">레벨업 1회성 보상 — 계정 레벨만</div>
+        <div class="pipe-desc">계정 레벨이 오를 때마다 <strong>Gold</strong>를, 5레벨 마일스톤마다 <strong>조각</strong>을 지급합니다(표: <code>DT_Level_Reward</code>, 표 초과 레벨은 마지막 행 반복 — plateau 관례). 레벨은 여전히 저장하지 않으며, 새로 저장하는 것은 <strong>수령 이력</strong>(<code>player.LastRewardedLevel</code>, Secured 봉인) 하나뿐 — "재계산 가능한 값은 계산하고, 재계산 불가능한 이력만 저장"의 적용입니다. 지급은 시간 적립과 <strong>같은 트랜잭션</strong>이라 여러 레벨을 한 번에 넘어도 순차 지급·이중 지급 없음(스키마·코드: 05 문서 v0.18).</div></div>
     </div>
 
     <div class="callout warn" style="margin-top:14px">
@@ -812,7 +823,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>RecordTales V2 &middot; 정직한 경제 · 레벨 v0.1</span>
+  <span>RecordTales V2 &middot; 정직한 경제 · 레벨 v0.4</span>
   <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.5</span>
 </footer>
 
