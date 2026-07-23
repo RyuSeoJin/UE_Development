@@ -8,6 +8,11 @@
      CHANGELOG — 12-guild-subsystem.html
      RecordTales V2 길드 시스템(따라하기) 명세. 유형 ③ (Track B · 02-B 템플릿).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v0.3 · 2026-07-22
+       - (개명) RTTypes.h → RTDataTypes.h (사용자 결정) — RTTables.h(시트 행의 모양)와 대칭인
+         "DB 행의 그릇" 역할이 이름에 드러나도록. 본문 표기·코드 include
+         (RTDataTypes.generated.h) 일괄 치환. 과거 CHANGELOG 이력 표기는 보존.
+       - (footer) v0.2 → v0.3.
      v0.2 · 2026-07-21
        - (변경) 사용자 결정(05 v0.17 연동): 소분류 카테고리에 플레이어 지정 Color·Icon 추가 —
          · 1단계 archive_categories DDL에 Color("RRGGBBAA" 헥스 TEXT)·Icon(TEXT) 컬럼.
@@ -767,7 +772,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>GuildSubsystem.h / .cpp</code></td><td><strong>GameInstanceSubsystem</strong></td><td>guilds·archive_categories의 쓰기 주인</td></tr>
       <tr><td><code>DatabaseSubsystem.cpp</code></td><td>—</td><td><strong>새 파일 아님</strong> — <code>CreateTables()</code>에 테이블 2종 추가(1단계)</td></tr>
       <tr><td><code>RTSecured.h / .cpp</code></td><td>—</td><td><strong>새 파일 아님</strong> — 길드 시간 봉인 함수 2개 추가(6단계)</td></tr>
-      <tr><td><code>RTTypes.h</code></td><td>—</td><td><strong>새 파일 아님</strong> — <code>FGuildData</code>를 새 스키마(단수 Category 등)로 갱신(2단계)</td></tr>
+      <tr><td><code>RTDataTypes.h</code></td><td>—</td><td><strong>새 파일 아님</strong> — <code>FGuildData</code>를 새 스키마(단수 Category 등)로 갱신(2단계)</td></tr>
     </table>
     <div class="callout tip"><span class="ic">💡</span><p><strong>코드 외 작업</strong> — <strong>없음.</strong> 플러그인·Build.cs·DB Browser 모두 09~11 그대로입니다.</p></div>
     <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>컴파일 주의</strong> — 새 헤더 1쌍(GuildSubsystem)이 생기므로 <strong>Live Coding 불가</strong>: 에디터 종료 → IDE 빌드 → 재실행. 이후 <code>.cpp</code> 내부 수정은 Live Coding 가능.</div></div>
@@ -871,10 +876,10 @@ Database.<span class="hljs-title">Execute</span>(<span class="hljs-built_in">TEX
           <div><div class="check-title">FGuildData 갱신 + GuildSubsystem 뼈대</div><div class="check-why">단수 Category 스키마 반영 · 문지기 의존은 이제 관례</div></div>
         </div>
         <div class="check-body">
-          <p>먼저 <code>RTTypes.h</code>의 <code>FGuildData</code>를 새 스키마로 갱신합니다(기존 <code>Categories</code> 배열 → 단수 <code>Category</code> — 2축 모델 확정에 따름). 그다음 <code>GuildSubsystem</code>을 생성합니다.</p>
+          <p>먼저 <code>RTDataTypes.h</code>의 <code>FGuildData</code>를 새 스키마로 갱신합니다(기존 <code>Categories</code> 배열 → 단수 <code>Category</code> — 2축 모델 확정에 따름). 그다음 <code>GuildSubsystem</code>을 생성합니다.</p>
           <div class="codeblock">
             <div class="codeblock-bar">
-              <button class="codeblock-tab tab-h active" type="button">RTTypes.h — FGuildData 교체</button>
+              <button class="codeblock-tab tab-h active" type="button">RTDataTypes.h — FGuildData 교체</button>
               <button class="codeblock-tab tab-h" type="button">GuildSubsystem.h</button>
               <button class="codeblock-tab tab-cpp" type="button">GuildSubsystem.cpp — Initialize</button>
               <button class="codeblock-copy" type="button">복사</button>
@@ -906,7 +911,7 @@ Database.<span class="hljs-title">Execute</span>(<span class="hljs-built_in">TEX
 };</pre></div>
             <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
 <span class="hljs-meta">#include</span> <span class="hljs-meta"><span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span></span>
-<span class="hljs-meta">#include</span> <span class="hljs-meta"><span class="hljs-string">"RTTypes.h"</span></span>                   <span class="hljs-comment">// FGuildData</span>
+<span class="hljs-meta">#include</span> <span class="hljs-meta"><span class="hljs-string">"RTDataTypes.h"</span></span>                   <span class="hljs-comment">// FGuildData</span>
 <span class="hljs-meta">#include</span> <span class="hljs-meta"><span class="hljs-string">"GuildSubsystem.generated.h"</span></span>
 
 <span class="hljs-keyword">class</span> <span class="hljs-type">FSQLiteDatabase</span>;
@@ -1321,7 +1326,7 @@ Database.<span class="hljs-title">Execute</span>(<span class="hljs-built_in">TEX
 </div>
 
 <footer>
-  <span>RecordTales V2 &middot; Doc 12 길드 시스템 v0.2</span>
+  <span>RecordTales V2 &middot; Doc 12 길드 시스템 v0.3</span>
   <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.9</span>
 </footer>
 

@@ -3,36 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RecordTales V2 · 15 데이터 3계층 구현 해설 — ROW · DB · RUNTIME</title>
+<title>RecordTales V2 · 17 RTDataTypes.h — 공용 타입 헤더 전체판 (복사 정본)</title>
 <!-- ============================================================
-     CHANGELOG — 15-data-layer-implementation.html
-     RecordTales V2 데이터 3계층(ROW·DB·RUNTIME)이 각각 무엇으로 어떻게 구현되는지를
-     한눈에 잇는 통합 해설(템플릿 02-A). 상세 절차 정본은 05·09·11·12·13·14가 담당하며
-     이 문서는 계층별 구현체·절차·핵심 스켈레톤만 담는다.
+     CHANGELOG — 17-rtdatatypes-header.html
+     RTDataTypes.h 파일 전체판의 복사 정본(템플릿 02-B). enum 4종 + 캐시 struct 6종을
+     한 코드 상자에 담아 "복사 → 붙여넣기 → 빌드"가 되게 한다. 구조 정본은 05,
+     저장 계층 확정분 코드는 마스터 페이지 ①과 동일 유지(어긋나면 함께 개정).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
-     v1.3 · 2026-07-22
-       - (개명) RTTypes.h → RTDataTypes.h (사용자 결정) — RTTables.h(시트 행의 모양)와 대칭인
-         "DB 행의 그릇" 역할이 이름에 드러나도록. 본문 표기·코드 include
-         (RTDataTypes.generated.h) 일괄 치환. 과거 CHANGELOG 이력 표기는 보존.
-       - (footer) v1.2 → v1.3.
-     v1.2 · 2026-07-22
-       - (동기화) 레벨업 1회성 보상 신설(05 v0.18)에 따라 DataTable 표기 10종 → 11종
-         (DT_Level_Reward 추가 — 개념 표·관계도·절차·착수 블록·코드 주석). 구조 변경 없음.
-       - (footer) v1.1 → v1.2.
-     v1.1 · 2026-07-21
-       - (변경) 04 구현 절차 DB 3단계 설명의 긴 코드 토큰
-         Collection.InitializeDependency<UDatabaseSubsystem>() 에 <wbr> 삽입 —
-         좁은 폭(모바일)에서 페이지 가로 오버플로우 방지. 내용 변화 없음.
-       - (footer) v1.0 → v1.1.
-     v1.0 · 2026-07-21
-       - 최초 생성 (사용자 확인 ①② 완료 · Case A · 02-A 아키텍처 패턴).
-         01 개념(계층별 구현체 + 핵심 용어) → 02 관계(.rel-map 구현체 연결) →
-         03 책임(생성·쓰기 주인 결정표) → 04 흐름(계층별 구현 절차 파이프라인 ×3) →
-         05 스켈레톤(🚀 착수 블록 + 계층별 대표 코드 3벌) → 06 확장(Do/Don't).
-       - 기준 스냅샷: 05 데이터 스키마 명세 v0.17 · 13 DatabaseSubsystem v1.1 ·
-         14 저장 계층 재구축 v1.0 · 마스터 페이지 v1.1.
-       - 마스터 CSS v1.9 inline 스냅샷. 코드 hljs 구워넣기 + 한국어 '왜' 주석(v3.8).
-         .codeblock 탭+복사 JS inline. 문서 간 상대 링크 없음(연결은 허브 담당).
+     v1.0 · 2026-07-22
+       - 최초 생성 (사용자 확인 ①② 완료 · Case A · 02-B 기능 구현 명세).
+         01 개요(역할 + 🚀 착수 블록) → 02 구성(enum 4·struct 6 표, 확정/Phase 2 구분)
+         → 03 전체 코드(RTDataTypes.h 전문 단일 탭) → 04 등록·확인(pipe 3단계)
+         → 05 확장 규칙(Do/Don't).
+       - 기준 스냅샷: 05 데이터 스키마 명세 v0.20 · 마스터 페이지 v1.3(저장 계층
+         확정분 동일) · RTDataTypes 개명(구 RTTypes, 허브 v0.20) 반영.
+       - 마스터 CSS v1.9 inline 스냅샷. 코드 hljs 구워넣기 + 한국어 '왜' 주석
+         (CLAUDE.md 코드 표기 규칙 — 비유 없이 실제 동작 서술). .codeblock 복사 JS inline.
+         문서 간 상대 링크 없음(연결은 허브 담당).
      ============================================================ -->
 
 <style>
@@ -724,441 +711,296 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 <body>
 
 <nav>
-  <div class="nav-logo">RECORDTALES V2 &middot; DATA LAYERS</div>
+  <div class="nav-logo">RECORDTALES V2 &middot; RTDATATYPES.H</div>
   <div class="nav-links">
-    <a href="#concept">개념</a>
-    <a href="#relation">관계</a>
-    <a href="#responsibility">책임</a>
-    <a href="#flow">구현 절차</a>
-    <a href="#skeleton">스켈레톤</a>
-    <a href="#extend">확장</a>
+    <a href="#overview">개요</a>
+    <a href="#layout">구성</a>
+    <a href="#code">전체 코드</a>
+    <a href="#register">등록 · 확인</a>
+    <a href="#extend">확장 규칙</a>
   </div>
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">RecordTales V2 &middot; v1.0 &middot; Data Layer Implementation</div>
-  <h1>데이터 3계층<br><span>구현 해설</span></h1>
+  <div class="hero-eyebrow">RecordTales V2 &middot; v1.0 &middot; RTDataTypes.h Reference</div>
+  <h1>RTDataTypes.h<br><span>전체판 · 복사 정본</span></h1>
   <p class="hero-sub">
-    ROW(밸런스 표) &middot; DB(영속 상태) &middot; RUNTIME(메모리 캐시)은 <strong>구현체가 서로 다릅니다</strong> — ROW는 행 구조체 + DataTable 에셋 + CSV, DB는 SQLite 플러그인 + 문지기 서브시스템, RUNTIME은 서브시스템의 멤버 변수. 이 문서는 세 계층이 <strong>각각 무엇으로, 어떤 절차로</strong> 구현되는지를 한눈에 잇습니다. 계층별 상세 정본은 05 &middot; 09 &middot; 13 &middot; 14 문서가 담당합니다.
+    DB 행을 담는 <strong>공용 그릇(enum 4종 &middot; 캐시 struct 6종)</strong>의 단일 보관함을 한 상자에 담았습니다 — 복사해서 붙여 넣으면 파일이 완성됩니다. 저장 계층 확정분(길드 &middot; 아카이브)은 마스터 페이지 ①과 동일하고, 가챠 &middot; 영지 그릇은 Phase 2 구현 시 그대로 사용할 예정분입니다. 구조(컬럼 &middot; 타입)의 정본은 05 데이터 스키마 명세입니다.
   </p>
   <div class="hero-meta">
-    <span class="badge badge-blue">ROW &middot; DB &middot; RUNTIME</span>
-    <span class="badge badge-green">구현 통합 해설</span>
-    <span class="badge badge-purple">02-A 아키텍처 패턴</span>
+    <span class="badge badge-blue">enum 4종 &middot; struct 6종</span>
+    <span class="badge badge-green">복사 &rarr; 붙여넣기 &rarr; 빌드</span>
+    <span class="badge badge-purple">02-B 기능 구현 명세</span>
   </div>
 </div>
 
 <div class="content">
 
-  <!-- ===== 01 개념 ===== -->
-  <div class="section" id="concept">
-    <div class="section-label">01 — 개념</div>
-    <h2>계층마다 구현체가 다르다</h2>
+  <!-- ===== 01 개요 ===== -->
+  <div class="section" id="overview">
+    <div class="section-label">01 — 개요</div>
+    <h2>이 파일이 맡는 것</h2>
     <p>
-      세 계층은 "어디에 저장하느냐"만 다른 게 아니라 <strong>무엇으로 만들어지느냐</strong>가 다릅니다. ROW는 코드(구조체)와 에디터 에셋과 시트가 함께 만들고, DB는 플러그인과 서브시스템 한 쌍이 만들며, RUNTIME은 별도 저장 장치 없이 서브시스템 멤버로만 삽니다. 어떤 데이터를 어디 둘지 헷갈리면 <strong>"누가 이 값을 소유하는가"</strong> 하나로 판별합니다 — 기획이 소유하면 ROW, 플레이어의 진행이 소유하면 DB, 아무도 소유하지 않으면(매번 계산하거나 버리면) RUNTIME입니다.
+      <code>RTDataTypes.h</code>는 여러 시스템이 공유하는 <strong>타입(모양)만 모아두는 헤더</strong>입니다 — 로직 &middot; 값 &middot; 상태가 전혀 없습니다. DB(<code>Archive.db</code>)의 행을 메모리로 읽어올 때 담는 캐시 struct와, 등급 &middot; 종류를 표현하는 enum이 삽니다. 어떤 헤더에도 의존하지 않으므로(엔진 기본 제외) 모든 서브시스템 &middot; UI가 순환 참조 걱정 없이 include할 수 있습니다.
     </p>
 
-    <table class="tbl">
-      <tr><th>계층</th><th>구현체</th><th>실체(파일 &middot; 에셋)</th></tr>
-      <tr>
-        <td><strong>ROW</strong> — 밸런스 표</td>
-        <td>행 구조체(<code>FTableRowBase</code> 상속) + DataTable 에셋 + CSV</td>
-        <td><code>RTTables.h</code> &middot; 콘텐츠의 <code>DT_*</code> 에셋 11종 &middot; 구글 시트</td>
-      </tr>
-      <tr>
-        <td><strong>DB</strong> — 영속 상태</td>
-        <td>SQLite 플러그인 + DB 문지기 서브시스템</td>
-        <td><code>DatabaseSubsystem.h/.cpp</code> &middot; <code>Saved/Archive.db</code>(7테이블)</td>
-      </tr>
-      <tr>
-        <td><strong>RUNTIME</strong> — 메모리 캐시</td>
-        <td>서브시스템 멤버 변수 + 파생 함수</td>
-        <td><code>RTDataTypes.h</code>의 캐시 struct 6종 &middot; 각 기능 서브시스템</td>
-      </tr>
-    </table>
-
-    <div class="callout info" style="margin-top:16px" id="term-three-layers">
+    <div class="callout info" style="margin-top:14px">
       <span class="ic">&#x1F9ED;</span>
-      <p><strong>핵심 용어.</strong>
-        <strong>FTableRowBase</strong> = 이 구조체를 상속해야 에디터가 "DataTable의 행 타입"으로 인정하는 엔진 기반 구조체.
-        <strong>DataTable 에셋(<code>DT_*</code>)</strong> = 행 구조체를 스키마 삼아 값(행)을 담는 에디터 에셋 — 값은 CSV 임포트로 채움.
-        <strong>DB 문지기</strong> = DB의 열기/닫기 &middot; 스키마 생성 &middot; 트랜잭션 창구만 전담하는 인프라 서브시스템(<code>UDatabaseSubsystem</code>, 게임 기능 0개).
-        <strong>InitializeDependency</strong> = "저 서브시스템을 나보다 먼저 초기화해 달라"는 엔진 API — 기능 시스템이 깨어날 때 DB가 이미 준비돼 있음을 보장.
-        <strong>파생값</strong> = 저장하지 않고 매번 계산하는 값(예: 레벨 = <code>FocusSeconds / 3600</code>) — 원천과 어긋날 여지를 없앰.
-      </p>
+      <p><strong>정본 관계.</strong> 컬럼 &middot; 타입 구조의 정본 = <strong>05 데이터 스키마 명세</strong> / 저장 계층 확정분 코드 = <strong>마스터 페이지 ①</strong>(이 문서와 문자 그대로 동일 유지) / 이 문서 = <strong>파일 전체판(Phase 2 그릇 포함)의 복사 정본</strong>. 설계가 바뀌면 셋을 함께 개정합니다. 시트 행 구조체(<code>F*Row</code>)는 이 파일이 아니라 <code>RTTables.h</code> 소관입니다.</p>
     </div>
-
-    <div class="callout tip" style="margin-top:10px">
-      <span class="ic">&#x1F4A1;</span>
-      <p><strong>이전 판과의 차이.</strong> V2는 <code>USaveGame(.sav)</code>과 <code>UDeveloperSettings(CONFIG)</code>를 <strong>폐기</strong>했습니다. 상태는 전부 DB 테이블 행으로, 밸런스는 전부 ROW 표로 갔습니다 — 저장소를 단일화해 이중 저장 정합성 걱정을 없애고, 여러 테이블을 고치는 작업을 트랜잭션 하나로 묶기 위해서입니다.</p>
-    </div>
-  </div>
-
-  <!-- ===== 02 관계 ===== -->
-  <div class="section" id="relation">
-    <div class="section-label">02 — 관계</div>
-    <h2>구현체가 서로 어떻게 이어지나</h2>
-    <p>
-      화살표는 데이터 &middot; 의존이 흐르는 방향입니다. 위 두 줄이 ROW의 공급선(시트 &rarr; 에셋, 코드 &rarr; 행 타입), 가운데 두 줄이 DB의 소유선(문지기 &rarr; 파일, 기능 시스템 &rarr; 문지기), 마지막 줄이 두 계층이 RUNTIME으로 합류하는 지점입니다.
-    </p>
-
-    <div class="rel-map">
-      <div class="rel-row">
-        <div class="rel-node n-subsystem"><div class="rn-name">구글 시트 (기획)</div><div class="rn-role">밸런스 수치의 원본</div></div>
-        <div class="rel-arrow"><span class="ra-label">CSV 내보내기 &rarr; 재임포트</span><span class="ra-line">&rarr;</span></div>
-        <div class="rel-node n-subsystem" style="border-left-color:var(--ue-mat)"><div class="rn-name">DT_* 에셋 11종</div><div class="rn-role">ROW — 값이 사는 곳</div></div>
-      </div>
-      <div class="rel-row">
-        <div class="rel-node n-subsystem" style="border-left-color:var(--ue-mat)"><div class="rn-name">RTTables.h (F*Row)</div><div class="rn-role">행 구조체 = 표의 스키마</div></div>
-        <div class="rel-arrow"><span class="ra-label">행 타입 지정 (FTableRowBase)</span><span class="ra-line">&rarr;</span></div>
-        <div class="rel-node n-subsystem" style="border-left-color:var(--ue-mat)"><div class="rn-name">DT_* 에셋 11종</div><div class="rn-role">컬럼명 = 프로퍼티명 계약</div></div>
-      </div>
-      <div class="rel-row">
-        <div class="rel-node n-subsystem" style="border-left-color:var(--accent)"><div class="rn-name">UDatabaseSubsystem</div><div class="rn-role">DB 문지기 — 단독 소유</div></div>
-        <div class="rel-arrow"><span class="ra-label">Open &middot; CREATE TABLE 7종 &middot; 트랜잭션</span><span class="ra-line">&rarr;</span></div>
-        <div class="rel-node n-subsystem" style="border-left-color:var(--accent)"><div class="rn-name">Saved/Archive.db</div><div class="rn-role">DB — SQLite 파일</div></div>
-      </div>
-      <div class="rel-row">
-        <div class="rel-node n-subsystem" style="border-left-color:var(--ue-gamestate)"><div class="rn-name">기능 서브시스템 5종</div><div class="rn-role">Economy &middot; Guild &middot; Gacha &middot; Estate &middot; Archive</div></div>
-        <div class="rel-arrow"><span class="ra-label">InitializeDependency + GetDb() 2줄 관례</span><span class="ra-line">&rarr;</span></div>
-        <div class="rel-node n-subsystem" style="border-left-color:var(--accent)"><div class="rn-name">UDatabaseSubsystem</div><div class="rn-role">핸들 대여 (소유 금지)</div></div>
-      </div>
-      <div class="rel-row">
-        <div class="rel-node n-subsystem" style="border-left-color:var(--ue-mat)"><div class="rn-name">DT_* 캐시 + DB 행</div><div class="rn-role">표 조회 &middot; SELECT 로드</div></div>
-        <div class="rel-arrow"><span class="ra-label">Initialize에서 1회 로드 &middot; 이후 메모리만</span><span class="ra-line">&rarr;</span></div>
-        <div class="rel-node n-subsystem" style="border-left-color:var(--accent-3)"><div class="rn-name">RUNTIME 멤버</div><div class="rn-role">struct 6종 &middot; TMap 캐시 &middot; 파생 함수</div></div>
-      </div>
-    </div>
-
-    <div class="legend">
-      <span><span class="dot" style="background:var(--ue-mat)"></span>ROW 구현체 (표 &middot; 구조체)</span>
-      <span><span class="dot" style="background:var(--accent)"></span>DB 구현체 (문지기 &middot; 파일)</span>
-      <span><span class="dot" style="background:var(--accent-3)"></span>RUNTIME (멤버 &middot; 파생)</span>
-      <span><span class="dot" style="background:var(--ue-subsystem)"></span>외부 (기획 시트)</span>
-      <span><span class="dot" style="background:var(--ue-gamestate)"></span>기능 서브시스템</span>
-    </div>
-  </div>
-
-  <!-- ===== 03 책임 ===== -->
-  <div class="section" id="responsibility">
-    <div class="section-label">03 — 책임</div>
-    <h2>누가 만들고, 누가 쓰나</h2>
-    <p>
-      같은 값을 두 곳에서 고치면 지도가 무너집니다. 계층마다 <strong>만드는 주체와 쓰는 주체를 하나로</strong> 고정합니다 — 나머지는 읽기만 합니다.
-    </p>
-
-    <table class="tbl">
-      <tr><th>대상</th><th>주인(생성 &middot; 쓰기)</th><th>근거</th></tr>
-      <tr>
-        <td>밸런스 값 (ROW 표의 모든 수치)</td>
-        <td><span class="owner o-savegame">기획 — 구글 시트</span></td>
-        <td>코드는 읽기만. 튜닝 = 시트 수정 &rarr; CSV 재임포트, 컴파일 &middot; DB 변경 없음.</td>
-      </tr>
-      <tr>
-        <td>행 구조체(<code>F*Row</code>) &middot; enum &middot; 캐시 struct</td>
-        <td><span class="owner o-subsystem">코드 — RTTables.h &middot; RTDataTypes.h</span></td>
-        <td>표의 스키마는 코드가 정의. 프로퍼티명 = CSV 헤더 철자 일치가 임포트 계약.</td>
-      </tr>
-      <tr>
-        <td><code>Archive.db</code> 열닫 &middot; 스키마 &middot; 트랜잭션</td>
-        <td><span class="owner o-subsystem">UDatabaseSubsystem (문지기)</span></td>
-        <td>열닫 주체가 둘이면 "닫힌 핸들에 쿼리" 사고 — 수명 관리 지점을 하나로.</td>
-      </tr>
-      <tr>
-        <td>테이블별 행 쓰기 (INSERT &middot; UPDATE)</td>
-        <td><span class="owner o-subsystem">각 주인 서브시스템</span></td>
-        <td>player=Economy &middot; guilds &middot; 소분류=Guild &middot; owned_*=Gacha &middot; buildings=Estate &middot; archives=Archive. 쓰기 주인은 테이블당 하나.</td>
-      </tr>
-      <tr>
-        <td>RUNTIME 캐시 &middot; 파생값</td>
-        <td><span class="owner o-gamestate">각 서브시스템 멤버 &middot; 함수</span></td>
-        <td>저장 장치 없음. 값이 바뀌는 함수 안에서 멤버 갱신 + DB 반영을 함께(어긋날 틈 제거). 파생값은 함수로만.</td>
-      </tr>
-    </table>
-  </div>
-
-  <!-- ===== 04 구현 절차 ===== -->
-  <div class="section" id="flow">
-    <div class="section-label">04 — 구현 절차</div>
-    <h2>계층별 3단계 파이프라인</h2>
-
-    <h3>ROW — 구조체 &rarr; 에셋 &rarr; 캐시</h3>
-    <div class="pipe-step">
-      <div class="pipe-num">1</div>
-      <div class="pipe-body"><div class="pipe-title">행 구조체 선언 — <code>RTTables.h</code></div>
-        <div class="pipe-desc"><code>FTableRowBase</code>를 상속한 <code>USTRUCT(BlueprintType)</code> 11종. 프로퍼티는 <code>UPROPERTY(EditAnywhere)</code>로 열어 에디터 &middot; CSV가 채울 수 있게 합니다. 프로퍼티 이름은 <strong>CSV 헤더와 철자까지 동일</strong>해야 임포트가 매칭됩니다.</div></div>
-    </div>
-    <div class="pipe-step">
-      <div class="pipe-num">2</div>
-      <div class="pipe-body"><div class="pipe-title">에셋 생성 + CSV 임포트</div>
-        <div class="pipe-desc">콘텐츠 브라우저 우클릭 &rarr; <strong>Miscellaneous &#9656; Data Table</strong> &rarr; 행 타입으로 <code>F*Row</code> 선택 &rarr; <code>DT_*</code> 에셋 생성. 값은 구글 시트 &rarr; CSV 내보내기 &rarr; 에셋에 재임포트로 채웁니다(전제: 1단계 구조체가 컴파일된 상태. 결과: 에셋을 열면 표에 행이 보임).</div></div>
-    </div>
-    <div class="pipe-step">
-      <div class="pipe-num">3</div>
-      <div class="pipe-body"><div class="pipe-title">로드 캐시 — <code>TMap&lt;FName, TArray&lt;Row&gt;&gt;</code></div>
-        <div class="pipe-desc">서브시스템 <code>Initialize</code>에서 표 전체를 읽어 그룹 키(<code>AbilityId</code> &middot; <code>BuildingId</code>)로 묶고 인덱스(<code>StepIndex</code> &middot; <code>Level</code>)로 정렬해 캐시합니다. RowName 문자열 파싱에 의존하지 않는 것이 규약입니다.</div></div>
-    </div>
-
-    <h3 style="margin-top:26px">DB — 배관 &rarr; 문지기 &rarr; 2줄 관례</h3>
-    <div class="pipe-step">
-      <div class="pipe-num">1</div>
-      <div class="pipe-body"><div class="pipe-title">배관 (1회) — 플러그인 + Build.cs</div>
-        <div class="pipe-desc"><strong>편집 &gt; 플러그인</strong>에서 <code>SQLiteSupport</code> 체크(엔진 내장 스위치 — <code>SQLiteCore</code>는 의존성으로 자동 활성화) &rarr; 에디터 재시작. 그리고 <code>Build.cs</code>에 <code>"SQLiteCore", "SQLiteSupport"</code> 모듈 추가. 배관 왕복 검증 절차는 09 문서(한 컬럼 왕복) 담당.</div></div>
-    </div>
-    <div class="pipe-step">
-      <div class="pipe-num">2</div>
-      <div class="pipe-body"><div class="pipe-title">문지기 — <code>UDatabaseSubsystem</code></div>
-        <div class="pipe-desc"><code>UGameInstanceSubsystem</code> 파생이라 앱 시작 &middot; 종료 시 <code>Initialize</code>/<code>Deinitialize</code>가 자동 호출됩니다 — 서브시스템 수명 = DB 수명. 열기(<code>Saved/Archive.db</code>) &rarr; <code>PRAGMA foreign_keys = ON</code> &rarr; <code>CREATE TABLE IF NOT EXISTS</code> 7종(FK 순서) &rarr; 트랜잭션 3함수 제공. 통합 정본은 13 문서.</div></div>
-    </div>
-    <div class="pipe-step">
-      <div class="pipe-num">3</div>
-      <div class="pipe-body"><div class="pipe-title">기능 시스템 연결 — 2줄 관례</div>
-        <div class="pipe-desc">각 기능 서브시스템 <code>Initialize</code>에서 ① <code>Collection.InitializeDependency<wbr>&lt;UDatabaseSubsystem&gt;()</code>(문지기 먼저 보장) ② <code>GetDb()</code>(핸들 빌리기). 이후 자기 소유 테이블만 prepared statement로 INSERT/UPDATE. 핸들 소유 &middot; <code>Close()</code>는 금지.</div></div>
-    </div>
-
-    <h3 style="margin-top:26px">RUNTIME — 그릇 &rarr; 로드 &rarr; 쓰기 규칙</h3>
-    <div class="pipe-step">
-      <div class="pipe-num">1</div>
-      <div class="pipe-body"><div class="pipe-title">그릇 — <code>RTDataTypes.h</code>의 캐시 struct</div>
-        <div class="pipe-desc"><code>USTRUCT(BlueprintType)</code> 6종(<code>FOwnedCharacter</code> &middot; <code>FGuildData</code> 등). <code>FTableRowBase</code>를 상속하지 않으며, 직렬화가 아니라 <strong>블루프린트 노출 &middot; 복사 편의</strong>가 목적이라 <code>BlueprintReadOnly</code>로 둡니다.</div></div>
-    </div>
-    <div class="pipe-step">
-      <div class="pipe-num">2</div>
-      <div class="pipe-body"><div class="pipe-title">로드 — Initialize에서 SELECT 1회</div>
-        <div class="pipe-desc">각 서브시스템이 자기 테이블을 읽어 <code>TArray&lt;FGuildData&gt;</code> 같은 멤버로 담습니다. <code>player</code>는 1행이라 struct 없이 <code>EconomySubsystem</code>의 멤버 변수(Gold &middot; Shards &middot; AccountFocusSeconds)로 직접 듭니다. 이후 UI &middot; 로직은 메모리만 읽습니다.</div></div>
-    </div>
-    <div class="pipe-step">
-      <div class="pipe-num">3</div>
-      <div class="pipe-body"><div class="pipe-title">쓰기 규칙 + 파생 함수</div>
-        <div class="pipe-desc">값이 바뀌는 함수 안에서 <strong>멤버 갱신과 DB UPDATE를 함께</strong> 수행합니다(캐시 &middot; DB가 어긋날 틈 제거). 레벨처럼 계산 가능한 값은 저장하지 않고 <code>GetLevel()</code>로 매번 계산하며, 세션 타이머 &middot; 가챠 후보 3장 같은 과정값은 결과만 DB에 남기고 버립니다.</div></div>
-    </div>
-
-    <div class="callout warn" style="margin-top:16px">
-      <span class="ic">&#x26A0;&#xFE0F;</span>
-      <p><strong>가장 많이 막히는 세 가지.</strong> ① "플러그인 활성화"와 "Build.cs 모듈 의존"은 <strong>별개</strong> — 플러그인만 켜면 <code>#include</code>는 통과해도 링크(LNK2019)가 실패합니다. ② DB 파일은 반드시 <code>Saved/</code> 아래 — <code>Content/</code>는 패키징 후 쓰기 금지 구역입니다. ③ Build.cs 수정과 새 <code>UCLASS</code>/<code>USTRUCT</code> 헤더는 <strong>Live Coding으로 반영되지 않습니다</strong> — 에디터 종료 &rarr; IDE 빌드.</p>
-    </div>
-
-    <div class="callout info" style="margin-top:10px">
-      <span class="ic">&#x1F9ED;</span>
-      <p><strong>착수 순서.</strong> 처음부터 만든다면 09(한 컬럼 왕복으로 배관 검증) &rarr; 13(문지기 + 7테이블) &rarr; 기능 서브시스템 확장(11 Economy &rarr; 12 Guild &rarr; Gacha &middot; Estate), ROW 표는 필요해지는 시점에 구조체 + CSV로 추가. <strong>현재 리포 기준 실작업 정본은 14 저장 계층 재구축(8단계)</strong>이며, 전체 코드 완성본은 마스터 페이지가 담고 있습니다.</p>
-    </div>
-  </div>
-
-  <!-- ===== 05 스켈레톤 ===== -->
-  <div class="section" id="skeleton">
-    <div class="section-label">05 — 스켈레톤</div>
-    <h2>계층별 대표 코드</h2>
 
     <h3>&#x1F680; 이 문서로 작업 시작하기</h3>
     <div class="callout info" style="margin-top:10px">
       <span class="ic">&#x1F9ED;</span>
-      <p><strong>전제 조건</strong> — 이 문서는 세 계층의 구현 방식을 잇는 <strong>해설</strong>입니다. 아래 코드는 각 계층의 대표 발췌(스켈레톤)이며, 복붙 정본은 13(문지기) &middot; 14(재구축 8단계) &middot; 마스터 페이지(전 파일 완성본)입니다. C++ 프로젝트 + 09의 배관(플러그인 &middot; Build.cs)이 끝난 상태를 전제합니다.</p>
+      <p><strong>전제 조건</strong> — C++ 프로젝트면 충분합니다. SQLite 배관 &middot; 문지기와 무관하게 이 파일 하나만 먼저 만들어도 되고(타입만이라 의존 0), 마스터 페이지의 "일곱 파일" 순서에서는 <strong>1번(가장 먼저)</strong>입니다.</p>
     </div>
-
     <table class="tbl">
-      <tr><th>파일</th><th>부모 클래스 (위저드 검색어)</th><th>비고</th></tr>
-      <tr><td><code>RTTables.h</code> &middot; <code>RTDataTypes.h</code></td><td>위저드 아님 — 빈 헤더</td><td>ROW 행 구조체 11종 / enum + RUNTIME 캐시 struct 6종</td></tr>
-      <tr><td><code>DatabaseSubsystem.h/.cpp</code></td><td><code>GameInstanceSubsystem</code></td><td>DB 문지기 — 열닫 &middot; 스키마 &middot; 트랜잭션 (정본: 13)</td></tr>
-      <tr><td>기능 서브시스템 5종 <code>.h/.cpp</code></td><td><code>GameInstanceSubsystem</code></td><td>Economy &middot; Guild &middot; Gacha &middot; Estate &middot; Archive — 2줄 관례로 문지기에 연결</td></tr>
-      <tr><td><code>RTSecured.h/.cpp</code></td><td>위저드 아님 — 자유 함수 2개</td><td><code>SealAccount</code> / <code>OpenAccount</code> (정본: 05 &sect;06)</td></tr>
+      <tr><th>만들 파일</th><th>부모 클래스 (위저드 검색어)</th><th>비고</th></tr>
+      <tr><td><code>RTDataTypes.h</code></td><td><strong>None</strong>(빈 클래스)</td><td>위저드가 만든 <code>.h</code> 내용을 03 코드로 <strong>전체 교체</strong>. 함께 생긴 <code>.cpp</code>는 include 한 줄만 남기면 됨</td></tr>
     </table>
-
     <div class="callout tip" style="margin-top:10px">
       <span class="ic">&#x1F4A1;</span>
-      <p><strong>코드 외 작업</strong> — ① 편집 &gt; 플러그인에서 <code>SQLiteSupport</code> 활성화(1회) ② 콘텐츠 브라우저에서 <code>DT_*</code> 에셋 11종 생성 + CSV 임포트 ③ 검증용 DB Browser for SQLite 설치(선택). 클래스 위저드 &middot; Build.cs &middot; 컴파일 공통 절차는 위키 『C++ 클래스 생성 &middot; 빌드 워크플로우』를 따릅니다.</p>
+      <p><strong>코드 외 작업</strong> — 없음. 에디터 &middot; 설정에서 만질 것이 없습니다(타입 선언뿐이라 애셋 &middot; 모듈 &middot; Project Settings 전부 무관).</p>
     </div>
-
     <div class="pitfall" style="margin-top:10px">
       <span class="ic">&#x26A0;&#xFE0F;</span>
-      <div class="pitfall-text"><strong>컴파일 주의</strong> — 새 헤더(<code>UCLASS</code>/<code>USTRUCT</code>)와 Build.cs 수정은 Live Coding 불가: 에디터 완전 종료 &rarr; IDE 빌드 &rarr; 재실행. 이후 <code>.cpp</code> 본문(SQL 문자열 &middot; 함수 내부)만 고칠 땐 Live Coding이 됩니다.</div>
+      <div class="pitfall-text"><strong>컴파일 주의</strong> — 새 <code>UENUM</code>/<code>USTRUCT</code> 헤더라 <strong>Live Coding 불가</strong>: 에디터 완전 종료 → IDE 빌드 → 재실행. 이후 이 파일에 타입을 추가할 때도 같은 리듬입니다. 공통 절차는 위키 『C++ 클래스 생성 · 빌드 워크플로우』.</div>
     </div>
+  </div>
 
-    <h3 style="margin-top:26px">ROW — 행 구조체와 표 캐시</h3>
+  <!-- ===== 02 구성 ===== -->
+  <div class="section" id="layout">
+    <div class="section-label">02 — 구성</div>
+    <h2>enum 4종 · struct 6종 — 무엇에 대응하나</h2>
+    <p>
+      각 타입이 어느 DB 테이블 &middot; 표와 짝인지, 그리고 지금 가동 중인 확정분인지 Phase 2 예정분인지의 지도입니다. <strong>예정분도 코드에 미리 넣어 두는 이유</strong>: 타입 선언은 비용이 0이고, 가챠 &middot; 영지 구현 때 이 파일을 다시 고치면(새 헤더 수정) Live Coding 중단이 한 번 더 생기기 때문입니다.
+    </p>
+
+    <table class="tbl">
+      <tr><th>타입</th><th>대응</th><th>상태</th></tr>
+      <tr><td><code>ERecordSource</code></td><td><code>archives.Source</code> 컬럼(INTEGER)</td><td><span class="owner o-subsystem">확정 — 가동 중</span></td></tr>
+      <tr><td><code>FGuildData</code></td><td><code>guilds</code> 1행 (+파생 함수 <code>GetLevel()</code>)</td><td><span class="owner o-subsystem">확정 — 가동 중</span></td></tr>
+      <tr><td><code>FArchiveCategory</code></td><td><code>archive_categories</code> 1행</td><td><span class="owner o-subsystem">확정 — 가동 중</span></td></tr>
+      <tr><td><code>FArchiveRecord</code></td><td><code>archives</code> 1행</td><td><span class="owner o-subsystem">확정 — 가동 중</span></td></tr>
+      <tr><td><code>ECharacterRarity</code></td><td><code>owned_characters.Rarity</code> 저장값 &middot; 표 RowName 조합("Character_"+이름)</td><td><span class="owner o-savegame">Phase 2 예정</span></td></tr>
+      <tr><td><code>EAbilityRarity</code></td><td>능력치 등급 &middot; 표 RowName 조합("Ability_"+이름)</td><td><span class="owner o-savegame">Phase 2 예정</span></td></tr>
+      <tr><td><code>EEffectType</code></td><td><code>DT_Ability_Type.EffectType</code> 컬럼</td><td><span class="owner o-savegame">Phase 2 예정</span></td></tr>
+      <tr><td><code>FOwnedAbility</code></td><td><code>owned_abilities</code> 1행</td><td><span class="owner o-savegame">Phase 2 예정</span></td></tr>
+      <tr><td><code>FOwnedCharacter</code></td><td><code>owned_characters</code> 1행 + 딸린 능력치(&le;4)</td><td><span class="owner o-savegame">Phase 2 예정</span></td></tr>
+      <tr><td><code>FBuildingState</code></td><td><code>buildings</code> 1행</td><td><span class="owner o-savegame">Phase 2 예정</span></td></tr>
+    </table>
+
+    <div class="callout tip" style="margin-top:12px">
+      <span class="ic">&#x1F4A1;</span>
+      <p><strong>여기 없는 것들이 없는 이유.</strong> <code>player</code>의 값(Gold &middot; Shards &middot; AccountFocusSeconds &middot; LastRewardedLevel)은 항상 1행이라 struct 없이 <code>EconomySubsystem</code> 멤버로 직접 들고, <code>FSecuredAccount</code>는 봉인 전용이라 <code>RTSecured.h</code>에, 시트 행 구조체(<code>F*Row</code> 11종)는 <code>RTTables.h</code>에 삽니다.</p>
+    </div>
+  </div>
+
+  <!-- ===== 03 전체 코드 ===== -->
+  <div class="section" id="code">
+    <div class="section-label">03 — 전체 코드</div>
+    <h2>복사해서 붙여 넣으면 됩니다</h2>
+    <p>
+      우측 상단 <strong>복사</strong> 버튼으로 전문을 복사해 <code>RTDataTypes.h</code>에 붙여 넣으세요. 구획 주석(<code>/* ==== */</code>)으로 확정분과 Phase 2 예정분을 나눠 두었습니다.
+    </p>
+
     <div class="codeblock">
       <div class="codeblock-bar">
-        <button class="codeblock-tab tab-h active" type="button">RTTables.h — 발췌</button>
-        <button class="codeblock-tab tab-cpp" type="button">GachaSubsystem.cpp — 표 캐시</button>
+        <button class="codeblock-tab tab-h active" type="button">RTDataTypes.h</button>
         <button class="codeblock-copy" type="button">복사</button>
       </div>
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// ROW 행 구조체 — FTableRowBase를 상속해야 에디터가 "DataTable의 행 타입"으로 인정한다</span>
-<span class="hljs-comment">// (11종 전부 이 형태 — 여기서는 DT_Ability_Step 하나만 발췌. 전체 정본: 05 문서)</span>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// RTDataTypes.h — DB 행을 담는 공용 그릇(enum·struct)의 단일 보관함. 로직 없음</span>
+<span class="hljs-comment">// 구조 정본: 05 데이터 스키마 명세 · 저장 계층 확정분은 마스터 페이지 ①과 동일</span>
+<span class="hljs-meta">#pragma once</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"CoreMinimal.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"RTDataTypes.generated.h"</span>   <span class="hljs-comment">// UENUM·USTRUCT 리플렉션 코드 — 항상 맨 마지막 include</span>
+
+<span class="hljs-comment">/* ============================================================
+   enum 4종 — 등급·종류의 공용 어휘
+   ============================================================ */</span>
+
+<span class="hljs-comment">// 캐릭터 등급 — 뽑을 때 롤되어 owned_characters.Rarity에 숫자로 저장된다.</span>
+<span class="hljs-comment">// 표 조회 시 "Character_" 접두사 + enum 이름(Rarity_Normal…)을 조합해 RowName을 만든다</span>
+<span class="hljs-meta">UENUM(BlueprintType)</span>
+<span class="hljs-keyword">enum class</span> <span class="hljs-type">ECharacterRarity</span> : <span class="hljs-type">uint8</span>
+{
+    Rarity_Normal    <span class="hljs-meta">UMETA(DisplayName = <span class="hljs-string">"노말"</span>)</span>,      <span class="hljs-comment">// 순서 = 등급 오름차순. DB에 0~3 숫자로 저장되므로</span>
+    Rarity_Rare      <span class="hljs-meta">UMETA(DisplayName = <span class="hljs-string">"레어"</span>)</span>,      <span class="hljs-comment">// 순서를 바꾸면 기존 세이브와 어긋남 — 새 항목은 뒤에만 추가</span>
+    Rarity_Epic      <span class="hljs-meta">UMETA(DisplayName = <span class="hljs-string">"에픽"</span>)</span>,
+    Rarity_Legendary <span class="hljs-meta">UMETA(DisplayName = <span class="hljs-string">"레전더리"</span>)</span>
+};
+
+<span class="hljs-comment">// 능력치 등급 — 능력치 자체의 등급(효과 크기 tier). 캐릭터 등급과 별개 축이라 타입을 분리한다.</span>
+<span class="hljs-comment">// 표 조회 시 "Ability_" 접두사 + enum 이름 조합</span>
+<span class="hljs-meta">UENUM(BlueprintType)</span>
+<span class="hljs-keyword">enum class</span> <span class="hljs-type">EAbilityRarity</span> : <span class="hljs-type">uint8</span>
+{
+    Rarity_Normal    <span class="hljs-meta">UMETA(DisplayName = <span class="hljs-string">"노말"</span>)</span>,
+    Rarity_Rare      <span class="hljs-meta">UMETA(DisplayName = <span class="hljs-string">"레어"</span>)</span>,
+    Rarity_Epic      <span class="hljs-meta">UMETA(DisplayName = <span class="hljs-string">"에픽"</span>)</span>,
+    Rarity_Legendary <span class="hljs-meta">UMETA(DisplayName = <span class="hljs-string">"레전더리"</span>)</span>
+};
+
+<span class="hljs-comment">// 능력치 효과 종류 — DT_Ability_Type.EffectType 컬럼에 대응. 전부 골드 건물 배치 시 적용</span>
+<span class="hljs-meta">UENUM(BlueprintType)</span>
+<span class="hljs-keyword">enum class</span> <span class="hljs-type">EEffectType</span> : <span class="hljs-type">uint8</span>
+{
+    FlatGold,    <span class="hljs-comment">// 건물 산출식의 flat 골드 가산</span>
+    IdleMult,    <span class="hljs-comment">// 유휴(오프라인) 배율 보너스</span>
+    FocusMult    <span class="hljs-comment">// 집중 중 배율 보너스</span>
+};
+
+<span class="hljs-comment">// 기록 출처 — archives.Source 컬럼(INTEGER)에 대응.</span>
+<span class="hljs-comment">// 순서를 바꾸면 기존 DB의 숫자와 어긋나므로 새 항목은 반드시 뒤에만 추가할 것</span>
+<span class="hljs-meta">UENUM(BlueprintType)</span>
+<span class="hljs-keyword">enum class</span> <span class="hljs-type">ERecordSource</span> : <span class="hljs-type">uint8</span>
+{
+    Timer,       <span class="hljs-comment">// 집중 타이머</span>
+    Stopwatch,   <span class="hljs-comment">// 스톱워치</span>
+    Quest        <span class="hljs-comment">// 퀘스트 완료</span>
+};
+
+<span class="hljs-comment">/* ============================================================
+   가챠·캐릭터 그릇 — Phase 2 예정분 (구현 시 그대로 사용)
+   ============================================================ */</span>
+
+<span class="hljs-comment">// 개화된 능력치 하나 — owned_abilities 1행에 대응. 효과값·강화 비용은 표에서 조회하므로 담지 않는다</span>
 <span class="hljs-meta">USTRUCT(BlueprintType)</span>
-<span class="hljs-keyword">struct</span> <span class="hljs-type">FAbilityStepRow</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">FTableRowBase</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-type">FOwnedAbility</span>
 {
     <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> Slot = <span class="hljs-number">0</span>;   <span class="hljs-comment">// 0~3 — 4개 능력치 슬롯 중 어디에 개화됐나</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FName</span> AbilityId;  <span class="hljs-comment">// DT_Ability_Type / _Step의 RowName 참조 키</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> Step = <span class="hljs-number">0</span>;   <span class="hljs-comment">// 현재 강화 단계 — 효과값은 DT_Ability_Step에서 조회(복사 저장 금지)</span>
+};
 
-    <span class="hljs-comment">// 프로퍼티 이름은 CSV 헤더와 철자까지 같아야 임포트가 자동 매칭된다(계약)</span>
-    <span class="hljs-meta">UPROPERTY(EditAnywhere)</span> <span class="hljs-type">FName</span>  AbilityId;      <span class="hljs-comment">// 어느 능력치인가(그룹 키) — RowName 파싱 대신 이 컬럼으로 묶는다</span>
-    <span class="hljs-meta">UPROPERTY(EditAnywhere)</span> <span class="hljs-type">int32</span>  StepIndex = <span class="hljs-number">0</span>;  <span class="hljs-comment">// 몇 단계인가(정렬 키)</span>
-    <span class="hljs-meta">UPROPERTY(EditAnywhere)</span> <span class="hljs-type">float</span>  Value = <span class="hljs-number">0.f</span>;    <span class="hljs-comment">// 그 단계 효과값 — 자동 등분이 아니라 표에서 직접 지정</span>
-    <span class="hljs-meta">UPROPERTY(EditAnywhere)</span> <span class="hljs-type">int32</span>  RollWeight = <span class="hljs-number">0</span>; <span class="hljs-comment">// 뽑기 시 이 단계로 시작할 가중치</span>
-};</pre></div>
-      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-comment">// 표 캐시 — Initialize에서 1회. RowName("FocusMult_Legendary_1") 문자열을 파싱하지 않는 것이 핵심:</span>
-<span class="hljs-comment">// 컬럼(AbilityId·StepIndex)이 정본이라 RowName 형식이 바뀌어도 코드가 안 깨진다</span>
-<span class="hljs-keyword">void</span> <span class="hljs-type">UGachaSubsystem</span>::<span class="hljs-title">CacheStepTable</span>(<span class="hljs-type">UDataTable</span>* StepTable)
-{
-    <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FAbilityStepRow</span>*&gt; Rows;
-    StepTable-&gt;GetAllRows(<span class="hljs-string">TEXT("CacheStep")</span>, Rows);   <span class="hljs-comment">// 1) 표 전체를 한 번에 읽는다 — 이후 표 접근 없음</span>
-
-    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">const</span> <span class="hljs-type">FAbilityStepRow</span>* Row : Rows)
-    {
-        StepsByAbility.FindOrAdd(Row-&gt;AbilityId).Add(*Row);   <span class="hljs-comment">// 2) 능력치별로 그룹 (TMap&lt;FName, TArray&lt;FAbilityStepRow&gt;&gt;)</span>
-    }
-    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span>&amp; Pair : StepsByAbility)
-    {
-        <span class="hljs-comment">// 3) 단계 순 정렬 — 이후 "현재 Step의 값"은 배열 인덱스 조회 한 번이면 된다</span>
-        Pair.Value.Sort([](<span class="hljs-keyword">const</span> <span class="hljs-type">FAbilityStepRow</span>&amp; A, <span class="hljs-keyword">const</span> <span class="hljs-type">FAbilityStepRow</span>&amp; B){ <span class="hljs-keyword">return</span> A.StepIndex &lt; B.StepIndex; });
-    }
-}</pre></div>
-    </div>
-
-    <h3 style="margin-top:26px">DB — 문지기의 열닫과 스키마 보장</h3>
-    <div class="codeblock">
-      <div class="codeblock-bar">
-        <button class="codeblock-tab tab-h active" type="button">DatabaseSubsystem.h — 발췌</button>
-        <button class="codeblock-tab tab-cpp" type="button">DatabaseSubsystem.cpp — 발췌</button>
-        <button class="codeblock-copy" type="button">복사</button>
-      </div>
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// DB 문지기 — 게임 기능 0개. 열고, 스키마를 만들고, 닫고, 트랜잭션 창구를 빌려준다.</span>
-<span class="hljs-comment">// 기능 시스템들은 이 클래스"에만" 의존한다 (복붙 정본: 13 문서)</span>
-<span class="hljs-meta">UCLASS()</span>
-<span class="hljs-keyword">class</span> RECORDTALES_API <span class="hljs-type">UDatabaseSubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
+<span class="hljs-comment">// 보유 캐릭터 하나 — owned_characters 1행 + 딸린 owned_abilities N행을 한데 담는다</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-type">FOwnedCharacter</span>
 {
     <span class="hljs-meta">GENERATED_BODY()</span>
-<span class="hljs-keyword">public</span>:
-    <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection) <span class="hljs-keyword">override</span>;  <span class="hljs-comment">// 앱 시작 시 엔진이 자동 1회 호출</span>
-    <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Deinitialize</span>() <span class="hljs-keyword">override</span>;                                <span class="hljs-comment">// 앱 종료 시 자동 — 연 곳에서 닫는다(수명 대칭)</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> InstanceId = <span class="hljs-number">0</span>;   <span class="hljs-comment">// PK — 건물 배치가 이 번호를 참조(재사용 없음)</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FName</span> CharacterId;      <span class="hljs-comment">// DT_Character의 RowName — 이름·아이콘 등 정체성은 표에서 조회</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">ECharacterRarity</span> Rarity = <span class="hljs-type">ECharacterRarity</span>::Rarity_Normal; <span class="hljs-comment">// 뽑을 때 롤된 결과 — 재계산 불가라 저장 필수</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">FOwnedAbility</span>&gt; Abilities;   <span class="hljs-comment">// 개화된 능력치(최대 4)</span>
+};
 
-    <span class="hljs-comment">// 핸들 "대여" — 소유·수명 관리는 오직 여기. 빌린 쪽은 쓰기 전 IsValid() 확인</span>
-    <span class="hljs-type">FSQLiteDatabase</span>* <span class="hljs-title">GetDb</span>() { <span class="hljs-keyword">return</span> &amp;Database; }
+<span class="hljs-comment">/* ============================================================
+   영지 그릇 — Phase 2 예정분 (구현 시 그대로 사용)
+   ============================================================ */</span>
 
-    <span class="hljs-comment">// 다중 테이블 변경(추출·강화)의 단일 창구 — 값 쓰기는 각 주인, 묶음의 시작/끝은 문지기</span>
-    <span class="hljs-keyword">bool</span> <span class="hljs-title">BeginTransaction</span>();     <span class="hljs-comment">// BEGIN — 이미 열려 있으면 false(SQLite는 중첩 불가)</span>
-    <span class="hljs-keyword">bool</span> <span class="hljs-title">CommitTransaction</span>();    <span class="hljs-comment">// COMMIT — 묶은 변경을 한 번에 확정</span>
-    <span class="hljs-keyword">bool</span> <span class="hljs-title">RollbackTransaction</span>();  <span class="hljs-comment">// ROLLBACK — 중간 실패 시 전부 원상 복귀</span>
-<span class="hljs-keyword">private</span>:
-    <span class="hljs-keyword">void</span> <span class="hljs-title">CreateTables</span>();         <span class="hljs-comment">// CREATE TABLE IF NOT EXISTS 7종 — FK 순서 보장(DDL 정본: 05)</span>
-    <span class="hljs-type">FSQLiteDatabase</span> Database;     <span class="hljs-comment">// DB 핸들 실체 — 이 서브시스템만 소유(수명 = 앱 세션)</span>
-    <span class="hljs-keyword">bool</span> bInTransaction = <span class="hljs-literal">false</span>;  <span class="hljs-comment">// 중첩 BEGIN 방지 플래그</span>
-};</pre></div>
-      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-keyword">void</span> <span class="hljs-type">UDatabaseSubsystem</span>::<span class="hljs-title">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection)
+<span class="hljs-comment">// 경영 건물 하나 — buildings 1행에 대응</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-type">FBuildingState</span>
 {
-    <span class="hljs-type">Super</span>::Initialize(Collection);   <span class="hljs-comment">// 부모 초기화 먼저 — 관례상 항상 맨 위</span>
+    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FName</span> BuildingId;                  <span class="hljs-comment">// DT_Building / DT_Building_Upgrade의 RowName 참조 키</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> Level = <span class="hljs-number">1</span>;                   <span class="hljs-comment">// 현재 레벨 — 산출·슬롯 수는 표에서 조회</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">int32</span>&gt; DeployedInstanceIds; <span class="hljs-comment">// 배치된 캐릭터 InstanceId 목록 — FK 아님, 정합성은 코드가 관리</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FDateTime</span> LastCollectTime;         <span class="hljs-comment">// 유휴 산출 누적의 기준 시각 — 오프라인 캡 계산에 사용</span>
+};
 
-    <span class="hljs-comment">// 1) DB 파일은 반드시 Saved/ 아래 — Content/는 패키징 후 쓰기 금지 구역(disk I/O error 함정)</span>
-    <span class="hljs-keyword">const</span> <span class="hljs-type">FString</span> DbPath = <span class="hljs-type">FPaths</span>::ProjectSavedDir() / <span class="hljs-string">TEXT("Archive.db")</span>;
+<span class="hljs-comment">/* ============================================================
+   길드·아카이브 그릇 — 저장 계층 확정분 (가동 중, 마스터 페이지 ①과 동일)
+   ============================================================ */</span>
 
-    <span class="hljs-comment">// 2) ReadWriteCreate = 없으면 새로 만들고, 있으면 읽기/쓰기로 연다.</span>
-    <span class="hljs-comment">//    실패 시 크래시 대신 로그 — 기능 시스템들은 IsValid()==false로 안전하게 우회</span>
-    <span class="hljs-keyword">if</span> (!Database.Open(*DbPath, <span class="hljs-type">ESQLiteDatabaseOpenMode</span>::ReadWriteCreate))
-    {
-        UE_LOG(LogTemp, Error, <span class="hljs-string">TEXT("[DB] 열기 실패: %s")</span>, *DbPath);
-        <span class="hljs-keyword">return</span>;
-    }
-
-    Database.Execute(<span class="hljs-string">TEXT("PRAGMA foreign_keys = ON;")</span>);   <span class="hljs-comment">// 3) FK 강제 — 연결(세션)마다 다시 켜야 함</span>
-    CreateTables();                                        <span class="hljs-comment">// 4) 7테이블 보장 — 기능 시스템이 깨기 전에 스키마 완성</span>
-}
-
-<span class="hljs-keyword">void</span> <span class="hljs-type">UDatabaseSubsystem</span>::<span class="hljs-title">Deinitialize</span>()
-{
-    Database.Close();        <span class="hljs-comment">// 연 곳에서 닫는다 — 기능 시스템은 절대 Close() 하지 않는다</span>
-    <span class="hljs-type">Super</span>::Deinitialize();
-}</pre></div>
-    </div>
-
-    <h3 style="margin-top:26px">RUNTIME — 캐시 struct와 2줄 관례, 쓰기 규칙</h3>
-    <div class="codeblock">
-      <div class="codeblock-bar">
-        <button class="codeblock-tab tab-h active" type="button">RTDataTypes.h — 발췌</button>
-        <button class="codeblock-tab tab-cpp" type="button">GuildSubsystem.cpp — 발췌</button>
-        <button class="codeblock-copy" type="button">복사</button>
-      </div>
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// RUNTIME 캐시 struct — DB 행(guilds)을 담는 그릇. FTableRowBase 상속 없음.</span>
-<span class="hljs-comment">// 직렬화가 목적이 아니라 블루프린트 노출·복사 편의 목적이라 BlueprintReadOnly로 둔다</span>
+<span class="hljs-comment">// 길드 하나 — guilds 1행. 캐릭터·Gold는 여기 없음(계정 공유). 레벨은 파생(저장 안 함)</span>
 <span class="hljs-meta">USTRUCT(BlueprintType)</span>
 <span class="hljs-keyword">struct</span> <span class="hljs-type">FGuildData</span>
 {
     <span class="hljs-meta">GENERATED_BODY()</span>
-
-    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span>   GuildId = <span class="hljs-number">0</span>;      <span class="hljs-comment">// guilds.GuildId(AUTOINCREMENT) 그대로 — 재사용 없음</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> GuildId = <span class="hljs-number">0</span>;        <span class="hljs-comment">// guilds.GuildId — AUTOINCREMENT 발급(재사용 없음)</span>
     <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> GuildName;
-    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span>   FocusSeconds = <span class="hljs-number">0</span>; <span class="hljs-comment">// 레벨의 원천 — 레벨 자체는 저장하지 않는다</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> Category;         <span class="hljs-comment">// 대분류 1개(길드 간 중복 허용) — 2축 카테고리 모델</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> FocusSeconds = <span class="hljs-number">0</span>;   <span class="hljs-comment">// 길드 레벨의 원천 — 기록을 지워도 이 값은 유지</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FDateTime</span> CreatedAt;      <span class="hljs-comment">// 생성 시각(UTC)</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> SortOrder = <span class="hljs-number">0</span>;      <span class="hljs-comment">// UI 목록 정렬 순서</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> Icon;             <span class="hljs-comment">// UI 아이콘 식별자</span>
 
-    <span class="hljs-comment">// 파생값은 함수로 — 값이 두 곳(시간·레벨)에 살면 어긋날 수 있어 "계산"만 허용</span>
-    <span class="hljs-type">int32</span> <span class="hljs-title">GetLevel</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> FocusSeconds / <span class="hljs-number">3600</span>; }   <span class="hljs-comment">// 60분(3600초) = 1레벨(정직한 레벨)</span>
+    <span class="hljs-type">int32</span> <span class="hljs-title">GetLevel</span>() <span class="hljs-keyword">const</span> { <span class="hljs-keyword">return</span> FocusSeconds / <span class="hljs-number">3600</span>; }   <span class="hljs-comment">// 60분=1레벨 — 저장하지 않고 호출 때마다 계산(정직한 레벨)</span>
+};
+
+<span class="hljs-comment">// 소분류 카테고리 하나 — archive_categories 1행. 이름·색·아이콘이 UI에 항상 쌍으로 다닌다</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-type">FArchiveCategory</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> Name;         <span class="hljs-comment">// 플레이어가 정한 이름 — 테이블의 PK</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FLinearColor</span> Color = <span class="hljs-type">FLinearColor</span>::White; <span class="hljs-comment">// DB엔 "RRGGBBAA" 헥스 TEXT — 로드 시 FColor::FromHex로 복원</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> Icon;         <span class="hljs-comment">// 플레이어가 고른 아이콘 식별자</span>
+};
+
+<span class="hljs-comment">// 아카이브 기록 하나 — archives 1행. 목록 조회는 살아있는 기록(DeletedAt IS NULL)만 담아 반환</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-type">FArchiveRecord</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> Id;                    <span class="hljs-comment">// "YYYYMMDDhhmmssSSS-{GUILDID}" — 발급 후 불변</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> GuildId = <span class="hljs-number">0</span>;             <span class="hljs-comment">// 길드 스코프 태그 — 길드별 필터 키</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> Category;              <span class="hljs-comment">// 소분류 — archive_categories 풀의 이름 태그</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">ERecordSource</span> Source = <span class="hljs-type">ERecordSource</span>::Timer; <span class="hljs-comment">// 타이머/스톱워치/퀘스트 중 출처</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FDateTime</span> CreatedAt;           <span class="hljs-comment">// 정렬의 정본 — 문자열 Id로 정렬하지 않는다</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">int32</span> DurationSeconds = <span class="hljs-number">0</span>;     <span class="hljs-comment">// 세션 길이(초)</span>
+    <span class="hljs-meta">UPROPERTY(BlueprintReadOnly)</span> <span class="hljs-type">FString</span> Title;                 <span class="hljs-comment">// 기록 제목(플레이어 입력)</span>
 };</pre></div>
-      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-comment">// 기능 서브시스템 연결 — "2줄 관례". 모든 기능 시스템(Economy·Gacha·Estate·Archive)이 동일한 형태</span>
-<span class="hljs-keyword">void</span> <span class="hljs-type">UGuildSubsystem</span>::<span class="hljs-title">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection)
-{
-    <span class="hljs-type">Super</span>::Initialize(Collection);
-
-    <span class="hljs-comment">// 1줄째: 문지기를 "나보다 먼저" 초기화해 달라(엔진 보장) — 깨어나면 DB가 이미 준비돼 있다</span>
-    <span class="hljs-type">UDatabaseSubsystem</span>* Gate = Collection.InitializeDependency&lt;<span class="hljs-type">UDatabaseSubsystem</span>&gt;();
-
-    <span class="hljs-comment">// 2줄째: 핸들을 "빌린다" — 소유·Close()는 금지(열닫 주체는 문지기 하나)</span>
-    Db = Gate ? Gate-&gt;GetDb() : <span class="hljs-literal">nullptr</span>;
-
-    LoadGuilds();   <span class="hljs-comment">// DB → RUNTIME 멤버(TArray&lt;FGuildData&gt;)로 1회 로드 — 이후 UI는 메모리만 읽는다</span>
-}
-
-<span class="hljs-comment">// 쓰기 규칙 — 멤버 갱신과 DB UPDATE를 같은 함수에서 함께(캐시·DB가 어긋날 틈 제거)</span>
-<span class="hljs-keyword">void</span> <span class="hljs-type">UGuildSubsystem</span>::<span class="hljs-title">AddFocusSeconds</span>(<span class="hljs-type">int32</span> GuildId, <span class="hljs-type">int32</span> Seconds)
-{
-    <span class="hljs-keyword">if</span> (!Db || !Db-&gt;IsValid()) <span class="hljs-keyword">return</span>;   <span class="hljs-comment">// 빌린 핸들은 쓰기 전 유효성 확인(관례) — DB 열기 실패 시 안전 우회</span>
-
-    <span class="hljs-type">FGuildData</span>* G = FindGuild(GuildId);
-    <span class="hljs-keyword">if</span> (!G) <span class="hljs-keyword">return</span>;
-
-    G-&gt;FocusSeconds += Seconds;   <span class="hljs-comment">// 1) RUNTIME 캐시 갱신</span>
-
-    <span class="hljs-comment">// 2) 같은 자리에서 DB 반영 — UPDATE guilds SET FocusSeconds=? WHERE GuildId=?</span>
-    <span class="hljs-comment">//    (레벨 컬럼은 없다 — GetLevel()이 매번 계산. 실 SQL 바인딩은 12 문서 정본)</span>
-}</pre></div>
     </div>
   </div>
 
-  <!-- ===== 06 확장 ===== -->
+  <!-- ===== 04 등록 · 확인 ===== -->
+  <div class="section" id="register">
+    <div class="section-label">04 — 등록 · 확인</div>
+    <h2>붙여 넣은 뒤 3단계</h2>
+
+    <div class="pipe-step">
+      <div class="pipe-num">1</div>
+      <div class="pipe-body"><div class="pipe-title">파일 생성 — 빈 클래스로</div>
+        <div class="pipe-desc">에디터 <code>도구 &gt; 새로운 C++ 클래스</code> → <strong>None</strong>(빈 클래스) → 이름 <code>RTDataTypes</code> → 생성. 분리 레이아웃이면 <code>.h</code>는 <code>Source/[프로젝트]/Public/</code>에 생깁니다. 생성된 <code>.h</code> 내용을 03 코드로 전체 교체하고, <code>.cpp</code>는 <code>#include "RTDataTypes.h"</code> 한 줄만 남깁니다.</div></div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">2</div>
+      <div class="pipe-body"><div class="pipe-title">generated.h 규칙 확인</div>
+        <div class="pipe-desc"><code>#include "RTDataTypes.generated.h"</code>는 <strong>반드시 include 목록의 맨 마지막</strong>이어야 합니다 — 언리얼 헤더 툴(UHT)이 리플렉션 코드를 이 지점에 주입하기 때문이며, 순서가 어긋나면 <code>generated.h should be the last #include</code> 컴파일 에러가 납니다. 파일 이름을 바꾸면 이 include의 이름도 함께 바뀝니다(과거 RTTypes → RTDataTypes 개명 때와 동일).</div></div>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num">3</div>
+      <div class="pipe-body"><div class="pipe-title">빌드 → 블루프린트에서 확인</div>
+        <div class="pipe-desc">에디터 종료 → 솔루션 빌드 → 재실행. 확인: 블루프린트에서 <code>Break FGuildData</code> 노드가 검색되고, 변수 타입 목록에 <code>ECharacterRarity</code>가 보이면 리플렉션 등록까지 성공한 것입니다.</div></div>
+    </div>
+  </div>
+
+  <!-- ===== 05 확장 규칙 ===== -->
   <div class="section" id="extend">
-    <div class="section-label">06 — 확장</div>
-    <h2>새 데이터를 더할 때</h2>
-    <p>
-      계층 구조가 무너지는 건 대부분 확장 시점입니다. 새 값 하나를 더할 때마다 01의 판별 질문("누가 이 값을 소유하는가")으로 계층을 정하고, 아래 규칙을 지킵니다.
-    </p>
+    <div class="section-label">05 — 확장 규칙</div>
+    <h2>이 파일에 타입을 더할 때</h2>
 
     <div class="dd-grid">
       <div class="dd do">
         <h4>&#10003; 이렇게</h4>
         <ul>
-          <li>새 밸런스 값은 ROW 컬럼으로 추가하고 시트 &rarr; CSV로 튜닝 (코드는 읽기만)</li>
-          <li>새 영속 상태는 "어느 테이블 + 쓰기 주인은 누구"부터 결정 (소유 정본: 10 문서)</li>
-          <li>여러 테이블을 고치는 작업은 문지기의 트랜잭션 창구(Begin/Commit/Rollback)로 묶기</li>
-          <li>계산 가능한 값은 파생 함수로만 (레벨 = FocusSeconds / 3600)</li>
-          <li>출시 후 스키마 확장은 PRAGMA user_version 분기 + ALTER TABLE (개발 중엔 DB 파일 삭제가 빠름)</li>
+          <li>enum 새 항목은 목록 끝에만 추가 — DB에 저장된 기존 숫자(0~N)를 보존</li>
+          <li>새 DB 테이블이 생기면 대응하는 캐시 struct를 여기에 추가(테이블 1 : struct 1)</li>
+          <li>파생 가능한 값은 GetLevel()처럼 함수로 — 필드로 저장하지 않기</li>
+          <li>타입 추가 후에는 05 스키마 명세·마스터 페이지 ①도 함께 개정(정본 동기화)</li>
+          <li>struct 필드에는 항상 기본값을 지정 — 초기화 안 된 쓰레기 값 차단</li>
         </ul>
       </div>
       <div class="dd dont">
         <h4>&#10007; 이건 피하기</h4>
         <ul>
-          <li>RowName 문자열 파싱으로 표를 묶기 (그룹 키 컬럼이 정본)</li>
-          <li>기능 시스템이 DB를 직접 Open/Close (열닫 주체는 문지기 하나)</li>
-          <li>능력치 효과값을 DB에 복사 (Step만 저장, 값은 표 조회)</li>
-          <li>레벨을 컬럼으로 저장 (원천 시간과 어긋나는 순간 정직함이 깨짐)</li>
-          <li>player 저장 시 Secured 갱신 누락 (로드 때 자동 복원이 옛 값으로 되돌림)</li>
+          <li>enum 항목 순서 변경·중간 삽입 (기존 세이브의 숫자가 다른 의미가 됨)</li>
+          <li>시트 행 구조체(F*Row)를 여기에 넣기 — FTableRowBase 상속은 RTTables.h 소관</li>
+          <li>표에서 조회 가능한 값(능력치 효과값 등)을 struct 필드로 복사</li>
+          <li>이 파일에 함수 로직·상태 변수 넣기 — 타입 선언만 (파생 게터 한 줄은 예외)</li>
+          <li>다른 프로젝트 헤더 include — 이 파일의 의존 0을 유지(순환 참조 방지)</li>
         </ul>
       </div>
-    </div>
-
-    <div class="callout tip" style="margin-top:16px">
-      <span class="ic">&#x1F4A1;</span>
-      <p><strong>더 깊이.</strong> 컬럼 단위 스키마 정본은 05, 배관 실습은 09, 소유 &middot; 흐름 지도는 10, 테이블별 구현 실습은 11(player) &middot; 12(guilds), 문지기 통합 정본은 13, 재구축 절차는 14, 전 파일 완성본은 마스터 페이지를 보세요.</p>
     </div>
   </div>
 
 </div>
 
 <footer>
-  <span>RecordTales V2 &middot; 데이터 3계층 구현 해설 v1.3</span>
+  <span>RecordTales V2 &middot; RTDataTypes.h 전체판 v1.0</span>
   <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.9</span>
 </footer>
 

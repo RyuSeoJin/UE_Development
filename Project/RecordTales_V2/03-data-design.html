@@ -8,6 +8,11 @@
      CHANGELOG — 03-data-design.html
      RecordTales V2 데이터 설계 지도 (Track B · 04 데이터 설계 지도 템플릿).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     v0.10 · 2026-07-22
+       - (개명) RTTypes.h → RTDataTypes.h (사용자 결정) — RTTables.h(시트 행의 모양)와 대칭인
+         "DB 행의 그릇" 역할이 이름에 드러나도록. 본문 표기·코드 include
+         (RTDataTypes.generated.h) 일괄 치환. 과거 CHANGELOG 이력 표기는 보존.
+       - (footer) v0.9 → v0.10.
      v0.9 · 2026-07-20
        - (구조 반영) 길드 시스템 확정(12 v0.1) — 카테고리 2축 모델: guilds 카드에 Category(대분류 1개)·
          AUTOINCREMENT·Secured 반영 + archive_categories(소분류 공유 풀) 행 추가. "6테이블"→"7테이블".
@@ -746,7 +751,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">RecordTales V2 &middot; v0.9 &middot; Data Design Map</div>
+  <div class="hero-eyebrow">RecordTales V2 &middot; v0.10 &middot; Data Design Map</div>
   <h1>데이터 설계<br><span>DataTable · SQLite DB</span></h1>
   <p class="hero-sub">
     V2의 데이터가 어디에 살고(정적 표 vs 영속 DB), 어떻게 서로 연결되는지의 지도입니다. 핵심 원칙은 <strong>"밸런스 값은 표에서 조회하고, 내 상태는 하나의 SQLite DB에 담는다"</strong>입니다. 영속 데이터는 SaveGame(.sav)이 아니라 <strong>풀-DB(SQLite)</strong>에 저장합니다.
@@ -787,7 +792,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <h2>무엇이 어디 사는가</h2>
 
     <h3>🚀 이 문서로 작업 시작하기</h3>
-    <div class="callout info"><span class="ic">🧭</span><p><strong>전제 조건</strong> — <strong>01 문서 완료</strong>(<code>RTTypes.h</code> enum 존재). 이 문서는 <strong>착수 순서 2번</strong> — 02·04의 시스템이 조회할 <strong>밸런스 표</strong>와 상태가 살 <strong>DB 테이블</strong>을 여기서 실물로 만듭니다. C++ 공통 절차는 위키 『C++ 클래스 생성 · 빌드 워크플로우』, SQLite 배관은 09 문서 순서를 따릅니다.</p></div>
+    <div class="callout info"><span class="ic">🧭</span><p><strong>전제 조건</strong> — <strong>01 문서 완료</strong>(<code>RTDataTypes.h</code> enum 존재). 이 문서는 <strong>착수 순서 2번</strong> — 02·04의 시스템이 조회할 <strong>밸런스 표</strong>와 상태가 살 <strong>DB 테이블</strong>을 여기서 실물로 만듭니다. C++ 공통 절차는 위키 『C++ 클래스 생성 · 빌드 워크플로우』, SQLite 배관은 09 문서 순서를 따릅니다.</p></div>
     <table class="tbl">
       <tr><th>작업</th><th>방법</th><th>비고</th></tr>
       <tr><td>① 행 구조체 헤더 <code>RTTables.h</code></td><td>클래스 위저드 ▸ 부모 <strong>None</strong>(빈 헤더) → 05 문서의 행 구조체 10종(<code>FTableRowBase</code> 상속 USTRUCT) 작성</td><td>DataTable 1종 = 행 구조체 1개</td></tr>
@@ -1063,7 +1068,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>RecordTales V2 &middot; 데이터 설계 v0.9</span>
+  <span>RecordTales V2 &middot; 데이터 설계 v0.10</span>
   <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.8</span>
 </footer>
 

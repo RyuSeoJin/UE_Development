@@ -9,6 +9,24 @@
      RecordTales V2 저장 계층의 통합 마스터 페이지 — 이 파일 하나만으로 구조 파악과
      전체 구현(.h/.cpp)을 완료할 수 있는 자립형 문서(사용자 요청). 템플릿 02-B 기반.
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.3 · 2026-07-22
+       - (반영) 레벨업 1회성 보상(05 v0.18 · 06 v0.4) 통합 — 후속 개정 대상 해제:
+         · 지도: player 컬럼 LastRewardedLevel · DataTable 5종→6종(DT_Level_Reward, ⑤가 사용)
+           · 파일 지도/만들 파일에 RTTables.h(발췌, 1b) 추가 · "여섯 파일"→"일곱 파일".
+         · 코드: ② player DDL 컬럼 추가 · ③ FSecuredAccount 4필드(페이로드 24→28바이트)
+           · ⑤ Economy에 LastRewardedLevel 멤버·LevelRewardTable 로드·GrantLevelRewards()
+           (미수령 레벨 순차 지급, 표 초과=마지막 행 반복) + SavePlayer/LoadPlayer 4컬럼
+           + RTTables.h 발췌 탭(FLevelRewardRow) 신설.
+         · 검증: 시나리오 5b(레벨업 보상 지급·재시작 유지·중복 지급 없음) 추가.
+       - (변경) 본문 긴 코드 토큰 Collection.InitializeDependency<...>()에 <wbr> 삽입(15 v1.1과
+         동일한 좁은 폭 가로 오버플로우 방지 — 코드 블록 아님, 설명 문단만).
+       - (footer) v1.2 → v1.3.
+     v1.2 · 2026-07-22
+       - (개명) RTTypes.h → RTDataTypes.h (사용자 결정) — RTTables.h(시트 행의 모양)와 대칭인
+         "DB 행의 그릇" 역할이 이름에 드러나도록. 본문 표기·코드 include
+         (RTDataTypes.generated.h) 일괄 치환. 과거 CHANGELOG 이력 표기는 보존.
+       - (주의) 레벨업 보상(05 v0.18)은 이 페이지에 여전히 미반영 — 후속 개정 대상 유지.
+       - (footer) v1.1 → v1.2.
      v1.1 · 2026-07-21
        - (보강) 자립성 검수(사용자 요청)에서 발견된 초보자 공백 3곳 보완:
          ① 02 전제 조건에 블루프린트 전용 → C++ 전환 절차 + "서브시스템 등록은 자동" 안내,
@@ -736,7 +754,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   <div class="hero-meta">
     <span class="badge badge-blue">유형 ③ 프로젝트 문서</span>
     <span class="badge badge-green">통합 스냅샷 2026-07-21</span>
-    <span class="badge badge-purple">파일 6종 · 전체 코드 수록</span>
+    <span class="badge badge-purple">파일 7종 · 전체 코드 수록</span>
   </div>
 </div>
 
@@ -756,7 +774,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <div class="arch">
       <div class="arch-layer">
         <div class="arch-tag">타입 계층</div>
-        <div class="arch-title">RTTypes.h</div>
+        <div class="arch-title">RTDataTypes.h</div>
         <div class="arch-desc">공용 그릇(struct·enum)만 — DB 행을 메모리로 옮길 때 담는 틀. 로직 0줄</div>
       </div>
       <div class="arch-arrow">→</div>
@@ -772,12 +790,12 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <div class="arch-desc">각자 "자기 테이블"만 읽고 쓴다 — 값마다 쓰기 주인 하나</div>
       </div>
     </div>
-    <div class="callout tip"><span class="ic">🚪</span><p><strong>문지기(Gatekeeper) 패턴</strong> — DB 실물(<code>FSQLiteDatabase</code> 값 멤버)은 문지기 <strong>한 곳만</strong> 소유하고, 기능 시스템들은 <code>Initialize</code>에서 <code>Collection.InitializeDependency&lt;UDatabaseSubsystem&gt;()</code>(= "문지기를 나보다 먼저 초기화해 달라"는 엔진 API)로 순서를 보장받은 뒤 <code>GetDb()</code>로 핸들 포인터를 <strong>빌려서만</strong> 씁니다. 코드에서 <code>Database.</code>(점)이 보이면 소유자, <code>Db-&gt;</code>(화살표)가 보이면 대여자입니다.</p></div>
+    <div class="callout tip"><span class="ic">🚪</span><p><strong>문지기(Gatekeeper) 패턴</strong> — DB 실물(<code>FSQLiteDatabase</code> 값 멤버)은 문지기 <strong>한 곳만</strong> 소유하고, 기능 시스템들은 <code>Initialize</code>에서 <code>Collection.InitializeDependency<wbr>&lt;UDatabaseSubsystem&gt;()</code>(= "문지기를 나보다 먼저 초기화해 달라"는 엔진 API)로 순서를 보장받은 뒤 <code>GetDb()</code>로 핸들 포인터를 <strong>빌려서만</strong> 씁니다. 코드에서 <code>Database.</code>(점)이 보이면 소유자, <code>Db-&gt;</code>(화살표)가 보이면 대여자입니다.</p></div>
 
     <h3>Archive.db의 7테이블 — 영속 데이터의 전체 목록</h3>
     <table class="tbl">
       <tr><th>테이블</th><th>행 단위</th><th>축</th><th>주요 컬럼</th><th>쓰기</th><th>주인(쓰기 권한)</th></tr>
-      <tr><td><code>player</code></td><td><strong>항상 1행</strong></td><td>계정</td><td>Gold·Shards·AccountFocusSeconds·Secured(BLOB)</td><td>UPDATE</td><td><span class="owner o-subsystem">EconomySubsystem</span></td></tr>
+      <tr><td><code>player</code></td><td><strong>항상 1행</strong></td><td>계정</td><td>Gold·Shards·AccountFocusSeconds·LastRewardedLevel·Secured(BLOB)</td><td>UPDATE</td><td><span class="owner o-subsystem">EconomySubsystem</span></td></tr>
       <tr><td><code>guilds</code></td><td>길드당 1행</td><td>길드</td><td>GuildId(<strong>AUTOINCREMENT</strong>)·GuildName·Category(대분류)·FocusSeconds·DeletedAt·Secured</td><td>INSERT/UPDATE</td><td><span class="owner o-subsystem">GuildSubsystem</span></td></tr>
       <tr><td><code>archive_categories</code></td><td>소분류당 1행</td><td>계정</td><td>Name(PK)·<strong>Color·Icon</strong>(플레이어 지정)·SortOrder</td><td>INSERT/UPDATE</td><td><span class="owner o-subsystem">GuildSubsystem</span></td></tr>
       <tr><td><code>owned_characters</code></td><td>캐릭터당 1행</td><td>계정</td><td>InstanceId(PK)·CharacterId·Rarity</td><td>INSERT/DELETE</td><td><span class="owner o-subsystem">GachaSubsystem (예정)</span></td></tr>
@@ -798,11 +816,12 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <h3>파일 지도 — 무엇을 만들고 각자 무슨 역할인가</h3>
     <table class="tbl">
       <tr><th>파일</th><th>계층</th><th>역할</th><th>담당 테이블</th></tr>
-      <tr><td><code>RTTypes.h</code></td><td>타입</td><td>공용 그릇 4종: <code>ERecordSource</code>·<code>FArchiveRecord</code>·<code>FArchiveCategory</code>·<code>FGuildData</code></td><td>—</td></tr>
+      <tr><td><code>RTDataTypes.h</code></td><td>타입</td><td>공용 그릇 4종: <code>ERecordSource</code>·<code>FArchiveRecord</code>·<code>FArchiveCategory</code>·<code>FGuildData</code></td><td>—</td></tr>
+      <tr><td><code>RTTables.h</code></td><td>타입</td><td>시트 행 구조체 — 지금은 <code>FLevelRewardRow</code>(레벨 보상)만, 가챠·건물 구현 시 확장(정본: 05)</td><td>— (<code>DT_Level_Reward</code> 조회)</td></tr>
       <tr><td><code>DatabaseSubsystem.h/.cpp</code></td><td>인프라</td><td><strong>문지기</strong> — 열닫·<code>CreateTables()</code> 7종·트랜잭션 3함수(중첩 방지 플래그)</td><td>전 테이블 <strong>생성만</strong></td></tr>
       <tr><td><code>RTSecured.h/.cpp</code></td><td>인프라</td><td>치트 방어 — AES 봉인/개봉 자유 함수 4개(계정·길드), 32바이트 비밀키</td><td>—</td></tr>
       <tr><td><code>ArchiveSubsystem.h/.cpp</code></td><td>기능</td><td>기록 생성(ID 발급)·조회(필터·정렬)·소프트 삭제/복원</td><td><code>archives</code></td></tr>
-      <tr><td><code>EconomySubsystem.h/.cpp</code></td><td>기능</td><td>재화·계정 시간의 쓰기 창구, Secured 자동 복원(치트 시 되돌림)</td><td><code>player</code></td></tr>
+      <tr><td><code>EconomySubsystem.h/.cpp</code></td><td>기능</td><td>재화·계정 시간·레벨업 보상의 쓰기 창구, Secured 자동 복원(치트 시 되돌림)</td><td><code>player</code></td></tr>
       <tr><td><code>GuildSubsystem.h/.cpp</code></td><td>기능</td><td>길드 생성/휴지통·시간 적립(+스왑 방어)·소분류 풀(색·아이콘) 관리</td><td><code>guilds</code>·<code>archive_categories</code></td></tr>
     </table>
 
@@ -824,8 +843,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       </div>
     </div>
 
-    <h3>밸런스 DataTable 5종 — 코드는 읽기만 (기획은 구글 시트)</h3>
-    <p>영속 상태(DB)와 별개로, 확률·비용 같은 <strong>밸런스 수치</strong>는 DataTable(ROW)에 삽니다 — 코드는 조회만 하고, 튜닝은 시트 → CSV 재임포트로 합니다. 저장 계층 구현엔 필요 없지만 전체 지도의 일부라 적어둡니다(가챠 구현 시 사용).</p>
+    <h3>밸런스 DataTable 6종 — 코드는 읽기만 (기획은 구글 시트)</h3>
+    <p>영속 상태(DB)와 별개로, 확률·비용 같은 <strong>밸런스 수치</strong>는 DataTable(ROW)에 삽니다 — 코드는 조회만 하고, 튜닝은 시트 → CSV 재임포트로 합니다. 대부분 가챠 구현 시 사용하지만, <strong><code>DT_Level_Reward</code>는 레벨업 보상 지급을 위해 ⑤ Economy가 지금 사용</strong>합니다.</p>
     <table class="tbl">
       <tr><th>테이블</th><th>키(RowName)</th><th>내용</th></tr>
       <tr><td><code>DT_GachaRateByLevel</code></td><td>Player_Level 1~20</td><td>계정 레벨 → 캐릭터 등급 확률 (Lv21+는 20행 폴백)</td></tr>
@@ -833,6 +852,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>DT_Character_Ability_GradeChance</code></td><td>캐릭터 등급</td><td>등급 → 능력치 등급 분포</td></tr>
       <tr><td><code>DT_Ability_Enhance</code></td><td>능력치 등급</td><td>강화 1단계당 조각 비용</td></tr>
       <tr><td><code>DT_Character_Extract</code></td><td>캐릭터 등급</td><td>추출 시 조각 지급량</td></tr>
+      <tr><td><code>DT_Level_Reward</code></td><td>계정 레벨 1~20</td><td>레벨업 1회성 보상 Gold·조각 (Lv21+는 마지막 행 반복) — <strong>⑤가 사용</strong></td></tr>
     </table>
   </div>
 
@@ -868,10 +888,11 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
 });</pre></div>
     </div>
 
-    <p style="margin-top:18px"><strong>② 만들 파일</strong> — 전부 6종. 클래스 위저드는 에디터 <code>도구 &gt; 새로운 C++ 클래스</code> → <strong>모든 클래스</strong> 탭에서 검색어로 부모를 찾습니다. 분리 레이아웃이면 <span class="filetag h">.h</span>는 <code>Public/</code>, <span class="filetag cpp">.cpp</span>는 <code>Private/</code>에 생깁니다(헤더만 보이면 형제 폴더 확인).</p>
+    <p style="margin-top:18px"><strong>② 만들 파일</strong> — 전부 7종. 클래스 위저드는 에디터 <code>도구 &gt; 새로운 C++ 클래스</code> → <strong>모든 클래스</strong> 탭에서 검색어로 부모를 찾습니다. 분리 레이아웃이면 <span class="filetag h">.h</span>는 <code>Public/</code>, <span class="filetag cpp">.cpp</span>는 <code>Private/</code>에 생깁니다(헤더만 보이면 형제 폴더 확인).</p>
     <table class="tbl">
       <tr><th>순서</th><th>파일</th><th>위저드 부모(검색어)</th><th>코드 위치</th></tr>
-      <tr><td>1</td><td><code>RTTypes.h</code></td><td><strong>None</strong>(빈 클래스 — .cpp는 include 한 줄만 남음)</td><td>03-①</td></tr>
+      <tr><td>1</td><td><code>RTDataTypes.h</code></td><td><strong>None</strong>(빈 클래스 — .cpp는 include 한 줄만 남음)</td><td>03-①</td></tr>
+      <tr><td>1b</td><td><code>RTTables.h</code></td><td><strong>None</strong>(빈 클래스 — 시트 행 구조체 전용, .cpp는 include 한 줄만 남음)</td><td>03-⑤ 발췌 탭</td></tr>
       <tr><td>2</td><td><code>DatabaseSubsystem.h/.cpp</code></td><td><strong>GameInstanceSubsystem</strong></td><td>03-②</td></tr>
       <tr><td>3</td><td><code>RTSecured.h/.cpp</code></td><td><strong>None</strong>(빈 클래스 — 자유 함수만)</td><td>03-③</td></tr>
       <tr><td>4</td><td><code>ArchiveSubsystem.h/.cpp</code></td><td><strong>GameInstanceSubsystem</strong> (기존 파일이 있으면 내용 전체 교체)</td><td>03-④</td></tr>
@@ -881,7 +902,7 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
 
     <div class="callout tip"><span class="ic">💡</span><p><strong>③ 코드 외 작업</strong> — 두 가지뿐입니다. (1) <strong>옛 DB 철거</strong>: 이전 실습(한 컬럼 배관 등)으로 <code>Saved/Archive.db</code>가 이미 있다면 게임/에디터 완전 종료 후 <code>.db</code>와 <code>*.db-wal</code>·<code>*.db-shm</code>·<code>*.db-journal</code>을 <strong>함께 삭제</strong>(옛 스키마가 남아 있으면 새 테이블 구조가 적용되지 않음). 옛 <code>ArchiveSubsystem</code> 코드가 있다면 내용을 비우고 03-④로 교체. (2) <strong>32바이트 비밀키 정하기</strong>: 03-③의 <code>GKey</code>에 무작위 바이트 32개를 직접 채워 넣기(치트 방어용 — 유출 금지).</p></div>
 
-    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>④ 컴파일 주의</strong> — 새 <code>UCLASS</code>/<code>USTRUCT</code>/<code>UENUM</code> 헤더가 여럿 생기므로 <strong>Live Coding 불가</strong>. 파일 6종을 전부 작성한 뒤 <strong>한 번에</strong>: 에디터 완전 종료 → <code>.sln</code>을 열고 <strong>Development Editor / Win64</strong> 구성 → <code>빌드 &gt; 솔루션 빌드</code>(Ctrl+Shift+B, Rebuild 말고 Build) → 성공 후 <code>.uproject</code> 더블클릭. 이후 <code>.cpp</code> 본문만 고칠 땐 Live Coding 가능. 에러가 나면 VS <strong>출력 창</strong>(Ctrl+Alt+O)에서 <code>): error</code>를 검색하세요 — 오류 목록의 <code>MSB3073</code>은 껍데기입니다.</div></div>
+    <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>④ 컴파일 주의</strong> — 새 <code>UCLASS</code>/<code>USTRUCT</code>/<code>UENUM</code> 헤더가 여럿 생기므로 <strong>Live Coding 불가</strong>. 파일 7종을 전부 작성한 뒤 <strong>한 번에</strong>: 에디터 완전 종료 → <code>.sln</code>을 열고 <strong>Development Editor / Win64</strong> 구성 → <code>빌드 &gt; 솔루션 빌드</code>(Ctrl+Shift+B, Rebuild 말고 Build) → 성공 후 <code>.uproject</code> 더블클릭. 이후 <code>.cpp</code> 본문만 고칠 땐 Live Coding 가능. 에러가 나면 VS <strong>출력 창</strong>(Ctrl+Alt+O)에서 <code>): error</code>를 검색하세요 — 오류 목록의 <code>MSB3073</code>은 껍데기입니다.</div></div>
 
     <h3>진행 순서 — 왜 이 순서인가</h3>
     <div class="pipe-step">
@@ -891,7 +912,7 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
     </div>
     <div class="pipe-step">
       <div class="pipe-num">1</div>
-      <div class="pipe-body"><div class="pipe-title">RTTypes.h — 그릇부터</div>
+      <div class="pipe-body"><div class="pipe-title">RTDataTypes.h — 그릇부터</div>
         <div class="pipe-desc">모든 서브시스템 헤더가 이 타입들을 쓰므로 가장 먼저. 완료 판정: 파일에 enum 1개 + struct 3개.</div></div>
     </div>
     <div class="pipe-step">
@@ -912,27 +933,27 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
     <div class="pipe-step">
       <div class="pipe-num">5</div>
       <div class="pipe-body"><div class="pipe-title">빌드 1회 → 검증</div>
-        <div class="pipe-desc">위 ④의 절차로 빌드 후, 04의 검증 시나리오(로그 순서 → 7테이블 → 기록 왕복 → 치트 복원 → 길드/카테고리)를 순서대로.</div></div>
+        <div class="pipe-desc">위 ④의 절차로 빌드 후, 04의 검증 시나리오(로그 순서 → 7테이블 → 기록 왕복 → 치트 복원 → 레벨 보상 → 길드/카테고리)를 순서대로.</div></div>
     </div>
   </div>
 
   <!-- ============================== 03 전체 코드 -->
   <div class="section" id="code">
     <div class="section-label">03 — 파일별 전체 코드</div>
-    <h2>여섯 파일 — 그대로 옮겨 적으면 됩니다</h2>
+    <h2>일곱 파일 — 그대로 옮겨 적으면 됩니다</h2>
     <p>각 코드는 완성본입니다. 탭(.h/.cpp)을 전환해 <strong>복사 버튼</strong>으로 붙여 넣으세요. 단 하나의 예외: <code>RECORDTALES_API</code> 매크로는 <strong>본인 모듈 이름 대문자 + <code>_API</code></strong>여야 하므로, 위저드가 생성해 준 헤더의 매크로를 그대로 유지하세요(모듈이 <code>MyGame</code>이면 <code>MYGAME_API</code>).</p>
 
-    <h3>① RTTypes.h — 공용 그릇(타입 계층)</h3>
+    <h3>① RTDataTypes.h — 공용 그릇(타입 계층)</h3>
     <p>DB 행을 메모리로 옮길 때 담는 틀입니다. 여러 시스템·UI가 공유하므로 중립 파일에 모아둡니다.</p>
     <div class="codeblock">
       <div class="codeblock-bar">
-        <button class="codeblock-tab tab-h active" type="button">RTTypes.h</button>
+        <button class="codeblock-tab tab-h active" type="button">RTDataTypes.h</button>
         <button class="codeblock-copy" type="button">복사</button>
       </div>
-      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// RTTypes.h — DB 행을 담는 공용 그릇(struct·enum)의 단일 보관함. 로직 없음</span>
+      <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// RTDataTypes.h — DB 행을 담는 공용 그릇(struct·enum)의 단일 보관함. 로직 없음</span>
 <span class="hljs-meta">#pragma once</span>
 <span class="hljs-meta">#include</span> <span class="hljs-string">"CoreMinimal.h"</span>
-<span class="hljs-meta">#include</span> <span class="hljs-string">"RTTypes.generated.h"</span>   <span class="hljs-comment">// UENUM·USTRUCT를 쓰므로 필요 — 항상 맨 마지막 include</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"RTDataTypes.generated.h"</span>   <span class="hljs-comment">// UENUM·USTRUCT를 쓰므로 필요 — 항상 맨 마지막 include</span>
 
 <span class="hljs-comment">// 기록이 어디서 왔나 — archives.Source 컬럼(INTEGER)에 대응.</span>
 <span class="hljs-comment">// 순서를 바꾸면 기존 DB의 숫자와 어긋나므로 새 항목은 반드시 뒤에만 추가할 것</span>
@@ -1071,9 +1092,10 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
         <span class="hljs-string">"  Gold                INTEGER NOT NULL DEFAULT 0,"</span>
         <span class="hljs-string">"  Shards              INTEGER NOT NULL DEFAULT 0,"</span>
         <span class="hljs-string">"  AccountFocusSeconds INTEGER NOT NULL DEFAULT 0,"</span>   <span class="hljs-comment">// 계정 XP 원천(레벨 = ÷3600, 저장 안 함)</span>
+        <span class="hljs-string">"  LastRewardedLevel   INTEGER NOT NULL DEFAULT 0,"</span>   <span class="hljs-comment">// 레벨업 보상 수령 이력(레벨 자체는 비저장 — ⑤)</span>
         <span class="hljs-string">"  NextInstanceId      INTEGER NOT NULL DEFAULT 1,"</span>   <span class="hljs-comment">// 캐릭터 인스턴스 카운터(재사용 없음)</span>
         <span class="hljs-string">"  NextGuildId         INTEGER NOT NULL DEFAULT 1,"</span>   <span class="hljs-comment">// (미사용) 길드 번호는 guilds AUTOINCREMENT가 발급</span>
-        <span class="hljs-string">"  Secured             BLOB"</span>                          <span class="hljs-comment">// 보호 값 3종의 인증 암호화 사본(③·⑤)</span>
+        <span class="hljs-string">"  Secured             BLOB"</span>                          <span class="hljs-comment">// 보호 값 4종의 인증 암호화 사본(③·⑤)</span>
         <span class="hljs-string">");"</span>));
     <span class="hljs-comment">// 기본 행 보장 — 이미 1행 있으면 OR IGNORE가 조용히 무시(첫 실행에만 삽입됨)</span>
     Database.<span class="hljs-title">Execute</span>(<span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"INSERT OR IGNORE INTO player (Id) VALUES (1);"</span>));
@@ -1180,12 +1202,13 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
 <span class="hljs-meta">#pragma once</span>
 <span class="hljs-meta">#include</span> <span class="hljs-string">"CoreMinimal.h"</span>
 
-<span class="hljs-comment">// player 행의 치트 유인 값 3개를 하나로 묶은 그릇 — 이 값들만 Secured로 보호한다</span>
+<span class="hljs-comment">// player 행의 치트 유인 값 4개를 하나로 묶은 그릇 — 이 값들만 Secured로 보호한다</span>
 <span class="hljs-keyword">struct</span> <span class="hljs-type">FSecuredAccount</span>
 {
     <span class="hljs-type">int64</span> Gold = <span class="hljs-number">0</span>;
     <span class="hljs-type">int32</span> Shards = <span class="hljs-number">0</span>;
     <span class="hljs-type">int64</span> AccountFocusSeconds = <span class="hljs-number">0</span>;
+    <span class="hljs-type">int32</span> LastRewardedLevel = <span class="hljs-number">0</span>;      <span class="hljs-comment">// 보상 수령 이력 — 되돌리면 재수령 치트라 함께 봉인</span>
 };
 
 <span class="hljs-comment">// [계정] 봉인: 값 → (MAGIC+값+CRC) 평문 → AES 암호화 → BLOB. player.Secured에 저장</span>
@@ -1213,11 +1236,11 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
 
 <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; <span class="hljs-title">SealAccount</span>(<span class="hljs-keyword">const</span> <span class="hljs-type">FSecuredAccount</span>&amp; In)
 {
-    <span class="hljs-comment">// 1) 평문 페이로드 = MAGIC | Gold | Shards | Seconds | CRC32(앞 24바이트)</span>
+    <span class="hljs-comment">// 1) 평문 페이로드 = MAGIC | Gold | Shards | Seconds | LastRewarded | CRC32(앞 28바이트)</span>
     <span class="hljs-type">FBufferArchive</span> Ar;
     <span class="hljs-type">uint32</span> Magic = SEAL_MAGIC;
-    <span class="hljs-type">int64</span> G = In.Gold; <span class="hljs-type">int32</span> S = In.Shards; <span class="hljs-type">int64</span> F = In.AccountFocusSeconds;
-    Ar &lt;&lt; Magic &lt;&lt; G &lt;&lt; S &lt;&lt; F;                       <span class="hljs-comment">// 4+8+4+8 = 24바이트</span>
+    <span class="hljs-type">int64</span> G = In.Gold; <span class="hljs-type">int32</span> S = In.Shards; <span class="hljs-type">int64</span> F = In.AccountFocusSeconds; <span class="hljs-type">int32</span> L = In.LastRewardedLevel;
+    Ar &lt;&lt; Magic &lt;&lt; G &lt;&lt; S &lt;&lt; F &lt;&lt; L;                  <span class="hljs-comment">// 4+8+4+8+4 = 28바이트</span>
     <span class="hljs-type">uint32</span> Crc = <span class="hljs-type">FCrc</span>::<span class="hljs-title">MemCrc32</span>(Ar.<span class="hljs-title">GetData</span>(), Ar.<span class="hljs-title">Num</span>());
     Ar &lt;&lt; Crc;                                        <span class="hljs-comment">// 무결성 태그(변조 감지)를 뒤에 붙임</span>
 
@@ -1244,13 +1267,13 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
     <span class="hljs-type">uint32</span> Magic = <span class="hljs-number">0</span>; Ar &lt;&lt; Magic;
     <span class="hljs-keyword">if</span> (Magic != SEAL_MAGIC) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;           <span class="hljs-comment">// 서명 불일치 = 키 틀림/블롭 변조</span>
 
-    <span class="hljs-type">int64</span> G = <span class="hljs-number">0</span>; <span class="hljs-type">int32</span> S = <span class="hljs-number">0</span>; <span class="hljs-type">int64</span> F = <span class="hljs-number">0</span>;
-    Ar &lt;&lt; G &lt;&lt; S &lt;&lt; F;
+    <span class="hljs-type">int64</span> G = <span class="hljs-number">0</span>; <span class="hljs-type">int32</span> S = <span class="hljs-number">0</span>; <span class="hljs-type">int64</span> F = <span class="hljs-number">0</span>; <span class="hljs-type">int32</span> L = <span class="hljs-number">0</span>;
+    Ar &lt;&lt; G &lt;&lt; S &lt;&lt; F &lt;&lt; L;
     <span class="hljs-type">uint32</span> StoredCrc = <span class="hljs-number">0</span>; Ar &lt;&lt; StoredCrc;
-    <span class="hljs-keyword">const</span> <span class="hljs-type">int32</span> PayloadBytes = <span class="hljs-number">24</span>;                    <span class="hljs-comment">// MAGIC(4)+G(8)+S(4)+F(8) — 봉인 때와 동일 범위</span>
+    <span class="hljs-keyword">const</span> <span class="hljs-type">int32</span> PayloadBytes = <span class="hljs-number">28</span>;                    <span class="hljs-comment">// MAGIC(4)+G(8)+S(4)+F(8)+L(4) — 봉인 때와 동일 범위</span>
     <span class="hljs-keyword">if</span> (<span class="hljs-type">FCrc</span>::<span class="hljs-title">MemCrc32</span>(Buf.<span class="hljs-title">GetData</span>(), PayloadBytes) != StoredCrc) <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>; <span class="hljs-comment">// 무결성 실패</span>
 
-    Out.Gold = G; Out.Shards = S; Out.AccountFocusSeconds = F;
+    Out.Gold = G; Out.Shards = S; Out.AccountFocusSeconds = F; Out.LastRewardedLevel = L;
     <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;                                     <span class="hljs-comment">// 진짜 값 복원 성공</span>
 }
 
@@ -1302,7 +1325,7 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
       <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// ArchiveSubsystem.h — archives 기능 전담(열닫·스키마는 문지기의 일)</span>
 <span class="hljs-meta">#pragma once</span>
 <span class="hljs-meta">#include</span> <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span>
-<span class="hljs-meta">#include</span> <span class="hljs-string">"RTTypes.h"</span>                     <span class="hljs-comment">// FArchiveRecord / ERecordSource</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"RTDataTypes.h"</span>                     <span class="hljs-comment">// FArchiveRecord / ERecordSource</span>
 <span class="hljs-meta">#include</span> <span class="hljs-string">"ArchiveSubsystem.generated.h"</span>
 
 <span class="hljs-keyword">class</span> <span class="hljs-type">FSQLiteDatabase</span>;   <span class="hljs-comment">// 전방 선언 — 포인터만 들므로 실제 include는 .cpp에서</span>
@@ -1450,12 +1473,13 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
 }</pre></div>
     </div>
 
-    <h3>⑤ EconomySubsystem — 재화·계정 시간(기능 계층)</h3>
+    <h3>⑤ EconomySubsystem — 재화·계정 시간·레벨 보상(기능 계층)</h3>
     <p><code>player</code> 1행의 유일한 쓰기 주인. 값이 바뀌는 즉시 저장하고, 로드 때 Secured로 3갈래 판정(정상/치트 복원/손상 초기화)을 합니다.</p>
     <div class="codeblock">
       <div class="codeblock-bar">
         <button class="codeblock-tab tab-h active" type="button">EconomySubsystem.h</button>
         <button class="codeblock-tab tab-cpp" type="button">EconomySubsystem.cpp</button>
+        <button class="codeblock-tab tab-h" type="button">RTTables.h — 발췌</button>
         <button class="codeblock-copy" type="button">복사</button>
       </div>
       <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
@@ -1463,6 +1487,7 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
 <span class="hljs-meta">#include</span> <span class="hljs-string">"EconomySubsystem.generated.h"</span>
 
 <span class="hljs-keyword">class</span> <span class="hljs-type">FSQLiteDatabase</span>;   <span class="hljs-comment">// 전방 선언 — 포인터만 들므로 실제 include는 .cpp에서</span>
+<span class="hljs-keyword">class</span> <span class="hljs-type">UDataTable</span>;        <span class="hljs-comment">// 전방 선언 — 레벨 보상 표(DT_Level_Reward)</span>
 
 <span class="hljs-meta">UCLASS()</span>
 <span class="hljs-keyword">class</span> <span class="hljs-type">RECORDTALES_API</span> <span class="hljs-type">UEconomySubsystem</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">UGameInstanceSubsystem</span>
@@ -1484,19 +1509,24 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
 <span class="hljs-keyword">private</span>:
     <span class="hljs-keyword">void</span> <span class="hljs-title">LoadPlayer</span>();   <span class="hljs-comment">// 시작 시 1회 — DB → 멤버(Secured 3갈래 판정 포함)</span>
     <span class="hljs-keyword">void</span> <span class="hljs-title">SavePlayer</span>();   <span class="hljs-comment">// 값 변경 직후 — 멤버 → DB(평문+봉인을 같은 UPDATE로)</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title">GrantLevelRewards</span>();   <span class="hljs-comment">// 미수령 레벨 보상 순차 지급 — AddFocusSeconds에서만 호출</span>
 
     <span class="hljs-comment">// 메모리 캐시 — 진실은 DB, 이건 세션 동안의 사본(RUNTIME)</span>
     <span class="hljs-type">int64</span> Gold = <span class="hljs-number">0</span>;
     <span class="hljs-type">int32</span> Shards = <span class="hljs-number">0</span>;
     <span class="hljs-type">int64</span> AccountFocusSeconds = <span class="hljs-number">0</span>;
+    <span class="hljs-type">int32</span> LastRewardedLevel = <span class="hljs-number">0</span>;    <span class="hljs-comment">// 보상 수령 이력 — 유일하게 저장되는 레벨 관련 값(Secured 4번째)</span>
 
     <span class="hljs-type">FSQLiteDatabase</span>* Db = <span class="hljs-literal">nullptr</span>;   <span class="hljs-comment">// 문지기에게 빌린 핸들(소유 아님)</span>
+    <span class="hljs-meta">UPROPERTY()</span> <span class="hljs-type">TObjectPtr</span>&lt;<span class="hljs-type">UDataTable</span>&gt; LevelRewardTable;   <span class="hljs-comment">// DT_Level_Reward(ROW) — GC 추적 위해 UPROPERTY</span>
 };</pre></div>
       <div class="codeblock-panel"><pre class="hljs"><span class="hljs-meta">#include</span> <span class="hljs-string">"EconomySubsystem.h"</span>
 <span class="hljs-meta">#include</span> <span class="hljs-string">"DatabaseSubsystem.h"</span>         <span class="hljs-comment">// 문지기 — GetDb()</span>
 <span class="hljs-meta">#include</span> <span class="hljs-string">"SQLiteDatabase.h"</span>            <span class="hljs-comment">// FSQLiteDatabase 실체(전방 선언 해소)</span>
 <span class="hljs-meta">#include</span> <span class="hljs-string">"SQLitePreparedStatement.h"</span>
 <span class="hljs-meta">#include</span> <span class="hljs-string">"RTSecured.h"</span>                 <span class="hljs-comment">// SealAccount / OpenAccount</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"RTTables.h"</span>                  <span class="hljs-comment">// FLevelRewardRow — 레벨 보상 행(발췌 탭)</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"Engine/DataTable.h"</span>          <span class="hljs-comment">// UDataTable::FindRow</span>
 
 <span class="hljs-keyword">void</span> <span class="hljs-type">UEconomySubsystem</span>::<span class="hljs-title">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection)
 {
@@ -1506,6 +1536,9 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
     <span class="hljs-type">UDatabaseSubsystem</span>* Gate = Collection.InitializeDependency&lt;<span class="hljs-type">UDatabaseSubsystem</span>&gt;();
     Db = Gate ? Gate-&gt;<span class="hljs-title">GetDb</span>() : <span class="hljs-literal">nullptr</span>;
     <span class="hljs-keyword">if</span> (Db &amp;&amp; Db-&gt;<span class="hljs-title">IsValid</span>()) <span class="hljs-title">LoadPlayer</span>();
+
+    <span class="hljs-comment">// 레벨 보상 표(ROW) 로드 — 경로는 실제 에셋 위치로 교체. 못 찾으면 보상만 보류(적립은 정상)</span>
+    LevelRewardTable = <span class="hljs-title">LoadObject</span>&lt;<span class="hljs-type">UDataTable</span>&gt;(<span class="hljs-literal">nullptr</span>, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"/Game/RT/Data/DT_Level_Reward.DT_Level_Reward"</span>));
 }
 
 <span class="hljs-keyword">void</span> <span class="hljs-type">UEconomySubsystem</span>::<span class="hljs-title">AddGold</span>(<span class="hljs-type">int64</span> Delta)
@@ -1519,48 +1552,51 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
 {
     <span class="hljs-keyword">if</span> (Seconds &lt;= <span class="hljs-number">0</span>) <span class="hljs-keyword">return</span>;         <span class="hljs-comment">// 시간은 앞으로만 흐른다 — 음수 적립은 버그 신호</span>
     AccountFocusSeconds += Seconds;   <span class="hljs-comment">// 레벨은 이 값에서 파생될 뿐, 따로 저장하지 않는다</span>
-    <span class="hljs-title">SavePlayer</span>();
+    <span class="hljs-title">GrantLevelRewards</span>();              <span class="hljs-comment">// 방금 넘은 레벨들의 1회성 보상 — 재화·이력을 메모리에서 먼저 갱신</span>
+    <span class="hljs-title">SavePlayer</span>();                     <span class="hljs-comment">// 시간·재화·이력·봉인을 한 UPDATE로 커밋 — 이중 지급 창이 없다</span>
 }
 
 <span class="hljs-keyword">void</span> <span class="hljs-type">UEconomySubsystem</span>::<span class="hljs-title">SavePlayer</span>()
 {
     <span class="hljs-keyword">if</span> (!Db || !Db-&gt;<span class="hljs-title">IsValid</span>()) <span class="hljs-keyword">return</span>;
 
-    <span class="hljs-comment">// 현재 값 3종을 봉인 — 평문과 블롭이 "같은 순간의 값"이 되도록 저장 직전에 만든다</span>
-    <span class="hljs-keyword">const</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; Sealed = <span class="hljs-title">SealAccount</span>({ Gold, Shards, AccountFocusSeconds });
+    <span class="hljs-comment">// 현재 값 4종을 봉인 — 평문과 블롭이 "같은 순간의 값"이 되도록 저장 직전에 만든다</span>
+    <span class="hljs-keyword">const</span> <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; Sealed = <span class="hljs-title">SealAccount</span>({ Gold, Shards, AccountFocusSeconds, LastRewardedLevel });
 
     <span class="hljs-type">FSQLitePreparedStatement</span> Stmt;
     Stmt.<span class="hljs-title">Create</span>(*Db, <span class="hljs-built_in">TEXT</span>(
-        <span class="hljs-string">"UPDATE player SET Gold = ?1, Shards = ?2, AccountFocusSeconds = ?3, Secured = ?4 WHERE Id = 1;"</span>));
+        <span class="hljs-string">"UPDATE player SET Gold = ?1, Shards = ?2, AccountFocusSeconds = ?3, LastRewardedLevel = ?4, Secured = ?5 WHERE Id = 1;"</span>));
     Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">1</span>, Gold);
     Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">2</span>, Shards);
     Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">3</span>, AccountFocusSeconds);
-    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">4</span>, Sealed);          <span class="hljs-comment">// TArray&lt;uint8&gt; → BLOB 바인딩</span>
+    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">4</span>, LastRewardedLevel);
+    Stmt.<span class="hljs-title">SetBindingValueByIndex</span>(<span class="hljs-number">5</span>, Sealed);          <span class="hljs-comment">// TArray&lt;uint8&gt; → BLOB 바인딩</span>
     Stmt.<span class="hljs-title">Execute</span>();
     Stmt.<span class="hljs-title">Destroy</span>();
 }
 
 <span class="hljs-keyword">void</span> <span class="hljs-type">UEconomySubsystem</span>::<span class="hljs-title">LoadPlayer</span>()
 {
-    <span class="hljs-type">int64</span> PlainGold = <span class="hljs-number">0</span>; <span class="hljs-type">int32</span> PlainShards = <span class="hljs-number">0</span>; <span class="hljs-type">int64</span> PlainFocus = <span class="hljs-number">0</span>;
+    <span class="hljs-type">int64</span> PlainGold = <span class="hljs-number">0</span>; <span class="hljs-type">int32</span> PlainShards = <span class="hljs-number">0</span>; <span class="hljs-type">int64</span> PlainFocus = <span class="hljs-number">0</span>; <span class="hljs-type">int32</span> PlainLastRw = <span class="hljs-number">0</span>;
     <span class="hljs-type">TArray</span>&lt;<span class="hljs-type">uint8</span>&gt; SecuredBlob;
 
     <span class="hljs-type">FSQLitePreparedStatement</span> Stmt;
     Stmt.<span class="hljs-title">Create</span>(*Db, <span class="hljs-built_in">TEXT</span>(
-        <span class="hljs-string">"SELECT Gold, Shards, AccountFocusSeconds, Secured FROM player WHERE Id = 1;"</span>));
+        <span class="hljs-string">"SELECT Gold, Shards, AccountFocusSeconds, LastRewardedLevel, Secured FROM player WHERE Id = 1;"</span>));
     <span class="hljs-keyword">if</span> (Stmt.<span class="hljs-title">Step</span>() == <span class="hljs-type">ESQLitePreparedStatementStepResult</span>::Row)
     {
         Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">0</span>, PlainGold);
         Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">1</span>, PlainShards);
         Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">2</span>, PlainFocus);
-        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">3</span>, SecuredBlob);   <span class="hljs-comment">// BLOB → TArray&lt;uint8&gt;</span>
+        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">3</span>, PlainLastRw);
+        Stmt.<span class="hljs-title">GetColumnValueByIndex</span>(<span class="hljs-number">4</span>, SecuredBlob);   <span class="hljs-comment">// BLOB → TArray&lt;uint8&gt;</span>
     }
     Stmt.<span class="hljs-title">Destroy</span>();
 
     <span class="hljs-comment">// [갈래 0] 블롭이 아직 없음(첫 실행) → 평문 채택 후 즉시 봉인 생성</span>
     <span class="hljs-keyword">if</span> (SecuredBlob.<span class="hljs-title">Num</span>() == <span class="hljs-number">0</span>)
     {
-        Gold = PlainGold; Shards = PlainShards; AccountFocusSeconds = PlainFocus;
+        Gold = PlainGold; Shards = PlainShards; AccountFocusSeconds = PlainFocus; LastRewardedLevel = PlainLastRw;
         <span class="hljs-title">SavePlayer</span>();                                 <span class="hljs-comment">// 지금 값으로 첫 봉인을 만들어 둔다</span>
         <span class="hljs-keyword">return</span>;
     }
@@ -1570,23 +1606,57 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
     {
         <span class="hljs-comment">// [갈래 1] 블롭 자체가 변조/손상 → 진짜 값을 알 수 없음 → 초기화 + 경고</span>
         UE_LOG(LogTemp, Warning, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"[Economy] Secured 손상 — 상태를 초기화합니다"</span>));
-        Gold = <span class="hljs-number">0</span>; Shards = <span class="hljs-number">0</span>; AccountFocusSeconds = <span class="hljs-number">0</span>;
+        Gold = <span class="hljs-number">0</span>; Shards = <span class="hljs-number">0</span>; AccountFocusSeconds = <span class="hljs-number">0</span>; LastRewardedLevel = <span class="hljs-number">0</span>;
         <span class="hljs-title">SavePlayer</span>();
         <span class="hljs-keyword">return</span>;
     }
 
-    <span class="hljs-keyword">if</span> (Real.Gold != PlainGold || Real.Shards != PlainShards || Real.AccountFocusSeconds != PlainFocus)
+    <span class="hljs-keyword">if</span> (Real.Gold != PlainGold || Real.Shards != PlainShards || Real.AccountFocusSeconds != PlainFocus || Real.LastRewardedLevel != PlainLastRw)
     {
         <span class="hljs-comment">// [갈래 2] 평문만 편집됨(DB Browser 치트) → 블롭의 진짜 값 채택 = 자동 복원</span>
         UE_LOG(LogTemp, Warning, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"[Economy] 비정상 데이터 감지 — 마지막 정상 값으로 복구"</span>));
-        Gold = Real.Gold; Shards = Real.Shards; AccountFocusSeconds = Real.AccountFocusSeconds;
+        Gold = Real.Gold; Shards = Real.Shards; AccountFocusSeconds = Real.AccountFocusSeconds; LastRewardedLevel = Real.LastRewardedLevel;
         <span class="hljs-title">SavePlayer</span>();                                 <span class="hljs-comment">// 평문을 즉시 재기록해 정합성 회복</span>
         <span class="hljs-keyword">return</span>;
     }
 
     <span class="hljs-comment">// [갈래 3] 일치 → 정상. 평문 그대로 채택</span>
-    Gold = PlainGold; Shards = PlainShards; AccountFocusSeconds = PlainFocus;
+    Gold = PlainGold; Shards = PlainShards; AccountFocusSeconds = PlainFocus; LastRewardedLevel = PlainLastRw;
+}
+
+<span class="hljs-comment">// 레벨업 1회성 보상 — 계정 레벨만(사용자 결정). 레벨은 비저장, "몇 레벨까지 받았나"만 저장</span>
+<span class="hljs-keyword">void</span> <span class="hljs-type">UEconomySubsystem</span>::<span class="hljs-title">GrantLevelRewards</span>()
+{
+    <span class="hljs-keyword">if</span> (!LevelRewardTable) <span class="hljs-keyword">return</span>;                <span class="hljs-comment">// 표가 없으면 지급 보류 — 적립은 그대로(다음 실행에서 이어짐)</span>
+    <span class="hljs-keyword">const</span> <span class="hljs-type">int32</span> CurrentLevel = <span class="hljs-title">GetAccountLevel</span>();  <span class="hljs-comment">// 파생 레벨(초 ÷ 3600)</span>
+    <span class="hljs-keyword">const</span> <span class="hljs-type">int32</span> MaxRow = LevelRewardTable-&gt;<span class="hljs-title">GetRowNames</span>().<span class="hljs-title">Num</span>();   <span class="hljs-comment">// 행 수 — RowName 1~N 연속이라는 시트 규약 전제</span>
+
+    <span class="hljs-keyword">while</span> (LastRewardedLevel &lt; CurrentLevel)      <span class="hljs-comment">// 긴 세션으로 여러 레벨을 넘어도 한 레벨씩 순차 지급</span>
+    {
+        ++LastRewardedLevel;                      <span class="hljs-comment">// 이력 먼저 전진 — 이 값이 "받았다"의 증거</span>
+        <span class="hljs-keyword">const</span> <span class="hljs-type">int32</span> RowLevel = <span class="hljs-type">FMath</span>::<span class="hljs-title">Min</span>(LastRewardedLevel, MaxRow);   <span class="hljs-comment">// 표 초과 레벨은 마지막 행 반복(plateau 관례)</span>
+        <span class="hljs-keyword">const</span> <span class="hljs-type">FLevelRewardRow</span>* R = LevelRewardTable-&gt;<span class="hljs-title">FindRow</span>&lt;<span class="hljs-type">FLevelRewardRow</span>&gt;(
+            <span class="hljs-type">FName</span>(*<span class="hljs-type">FString</span>::<span class="hljs-title">FromInt</span>(RowLevel)), <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"LevelReward"</span>));
+        <span class="hljs-keyword">if</span> (!R) <span class="hljs-keyword">continue</span>;                         <span class="hljs-comment">// 행 누락은 그 레벨 지급만 건너뜀(시트 검증이 1차 방어)</span>
+        Gold   += R-&gt;Reward_Gold;                 <span class="hljs-comment">// DB 반영은 호출부 SavePlayer가 일괄 — 여기서 저장하지 않는다</span>
+        Shards += R-&gt;Reward_Shards;               <span class="hljs-comment">// 5레벨 마일스톤 조각(없는 레벨은 0)</span>
+    }
 }</pre></div>
+      <div class="codeblock-panel"><pre class="hljs"><span class="hljs-comment">// RTTables.h — 발췌(신규 파일 1b). 시트 행 구조체의 집 — 지금은 레벨 보상 행만 필요해 이것만 싣는다</span>
+<span class="hljs-comment">// (가챠·건물 구현 시 나머지 10종이 이 파일에 추가된다 — 전체 정본: 05 문서 · 값은 구글 시트)</span>
+<span class="hljs-meta">#pragma once</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"CoreMinimal.h"</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"Engine/DataTable.h"</span>    <span class="hljs-comment">// FTableRowBase — DataTable 행 자격</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"RTTables.generated.h"</span>  <span class="hljs-comment">// 항상 맨 마지막 include</span>
+
+<span class="hljs-comment">// DT_Level_Reward — 계정 레벨업 1회성 보상. RowName = 레벨(1~N 연속), 초과 레벨은 마지막 행 반복</span>
+<span class="hljs-meta">USTRUCT(BlueprintType)</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-type">FLevelRewardRow</span> : <span class="hljs-keyword">public</span> <span class="hljs-type">FTableRowBase</span>
+{
+    <span class="hljs-meta">GENERATED_BODY()</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere)</span> <span class="hljs-type">int64</span> Reward_Gold = <span class="hljs-number">0</span>;   <span class="hljs-comment">// 그 레벨 달성 시 지급 Gold — player.Gold와 같은 int64</span>
+    <span class="hljs-meta">UPROPERTY(EditAnywhere)</span> <span class="hljs-type">int32</span> Reward_Shards = <span class="hljs-number">0</span>; <span class="hljs-comment">// 마일스톤 조각(없는 레벨은 0)</span>
+};</pre></div>
     </div>
     <div class="pitfall"><span class="ic">⚠️</span><div class="pitfall-text"><strong>빼먹기 쉬운 함정</strong> — 앞으로 <code>player</code>에 보호 값을 새로 추가하면 <strong>봉인 페이로드(<code>FSecuredAccount</code>·Seal/Open)에도 같이</strong> 넣어야 합니다. 평문만 갱신하면 다음 로드에서 자동 복원이 "정상 저장"을 치트로 오인해 <strong>옛 값으로 되돌려버립니다.</strong> 모든 쓰기를 <code>SavePlayer()</code> 하나로 통일하세요.</div></div>
 
@@ -1600,7 +1670,7 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
       </div>
       <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-meta">#pragma once</span>
 <span class="hljs-meta">#include</span> <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span>
-<span class="hljs-meta">#include</span> <span class="hljs-string">"RTTypes.h"</span>                   <span class="hljs-comment">// FGuildData / FArchiveCategory</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"RTDataTypes.h"</span>                   <span class="hljs-comment">// FGuildData / FArchiveCategory</span>
 <span class="hljs-meta">#include</span> <span class="hljs-string">"GuildSubsystem.generated.h"</span>
 
 <span class="hljs-keyword">class</span> <span class="hljs-type">FSQLiteDatabase</span>;
@@ -1858,7 +1928,7 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
       <tr><th>질문</th><th>답이 "예"면</th><th>코드가 바뀌는 곳</th></tr>
       <tr><td>① 껐다 켜도 남아야 하나?</td><td>아니오 → 서브시스템 멤버 변수(RUNTIME)로 끝</td><td>해당 시스템 <code>.h</code>만</td></tr>
       <tr><td>② 기획이 시트로 튜닝하는 수치인가?</td><td>예 → DataTable 행(ROW) — 코드는 조회만</td><td>DT + 조회 코드</td></tr>
-      <tr><td>③ (영속 확정) 누적·검색형 기록인가?</td><td>예 → <code>archives</code>류 INSERT 행 / 아니오 → 상태 테이블 UPDATE 행</td><td>새 테이블이면 문지기 <code>CreateTables()</code> 끝에 추가 + 그릇이 필요하면 <code>RTTypes.h</code>에 struct + 주인 서브시스템에 읽기/쓰기</td></tr>
+      <tr><td>③ (영속 확정) 누적·검색형 기록인가?</td><td>예 → <code>archives</code>류 INSERT 행 / 아니오 → 상태 테이블 UPDATE 행</td><td>새 테이블이면 문지기 <code>CreateTables()</code> 끝에 추가 + 그릇이 필요하면 <code>RTDataTypes.h</code>에 struct + 주인 서브시스템에 읽기/쓰기</td></tr>
     </table>
     <div class="callout warn"><span class="ic">⚠️</span><p><strong>보호 값 추가 시</strong> — 치트 유인이 큰 값이면 봉인 페이로드(RTSecured)에도 함께 넣고, 해당 저장 함수(SavePlayer/SaveGuildTime)가 평문+봉인을 같은 UPDATE로 쓰는지 확인하세요. <strong>여러 테이블을 함께 고치는 작업</strong>이면 반드시 문지기의 <code>BeginTransaction → CommitTransaction/RollbackTransaction</code>으로 묶습니다(직접 <code>BEGIN</code> SQL 실행 금지 — 중첩 방지 플래그가 무력화됩니다).</p></div>
 
@@ -1887,6 +1957,7 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
       <tr><td>3</td><td>기록 왕복+휴지통</td><td>BP: <code>Create Archive(1, "테스트", Timer, 1500, "첫 기록")</code> → <code>Get Archives(-1)</code> → <code>Soft Delete</code> → <code>Restore</code></td><td>Id가 <code>20260721…-000001</code> 형식, 삭제 후 목록에서 사라지고 복원 후 부활</td></tr>
       <tr><td>4</td><td>재화 저장</td><td>BP: <code>Add Gold(100)</code> → PIE 재시작 → <code>Get Gold</code></td><td>재시작 후에도 <code>100</code></td></tr>
       <tr><td>5</td><td>치트 자동 복원</td><td>게임 종료 상태에서 DB Browser로 <code>player.Gold</code>를 999999로 수정 + Write Changes → 재실행</td><td>로그에 "비정상 데이터 감지 — 복구", Gold는 원래 값</td></tr>
+      <tr><td>5b</td><td>레벨업 보상</td><td>BP(Economy): <code>Add Focus Seconds(3600)</code> → <code>Get Gold</code> → PIE 재시작 → 다시 <code>Get Gold</code></td><td>레벨 1 달성 보상으로 Gold +100(표 1행) — 재시작 후에도 유지되고 <strong>같은 레벨 보상이 반복 지급되지 않음</strong>(수령 이력)</td></tr>
       <tr><td>6</td><td>길드 + 시간 + 레벨</td><td>BP: <code>Create Guild("그림 길드","캐릭터")</code> → <code>Add Focus Seconds(1, 7200)</code> → <code>Get Guild Level(1)</code></td><td>레벨 <code>2</code> (7200초 = 2시간)</td></tr>
       <tr><td>7</td><td>블롭 스왑 방어</td><td>길드 2개 생성·시간 적립 후, DB Browser로 1번 길드의 <code>Secured</code>를 2번 길드 행에 복사 → 재실행</td><td>로그에 "[Guild 2] Secured 손상/불일치 — 시간 초기화"</td></tr>
       <tr><td>8</td><td>카테고리 색·아이콘</td><td>BP: <code>Add Archive Category("애니메이션", 색 선택, "icon_star")</code> → <code>Get Archive Categories</code> → Break</td><td>Name·Color·Icon이 그대로 나옴, DB에는 Color가 헥스 문자열</td></tr>
@@ -1911,14 +1982,14 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
 
     <div class="callout tip" style="margin-top:14px">
       <span class="ic">✅</span>
-      <p><strong>여기까지 되면</strong> — V2 저장 계층의 뼈대(문지기 · 7테이블 · 기록 · 재화 · 길드 · 치트 방어)가 완성입니다. 다음 확장(가챠·영지)도 같은 리듬입니다: 테이블은 이미 준비돼 있으니(④~⑥) <strong>RTTypes.h에 그릇 추가 → 주인 서브시스템 생성(연결 관례 2줄) → INSERT/UPDATE 작성 → 다중 테이블 변경은 문지기 트랜잭션으로</strong>. 이 네 걸음이 전부입니다.</p>
+      <p><strong>여기까지 되면</strong> — V2 저장 계층의 뼈대(문지기 · 7테이블 · 기록 · 재화 · 길드 · 치트 방어)가 완성입니다. 다음 확장(가챠·영지)도 같은 리듬입니다: 테이블은 이미 준비돼 있으니(④~⑥) <strong>RTDataTypes.h에 그릇 추가 → 주인 서브시스템 생성(연결 관례 2줄) → INSERT/UPDATE 작성 → 다중 테이블 변경은 문지기 트랜잭션으로</strong>. 이 네 걸음이 전부입니다.</p>
     </div>
   </div>
 
 </div>
 
 <footer>
-  <span>RecordTales V2 · 마스터 페이지 (저장 계층 통합) v1.1</span>
+  <span>RecordTales V2 · 마스터 페이지 (저장 계층 통합) v1.3</span>
   <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.9</span>
 </footer>
 

@@ -23,7 +23,14 @@
       "Bash(sed -i '' 's|r = put\\(r, \"임포트\"|r = put\\(r, \"탭 이름 예외\", \"DT_Char_Ability_GradeChance 탭의 정식 DataTable 이름은 DT_Character_Ability_GradeChance \\(xlsx 31자 제한으로 탭만 축약 — CSV 내보내기 후 에셋은 정식 이름으로\\).\"\\)\\\\n    r = put\\(r, \"임포트\"|' build_balance_xlsx.py)",
       "Bash(base64 -i RecordTales_V2_Balance_Draft.xlsx -o balance.b64)",
       "mcp__2d52f20d-a2ae-4bd7-9f30-ab043a1e11ad__create_file",
-      "mcp__2d52f20d-a2ae-4bd7-9f30-ab043a1e11ad__read_file_content"
+      "mcp__2d52f20d-a2ae-4bd7-9f30-ab043a1e11ad__read_file_content",
+      "Bash(rm code-examples-state-file-location.md)",
+      "Bash(grep -v \"code-examples-state-file-location\" MEMORY.md)",
+      "Bash(mv MEMORY.tmp MEMORY.md)",
+      "Bash(mkdir -p \"/private/tmp/claude-501/-Users-dane-jeong-Documents------UE-Development/6640a961-1ab4-43d7-a308-911a95f06749/scratchpad\")",
+      "Read(//tmp/**)",
+      "Bash(cd \"/Users/dane.jeong/Documents/이후삭제/UE_Development/Project/RecordTales_V2\" *)",
+      "Bash(grep -n \"치트 유인 값 3개\\\\|In.AccountFocusSeconds;\\\\|4+8+4+8\\\\|lt; F;\\\\|PayloadBytes\\\\|Out.Gold\\\\|SealAccount\\({ Gold\\\\|UPDATE player SET\\\\|SELECT Gold, Shards\\\\|Real.Gold != PlainGold\\\\|보호 값 3종\\\\|밸런스 DataTable 5종\\\\|여섯 파일\\\\|AccountFocusSeconds INTEGER\" recordtales_v2-masterpage.html)"
     ]
   }
 }

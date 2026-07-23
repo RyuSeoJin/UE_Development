@@ -8,6 +8,11 @@
      CHANGELOG — 05-data-schema-spec.html
      RecordTales V2 데이터 스키마 명세 (Track B · 02-B 기능 구현 명세).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md
+     v0.20 · 2026-07-22
+       - (개명) RTTypes.h → RTDataTypes.h (사용자 결정) — RTTables.h(시트 행의 모양)와 대칭인
+         "DB 행의 그릇" 역할이 이름에 드러나도록. 본문 표기·코드 include
+         (RTDataTypes.generated.h) 일괄 치환. 과거 CHANGELOG 이력 표기는 보존.
+       - (footer) v0.19 → v0.20.
      v0.19 · 2026-07-22
        - (변경) 구판 잔재 수정: DDL 소제목·07 초기화 설명의 "CREATE TABLE 6종" → 7종
          (v0.17에서 archive_categories 추가 시 갱신 누락 — 실제 DDL은 7종으로 이미 정확).
@@ -803,7 +808,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </nav>
 
 <div class="hero">
-  <div class="hero-eyebrow">RecordTales V2 &middot; v0.19 &middot; Data Schema Spec</div>
+  <div class="hero-eyebrow">RecordTales V2 &middot; v0.20 &middot; Data Schema Spec</div>
   <h1>데이터 스키마<br><span>명세 · DataTable · SQLite</span></h1>
   <p class="hero-sub">
     03(데이터 설계)에서 지도로 본 데이터를, 여기서는 <strong>복붙 가능한 정의</strong>로 전부 풀어 씁니다. DataTable 행 구조체 11종·<strong>SQLite 7테이블 스키마</strong>·상태 표현·<strong>Secured 인증 암호화</strong>를 타입·의미·코드와 함께 담습니다.
@@ -857,7 +862,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <p>모든 등급·종류는 <code>uint8</code> 기반 <code>UENUM(BlueprintType)</code>으로(리플렉션·BP 노출 제약). 값 순서 = 등급 오름차순.</p>
     <div class="codeblock">
       <div class="codeblock-bar">
-        <button class="codeblock-tab tab-h active" type="button">RTTypes.h — enums</button>
+        <button class="codeblock-tab tab-h active" type="button">RTDataTypes.h — enums</button>
         <button class="codeblock-copy" type="button">복사</button>
       </div>
       <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 캐릭터 등급 — 뽑을 때 롤(인스턴스). 개화 슬롯 수·능력치 등급 분포를 결정</span>
@@ -1315,7 +1320,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <p>DB에서 읽은 행을 담고, UI·시스템이 다루는 런타임 표현입니다. <code>USaveGame</code>이 아니므로 직렬화 매크로가 목적이 아니라 <strong>블루프린트 노출·복사 편의</strong>를 위해 <code>USTRUCT(BlueprintType)</code>로 둡니다. <code>player</code>는 단일 행이라 별도 struct 없이 <code>EconomySubsystem</code>의 멤버로 듭니다.</p>
     <div class="codeblock">
       <div class="codeblock-bar">
-        <button class="codeblock-tab tab-h active" type="button">RTTypes.h — runtime cache</button>
+        <button class="codeblock-tab tab-h active" type="button">RTDataTypes.h — runtime cache</button>
         <button class="codeblock-copy" type="button">복사</button>
       </div>
       <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// 개화된 능력치 하나 — owned_abilities 한 행에 대응. 값·비용은 표에서 조회하므로 안 담는다</span>
@@ -1581,7 +1586,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>RecordTales V2 &middot; 데이터 스키마 명세 v0.19</span>
+  <span>RecordTales V2 &middot; 데이터 스키마 명세 v0.20</span>
   <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.8</span>
 </footer>
 

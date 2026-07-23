@@ -8,6 +8,11 @@
      CHANGELOG — 14-storage-rebuild.html
      RecordTales V2 · 09 배관 구현을 걷어내고 문지기 구조로 처음부터 재구축하는
      따라하기(템플릿 02-B). 작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.1 · 2026-07-22
+       - (개명) RTTypes.h → RTDataTypes.h (사용자 결정) — RTTables.h(시트 행의 모양)와 대칭인
+         "DB 행의 그릇" 역할이 이름에 드러나도록. 본문 표기·코드 include
+         (RTDataTypes.generated.h) 일괄 치환. 과거 CHANGELOG 이력 표기는 보존.
+       - (footer) v1.0 → v1.1.
      v1.0 · 2026-07-20
        - 최초 생성 — 사용자 결정: 09 실구현(ArchiveSubsystem 겸직·한 컬럼 archives)은
          수술(전환)하지 않고 철거 후 재구축. 문지기 구축은 13 문서를 정본으로 참조(요약만),
@@ -755,7 +760,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <table class="tbl">
       <tr><th>파일</th><th>부모 클래스 (위저드 검색어)</th><th>비고</th></tr>
       <tr><td><code>DatabaseSubsystem.h / .cpp</code></td><td><strong>GameInstanceSubsystem</strong></td><td>신규 — <strong>13 문서 1~5단계 그대로</strong>(2단계에서 요약)</td></tr>
-      <tr><td><code>RTTypes.h</code></td><td><strong>None</strong>(빈 헤더)</td><td>신규 — <code>ERecordSource</code>·<code>FArchiveRecord</code>(05 정본, 3단계)</td></tr>
+      <tr><td><code>RTDataTypes.h</code></td><td><strong>None</strong>(빈 헤더)</td><td>신규 — <code>ERecordSource</code>·<code>FArchiveRecord</code>(05 정본, 3단계)</td></tr>
       <tr><td><code>ArchiveSubsystem.h / .cpp</code></td><td>—</td><td><strong>새 파일 아님 — 내용 전체 교체.</strong> 09의 코드를 지우고 4~7단계의 최종형으로 다시 채움</td></tr>
     </table>
 
@@ -843,19 +848,19 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <div class="check-step">
         <div class="check-head" tabindex="0" role="button" aria-pressed="false">
           <div class="check-tick"><span class="tk-num">3</span></div>
-          <div><div class="check-title">RTTypes.h — 기록의 그릇 만들기</div><div class="check-why">ERecordSource + FArchiveRecord(05 정본)</div></div>
+          <div><div class="check-title">RTDataTypes.h — 기록의 그릇 만들기</div><div class="check-why">ERecordSource + FArchiveRecord(05 정본)</div></div>
         </div>
         <div class="check-body">
-          <p>에디터에서 <code>도구 &gt; 새로운 C++ 클래스</code> → <strong>None</strong>(빈 클래스) → 이름 <code>RTTypes</code>. 생성된 <span class="filetag h">RTTypes.h</span>를 아래로 교체하세요(<code>.cpp</code>는 include 한 줄만 남으면 됩니다).</p>
+          <p>에디터에서 <code>도구 &gt; 새로운 C++ 클래스</code> → <strong>None</strong>(빈 클래스) → 이름 <code>RTDataTypes</code>. 생성된 <span class="filetag h">RTDataTypes.h</span>를 아래로 교체하세요(<code>.cpp</code>는 include 한 줄만 남으면 됩니다).</p>
           <div class="codeblock">
             <div class="codeblock-bar">
-              <button class="codeblock-tab tab-h active" type="button">RTTypes.h</button>
+              <button class="codeblock-tab tab-h active" type="button">RTDataTypes.h</button>
               <button class="codeblock-copy" type="button">복사</button>
             </div>
-            <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// RTTypes.h — DB 행을 담는 런타임 캐시 struct들 (스키마 정본은 05 문서)</span>
+            <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// RTDataTypes.h — DB 행을 담는 런타임 캐시 struct들 (스키마 정본은 05 문서)</span>
 <span class="hljs-meta">#pragma once</span>
 <span class="hljs-meta">#include</span> <span class="hljs-string">"CoreMinimal.h"</span>
-<span class="hljs-meta">#include</span> <span class="hljs-string">"RTTypes.generated.h"</span>   <span class="hljs-comment">// UENUM·USTRUCT를 쓰므로 필요 — 항상 맨 마지막</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"RTDataTypes.generated.h"</span>   <span class="hljs-comment">// UENUM·USTRUCT를 쓰므로 필요 — 항상 맨 마지막</span>
 
 <span class="hljs-comment">// 기록이 어디서 왔나 — archives.Source 컬럼(INTEGER)에 대응.</span>
 <span class="hljs-comment">// 순서를 바꾸면 기존 DB의 숫자와 어긋나므로 뒤에만 추가할 것</span>
@@ -900,7 +905,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
             <div class="codeblock-panel active"><pre class="hljs"><span class="hljs-comment">// ArchiveSubsystem.h — archives 기능 전담(열닫·스키마는 문지기의 일)</span>
 <span class="hljs-meta">#pragma once</span>
 <span class="hljs-meta">#include</span> <span class="hljs-string">"Subsystems/GameInstanceSubsystem.h"</span>
-<span class="hljs-meta">#include</span> <span class="hljs-string">"RTTypes.h"</span>                     <span class="hljs-comment">// FArchiveRecord / ERecordSource (3단계)</span>
+<span class="hljs-meta">#include</span> <span class="hljs-string">"RTDataTypes.h"</span>                     <span class="hljs-comment">// FArchiveRecord / ERecordSource (3단계)</span>
 <span class="hljs-meta">#include</span> <span class="hljs-string">"ArchiveSubsystem.generated.h"</span>
 
 <span class="hljs-keyword">class</span> <span class="hljs-type">FSQLiteDatabase</span>;   <span class="hljs-comment">// 전방 선언 — 포인터만 들므로 실제 include는 .cpp에서</span>
@@ -1131,7 +1136,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td>BP 노드가 빨갛게 끊어짐</td><td>함수 시그니처 변경(정상) → 옛 노드 삭제 후 새 <code>Create Archive</code>(핀 5개)를 다시 배치</td></tr>
       <tr><td><code>[DB] 준비 완료</code> 로그가 없음</td><td>문지기 미완성 → 2단계(13 문서 1~5단계)로 돌아가 확인</td></tr>
       <tr><td>ArchiveSubsystem의 <code>Db</code>가 항상 nullptr</td><td><code>InitializeDependency</code> 줄 누락(5단계 Initialize) → 로그에서 <code>[DB] 준비 완료</code>가 먼저 찍히는지 확인</td></tr>
-      <tr><td><code>Cannot open include file: 'RTTypes.h'</code></td><td>3단계 파일이 다른 폴더(플랫/분리 레이아웃)에 생김 → <code>Public/</code>에 있는지 확인 후 재빌드</td></tr>
+      <tr><td><code>Cannot open include file: 'RTDataTypes.h'</code></td><td>3단계 파일이 다른 폴더(플랫/분리 레이아웃)에 생김 → <code>Public/</code>에 있는지 확인 후 재빌드</td></tr>
       <tr><td>기록이 최신순이 아님</td><td><code>ORDER BY CreatedAt DESC</code> 누락, 또는 Id 문자열로 정렬 중 → 6단계 쿼리 확인(07 규칙: 정렬은 날짜 컬럼)</td></tr>
       <tr><td><code>unresolved external</code> / include 에러</td><td>SQLite 모듈·빌드 문제 → 위키 『UE SQLite 배관』 트러블슈팅 표(원 09와 동일)</td></tr>
     </table>
@@ -1145,7 +1150,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>RecordTales V2 · Doc 14 저장 계층 재구축 v1.0</span>
+  <span>RecordTales V2 · Doc 14 저장 계층 재구축 v1.1</span>
   <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.9</span>
 </footer>
 

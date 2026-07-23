@@ -10,6 +10,11 @@
      지도(템플릿 04 데이터 설계 지도). 배치 근거는 03, 변수·여정은 10, 컬럼 정본은 05,
      구현 방식은 15가 담당 — 이 문서는 "조망"만 담고 겹치는 내용은 이름으로만 참조한다.
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.2 · 2026-07-22
+       - (개명) RTTypes.h → RTDataTypes.h (사용자 결정) — RTTables.h(시트 행의 모양)와 대칭인
+         "DB 행의 그릇" 역할이 이름에 드러나도록. 본문 표기·코드 include
+         (RTDataTypes.generated.h) 일괄 치환. 과거 CHANGELOG 이력 표기는 보존.
+       - (footer) v1.1 → v1.2.
      v1.1 · 2026-07-22
        - (동기화) 레벨업 1회성 보상 신설(05 v0.18) 반영 — DataTable 10종 → 11종:
          개요도 SVG·Mermaid 소스·위계 트리·ROW 카탈로그에 DT_Level_Reward 추가,
@@ -844,7 +849,7 @@ RecordTales V2 데이터
 │  ├─ 계정 축     player(항상 1행) / owned_characters / owned_abilities / buildings / archive_categories
 │  ├─ 길드 축     guilds / archives
 │  └─ 보호막      player.Secured · guilds.Secured   <span class="note">// AES 봉인 BLOB — 계층이 아니라 컬럼</span>
-└─ RUNTIME — 메모리 (RTTypes.h, 휘발)
+└─ RUNTIME — 메모리 (RTDataTypes.h, 휘발)
    ├─ enum 4종    ECharacterRarity / EAbilityRarity / EEffectType / ERecordSource
    ├─ 캐시 struct  FOwnedCharacter(+FOwnedAbility) / FBuildingState / FGuildData
    │              / FArchiveCategory / FArchiveRecord
@@ -917,7 +922,7 @@ RecordTales V2 데이터
     <div class="var-card">
       <div class="vc-head">
         <span class="vc-domain">Memory</span>
-        <span class="vc-file">RUNTIME — RTTypes.h &middot; 서브시스템 멤버 <span style="color:var(--ue-header)">(휘발)</span></span>
+        <span class="vc-file">RUNTIME — RTDataTypes.h &middot; 서브시스템 멤버 <span style="color:var(--ue-header)">(휘발)</span></span>
         <span class="vc-role">DB 행을 담는 그릇과 파생값 · 앱을 끄면 사라짐 — 저장 금지</span>
       </div>
       <div class="vc-var"><span class="vv-name">enum 4종</span><span class="vv-type">uint8</span><span class="vbadge run">RUN</span>
@@ -999,7 +1004,7 @@ RecordTales V2 데이터
 </div>
 
 <footer>
-  <span>RecordTales V2 &middot; 전체 데이터 위계 지도 v1.1</span>
+  <span>RecordTales V2 &middot; 전체 데이터 위계 지도 v1.2</span>
   <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.9</span>
 </footer>
 
