@@ -10,6 +10,10 @@
      지도(템플릿 04 데이터 설계 지도). 배치 근거는 03, 변수·여정은 10, 컬럼 정본은 05,
      구현 방식은 15가 담당 — 이 문서는 "조망"만 담고 겹치는 내용은 이름으로만 참조한다.
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.3 · 2026-07-24
+       - (동기화) settings 테이블 신설(05 v0.21) — DB 7테이블 → 8테이블: 개요도 SVG·Mermaid
+         소스·위계 트리(계정 축에 settings)·DB 카탈로그(settings 카드)·확장 규칙 표기 갱신.
+       - (footer) v1.2 → v1.3.
      v1.2 · 2026-07-22
        - (개명) RTTypes.h → RTDataTypes.h (사용자 결정) — RTTables.h(시트 행의 모양)와 대칭인
          "DB 행의 그릇" 역할이 이름에 드러나도록. 본문 표기·코드 include
@@ -736,7 +740,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   <div class="hero-eyebrow">RecordTales V2 &middot; v1.0 &middot; Data Hierarchy Map</div>
   <h1>전체 데이터<br><span>위계 지도</span></h1>
   <p class="hero-sub">
-    V2의 모든 데이터를 <strong>계층 &rarr; 그룹 &rarr; 항목</strong> 위계로 한 장에 내려다봅니다 — ROW(밸런스 표 11종) &middot; DB(<code>Archive.db</code> 7테이블) &middot; RUNTIME(캐시 struct &middot; 파생값). 이 문서는 <strong>조망 전용</strong>입니다: 배치 근거는 03, 변수 &middot; 여정은 10, 컬럼 정본은 05, 구현 방식은 15가 담당합니다.
+    V2의 모든 데이터를 <strong>계층 &rarr; 그룹 &rarr; 항목</strong> 위계로 한 장에 내려다봅니다 — ROW(밸런스 표 11종) &middot; DB(<code>Archive.db</code> 8테이블) &middot; RUNTIME(캐시 struct &middot; 파생값). 이 문서는 <strong>조망 전용</strong>입니다: 배치 근거는 03, 변수 &middot; 여정은 10, 컬럼 정본은 05, 구현 방식은 15가 담당합니다.
   </p>
   <div class="hero-meta">
     <span class="badge badge-blue">계층 &rarr; 그룹 &rarr; 항목</span>
@@ -800,7 +804,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
         <text class="dg-sub" x="165" y="181" text-anchor="middle">능력치 3 &middot; 캐릭터/가챠 5 &middot; 건물 2</text>
         <rect class="dg-node k-subsystem" x="340" y="120" width="270" height="76" rx="8"/>
         <text class="dg-text" x="475" y="145" text-anchor="middle">DB — Archive.db (SQLite)</text>
-        <text class="dg-sub" x="475" y="164" text-anchor="middle">7테이블 &middot; 문지기 소유 &middot; 트랜잭션</text>
+        <text class="dg-sub" x="475" y="164" text-anchor="middle">8테이블 &middot; 문지기 소유 &middot; 트랜잭션</text>
         <text class="dg-sub" x="475" y="181" text-anchor="middle">Secured 봉인 (player &middot; guilds)</text>
         <rect class="dg-node k-instance" x="185" y="266" width="270" height="70" rx="8"/>
         <text class="dg-text" x="320" y="289" text-anchor="middle">RUNTIME — 메모리 캐시</text>
@@ -827,7 +831,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   SHEET[<span class="hljs-string">"구글 시트 (기획) — 밸런스 원본"</span>] -- <span class="hljs-string">"CSV 내보내기 · 재임포트"</span> --&gt; ROW[<span class="hljs-string">"ROW — DataTable 11종 (읽기 전용)"</span>]
   GONE[<span class="hljs-string">"폐기 — USaveGame · UDeveloperSettings"</span>]
   ROW -- <span class="hljs-string">"표 조회"</span> --&gt; RUN[<span class="hljs-string">"RUNTIME — 메모리 캐시 · 파생값"</span>]
-  DB[<span class="hljs-string">"DB — Archive.db 7테이블 (문지기 소유)"</span>] -- <span class="hljs-string">"로드 (앱 시작 1회)"</span> --&gt; RUN
+  DB[<span class="hljs-string">"DB — Archive.db 8테이블 (문지기 소유)"</span>] -- <span class="hljs-string">"로드 (앱 시작 1회)"</span> --&gt; RUN
   RUN -- <span class="hljs-string">"저장 — UPDATE/INSERT (트랜잭션)"</span> --&gt; DB
   <span class="hljs-keyword">classDef</span> gone stroke-dasharray: 5 5
   <span class="hljs-keyword">class</span> GONE gone</pre></div>
@@ -845,8 +849,8 @@ RecordTales V2 데이터
 │  │              / DT_Character_Ability_GradeChance / DT_Character_Extract
 │  ├─ 건물        DT_Building / DT_Building_Upgrade
 │  └─ 레벨 보상    DT_Level_Reward
-├─ DB — 영속 상태 (Saved/Archive.db, 7테이블)
-│  ├─ 계정 축     player(항상 1행) / owned_characters / owned_abilities / buildings / archive_categories
+├─ DB — 영속 상태 (Saved/Archive.db, 8테이블)
+│  ├─ 계정 축     player(항상 1행) / owned_characters / owned_abilities / buildings / archive_categories / settings
 │  ├─ 길드 축     guilds / archives
 │  └─ 보호막      player.Secured · guilds.Secured   <span class="note">// AES 봉인 BLOB — 계층이 아니라 컬럼</span>
 └─ RUNTIME — 메모리 (RTDataTypes.h, 휘발)
@@ -898,7 +902,7 @@ RecordTales V2 데이터
     <div class="var-card">
       <div class="vc-head">
         <span class="vc-domain">Archive.db</span>
-        <span class="vc-file">DB — SQLite 7테이블 <span style="color:var(--ue-header)">(영속 상태)</span></span>
+        <span class="vc-file">DB — SQLite 8테이블 <span style="color:var(--ue-header)">(영속 상태)</span></span>
         <span class="vc-role">플레이어 진행이 사는 곳 · 상태=UPDATE / 기록=INSERT · 쓰기 주인은 테이블당 하나</span>
       </div>
       <div class="vc-var"><span class="vv-name">player</span><span class="vv-type">계정 &middot; 1행</span><span class="vbadge db">DB</span>
@@ -915,6 +919,8 @@ RecordTales V2 데이터
         <span class="vv-note">BuildingId&rarr;표 &middot; Level &middot; 배치 캐릭터(JSON) &middot; LastCollectTime(유휴 캡) — 주인: Estate</span></div>
       <div class="vc-var"><span class="vv-name">archives</span><span class="vv-type">기록당 1행</span><span class="vbadge db">DB</span>
         <span class="vv-note">Id "YYYYMMDDhhmmssSSS-{GUILDID}" &middot; GuildId &middot; Category &middot; CreatedAt(정렬 정본) &middot; DeletedAt — 주인: Archive</span></div>
+      <div class="vc-var"><span class="vv-name">settings</span><span class="vv-type">설정당 1행</span><span class="vbadge db">DB</span>
+        <span class="vv-note">Name(PK) &middot; Value — 유저 환경설정 키-값(주 시작 &middot; 시간대 &middot; 하루 경계 등). 행 없음 = 코드 기본값, 봉인 없음 — 주인: Settings(예정)</span></div>
       <div class="vc-var"><span class="vv-name">Secured (player &middot; guilds 컬럼)</span><span class="vv-type">BLOB</span><span class="vbadge db">DB</span>
         <span class="vv-note">AES(MAGIC | 값들 | CRC32) 봉인 사본 — 평문과 다르면 로드 때 자동 복원(판정 흐름: 03)</span></div>
     </div>
@@ -987,7 +993,7 @@ RecordTales V2 데이터
     <div class="pipe-step">
       <div class="pipe-num">2</div>
       <div class="pipe-body"><div class="pipe-title">DB라면 — 어느 축, 어느 테이블, 쓰기 주인은?</div>
-        <div class="pipe-desc">계정 축(모든 길드 공유)인지 길드 축(길드별)인지 정하고, 기존 7테이블에 컬럼으로 붙일지 새 테이블일지 판단합니다. <strong>쓰기 주인은 테이블당 하나</strong> — 소유 결정표(10)에 먼저 등록합니다.</div></div>
+        <div class="pipe-desc">계정 축(모든 길드 공유)인지 길드 축(길드별)인지 정하고, 기존 8테이블에 컬럼으로 붙일지 새 테이블일지 판단합니다. <strong>쓰기 주인은 테이블당 하나</strong> — 소유 결정표(10)에 먼저 등록합니다.</div></div>
     </div>
     <div class="pipe-step">
       <div class="pipe-num">3</div>
@@ -1004,7 +1010,7 @@ RecordTales V2 데이터
 </div>
 
 <footer>
-  <span>RecordTales V2 &middot; 전체 데이터 위계 지도 v1.2</span>
+  <span>RecordTales V2 &middot; 전체 데이터 위계 지도 v1.3</span>
   <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.9</span>
 </footer>
 

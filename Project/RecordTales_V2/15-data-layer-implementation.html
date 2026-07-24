@@ -10,6 +10,10 @@
      한눈에 잇는 통합 해설(템플릿 02-A). 상세 절차 정본은 05·09·11·12·13·14가 담당하며
      이 문서는 계층별 구현체·절차·핵심 스켈레톤만 담는다.
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.4 · 2026-07-24
+       - (동기화) settings 테이블 신설(05 v0.21)에 따라 "7테이블/7종" 표기 → 8로 갱신,
+         책임 표에 settings=Settings(예정) 반영. 구조 변경 없음.
+       - (footer) v1.3 → v1.4.
      v1.3 · 2026-07-22
        - (개명) RTTypes.h → RTDataTypes.h (사용자 결정) — RTTables.h(시트 행의 모양)와 대칭인
          "DB 행의 그릇" 역할이 이름에 드러나도록. 본문 표기·코드 include
@@ -768,7 +772,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr>
         <td><strong>DB</strong> — 영속 상태</td>
         <td>SQLite 플러그인 + DB 문지기 서브시스템</td>
-        <td><code>DatabaseSubsystem.h/.cpp</code> &middot; <code>Saved/Archive.db</code>(7테이블)</td>
+        <td><code>DatabaseSubsystem.h/.cpp</code> &middot; <code>Saved/Archive.db</code>(8테이블)</td>
       </tr>
       <tr>
         <td><strong>RUNTIME</strong> — 메모리 캐시</td>
@@ -815,7 +819,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       </div>
       <div class="rel-row">
         <div class="rel-node n-subsystem" style="border-left-color:var(--accent)"><div class="rn-name">UDatabaseSubsystem</div><div class="rn-role">DB 문지기 — 단독 소유</div></div>
-        <div class="rel-arrow"><span class="ra-label">Open &middot; CREATE TABLE 7종 &middot; 트랜잭션</span><span class="ra-line">&rarr;</span></div>
+        <div class="rel-arrow"><span class="ra-label">Open &middot; CREATE TABLE 8종 &middot; 트랜잭션</span><span class="ra-line">&rarr;</span></div>
         <div class="rel-node n-subsystem" style="border-left-color:var(--accent)"><div class="rn-name">Saved/Archive.db</div><div class="rn-role">DB — SQLite 파일</div></div>
       </div>
       <div class="rel-row">
@@ -867,7 +871,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr>
         <td>테이블별 행 쓰기 (INSERT &middot; UPDATE)</td>
         <td><span class="owner o-subsystem">각 주인 서브시스템</span></td>
-        <td>player=Economy &middot; guilds &middot; 소분류=Guild &middot; owned_*=Gacha &middot; buildings=Estate &middot; archives=Archive. 쓰기 주인은 테이블당 하나.</td>
+        <td>player=Economy &middot; guilds &middot; 소분류=Guild &middot; owned_*=Gacha &middot; buildings=Estate &middot; archives=Archive &middot; settings=Settings(예정). 쓰기 주인은 테이블당 하나.</td>
       </tr>
       <tr>
         <td>RUNTIME 캐시 &middot; 파생값</td>
@@ -908,7 +912,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <div class="pipe-step">
       <div class="pipe-num">2</div>
       <div class="pipe-body"><div class="pipe-title">문지기 — <code>UDatabaseSubsystem</code></div>
-        <div class="pipe-desc"><code>UGameInstanceSubsystem</code> 파생이라 앱 시작 &middot; 종료 시 <code>Initialize</code>/<code>Deinitialize</code>가 자동 호출됩니다 — 서브시스템 수명 = DB 수명. 열기(<code>Saved/Archive.db</code>) &rarr; <code>PRAGMA foreign_keys = ON</code> &rarr; <code>CREATE TABLE IF NOT EXISTS</code> 7종(FK 순서) &rarr; 트랜잭션 3함수 제공. 통합 정본은 13 문서.</div></div>
+        <div class="pipe-desc"><code>UGameInstanceSubsystem</code> 파생이라 앱 시작 &middot; 종료 시 <code>Initialize</code>/<code>Deinitialize</code>가 자동 호출됩니다 — 서브시스템 수명 = DB 수명. 열기(<code>Saved/Archive.db</code>) &rarr; <code>PRAGMA foreign_keys = ON</code> &rarr; <code>CREATE TABLE IF NOT EXISTS</code> 8종(FK 순서) &rarr; 트랜잭션 3함수 제공. 통합 정본은 13 문서.</div></div>
     </div>
     <div class="pipe-step">
       <div class="pipe-num">3</div>
@@ -940,7 +944,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 
     <div class="callout info" style="margin-top:10px">
       <span class="ic">&#x1F9ED;</span>
-      <p><strong>착수 순서.</strong> 처음부터 만든다면 09(한 컬럼 왕복으로 배관 검증) &rarr; 13(문지기 + 7테이블) &rarr; 기능 서브시스템 확장(11 Economy &rarr; 12 Guild &rarr; Gacha &middot; Estate), ROW 표는 필요해지는 시점에 구조체 + CSV로 추가. <strong>현재 리포 기준 실작업 정본은 14 저장 계층 재구축(8단계)</strong>이며, 전체 코드 완성본은 마스터 페이지가 담고 있습니다.</p>
+      <p><strong>착수 순서.</strong> 처음부터 만든다면 09(한 컬럼 왕복으로 배관 검증) &rarr; 13(문지기 + 8테이블) &rarr; 기능 서브시스템 확장(11 Economy &rarr; 12 Guild &rarr; Gacha &middot; Estate), ROW 표는 필요해지는 시점에 구조체 + CSV로 추가. <strong>현재 리포 기준 실작업 정본은 14 저장 계층 재구축(8단계)</strong>이며, 전체 코드 완성본은 마스터 페이지가 담고 있습니다.</p>
     </div>
   </div>
 
@@ -1037,7 +1041,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     <span class="hljs-keyword">bool</span> <span class="hljs-title">CommitTransaction</span>();    <span class="hljs-comment">// COMMIT — 묶은 변경을 한 번에 확정</span>
     <span class="hljs-keyword">bool</span> <span class="hljs-title">RollbackTransaction</span>();  <span class="hljs-comment">// ROLLBACK — 중간 실패 시 전부 원상 복귀</span>
 <span class="hljs-keyword">private</span>:
-    <span class="hljs-keyword">void</span> <span class="hljs-title">CreateTables</span>();         <span class="hljs-comment">// CREATE TABLE IF NOT EXISTS 7종 — FK 순서 보장(DDL 정본: 05)</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title">CreateTables</span>();         <span class="hljs-comment">// CREATE TABLE IF NOT EXISTS 8종 — FK 순서 보장(DDL 정본: 05)</span>
     <span class="hljs-type">FSQLiteDatabase</span> Database;     <span class="hljs-comment">// DB 핸들 실체 — 이 서브시스템만 소유(수명 = 앱 세션)</span>
     <span class="hljs-keyword">bool</span> bInTransaction = <span class="hljs-literal">false</span>;  <span class="hljs-comment">// 중첩 BEGIN 방지 플래그</span>
 };</pre></div>
@@ -1057,7 +1061,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     }
 
     Database.Execute(<span class="hljs-string">TEXT("PRAGMA foreign_keys = ON;")</span>);   <span class="hljs-comment">// 3) FK 강제 — 연결(세션)마다 다시 켜야 함</span>
-    CreateTables();                                        <span class="hljs-comment">// 4) 7테이블 보장 — 기능 시스템이 깨기 전에 스키마 완성</span>
+    CreateTables();                                        <span class="hljs-comment">// 4) 8테이블 보장 — 기능 시스템이 깨기 전에 스키마 완성</span>
 }
 
 <span class="hljs-keyword">void</span> <span class="hljs-type">UDatabaseSubsystem</span>::<span class="hljs-title">Deinitialize</span>()
@@ -1158,7 +1162,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>RecordTales V2 &middot; 데이터 3계층 구현 해설 v1.3</span>
+  <span>RecordTales V2 &middot; 데이터 3계층 구현 해설 v1.4</span>
   <span>기준 디자인: Dark &middot; Indigo Minimal &middot; Editorial &middot; Master v1.9</span>
 </footer>
 

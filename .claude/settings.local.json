@@ -30,7 +30,9 @@
       "Bash(mkdir -p \"/private/tmp/claude-501/-Users-dane-jeong-Documents------UE-Development/6640a961-1ab4-43d7-a308-911a95f06749/scratchpad\")",
       "Read(//tmp/**)",
       "Bash(cd \"/Users/dane.jeong/Documents/이후삭제/UE_Development/Project/RecordTales_V2\" *)",
-      "Bash(grep -n \"치트 유인 값 3개\\\\|In.AccountFocusSeconds;\\\\|4+8+4+8\\\\|lt; F;\\\\|PayloadBytes\\\\|Out.Gold\\\\|SealAccount\\({ Gold\\\\|UPDATE player SET\\\\|SELECT Gold, Shards\\\\|Real.Gold != PlainGold\\\\|보호 값 3종\\\\|밸런스 DataTable 5종\\\\|여섯 파일\\\\|AccountFocusSeconds INTEGER\" recordtales_v2-masterpage.html)"
+      "Bash(grep -n \"치트 유인 값 3개\\\\|In.AccountFocusSeconds;\\\\|4+8+4+8\\\\|lt; F;\\\\|PayloadBytes\\\\|Out.Gold\\\\|SealAccount\\({ Gold\\\\|UPDATE player SET\\\\|SELECT Gold, Shards\\\\|Real.Gold != PlainGold\\\\|보호 값 3종\\\\|밸런스 DataTable 5종\\\\|여섯 파일\\\\|AccountFocusSeconds INTEGER\" recordtales_v2-masterpage.html)",
+      "Bash(grep -v \"^[1-9][0-9]\\\\{0,1\\\\}:\")",
+      "Bash(grep -v \"^[0-9]\\\\{1,2\\\\}:\")"
     ]
   }
 }

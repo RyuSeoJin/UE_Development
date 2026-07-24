@@ -8,6 +8,11 @@
      CHANGELOG — 10-code-variable-map.html
      RecordTales V2 코드 & 변수 연결 지도 (Track B · 04 데이터 설계 지도 템플릿).
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md + DOC-TRACKS.md (STEP 6)
+     v1.5 · 2026-07-24
+       - (구조 반영) settings 테이블 신설(05 v0.21, 사용자 확정) — 유저 환경설정 키-값(계정 축),
+         테이블 7종 → 8종. 소유 결정표에 "환경설정 = SettingsSubsystem(예정)" 행 추가.
+         진행 상태(player)와 환경설정(settings)의 분리 근거: 바꾸는 주체가 다름(게임 vs 유저),
+         봉인 불필요. 창 모드·해상도는 엔진 GameUserSettings.ini 소관(DB 복제 금지).
      v1.4 · 2026-07-20
        - (구조 반영) 길드 시스템 확정(12 v0.1) — guilds 주인 Economy → GuildSubsystem 이관(소유 결정표·
          Economy 카드 노트), 카테고리 2축(대분류=길드 속성 / 소분류=계정 공유 archive_categories) 반영,
@@ -513,8 +518,8 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     </div>
     <div class="pitfall tip"><span class="ic">💡</span><div class="pitfall-text"><strong>이름 주의</strong> — 설계 문서(00·01·07)의 <code>URecordSubsystem</code> 역할을 실코드에서는 <code>UArchiveSubsystem</code>(09에서 생성·검증)이 맡습니다. 이 지도는 실코드 이름을 기준으로 합니다.</div></div>
 
-    <h3>Archive.db 테이블 7종 — 영속 데이터의 전체 목록</h3>
-    <p>풀-DB이므로 "껐다 켜도 남는 것"은 전부 이 일곱 테이블 중 하나에 삽니다. 도입은 09의 리듬대로 <strong>한 테이블씩</strong>(쉬운 것부터) 넓힙니다.</p>
+    <h3>Archive.db 테이블 8종 — 영속 데이터의 전체 목록</h3>
+    <p>풀-DB이므로 "껐다 켜도 남는 것"은 전부 이 여덟 테이블 중 하나에 삽니다. 도입은 09의 리듬대로 <strong>한 테이블씩</strong>(쉬운 것부터) 넓힙니다.</p>
     <table class="tbl">
       <tr><th>순서</th><th>테이블</th><th>행 단위</th><th>주요 쓰기</th><th>내용</th></tr>
       <tr><td>1</td><td><code>player</code></td><td><strong>항상 1행</strong></td><td>UPDATE</td><td>Gold · Shards · AccountXp (계정 상태)</td></tr>
@@ -524,6 +529,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td>3</td><td><code>owned_abilities</code></td><td>능력치당 1행</td><td>INSERT/UPDATE</td><td>InstanceId(<strong>FK</strong>) · Slot · Rarity · Step — 캐릭터 1:N</td></tr>
       <tr><td>4</td><td><code>buildings</code></td><td>건물당 1행</td><td>INSERT/UPDATE</td><td>BuildingRow · Level · 배치 캐릭터</td></tr>
       <tr><td>✓</td><td><code>archives</code></td><td>기록당 1행</td><td>INSERT/UPDATE</td><td>GuildId · Category · Duration · <code>DeletedAt</code>(소프트 삭제) — 09에서 가동 중</td></tr>
+      <tr><td>5</td><td><code>settings</code></td><td>설정당 1행</td><td>INSERT/UPDATE</td><td>Name(PK) · Value — <strong>유저 환경설정 키-값</strong>(계정 축): 주 시작·시간대·하루 경계 등. 행 없음 = 코드 기본값 — 아카이브 뷰 구현 시 가동</td></tr>
     </table>
     <div class="callout tip"><span class="ic">🔗</span><p><strong>외래키(FK)가 처음 실전 투입되는 지점</strong> — <code>owned_abilities.InstanceId</code>는 <code>owned_characters</code>를 참조합니다. 09에서 켜 둔 <code>PRAGMA foreign_keys = ON</code>이 여기서 일합니다: 존재하지 않는 캐릭터에 능력치 행을 넣으면 DB가 거부합니다.</p></div>
 
@@ -553,6 +559,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td>OwnedCharacters(등급·개화·단계)</td><td><span class="owner o-subsystem">GachaSubsystem</span></td><td><span class="vbadge db">DB</span> <code>owned_*</code></td><td>계정</td><td>로스터는 계정 공유 — 뽑기/강화/추출 모두 여기서만, 다중 테이블 변경은 트랜잭션</td></tr>
       <tr><td>BuildingStates</td><td><span class="owner o-subsystem">EstateSubsystem</span></td><td><span class="vbadge db">DB</span> <code>buildings</code></td><td>계정</td><td>영지는 계정 단위 홈 화면</td></tr>
       <tr><td>아카이브 기록 · DeletedAt</td><td><span class="owner o-subsystem">ArchiveSubsystem</span></td><td><span class="vbadge db">DB</span></td><td><strong>길드</strong></td><td>누적+검색형 — 행에 GuildId를 새겨 길드 스코프 유지, 소프트 삭제는 UPDATE 한 줄</td></tr>
+      <tr><td>환경설정(주 시작·시간대·하루 경계·볼륨 등)</td><td><span class="owner o-subsystem">SettingsSubsystem (예정)</span></td><td><span class="vbadge db">DB</span></td><td><strong>계정</strong></td><td>settings 키-값 — 진행 상태와 분리(봉인 불필요). 창 모드·해상도는 엔진 GameUserSettings.ini 소관</td></tr>
       <tr><td>가챠·개화·강화·추출 확률/비용</td><td><span class="owner o-savegame">기획(구글 시트)</span></td><td><span class="vbadge row">ROW</span></td><td>—</td><td>코드는 읽기만 — 밸런싱은 시트→CSV 재임포트로</td></tr>
       <tr><td>세션 타이머 · 가챠 후보 3장</td><td><span class="owner o-subsystem">Focus/GachaSubsystem</span></td><td><span class="vbadge run">RUNTIME</span></td><td>—</td><td>결과(기록·캐릭터)만 남기고 과정은 버림</td></tr>
       <tr><td>DB 열닫 · 스키마 · 트랜잭션 시점</td><td><span class="owner o-subsystem">DatabaseSubsystem</span></td><td>—</td><td>—</td><td><strong>DB 문지기</strong>(11에서 분리) — 열닫·CREATE TABLE·다중 테이블 트랜잭션의 단일 창구. 기능 시스템들은 대등하게 의존(수명=앱)</td></tr>
@@ -852,7 +859,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
 </div>
 
 <footer>
-  <span>RecordTales V2 · Doc 10 코드 &amp; 변수 연결 지도 · 기준 마스터 v1.8</span>
+  <span>RecordTales V2 · Doc 10 코드 &amp; 변수 연결 지도 v1.5 · 기준 마스터 v1.8</span>
   <span>Dark · Indigo Minimal · Editorial</span>
 </footer>
 

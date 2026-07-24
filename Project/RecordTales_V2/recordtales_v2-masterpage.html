@@ -9,6 +9,12 @@
      RecordTales V2 저장 계층의 통합 마스터 페이지 — 이 파일 하나만으로 구조 파악과
      전체 구현(.h/.cpp)을 완료할 수 있는 자립형 문서(사용자 요청). 템플릿 02-B 기반.
      작업 규약: doc-process/DOC-GENERATION-PLAYBOOK.md (STEP 6)
+     v1.4 · 2026-07-24
+       - (반영) settings 테이블 신설(05 v0.21 · 13 v1.2, 사용자 확정) — 7테이블 → 8테이블:
+         지도 표에 settings 행(주인 Settings 예정), CreateTables ⑧ 코드 추가(FK 없음·맨 끝),
+         검증 시나리오 2의 테이블 목록 갱신. 주인 서브시스템(USettingsSubsystem)은 아카이브 뷰
+         구현 시 신설 — 표는 문지기가 미리 생성. 파일 7종 표기는 그대로(코드 파일 수 불변).
+       - (footer) v1.3 → v1.4.
      v1.3 · 2026-07-22
        - (반영) 레벨업 1회성 보상(05 v0.18 · 06 v0.4) 통합 — 후속 개정 대상 해제:
          · 지도: player 컬럼 LastRewardedLevel · DataTable 5종→6종(DT_Level_Reward, ⑤가 사용)
@@ -763,7 +769,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
   <!-- ============================== 01 전체 지도 -->
   <div class="section" id="map">
     <div class="section-label">01 — 전체 지도</div>
-    <h2>구조를 한 화면에 — 3계층 · 1파일 · 7테이블 · 2축</h2>
+    <h2>구조를 한 화면에 — 3계층 · 1파일 · 8테이블 · 2축</h2>
 
     <div class="callout info"><span class="ic">📌</span><p><strong>이 페이지의 기준 시점</strong> — 2026-07-21 확정 설계의 통합 스냅샷입니다(원 출처: 05 v0.17 · 11 v0.2 · 12 v0.2 · 13 v1.1 · 14 v1.0 — 읽을 필요는 없고, 이후 설계가 바뀌면 이 페이지도 함께 개정한다는 표식입니다). 코드·수치·스키마는 전부 이 안에 있습니다.</p></div>
 
@@ -781,7 +787,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <div class="arch-layer">
         <div class="arch-tag">인프라 계층</div>
         <div class="arch-title">DatabaseSubsystem (문지기)</div>
-        <div class="arch-desc">DB 열닫 · 7테이블 생성 · 트랜잭션 창구 — 게임 기능 0줄</div>
+        <div class="arch-desc">DB 열닫 · 8테이블 생성 · 트랜잭션 창구 — 게임 기능 0줄</div>
       </div>
       <div class="arch-arrow">→</div>
       <div class="arch-layer">
@@ -792,7 +798,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
     </div>
     <div class="callout tip"><span class="ic">🚪</span><p><strong>문지기(Gatekeeper) 패턴</strong> — DB 실물(<code>FSQLiteDatabase</code> 값 멤버)은 문지기 <strong>한 곳만</strong> 소유하고, 기능 시스템들은 <code>Initialize</code>에서 <code>Collection.InitializeDependency<wbr>&lt;UDatabaseSubsystem&gt;()</code>(= "문지기를 나보다 먼저 초기화해 달라"는 엔진 API)로 순서를 보장받은 뒤 <code>GetDb()</code>로 핸들 포인터를 <strong>빌려서만</strong> 씁니다. 코드에서 <code>Database.</code>(점)이 보이면 소유자, <code>Db-&gt;</code>(화살표)가 보이면 대여자입니다.</p></div>
 
-    <h3>Archive.db의 7테이블 — 영속 데이터의 전체 목록</h3>
+    <h3>Archive.db의 8테이블 — 영속 데이터의 전체 목록</h3>
     <table class="tbl">
       <tr><th>테이블</th><th>행 단위</th><th>축</th><th>주요 컬럼</th><th>쓰기</th><th>주인(쓰기 권한)</th></tr>
       <tr><td><code>player</code></td><td><strong>항상 1행</strong></td><td>계정</td><td>Gold·Shards·AccountFocusSeconds·LastRewardedLevel·Secured(BLOB)</td><td>UPDATE</td><td><span class="owner o-subsystem">EconomySubsystem</span></td></tr>
@@ -802,8 +808,9 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><td><code>owned_abilities</code></td><td>능력치당 1행</td><td>계정</td><td>InstanceId(<strong>FK→캐릭터, CASCADE</strong>)·Slot·AbilityId·Step</td><td>INSERT/UPDATE</td><td><span class="owner o-subsystem">GachaSubsystem (예정)</span></td></tr>
       <tr><td><code>buildings</code></td><td>건물당 1행</td><td>계정</td><td>BuildingId(PK)·Level·DeployedInstanceIds(JSON)·LastCollectTime</td><td>INSERT/UPDATE</td><td><span class="owner o-subsystem">EstateSubsystem (예정)</span></td></tr>
       <tr><td><code>archives</code></td><td>기록당 1행</td><td>길드</td><td>Id(<code>YYYYMMDDhhmmssSSS-{GUILDID}</code>)·GuildId·Category·Source·CreatedAt·DurationSeconds·Title·DeletedAt</td><td>INSERT/UPDATE</td><td><span class="owner o-subsystem">ArchiveSubsystem</span></td></tr>
+      <tr><td><code>settings</code></td><td>설정당 1행</td><td>계정</td><td>Name(PK)·Value — <strong>유저 환경설정 키-값</strong>(주 시작·시간대·하루 경계 등, 행 없음 = 코드 기본값)</td><td>INSERT/UPDATE</td><td><span class="owner o-subsystem">SettingsSubsystem (예정)</span></td></tr>
     </table>
-    <div class="callout info"><span class="ic">🔗</span><p><strong>테이블 7종은 문지기가 앱 시작 순간 전부 생성</strong>합니다(03의 <code>CreateTables()</code>). Gacha·Estate를 아직 안 만들었어도 테이블은 미리 존재합니다 — 나중에 해당 서브시스템이 생기면 <strong>이미 준비된 테이블을 쓰기 시작</strong>할 뿐입니다.</p></div>
+    <div class="callout info"><span class="ic">🔗</span><p><strong>테이블 8종은 문지기가 앱 시작 순간 전부 생성</strong>합니다(03의 <code>CreateTables()</code>). Gacha·Estate·Settings를 아직 안 만들었어도 테이블은 미리 존재합니다 — 나중에 해당 서브시스템이 생기면 <strong>이미 준비된 테이블을 쓰기 시작</strong>할 뿐입니다.</p></div>
 
     <h3>2축 — 모든 저장 값에는 소속이 있다</h3>
     <table class="tbl">
@@ -818,7 +825,7 @@ footer { border-top: 1px solid var(--border); padding: 28px 48px; max-width: 920
       <tr><th>파일</th><th>계층</th><th>역할</th><th>담당 테이블</th></tr>
       <tr><td><code>RTDataTypes.h</code></td><td>타입</td><td>공용 그릇 4종: <code>ERecordSource</code>·<code>FArchiveRecord</code>·<code>FArchiveCategory</code>·<code>FGuildData</code></td><td>—</td></tr>
       <tr><td><code>RTTables.h</code></td><td>타입</td><td>시트 행 구조체 — 지금은 <code>FLevelRewardRow</code>(레벨 보상)만, 가챠·건물 구현 시 확장(정본: 05)</td><td>— (<code>DT_Level_Reward</code> 조회)</td></tr>
-      <tr><td><code>DatabaseSubsystem.h/.cpp</code></td><td>인프라</td><td><strong>문지기</strong> — 열닫·<code>CreateTables()</code> 7종·트랜잭션 3함수(중첩 방지 플래그)</td><td>전 테이블 <strong>생성만</strong></td></tr>
+      <tr><td><code>DatabaseSubsystem.h/.cpp</code></td><td>인프라</td><td><strong>문지기</strong> — 열닫·<code>CreateTables()</code> 8종·트랜잭션 3함수(중첩 방지 플래그)</td><td>전 테이블 <strong>생성만</strong></td></tr>
       <tr><td><code>RTSecured.h/.cpp</code></td><td>인프라</td><td>치트 방어 — AES 봉인/개봉 자유 함수 4개(계정·길드), 32바이트 비밀키</td><td>—</td></tr>
       <tr><td><code>ArchiveSubsystem.h/.cpp</code></td><td>기능</td><td>기록 생성(ID 발급)·조회(필터·정렬)·소프트 삭제/복원</td><td><code>archives</code></td></tr>
       <tr><td><code>EconomySubsystem.h/.cpp</code></td><td>기능</td><td>재화·계정 시간·레벨업 보상의 쓰기 창구, Secured 자동 복원(치트 시 되돌림)</td><td><code>player</code></td></tr>
@@ -918,7 +925,7 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
     <div class="pipe-step">
       <div class="pipe-num">2</div>
       <div class="pipe-body"><div class="pipe-title">DatabaseSubsystem — 문지기</div>
-        <div class="pipe-desc">토대. 열닫 + 7테이블 + 트랜잭션 창구. 완료 판정: <code>CreateTables()</code>에 CREATE TABLE 7개와 <code>INSERT OR IGNORE player</code> 1줄.</div></div>
+        <div class="pipe-desc">토대. 열닫 + 8테이블 + 트랜잭션 창구. 완료 판정: <code>CreateTables()</code>에 CREATE TABLE 8개와 <code>INSERT OR IGNORE player</code> 1줄.</div></div>
     </div>
     <div class="pipe-step">
       <div class="pipe-num">3</div>
@@ -933,7 +940,7 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
     <div class="pipe-step">
       <div class="pipe-num">5</div>
       <div class="pipe-body"><div class="pipe-title">빌드 1회 → 검증</div>
-        <div class="pipe-desc">위 ④의 절차로 빌드 후, 04의 검증 시나리오(로그 순서 → 7테이블 → 기록 왕복 → 치트 복원 → 레벨 보상 → 길드/카테고리)를 순서대로.</div></div>
+        <div class="pipe-desc">위 ④의 절차로 빌드 후, 04의 검증 시나리오(로그 순서 → 8테이블 → 기록 왕복 → 치트 복원 → 레벨 보상 → 길드/카테고리)를 순서대로.</div></div>
     </div>
   </div>
 
@@ -1029,7 +1036,7 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
     <span class="hljs-meta">GENERATED_BODY()</span>
 
 <span class="hljs-keyword">public</span>:
-    <span class="hljs-comment">// 게임(앱) 시작 시 엔진이 자동 1회 호출 — 여기서 DB를 열고 7테이블을 보장한다</span>
+    <span class="hljs-comment">// 게임(앱) 시작 시 엔진이 자동 1회 호출 — 여기서 DB를 열고 8테이블을 보장한다</span>
     <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Initialize</span>(<span class="hljs-type">FSubsystemCollectionBase</span>&amp; Collection) <span class="hljs-keyword">override</span>;
     <span class="hljs-comment">// 게임 종료 시 자동 호출 — 열었던 곳에서 닫는다(수명 대칭)</span>
     <span class="hljs-keyword">virtual</span> <span class="hljs-keyword">void</span> <span class="hljs-title">Deinitialize</span>() <span class="hljs-keyword">override</span>;
@@ -1045,7 +1052,7 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
     <span class="hljs-type">bool</span> <span class="hljs-title">RollbackTransaction</span>();   <span class="hljs-comment">// ROLLBACK — 중간 실패 시 전부 원상 복귀</span>
 
 <span class="hljs-keyword">private</span>:
-    <span class="hljs-keyword">void</span> <span class="hljs-title">CreateTables</span>();          <span class="hljs-comment">// CREATE TABLE IF NOT EXISTS 7종 — FK 순서 보장</span>
+    <span class="hljs-keyword">void</span> <span class="hljs-title">CreateTables</span>();          <span class="hljs-comment">// CREATE TABLE IF NOT EXISTS 8종 — FK 순서 보장</span>
     <span class="hljs-type">FSQLiteDatabase</span> Database;      <span class="hljs-comment">// DB 핸들 실체 — 이 서브시스템만 소유</span>
     <span class="hljs-type">bool</span> bInTransaction = <span class="hljs-literal">false</span>;   <span class="hljs-comment">// 중첩 BEGIN 방지 — SQLite는 트랜잭션 중첩 불가</span>
 };</pre></div>
@@ -1070,7 +1077,7 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
     }
 
     Database.<span class="hljs-title">Execute</span>(<span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"PRAGMA foreign_keys = ON;"</span>));   <span class="hljs-comment">// FK 강제 — 연결(세션)마다 다시 켜야 함</span>
-    <span class="hljs-title">CreateTables</span>();                                        <span class="hljs-comment">// 7테이블 보장</span>
+    <span class="hljs-title">CreateTables</span>();                                        <span class="hljs-comment">// 8테이블 보장</span>
     UE_LOG(LogTemp, Log, <span class="hljs-built_in">TEXT</span>(<span class="hljs-string">"[DB] 준비 완료"</span>));           <span class="hljs-comment">// 검증의 첫 확인 기준</span>
 }
 
@@ -1164,6 +1171,14 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
         <span class="hljs-string">"  DurationSeconds INTEGER NOT NULL DEFAULT 0,"</span>
         <span class="hljs-string">"  Title           TEXT,"</span>
         <span class="hljs-string">"  DeletedAt       TEXT"</span>                              <span class="hljs-comment">// 소프트 삭제 시각(NULL = 살아있음)</span>
+        <span class="hljs-string">");"</span>));
+
+    <span class="hljs-comment">// ⑧ settings — 유저 환경설정 키-값(05 v0.21). FK 없음 — 순서 무관이라 맨 끝.</span>
+    <span class="hljs-comment">//   주인(USettingsSubsystem)은 아카이브 뷰 구현 시 신설 — 표는 문지기가 미리 보장한다</span>
+    Database.<span class="hljs-title">Execute</span>(<span class="hljs-built_in">TEXT</span>(
+        <span class="hljs-string">"CREATE TABLE IF NOT EXISTS settings ("</span>
+        <span class="hljs-string">"  Name  TEXT PRIMARY KEY,"</span>                           <span class="hljs-comment">// 설정 이름(예: 'WeekStartsOn')</span>
+        <span class="hljs-string">"  Value TEXT NOT NULL"</span>                               <span class="hljs-comment">// 값은 전부 문자열 — 읽는 쪽이 파싱. 행 없음 = 코드 기본값</span>
         <span class="hljs-string">");"</span>));
 }
 
@@ -1953,7 +1968,7 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
     <table class="tbl">
       <tr><th>#</th><th>확인</th><th>방법</th><th>기대 결과</th></tr>
       <tr><td>1</td><td>초기화 순서</td><td>PIE 1회 실행 → <code>창 &gt; 출력 로그</code></td><td><code>[DB] 경로</code> → <code>[DB] 준비 완료</code>가 <code>[Economy] …</code> 등 기능 로그보다 <strong>먼저</strong></td></tr>
-      <tr><td>2</td><td>7테이블 생성</td><td>게임 종료 → DB Browser로 <code>Saved/Archive.db</code> 열기</td><td>player(1행 자동)·guilds·archive_categories·owned_characters·owned_abilities·buildings·archives + <code>sqlite_sequence</code>(AUTOINCREMENT 장부 — 정상, 삭제 금지)</td></tr>
+      <tr><td>2</td><td>8테이블 생성</td><td>게임 종료 → DB Browser로 <code>Saved/Archive.db</code> 열기</td><td>player(1행 자동)·guilds·archive_categories·owned_characters·owned_abilities·buildings·archives·settings + <code>sqlite_sequence</code>(AUTOINCREMENT 장부 — 정상, 삭제 금지)</td></tr>
       <tr><td>3</td><td>기록 왕복+휴지통</td><td>BP: <code>Create Archive(1, "테스트", Timer, 1500, "첫 기록")</code> → <code>Get Archives(-1)</code> → <code>Soft Delete</code> → <code>Restore</code></td><td>Id가 <code>20260721…-000001</code> 형식, 삭제 후 목록에서 사라지고 복원 후 부활</td></tr>
       <tr><td>4</td><td>재화 저장</td><td>BP: <code>Add Gold(100)</code> → PIE 재시작 → <code>Get Gold</code></td><td>재시작 후에도 <code>100</code></td></tr>
       <tr><td>5</td><td>치트 자동 복원</td><td>게임 종료 상태에서 DB Browser로 <code>player.Gold</code>를 999999로 수정 + Write Changes → 재실행</td><td>로그에 "비정상 데이터 감지 — 복구", Gold는 원래 값</td></tr>
@@ -1982,14 +1997,14 @@ PublicDependencyModuleNames.<span class="hljs-title">AddRange</span>(<span class
 
     <div class="callout tip" style="margin-top:14px">
       <span class="ic">✅</span>
-      <p><strong>여기까지 되면</strong> — V2 저장 계층의 뼈대(문지기 · 7테이블 · 기록 · 재화 · 길드 · 치트 방어)가 완성입니다. 다음 확장(가챠·영지)도 같은 리듬입니다: 테이블은 이미 준비돼 있으니(④~⑥) <strong>RTDataTypes.h에 그릇 추가 → 주인 서브시스템 생성(연결 관례 2줄) → INSERT/UPDATE 작성 → 다중 테이블 변경은 문지기 트랜잭션으로</strong>. 이 네 걸음이 전부입니다.</p>
+      <p><strong>여기까지 되면</strong> — V2 저장 계층의 뼈대(문지기 · 8테이블 · 기록 · 재화 · 길드 · 치트 방어)가 완성입니다. 다음 확장(가챠·영지)도 같은 리듬입니다: 테이블은 이미 준비돼 있으니(④~⑥) <strong>RTDataTypes.h에 그릇 추가 → 주인 서브시스템 생성(연결 관례 2줄) → INSERT/UPDATE 작성 → 다중 테이블 변경은 문지기 트랜잭션으로</strong>. 이 네 걸음이 전부입니다.</p>
     </div>
   </div>
 
 </div>
 
 <footer>
-  <span>RecordTales V2 · 마스터 페이지 (저장 계층 통합) v1.3</span>
+  <span>RecordTales V2 · 마스터 페이지 (저장 계층 통합) v1.4</span>
   <span>기준 디자인: Dark · Indigo Minimal · Editorial · Master v1.9</span>
 </footer>
 
